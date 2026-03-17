@@ -5,13 +5,15 @@ import {
   Save,
   Plus,
   X,
-  CreditCard,
   Trash2,
   AlertTriangle,
 } from 'lucide-react';
 import { db } from '../lib/firebase.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
+import { PlanSelector } from '../components/billing/PlanSelector.tsx';
+import { ManageBilling } from '../components/billing/ManageBilling.tsx';
+import { BillingStatus } from '../components/billing/BillingStatus.tsx';
 
 const commonTimezones = [
   'America/New_York',
@@ -208,17 +210,15 @@ export default function OrgSettings() {
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Subscription</h2>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700">
-              Current Plan:{' '}
-              <span className="font-semibold">
-                {org.plan ? org.plan.charAt(0).toUpperCase() + org.plan.slice(1) : 'No Plan'}
-              </span>
-            </p>
-            {org.subscriptionStatus && (
-              <p className="mt-1 text-sm text-gray-500">
-                Status: {org.subscriptionStatus}
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-gray-700">
+                Current Plan:{' '}
+                <span className="font-semibold">
+                  {org.plan ? org.plan.charAt(0).toUpperCase() + org.plan.slice(1) : 'No Plan'}
+                </span>
               </p>
-            )}
+              <BillingStatus />
+            </div>
             {org.assetLimit !== null && org.assetLimit !== undefined && (
               <p className="mt-1 text-sm text-gray-500">
                 Asset limit: {org.assetLimit}
@@ -228,16 +228,19 @@ export default function OrgSettings() {
         </div>
 
         {/* Billing button - owner only */}
-        {isOwner && (
+        {isOwner && org.stripeCustomerId && (
           <div className="mt-4">
-            <button
-              disabled
-              className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-400 cursor-not-allowed"
-            >
-              <CreditCard className="h-4 w-4" />
-              Manage Billing
-            </button>
-            <p className="mt-1 text-xs text-gray-400">Billing management coming soon.</p>
+            <ManageBilling />
+          </div>
+        )}
+
+        {/* Plan selector for owner when no plan or wants to change */}
+        {isOwner && (
+          <div className="mt-6">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">
+              {org.plan ? 'Change Plan' : 'Choose a Plan'}
+            </h3>
+            <PlanSelector />
           </div>
         )}
       </div>

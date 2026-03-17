@@ -7,8 +7,11 @@
 
 ## Current Phase
 
-**Phase 1 -- Foundation**
-Status: Complete (all 28 tasks done)
+**Phase 2 -- Core Operations & Billing**
+Status: In Progress
+
+Phase 1 (Foundation): Complete (all 28 tasks done)
+Phase 2 tasks completed so far: P2-01 through P2-26 (first pass — Stripe billing, inventory CRUD, locations, asset tagging, dashboard enhancements)
 
 ---
 

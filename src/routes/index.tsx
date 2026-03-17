@@ -7,6 +7,10 @@ import DashboardLayout from '../pages/DashboardLayout.tsx';
 import Dashboard from '../pages/Dashboard.tsx';
 import Members from '../pages/Members.tsx';
 import OrgSettings from '../pages/OrgSettings.tsx';
+import Inventory from '../pages/Inventory.tsx';
+import ExtinguisherCreate from '../pages/ExtinguisherCreate.tsx';
+import ExtinguisherEdit from '../pages/ExtinguisherEdit.tsx';
+import Locations from '../pages/Locations.tsx';
 import NotFound from '../pages/NotFound.tsx';
 import { ProtectedRoute } from '../components/guards/ProtectedRoute.tsx';
 import { RootRedirect } from '../components/guards/RootRedirect.tsx';
@@ -29,6 +33,10 @@ export function AppRoutes() {
           <Route index element={<Dashboard />} />
           <Route path="members" element={<Members />} />
           <Route path="settings" element={<OrgSettings />} />
+          <Route path="inventory" element={<Inventory />} />
+          <Route path="inventory/new" element={<ExtinguisherCreate />} />
+          <Route path="inventory/:extId/edit" element={<ExtinguisherEdit />} />
+          <Route path="locations" element={<Locations />} />
         </Route>
       </Route>
 
