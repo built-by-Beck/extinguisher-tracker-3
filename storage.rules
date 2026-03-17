@@ -1,0 +1,55 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper: check authentication
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Helper: get member document data
+    function memberData(orgId) {
+      return firestore.get(/databases/(default)/documents/org/$(orgId)/members/$(request.auth.uid)).data;
+    }
+
+    // Helper: check active membership
+    function isMember(orgId) {
+      return isAuth()
+        && firestore.exists(/databases/(default)/documents/org/$(orgId)/members/$(request.auth.uid))
+        && memberData(orgId).status == 'active';
+    }
+
+    // Helper: check role
+    function hasRole(orgId, roles) {
+      return isMember(orgId) && memberData(orgId).role in roles;
+    }
+
+    // Allowed content types
+    function isAllowedContentType() {
+      return request.resource.contentType.matches('image/jpeg')
+        || request.resource.contentType.matches('image/png')
+        || request.resource.contentType.matches('image/webp')
+        || request.resource.contentType.matches('text/csv')
+        || request.resource.contentType.matches('application/json');
+    }
+
+    // Max file size: 10 MB
+    function isWithinSizeLimit() {
+      return request.resource.size <= 10 * 1024 * 1024;
+    }
+
+    // All org-scoped storage paths
+    match /org/{orgId}/{allPaths=**} {
+      // Read: any active org member
+      allow read: if isMember(orgId);
+
+      // Write: owner, admin, or inspector (with size and type restrictions)
+      allow write: if hasRole(orgId, ['owner', 'admin', 'inspector'])
+        && isAllowedContentType()
+        && isWithinSizeLimit();
+
+      // Delete: owner or admin only
+      allow delete: if hasRole(orgId, ['owner', 'admin']);
+    }
+  }
+}
