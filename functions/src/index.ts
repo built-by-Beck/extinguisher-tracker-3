@@ -18,3 +18,10 @@ export { removeMember } from './members/removeMember.js';
 export { createCheckoutSession } from './billing/createCheckoutSession.js';
 export { createPortalSession } from './billing/createPortalSession.js';
 export { stripeWebhook } from './billing/stripeWebhook.js';
+
+// Asset tagging
+export { generateQRCode } from './tags/generateQRCode.js';
+
+// Data import/export
+export { importExtinguishersCSV } from './data/importCSV.js';
+export { exportExtinguishersCSV } from './data/exportCSV.js';

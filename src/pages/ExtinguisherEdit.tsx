@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { ExtinguisherForm } from '../components/extinguisher/ExtinguisherForm.tsx';
+import { QRCodeButton } from '../components/extinguisher/QRCodeButton.tsx';
 import {
   getExtinguisher,
   updateExtinguisher,
@@ -86,10 +87,17 @@ export default function ExtinguisherEdit() {
           <ArrowLeft className="h-4 w-4" />
           Back to Inventory
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">Edit Extinguisher</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Editing {extinguisher.assetId}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Edit Extinguisher</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Editing {extinguisher.assetId}
+            </p>
+          </div>
+          {extId && (
+            <QRCodeButton extId={extId} hasQR={!!extinguisher.qrCodeValue} />
+          )}
+        </div>
       </div>
 
       <ExtinguisherForm

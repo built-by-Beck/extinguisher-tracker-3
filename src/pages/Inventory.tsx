@@ -12,6 +12,7 @@ import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
 import { DeleteConfirmModal } from '../components/extinguisher/DeleteConfirmModal.tsx';
+import { ImportExportBar } from '../components/extinguisher/ImportExportBar.tsx';
 import {
   subscribeToExtinguishers,
   softDeleteExtinguisher,
@@ -107,6 +108,13 @@ export default function Inventory() {
       {org?.assetLimit && (
         <div className="mb-6">
           <AssetLimitBar currentCount={totalCount} />
+        </div>
+      )}
+
+      {/* Import/Export */}
+      {canEdit && (
+        <div className="mb-4">
+          <ImportExportBar />
         </div>
       )}
 
