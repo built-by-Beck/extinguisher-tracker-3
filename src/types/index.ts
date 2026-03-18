@@ -12,3 +12,6 @@ export type { OrgMember, OrgRole, MemberStatus } from './member.ts';
 
 // Invite
 export type { Invite, InviteStatus } from './invite.ts';
+
+// Notifications
+export type { Notification, NotificationType, NotificationSeverity } from './notification.ts';

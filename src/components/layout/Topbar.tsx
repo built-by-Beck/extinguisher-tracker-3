@@ -9,15 +9,18 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
+import { NotificationBell } from '../notifications/NotificationBell.tsx';
 
 interface TopbarProps {
   onMenuClick: () => void;
 }
 
 export function Topbar({ onMenuClick }: TopbarProps) {
-  const { user, signOut } = useAuth();
+  const { user, userProfile, signOut } = useAuth();
   const { org, userOrgs, switchOrg } = useOrg();
   const navigate = useNavigate();
+
+  const orgId = userProfile?.activeOrgId ?? '';
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
@@ -43,8 +46,8 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     navigate('/login');
   }
 
-  async function handleSwitchOrg(orgId: string) {
-    await switchOrg(orgId);
+  async function handleSwitchOrg(id: string) {
+    await switchOrg(id);
     setOrgMenuOpen(false);
   }
 
@@ -95,38 +98,42 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         )}
       </div>
 
-      {/* Right: user menu */}
-      <div className="relative" ref={userMenuRef}>
-        <button
-          onClick={() => setUserMenuOpen(!userMenuOpen)}
-          className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-700">
-            <User className="h-4 w-4" />
-          </div>
-          <span className="hidden font-medium sm:inline">
-            {user?.displayName ?? user?.email ?? 'User'}
-          </span>
-          <ChevronDown className="h-4 w-4 text-gray-400" />
-        </button>
+      {/* Right: notification bell + user menu */}
+      <div className="flex items-center gap-2">
+        {orgId && <NotificationBell orgId={orgId} />}
 
-        {userMenuOpen && (
-          <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-            <div className="border-b border-gray-100 px-4 py-2">
-              <p className="text-sm font-medium text-gray-900">
-                {user?.displayName ?? 'User'}
-              </p>
-              <p className="truncate text-xs text-gray-500">{user?.email}</p>
+        <div className="relative" ref={userMenuRef}>
+          <button
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-700">
+              <User className="h-4 w-4" />
             </div>
-            <button
-              onClick={handleSignOut}
-              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </button>
-          </div>
-        )}
+            <span className="hidden font-medium sm:inline">
+              {user?.displayName ?? user?.email ?? 'User'}
+            </span>
+            <ChevronDown className="h-4 w-4 text-gray-400" />
+          </button>
+
+          {userMenuOpen && (
+            <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              <div className="border-b border-gray-100 px-4 py-2">
+                <p className="text-sm font-medium text-gray-900">
+                  {user?.displayName ?? 'User'}
+                </p>
+                <p className="truncate text-xs text-gray-500">{user?.email}</p>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

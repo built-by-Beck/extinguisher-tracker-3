@@ -1,6 +1,8 @@
 /**
  * EX3 Cloud Functions entry point.
  * All callable, HTTPS, and triggered functions are exported from here.
+ *
+ * Author: built_by_Beck
  */
 
 // Organization management
@@ -33,3 +35,19 @@ export { archiveWorkspace } from './workspaces/archiveWorkspace.js';
 // Inspections
 export { saveInspection } from './inspections/saveInspection.js';
 export { resetInspection } from './inspections/resetInspection.js';
+
+// Lifecycle engine (callable)
+export { recalculateExtinguisherLifecycle } from './lifecycle/recalculateLifecycle.js';
+export { batchRecalculateLifecycle } from './lifecycle/batchRecalculate.js';
+export { replaceExtinguisher } from './lifecycle/replaceExtinguisher.js';
+export { retireExtinguisher } from './lifecycle/retireExtinguisher.js';
+
+// Lifecycle engine (Firestore trigger)
+export { onExtinguisherCreated } from './lifecycle/onExtinguisherWrite.js';
+
+// Notifications (callable)
+export { markNotificationRead } from './notifications/markRead.js';
+
+// Notifications (scheduled)
+export { complianceReminderJob } from './notifications/generateReminders.js';
+export { overdueDetectionJob } from './notifications/detectOverdue.js';

@@ -14,6 +14,7 @@ import Locations from '../pages/Locations.tsx';
 import Workspaces from '../pages/Workspaces.tsx';
 import WorkspaceDetail from '../pages/WorkspaceDetail.tsx';
 import InspectionForm from '../pages/InspectionForm.tsx';
+import Notifications from '../pages/Notifications.tsx';
 import NotFound from '../pages/NotFound.tsx';
 import { ProtectedRoute } from '../components/guards/ProtectedRoute.tsx';
 import { RootRedirect } from '../components/guards/RootRedirect.tsx';
@@ -43,6 +44,7 @@ export function AppRoutes() {
           <Route path="workspaces" element={<Workspaces />} />
           <Route path="workspaces/:workspaceId" element={<WorkspaceDetail />} />
           <Route path="workspaces/:workspaceId/inspect/:inspectionId" element={<InspectionForm />} />
+          <Route path="notifications" element={<Notifications />} />
         </Route>
       </Route>
 

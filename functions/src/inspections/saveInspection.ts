@@ -3,7 +3,14 @@ import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { throwInvalidArgument, throwNotFound, throwFailedPrecondition } from '../utils/errors.js';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import {
+  calculateNextMonthlyInspection,
+  calculateComplianceStatus,
+  getHydroIntervalByType,
+  requiresSixYear,
+  type ExtinguisherForCalc,
+} from '../lifecycle/complianceCalc.js';
 
 interface ChecklistData {
   pinPresent: string;
@@ -128,11 +135,49 @@ export const saveInspection = onCall(async (request) => {
     await wsRef.update(statsUpdate);
   }
 
-  // Update extinguisher's last monthly inspection date
-  await adminDb.doc(`org/${orgId}/extinguishers/${inspData.extinguisherId}`).update({
-    lastMonthlyInspection: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  // Update extinguisher lifecycle after inspection
+  const extRef = adminDb.doc(`org/${orgId}/extinguishers/${inspData.extinguisherId}`);
+  const extSnap = await extRef.get();
+
+  if (extSnap.exists) {
+    const extData = extSnap.data()!;
+    const now = Timestamp.now();
+
+    // nextMonthlyInspection = now + 30 days (inspection just completed)
+    const nextMonthlyInspection = calculateNextMonthlyInspection(now);
+
+    // Build calc input with the freshly updated monthly date
+    const extType = (extData.extinguisherType as string | null) ?? '';
+    const hydroInterval = (extData.hydroTestIntervalYears as number | null) ?? getHydroIntervalByType(extType);
+    const needsSixYear = (extData.requiresSixYearMaintenance as boolean | null) ?? requiresSixYear(extType);
+
+    const calcInput: ExtinguisherForCalc = {
+      lifecycleStatus: extData.lifecycleStatus as string | null,
+      extinguisherType: extData.extinguisherType as string | null,
+      requiresSixYearMaintenance: needsSixYear,
+      lastMonthlyInspection: now,
+      lastAnnualInspection: extData.lastAnnualInspection as Timestamp | null,
+      lastSixYearMaintenance: extData.lastSixYearMaintenance as Timestamp | null,
+      lastHydroTest: extData.lastHydroTest as Timestamp | null,
+      hydroTestIntervalYears: hydroInterval,
+      nextMonthlyInspection,
+      nextAnnualInspection: extData.nextAnnualInspection as Timestamp | null,
+      nextSixYearMaintenance: extData.nextSixYearMaintenance as Timestamp | null,
+      nextHydroTest: extData.nextHydroTest as Timestamp | null,
+    };
+
+    const { complianceStatus, overdueFlags } = calculateComplianceStatus(calcInput);
+
+    await extRef.update({
+      lastMonthlyInspection: now,
+      nextMonthlyInspection,
+      complianceStatus,
+      overdueFlags,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+  // If extinguisher doc was not found, skip lifecycle update — the inspection
+  // references an extinguisher that no longer exists (edge case, not actionable).
 
   return { inspectionId, status, previousStatus };
 });

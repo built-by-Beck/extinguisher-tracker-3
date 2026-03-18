@@ -8,6 +8,7 @@ import {
   Package,
   MapPin,
   ClipboardList,
+  Bell,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -21,6 +22,7 @@ const navItems = [
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
   { to: '/dashboard/locations', label: 'Locations', icon: MapPin, end: false },
   { to: '/dashboard/members', label: 'Members', icon: Users, end: false },
+  { to: '/dashboard/notifications', label: 'Notifications', icon: Bell, end: false },
   { to: '/dashboard/settings', label: 'Settings', icon: Settings, end: false },
 ];
 

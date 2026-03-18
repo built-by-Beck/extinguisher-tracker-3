@@ -47,9 +47,38 @@ export interface Extinguisher {
     uploadedBy: string;
     type: string | null;
   }>;
+  // Monthly / compliance lifecycle
+  lastMonthlyInspection: unknown | null;
+  nextMonthlyInspection: unknown | null;
+  lastAnnualInspection: unknown | null;
+  nextAnnualInspection: unknown | null;
+  annualInspectorName: string | null;
+  annualInspectorCompany: string | null;
+  annualInspectionNotes: string | null;
+  lastSixYearMaintenance: unknown | null;
+  nextSixYearMaintenance: unknown | null;
+  requiresSixYearMaintenance: boolean | null;
+  lastHydroTest: unknown | null;
+  nextHydroTest: unknown | null;
+  hydroTestIntervalYears: number | null;
   lifecycleStatus: string | null;
   complianceStatus: string | null;
   overdueFlags: string[];
+  // Replacement tracking
+  replacedByExtId: string | null;
+  replacesExtId: string | null;
+  replacementHistory: Array<{
+    replacedExtId: string;
+    replacedAssetId: string;
+    replacedAt: unknown;
+    replacedBy: string;
+    replacedByEmail: string;
+    reason: string | null;
+  }>;
+  // Retirement tracking
+  retiredAt: unknown | null;
+  retiredBy: string | null;
+  retirementReason: string | null;
   createdAt: unknown;
   updatedAt: unknown;
   createdBy: string;
@@ -126,12 +155,17 @@ export async function createExtinguisher(
     nextSixYearMaintenance: null,
     lastHydroTest: null,
     nextHydroTest: null,
+    requiresSixYearMaintenance: null,
+    hydroTestIntervalYears: null,
     lifecycleStatus: 'active',
     complianceStatus: 'compliant',
     overdueFlags: [],
     replacedByExtId: null,
     replacesExtId: null,
     replacementHistory: [],
+    retiredAt: null,
+    retiredBy: null,
+    retirementReason: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     createdBy: uid,
