@@ -1,4 +1,4 @@
-# 16 --- Inspection Routes
+# 16 — Inspection Routes
 
 Inspection routes define optimized walking paths for inspectors
 performing monthly extinguisher inspections.
@@ -8,47 +8,49 @@ extinguishers into logical walking sequences.
 
 Reference source: turn4file1
 
-------------------------------------------------------------------------
+---
 
-# Purpose of Routes
+## Purpose of Routes
 
 Without routes, inspectors must manually search for each extinguisher.
 
 Routes provide:
 
--   predefined inspection paths
--   grouped extinguisher lists
--   efficient walking sequences
--   predictable inspection workflows
+- predefined inspection paths
+- grouped extinguisher lists
+- efficient walking sequences
+- predictable inspection workflows
 
 Routes are particularly valuable in:
 
--   hospitals
--   campuses
--   warehouses
--   multi‑building facilities
+- hospitals
+- campuses
+- warehouses
+- multi‑building facilities
 
-------------------------------------------------------------------------
+---
 
-# Firestore Structure
+## Firestore Structure
 
 Routes are stored under the organization.
 
-    org/{orgId}/inspectionRoutes/{routeId}
+`org/{orgId}/inspectionRoutes/{routeId}`
 
 Example fields:
 
-    name
-    description
-    extinguisherIds[]
-    order[]
-    createdBy
-    createdAt
-    updatedAt
+```
+name
+description
+extinguisherIds[]
+order[]
+createdBy
+createdAt
+updatedAt
+```
 
-------------------------------------------------------------------------
+---
 
-# Route Design
+## Route Design
 
 Routes may be designed in several ways:
 
@@ -79,49 +81,49 @@ Example:
 Route A → Inspector 1\
 Route B → Inspector 2
 
-------------------------------------------------------------------------
+---
 
-# Route Workflow
+## Route Workflow
 
 Typical inspection route workflow:
 
-1.  Inspector opens assigned route
-2.  Route loads extinguisher list in defined order
-3.  Inspector walks facility in order
-4.  Each extinguisher inspection is recorded
-5.  Progress updates in real time
+1. Inspector opens assigned route
+2. Route loads extinguisher list in defined order
+3. Inspector walks facility in order
+4. Each extinguisher inspection is recorded
+5. Progress updates in real time
 
-------------------------------------------------------------------------
+---
 
-# Route Progress Tracking
+## Route Progress Tracking
 
 The system should display:
 
--   route progress percentage
--   remaining extinguishers
--   completed inspections
--   failed inspections
+- route progress percentage
+- remaining extinguishers
+- completed inspections
+- failed inspections
 
 This allows supervisors to track inspection completion across teams.
 
-------------------------------------------------------------------------
+---
 
-# Route Editing
+## Route Editing
 
 Routes may be edited by:
 
--   Owner
--   Admin
+- **Owner**
+- **Admin**
 
 Inspectors typically use routes but should not modify them.
 
-------------------------------------------------------------------------
+---
 
-# Route Optimization (Future)
+## Route Optimization (Future)
 
 Future enhancements may include:
 
--   automatic route optimization
--   shortest walking path calculation
--   indoor map integration
--   GPS-assisted routing
+- automatic route optimization
+- shortest walking path calculation
+- indoor map integration
+- GPS-assisted routing
