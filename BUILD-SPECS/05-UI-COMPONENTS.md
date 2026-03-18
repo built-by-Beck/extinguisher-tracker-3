@@ -1,4 +1,4 @@
-05 — UI Components
+# 05 — UI Components
 
 This document defines the major pages, layouts, screens, components, overlays, interaction patterns, and UI behavior for Extinguisher Tracker 3 (EX3).
 
@@ -8,287 +8,228 @@ All interactive elements must be touch-friendly, with a minimum target size of a
 
 The UI must feel like:
 
-modern B2B software
+- modern B2B software
+- easy to use in the field
+- reliable under time pressure
+- clear for compliance-driven tasks
+- professional enough for companies paying for serious operational value
 
-easy to use in the field
-
-reliable under time pressure
-
-clear for compliance-driven tasks
-
-professional enough for companies paying for serious operational value
-
-UI Design Principles
+## UI Design Principles
 
 The interface must follow these principles:
 
-1. Mobile-First but Not Mobile-Only
+### 1. Mobile-First but Not Mobile-Only
 
 The app must work great on:
 
-phones
+- phones
+- tablets
+- desktop/laptop browsers
 
-tablets
-
-desktop/laptop browsers
-
-2. Speed Over Decoration
+### 2. Speed Over Decoration
 
 Field users must be able to:
 
-search quickly
+- search quickly
+- scan quickly
+- inspect quickly
+- move between records quickly
 
-scan quickly
-
-inspect quickly
-
-move between records quickly
-
-3. Compliance Visibility
+### 3. Compliance Visibility
 
 Users should always be able to see:
 
-what is due
+- what is due
+- what is overdue
+- what is complete
+- what plan/features they have access to
 
-what is overdue
-
-what is complete
-
-what plan/features they have access to
-
-4. Role-Aware Interface
+### 4. Role-Aware Interface
 
 Owners, admins, inspectors, and viewers should see different controls based on permissions.
 
-5. Plan-Aware Interface
+### 5. Plan-Aware Interface
 
-Basic, Pro, Elite, and Enterprise plans may expose different UI controls depending on feature access.
+**Basic**, **Pro**, **Elite**, and **Enterprise** plans may expose different UI controls depending on feature access.
 
-6. Clear State and Feedback
+### 6. Clear State and Feedback
 
 Every important action must have visible feedback:
 
-loading
+- loading
+- success
+- warning
+- failure
+- disabled state
+- confirmation state
 
-success
-
-warning
-
-failure
-
-disabled state
-
-confirmation state
-
-Application Areas
+## Application Areas
 
 The product has two major UI areas:
 
-Marketing Site — public pages accessible without authentication
+- **Marketing Site** — public pages accessible without authentication
+- **Application** — authenticated multi-tenant SPA behind login
 
-Application — authenticated multi-tenant SPA behind login
-
-Marketing Site
+## Marketing Site
 
 The marketing site is public-facing and designed to convert visitors into signups or sales conversations.
 
 It should communicate:
 
-what the product does
+- what the product does
+- why it matters
+- who it is for
+- pricing
+- trust and credibility
+- how to get started
 
-why it matters
+### Marketing Site Pages
 
-who it is for
+#### Landing Page
 
-pricing
-
-trust and credibility
-
-how to get started
-
-Marketing Site Pages
-Landing Page
-Purpose
+##### Purpose
 
 Convert visitors into signups or sales leads.
 
-Core Sections
+##### Core Sections
 
-hero section with headline and CTA
+- hero section with headline and CTA
+- trust/value proposition section
+- major feature highlights
+- compliance-focused messaging
+- "how it works" section
+- pricing summary
+- CTA to sign up or contact sales
 
-trust/value proposition section
-
-major feature highlights
-
-compliance-focused messaging
-
-“how it works” section
-
-pricing summary
-
-CTA to sign up or contact sales
-
-Key Messaging
+##### Key Messaging
 
 The landing page should position the product as:
 
-compliance software
+- compliance software
+- inspection software
+- lifecycle tracking software
+- modern field inspection platform
 
-inspection software
+##### Suggested Hero Themes
 
-lifecycle tracking software
+- stay compliant
+- simplify extinguisher inspections
+- be audit-ready
+- manage inspections across teams and facilities
 
-modern field inspection platform
+#### Features Page
 
-Suggested Hero Themes
-
-stay compliant
-
-simplify extinguisher inspections
-
-be audit-ready
-
-manage inspections across teams and facilities
-
-Features Page
-Purpose
+##### Purpose
 
 Give evaluators a clear overview of product capabilities.
 
-Content
+##### Content
 
-inventory management
+- inventory management
+- monthly inspections
+- reminders
+- compliance tracking
+- lifecycle engine
+- QR/barcode tagging
+- route inspections
+- reporting
+- audit logs
+- offline capability
 
-monthly inspections
+##### Acceptance Criteria
 
-reminders
+- features are organized by category
+- the page clearly distinguishes the product from paper/manual tracking
+- high-value B2B features are emphasized
 
-compliance tracking
+#### Pricing Page
 
-lifecycle engine
-
-QR/barcode tagging
-
-route inspections
-
-reporting
-
-audit logs
-
-offline capability
-
-Acceptance Criteria
-
-features are organized by category
-
-the page clearly distinguishes the product from paper/manual tracking
-
-high-value B2B features are emphasized
-
-Pricing Page
-Purpose
+##### Purpose
 
 Display plans and encourage signups.
 
-Required Plans
+##### Required Plans
 
-Basic
+- **Basic**
+- **Pro**
+- **Elite**
+- **Enterprise**
 
-Pro
+##### Required Pricing Display
 
-Elite
+###### Basic
 
-Enterprise
+- $29.99/month
+- 50 extinguishers included
+- +$10/month per additional 50 extinguishers
 
-Required Pricing Display
-Basic
+###### Pro
 
-$29.99/month
+- $99/month
+- 250 extinguishers included
+- +$10/month per additional 50 extinguishers
 
-50 extinguishers included
+###### Elite
 
-+$10/month per additional 50 extinguishers
+- $199/month
+- 500 extinguishers included
+- +$10/month per additional 50 extinguishers
 
-Pro
+###### Enterprise
 
-$99/month
+- Contact Sales
+- help@beck-publishing.com
 
-250 extinguishers included
+##### Pricing Page Requirements
 
-+$10/month per additional 50 extinguishers
+- clearly list included features
+- clearly show feature differences
+- mark **Pro** as the recommended / most popular plan
+- show **Enterprise** as contact-sales
+- show **Basic** includes reminders but not camera scanning
+- make it obvious that **Pro** unlocks scanning / GPS / routes / tagging
 
-Elite
+##### CTA Buttons
 
-$199/month
+- **Basic** → Start Basic
+- **Pro** → Start Pro
+- **Elite** → Start Elite
+- **Enterprise** → Contact Sales
 
-500 extinguishers included
+#### About Page
 
-+$10/month per additional 50 extinguishers
-
-Enterprise
-
-Contact Sales
-
-help@beck-publishing.com
-
-Pricing Page Requirements
-
-clearly list included features
-
-clearly show feature differences
-
-mark Pro as the recommended / most popular plan
-
-show Enterprise as contact-sales
-
-show Basic includes reminders but not camera scanning
-
-make it obvious that Pro unlocks scanning / GPS / routes / tagging
-
-CTA Buttons
-
-Basic → Start Basic
-
-Pro → Start Pro
-
-Elite → Start Elite
-
-Enterprise → Contact Sales
-
-About Page
-Purpose
+##### Purpose
 
 Explain product mission and background.
 
-Suggested Content
+##### Suggested Content
 
-creator/founder background
+- creator/founder background
+- mission statement
+- why the software exists
+- contact information
 
-mission statement
-
-why the software exists
-
-contact information
-
-Terms of Service Page
+#### Terms of Service Page
 
 Standard legal page.
 
-Privacy Policy Page
+#### Privacy Policy Page
 
 Standard privacy page.
 
-Authenticated Application
+## Authenticated Application
 
 The authenticated application is the operational core of EX3.
 
 It is an SPA that loads organization-scoped data after auth and membership checks.
 
-Application Shell
+## Application Shell
 
 The application shell wraps all authenticated pages.
 
-Shell Structure
+### Shell Structure
+
+```
 +--------------------------------------------------+
 | Top Header / App Bar                             |
 +--------------------------------------------------+
@@ -300,165 +241,132 @@ Shell Structure
 +--------------------------------------------------+
 | Optional Mobile Action Footer / Quick Actions    |
 +--------------------------------------------------+
-Behavior
+```
 
-top header stays visible
+### Behavior
 
-main content area scrolls
+- top header stays visible
+- main content area scrolls
+- no permanently visible desktop-only sidebar is required for v1
+- contextual menus and panels provide deeper navigation
+- shell must work cleanly on phones and tablets
 
-no permanently visible desktop-only sidebar is required for v1
-
-contextual menus and panels provide deeper navigation
-
-shell must work cleanly on phones and tablets
-
-Global Header / App Bar
+## Global Header / App Bar
 
 The header is always visible inside the application.
 
-Required Content
+**Required Content**
 
-active organization name
+- active organization name
+- organization switcher (if user belongs to multiple orgs)
+- active workspace badge
+- user menu / account entry
+- menu toggle button
+- optional quick action buttons
+- notification icon / badge
+- billing warning indicator when needed
 
-organization switcher (if user belongs to multiple orgs)
-
-active workspace badge
-
-user menu / account entry
-
-menu toggle button
-
-optional quick action buttons
-
-notification icon / badge
-
-billing warning indicator when needed
-
-Workspace Badge
+### Workspace Badge
 
 The workspace badge shows current month/workspace.
 
 Examples:
 
-Mar 2026
-
-Apr 2026
-
-Archived: Feb 2026
+- Mar 2026
+- Apr 2026
+- Archived: Feb 2026
 
 Tapping or long-pressing the badge may open workspace switcher.
 
-Organization Switcher
+### Organization Switcher
 
 Visible when the user belongs to more than one organization.
 
 Shows:
 
-current org name
+- current org name
+- dropdown / modal list of accessible orgs
 
-dropdown / modal list of accessible orgs
-
-Notification Icon
+### Notification Icon
 
 Shows unread count where supported.
 
 Tapping opens notification panel or notification page.
 
-User Menu
+### User Menu
 
 Contains:
 
-user email / display name
+- user email / display name
+- profile/account actions
+- logout
+- maybe org switch on smaller screens
 
-profile/account actions
-
-logout
-
-maybe org switch on smaller screens
-
-Banner / Alert Area
+### Banner / Alert Area
 
 A sticky or dismissible banner area may appear below the header.
 
-Possible banners:
+#### Possible banners
 
-past due billing notice
+- past due billing notice
+- canceled subscription warning
+- over-limit warning
+- monthly inspection reminder
+- annual service due reminder
+- workspace archived notice
+- offline mode banner
 
-canceled subscription warning
+#### Acceptance Criteria
 
-over-limit warning
+- banners are obvious but not overwhelming
+- urgent actions are visually distinct
+- banners link to the relevant workflow
 
-monthly inspection reminder
-
-annual service due reminder
-
-workspace archived notice
-
-offline mode banner
-
-Acceptance Criteria
-
-banners are obvious but not overwhelming
-
-urgent actions are visually distinct
-
-banners link to the relevant workflow
-
-Main Navigation Model
+## Main Navigation Model
 
 The application should support lightweight navigation with contextual menus and page-level actions.
 
 Primary navigation destinations may include:
 
-Dashboard
-
-Inventory
-
-Workspaces
-
-Reports
-
-Settings
-
-Notifications
+- Dashboard
+- Inventory
+- Workspaces
+- Reports
+- Settings
+- Notifications
 
 Additional tools may include:
 
-Routes
+- Routes
+- Locations
+- Tag Printing
+- Imports / Exports
+- Placement Calculator
+- Billing
 
-Locations
+## Core Application Pages
 
-Tag Printing
+### Dashboard Page
 
-Imports / Exports
+#### Route
 
-Placement Calculator
+`/app` or `/app/dashboard`
 
-Billing
-
-Core Application Pages
-Dashboard Page
-Route
-
-/app or /app/dashboard
-
-Purpose
+#### Purpose
 
 Primary landing page after login.
 
 This page should give users immediate visibility into:
 
-inspection progress
+- inspection progress
+- what is due
+- what is overdue
+- what needs attention
+- fast next actions
 
-what is due
+#### Dashboard Layout
 
-what is overdue
-
-what needs attention
-
-fast next actions
-
-Dashboard Layout
+```
 +--------------------------------------------------+
 | Header / Org Switcher / Workspace Badge          |
 +--------------------------------------------------+
@@ -478,101 +386,83 @@ Dashboard Layout
 +--------------------------------------------------+
 | Section / Route / Inventory Progress Areas       |
 +--------------------------------------------------+
-Recommended Dashboard Sections
-1. Quick Actions
+```
+
+#### Recommended Dashboard Sections
+
+##### 1. Quick Actions
 
 Examples:
 
-Manual Search
+- Manual Search
+- Camera Scan
+- Create Workspace
+- Open Reports
+- Add Extinguisher
+- Run Placement Calculator
 
-Camera Scan
-
-Create Workspace
-
-Open Reports
-
-Add Extinguisher
-
-Run Placement Calculator
-
-2. Compliance Summary Cards
+##### 2. Compliance Summary Cards
 
 Examples:
 
-Pending This Month
-
-Passed
-
-Failed
-
-Overdue
-
-Annual Due
-
-Hydro Due
+- Pending This Month
+- Passed
+- Failed
+- Overdue
+- Annual Due
+- Hydro Due
 
 Each card should be clickable and open filtered views.
 
-3. Notifications / Reminders
+##### 3. Notifications / Reminders
 
 Show latest reminders such as:
 
-monthly inspections due in 3 days
+- monthly inspections due in 3 days
+- annual inspections due
+- workspace not yet created
+- org is over limit
+- billing needs attention
 
-annual inspections due
-
-workspace not yet created
-
-org is over limit
-
-billing needs attention
-
-4. Section / Route Progress
+##### 4. Section / Route Progress
 
 Show:
 
-section cards
+- section cards
+- route cards
+- completion percentages
+- pending counts
 
-route cards
-
-completion percentages
-
-pending counts
-
-5. Plan / Usage Widget
+##### 5. Plan / Usage Widget
 
 Shows:
 
-current plan
+- current plan
+- included extinguisher count
+- current active count
+- over-limit state if applicable
 
-included extinguisher count
+#### Acceptance Criteria
 
-current active count
+- dashboard loads quickly
+- cards are clearly tappable
+- metrics update dynamically
+- reminders and warnings are obvious
+- role and plan restrictions are respected
 
-over-limit state if applicable
+### Inventory Page
 
-Acceptance Criteria
+#### Route
 
-dashboard loads quickly
+`/app/inventory`
 
-cards are clearly tappable
-
-metrics update dynamically
-
-reminders and warnings are obvious
-
-role and plan restrictions are respected
-
-Inventory Page
-Route
-
-/app/inventory
-
-Purpose
+#### Purpose
 
 Primary inventory management screen for extinguisher records.
 
-Main Layout
+**Main Layout**
+
+```
 +--------------------------------------------------+
 | Inventory Header                                 |
 | [Search] [Filters] [Sort] [Add]                  |
@@ -583,724 +473,560 @@ Main Layout
 | List / Cards of Extinguishers                    |
 |                                                  |
 +--------------------------------------------------+
-Inventory Page Features
+```
 
-search
+#### Inventory Page Features
 
-section filter
+- search
+- section filter
+- location filter
+- compliance filter
+- route filter
+- status filter
+- sort options
+- add extinguisher button (role-aware)
+- bulk actions (future-ready)
 
-location filter
-
-compliance filter
-
-route filter
-
-status filter
-
-sort options
-
-add extinguisher button (role-aware)
-
-bulk actions (future-ready)
-
-Inventory Item Display
+#### Inventory Item Display
 
 Each extinguisher item may show:
 
-asset ID
+- asset ID
+- section / location
+- barcode/QR indicator
+- compliance status
+- current monthly inspection state
+- quick pass/fail buttons where allowed
+- tag printed indicator
+- overdue badges
 
-section / location
+#### Acceptance Criteria
 
-barcode/QR indicator
+- list is fast and readable on mobile
+- filters combine correctly
+- inventory remains org-scoped
+- plan-aware actions are hidden/disabled appropriately
 
-compliance status
+### Extinguisher Detail / Inspection View
 
-current monthly inspection state
+#### Route
 
-quick pass/fail buttons where allowed
-
-tag printed indicator
-
-overdue badges
-
-Acceptance Criteria
-
-list is fast and readable on mobile
-
-filters combine correctly
-
-inventory remains org-scoped
-
-plan-aware actions are hidden/disabled appropriately
-
-Extinguisher Detail / Inspection View
-Route
-
-/app/extinguishers/{extId}
+`/app/extinguishers/{extId}`
 
 May open as:
 
-full page
+- full page
+- slide-over panel
+- modal-like mobile page
 
-slide-over panel
-
-modal-like mobile page
-
-Purpose
+#### Purpose
 
 Single source of truth view for one extinguisher.
 
 This page combines:
 
-identity
+- identity
+- location
+- lifecycle
+- inspection workflow
+- compliance visibility
+- history
 
-location
+#### Major Sections
 
-lifecycle
+##### 1. Header
 
-inspection workflow
+- back button
+- asset ID
+- status badge
+- compliance badge
 
-compliance visibility
+##### 2. Identity and Classification
 
-history
+- asset ID
+- barcode
+- QR info
+- serial
+- manufacturer
+- type
+- service class
+- size
+- category
 
-Major Sections
-1. Header
+##### 3. Location
 
-back button
+- section
+- vicinity
+- parent location
+- location hierarchy reference
+- map link if GPS exists
 
-asset ID
+##### 4. Photos
 
-status badge
+- thumbnails
+- add photo if permitted
+- reorder/delete where permitted
 
-compliance badge
+##### 5. Lifecycle / Compliance Summary
 
-2. Identity and Classification
+- last monthly inspection
+- next monthly inspection
+- annual due
+- six-year due
+- hydro due
+- lifecycle status
+- overdue flags
 
-asset ID
+##### 6. Inspection Checklist
 
-barcode
+- 13 checklist items
+- pass/fail/n-a controls
 
-QR info
+##### 7. Inspection Capture
 
-serial
+- notes
+- inspection photo
+- inspection GPS
+- attestation section
+- PASS / FAIL / RESET buttons
 
-manufacturer
+##### 8. History
 
-type
+- inspection history
+- inspection event timeline
+- replacement history
+- audit/log references if shown
 
-service class
-
-size
-
-category
-
-3. Location
-
-section
-
-vicinity
-
-parent location
-
-location hierarchy reference
-
-map link if GPS exists
-
-4. Photos
-
-thumbnails
-
-add photo if permitted
-
-reorder/delete where permitted
-
-5. Lifecycle / Compliance Summary
-
-last monthly inspection
-
-next monthly inspection
-
-annual due
-
-six-year due
-
-hydro due
-
-lifecycle status
-
-overdue flags
-
-6. Inspection Checklist
-
-13 checklist items
-
-pass/fail/n-a controls
-
-7. Inspection Capture
-
-notes
-
-inspection photo
-
-inspection GPS
-
-attestation section
-
-PASS / FAIL / RESET buttons
-
-8. History
-
-inspection history
-
-inspection event timeline
-
-replacement history
-
-audit/log references if shown
-
-9. Management Actions
+##### 9. Management Actions
 
 Visible for appropriate roles:
 
-edit
+- edit
+- replace
+- print tag
+- delete
+- regenerate QR
+- capture asset GPS
 
-replace
+#### Acceptance Criteria
 
-print tag
+- page is scrollable and mobile-friendly
+- all major extinguisher state is visible in one place
+- inspection workflow is fast to complete
+- lifecycle information is obvious
+- legal attestation is captured when required
+- archived workspace state disables edits appropriately
 
-delete
+### Workspaces Page
 
-regenerate QR
+#### Route
 
-capture asset GPS
+`/app/workspaces`
 
-Acceptance Criteria
-
-page is scrollable and mobile-friendly
-
-all major extinguisher state is visible in one place
-
-inspection workflow is fast to complete
-
-lifecycle information is obvious
-
-legal attestation is captured when required
-
-archived workspace state disables edits appropriately
-
-Workspaces Page
-Route
-
-/app/workspaces
-
-Purpose
+#### Purpose
 
 Manage and switch monthly inspection workspaces.
 
-Page Content
+#### Page Content
 
-current active workspace
+- current active workspace
+- archived workspaces
+- create workspace action
+- archive workspace action
+- workspace stats
+- workspace status badges
 
-archived workspaces
+#### Acceptance Criteria
 
-create workspace action
+- users can clearly tell active vs archived
+- archived workspaces are read-only
+- create/archive actions are permission-aware
+- switching workspace updates global app context
 
-archive workspace action
+### Routes Page
 
-workspace stats
+#### Route
 
-workspace status badges
+`/app/routes`
 
-Acceptance Criteria
-
-users can clearly tell active vs archived
-
-archived workspaces are read-only
-
-create/archive actions are permission-aware
-
-switching workspace updates global app context
-
-Routes Page
-Route
-
-/app/routes
-
-Purpose
+#### Purpose
 
 Manage inspection routes and perform route-based inspection workflows.
 
-Page Sections
+#### Page Sections
 
-route list
+- route list
+- create/edit route
+- route detail
+- route progress
+- start route inspection
 
-create/edit route
+#### Acceptance Criteria
 
-route detail
+- routes visible only where plan/role allow
+- inspectors can work through route order
+- route progress persists
+- route completion percentage is shown
 
-route progress
+### Reports Page
 
-start route inspection
+#### Route
 
-Acceptance Criteria
+`/app/reports`
 
-routes visible only where plan/role allow
-
-inspectors can work through route order
-
-route progress persists
-
-route completion percentage is shown
-
-Reports Page
-Route
-
-/app/reports
-
-Purpose
+#### Purpose
 
 Generate, view, and download reports and exports.
 
-Page Features
+#### Page Features
 
-archived monthly reports
+- archived monthly reports
+- export buttons
+- report filters
+- format selectors
+- compliance summaries
+- downloadable files
 
-export buttons
+#### Typical Actions
 
-report filters
+- export CSV
+- export Excel
+- export JSON
+- download PDF if implemented
+- open archived report snapshot
 
-format selectors
+#### Acceptance Criteria
 
-compliance summaries
+- reports are clearly scoped to current org/workspace
+- report actions are permission-checked
+- plan-aware exports are enforced
+- archived reports are visibly read-only
 
-downloadable files
+### Notifications Page / Panel
 
-Typical Actions
+#### Route
 
-export CSV
+`/app/notifications` or slide-out panel
 
-export Excel
-
-export JSON
-
-download PDF if implemented
-
-open archived report snapshot
-
-Acceptance Criteria
-
-reports are clearly scoped to current org/workspace
-
-report actions are permission-checked
-
-plan-aware exports are enforced
-
-archived reports are visibly read-only
-
-Notifications Page / Panel
-Route
-
-/app/notifications or slide-out panel
-
-Purpose
+#### Purpose
 
 Show reminders, alerts, and action-needed events.
 
-Notification Types
+#### Notification Types
 
-monthly reminder
+- monthly reminder
+- annual due
+- hydro due
+- six-year due
+- over-limit
+- billing notice
+- workspace reminder
+- system notification
 
-annual due
+#### Acceptance Criteria
 
-hydro due
+- unread count is visible
+- notifications can be marked read where supported
+- each notification links to useful target
+- notification content is org-scoped
 
-six-year due
+### Settings Page
 
-over-limit
+#### Route
 
-billing notice
+`/app/settings`
 
-workspace reminder
-
-system notification
-
-Acceptance Criteria
-
-unread count is visible
-
-notifications can be marked read where supported
-
-each notification links to useful target
-
-notification content is org-scoped
-
-Settings Page
-Route
-
-/app/settings
-
-Purpose
+#### Purpose
 
 Manage organization configuration, team settings, and account options.
 
-Sections
-Organization Info
+#### Sections
 
-name
+##### Organization Info
 
-timezone
+- name
+- timezone
+- slug if editable
 
-slug if editable
+##### Sections
 
-Sections
+- add
+- rename
+- reorder
+- remove
 
-add
+##### Locations
 
-rename
+- location hierarchy management
 
-reorder
+##### Team Members
 
-remove
+- member list
+- role management
+- pending invites
+- revoke invite
+- remove member
 
-Locations
+##### Billing
 
-location hierarchy management
+- current plan
+- status
+- included limit
+- over-limit state
+- Manage Billing button
 
-Team Members
+##### Notifications / Preferences
 
-member list
+- reminder visibility
+- future email preferences if implemented
 
-role management
+##### Danger Zone
 
-pending invites
+- org deletion workflow
+- only for owner
 
-revoke invite
+#### Acceptance Criteria
 
-remove member
+- settings are grouped clearly
+- dangerous actions are separated visually
+- billing area is owner-only
+- team management is admin/owner-only
 
-Billing
+## Public / Auth Utility Pages
 
-current plan
+### Login Page
 
-status
+- email/password form
+- login CTA
+- link to signup
+- forgot password if added later
 
-included limit
+### Signup Page
 
-over-limit state
+- account creation form
+- org creation handoff
+- marketing reassurance
 
-Manage Billing button
+### Invite Acceptance Page
 
-Notifications / Preferences
+- invite summary
+- login/signup path
+- accept invite action
+- error states for expired/revoked invite
 
-reminder visibility
+### Plan Selection / Checkout Redirect Page
 
-future email preferences if implemented
+- select plan
+- show plan comparison
+- start checkout
 
-Danger Zone
-
-org deletion workflow
-
-only for owner
-
-Acceptance Criteria
-
-settings are grouped clearly
-
-dangerous actions are separated visually
-
-billing area is owner-only
-
-team management is admin/owner-only
-
-Public / Auth Utility Pages
-Login Page
-
-email/password form
-
-login CTA
-
-link to signup
-
-forgot password if added later
-
-Signup Page
-
-account creation form
-
-org creation handoff
-
-marketing reassurance
-
-Invite Acceptance Page
-
-invite summary
-
-login/signup path
-
-accept invite action
-
-error states for expired/revoked invite
-
-Plan Selection / Checkout Redirect Page
-
-select plan
-
-show plan comparison
-
-start checkout
-
-Modals and Overlays
+## Modals and Overlays
 
 All modal-like experiences should work well on mobile.
 
 On phones:
 
-prefer full-screen sheets or near-full-screen overlays
+- prefer full-screen sheets or near-full-screen overlays
 
 On desktop:
 
-centered modals with backdrop are fine
+- centered modals with backdrop are fine
 
 All modals must have:
 
-close button
+- close button
+- keyboard escape support where applicable
+- focus management
+- accessible headings and labels
 
-keyboard escape support where applicable
+**Required Modals / Panels**
 
-focus management
+### Camera Scanner Modal
 
-accessible headings and labels
+#### Purpose
 
-Required Modals / Panels
-Camera Scanner Modal
+Live barcode / QR scanning.
 
-Purpose:
+#### Content
 
-live barcode / QR scanning
+- live camera preview
+- scan guides / overlay
+- flash toggle if available
+- cancel
+- manual fallback
 
-Content:
+#### Plan-aware
 
-live camera preview
+Not available on **Basic**.
 
-scan guides / overlay
+### Manual Search Modal
 
-flash toggle if available
+#### Purpose
 
-cancel
+Enter barcode / asset ID manually.
 
-manual fallback
+#### Content
 
-Plan-aware:
-
-not available on Basic
-
-Manual Search Modal
-
-Purpose:
-
-enter barcode / asset ID manually
-
-Content:
-
-focused input
-
-search action
-
-clear/cancel
+- focused input
+- search action
+- clear/cancel
 
 Available on all plans.
 
-Add Extinguisher Modal
+### Add Extinguisher Modal
 
-Purpose:
+#### Purpose
 
-create extinguisher record
+Create extinguisher record.
 
-Content:
+#### Content
 
-required identity fields
-
-optional location fields
-
-type / size fields
-
-lifecycle seed fields
-
-GPS / photo actions if allowed
-
-save/cancel
+- required identity fields
+- optional location fields
+- type / size fields
+- lifecycle seed fields
+- GPS / photo actions if allowed
+- save/cancel
 
 Plan- and role-aware.
 
-Edit Extinguisher Modal
+### Edit Extinguisher Modal
 
-Purpose:
+#### Purpose
 
-edit existing extinguisher
+Edit existing extinguisher.
 
-Content:
+#### Content
 
-prefilled fields
+- prefilled fields
+- lifecycle fields
+- tagging fields
+- photo management
+- save/delete actions
 
-lifecycle fields
+### Replace Extinguisher Modal
 
-tagging fields
+#### Purpose
 
-photo management
+Record replacement while preserving history.
 
-save/delete actions
+#### Content
 
-Replace Extinguisher Modal
+- old identity summary
+- new asset fields
+- reason
+- notes
+- save/cancel
 
-Purpose:
+### Workspace Switcher Modal
 
-record replacement while preserving history
+#### Purpose
 
-Content:
+Switch active workspace.
 
-old identity summary
+#### Content
 
-new asset fields
+- workspace list
+- active/archive badges
+- progress stats
 
-reason
+### Create Workspace Modal
 
-notes
+#### Purpose
 
-save/cancel
+Create new monthly workspace.
 
-Workspace Switcher Modal
+#### Content
 
-Purpose:
+- month/year selector
+- explanation of what creation does
+- create/cancel
 
-switch active workspace
+### Export Options Modal
 
-Content:
+#### Purpose
 
-workspace list
+Choose export options.
 
-active/archive badges
+#### Content
 
-progress stats
+- format selector
+- filters
+- include/exclude options
+- export/cancel
 
-Create Workspace Modal
+### Section Notes Modal
 
-Purpose:
+#### Purpose
 
-create new monthly workspace
+Edit section notes.
 
-Content:
+#### Content
 
-month/year selector
+- section selector if needed
+- notes area
+- save-for-next-month toggle
+- metadata display
 
-explanation of what creation does
+### Import Data Modal
 
-create/cancel
+#### Purpose
 
-Export Options Modal
+Upload CSV/Excel/JSON depending on workflow.
 
-Purpose:
+#### Content
 
-choose export options
+- file upload
+- default section/location controls
+- import button
+- validation summary
 
-Content:
+### Invite Member Modal
 
-format selector
+#### Purpose
 
-filters
+Invite org member.
 
-include/exclude options
+#### Content
 
-export/cancel
+- email
+- role selector
+- send invite
+- pending invite list
+- revoke action
 
-Section Notes Modal
+### Confirm Modal
 
-Purpose:
+#### Purpose
 
-edit section notes
-
-Content:
-
-section selector if needed
-
-notes area
-
-save-for-next-month toggle
-
-metadata display
-
-Import Data Modal
-
-Purpose:
-
-upload CSV/Excel/JSON depending on workflow
-
-Content:
-
-file upload
-
-default section/location controls
-
-import button
-
-validation summary
-
-Invite Member Modal
-
-Purpose:
-
-invite org member
-
-Content:
-
-email
-
-role selector
-
-send invite
-
-pending invite list
-
-revoke action
-
-Confirm Modal
-
-Purpose:
-
-replace browser confirm dialogs
+Replace browser confirm dialogs.
 
 Must be used for:
 
-delete extinguisher
+- delete extinguisher
+- archive workspace
+- reset workspace
+- remove member
+- dangerous actions
 
-archive workspace
+### Notification Drawer / Sheet
 
-reset workspace
+#### Purpose
 
-remove member
+Quick access to reminders and alerts.
 
-dangerous actions
+#### Content
 
-Notification Drawer / Sheet
+- unread items
+- timestamp
+- type
+- deep link target
 
-Purpose:
-
-quick access to reminders and alerts
-
-Content:
-
-unread items
-
-timestamp
-
-type
-
-deep link target
-
-Component Hierarchy
+## Component Hierarchy
 
 A suggested component hierarchy:
 
+```
 App
 ├── PublicSite
 │   ├── LandingPage
@@ -1347,124 +1073,94 @@ App
     ├── NotificationsPage
     ├── SettingsPage
     └── Modals / Drawers
-UI Patterns
-Loading States
+```
+
+## UI Patterns
+
+### Loading States
 
 Use:
 
-full-page loading for initial app boot
+- full-page loading for initial app boot
+- section-level skeletons or spinners
+- button-level loading states for saves/actions
 
-section-level skeletons or spinners
-
-button-level loading states for saves/actions
-
-Empty States
+### Empty States
 
 Examples:
 
-“No extinguishers found. Add one or import inventory.”
+- "No extinguishers found. Add one or import inventory."
+- "No workspace exists for this month yet."
+- "No notifications right now."
+- "No routes created yet."
 
-“No workspace exists for this month yet.”
-
-“No notifications right now.”
-
-“No routes created yet.”
-
-Error States
+### Error States
 
 Use:
 
-toast notifications for transient failures
+- toast notifications for transient failures
+- inline form errors for validation
+- full-page error state for major failures
+- retry affordances where practical
 
-inline form errors for validation
+## Responsive Behavior
 
-full-page error state for major failures
+### Mobile
 
-retry affordances where practical
+- single-column layout
+- full-width actions
+- full-screen modals
 
-Responsive Behavior
-Mobile
+### Tablet
 
-single-column layout
+- wider cards
+- 2-column sections where useful
+- centered overlays
 
-full-width actions
+### Desktop
 
-full-screen modals
+- wider content areas
+- multi-column summary layouts
+- still maintain mobile-friendly interactions
 
-Tablet
+## Color Coding
 
-wider cards
+- pending → neutral
+- pass → green
+- fail → red
+- warning → amber/yellow
+- info → blue
+- overdue → red/emphasis
+- archived → subdued/locked appearance
 
-2-column sections where useful
+**Color must never be the only state indicator.**
 
-centered overlays
+## Accessibility
 
-Desktop
+- ARIA labels where needed
+- visible labels for form inputs
+- proper focus handling in modals
+- good text contrast
+- keyboard accessibility where appropriate
+- icons paired with text or labels
+- large touch targets for field users
 
-wider content areas
-
-multi-column summary layouts
-
-still maintain mobile-friendly interactions
-
-Color Coding
-
-pending → neutral
-
-pass → green
-
-fail → red
-
-warning → amber/yellow
-
-info → blue
-
-overdue → red/emphasis
-
-archived → subdued/locked appearance
-
-Color must never be the only state indicator.
-
-Accessibility
-
-ARIA labels where needed
-
-visible labels for form inputs
-
-proper focus handling in modals
-
-good text contrast
-
-keyboard accessibility where appropriate
-
-icons paired with text or labels
-
-large touch targets for field users
-
-Final UI Rule
+## Final UI Rule
 
 The UI must always reflect:
 
-current organization
-
-current workspace
-
-current plan
-
-current role
-
-current compliance state
+- current organization
+- current workspace
+- current plan
+- current role
+- current compliance state
 
 At no point should the interface make a user guess:
 
-what org they are in
-
-what month they are inspecting
-
-whether something is due
-
-whether something is locked
-
-whether a feature is unavailable because of role or plan
+- what org they are in
+- what month they are inspecting
+- whether something is due
+- whether something is locked
+- whether a feature is unavailable because of role or plan
 
 The UI must feel clear, trustworthy, and fast enough for real field use.
