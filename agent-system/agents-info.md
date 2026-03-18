@@ -1,7 +1,7 @@
 # EX3 Agent System -- Project State
 
 **Last Updated**: 2026-03-18
-**Updated By**: plan-agent (Opus 4.6) -- Phase 5 planning (revised)
+**Updated By**: review-agent (Opus 4.6) -- Phase 5 review APPROVED
 
 ---
 
@@ -14,7 +14,7 @@ Phase 1 (Foundation): Complete (28 tasks)
 Phase 2 (Core Operations & Billing): Complete (26 tasks)
 Phase 3 (Workspaces & Inspections): Complete
 Phase 4 (Reminders, Compliance, Lifecycle): Complete -- 25 tasks (P4-01 through P4-25)
-Phase 5 (Reports & Audit Logs): Planned -- 14 tasks (P5-01 through P5-14)
+Phase 5 (Reports & Audit Logs): COMPLETE and REVIEWED -- 14 tasks (P5-01 through P5-14)
 
 **Pre-existing work discovered during planning (already done, no tasks needed):**
 - writeAuditLog utility already writes performedAt, entityType, entityId, performedByEmail
@@ -371,6 +371,58 @@ Phase 5 is built. Please review:
 5. **Audit log service**: Verify cursor pagination logic and the `unshift`-based constraint ordering.
 6. **Role-based sidebar**: Verify owners/admins see Audit Logs, inspectors/viewers do not.
 7. **TypeScript compilation**: Both `cd functions && npm run build` and `npm run build` from project root verified zero errors by build-agent.
+
+---
+
+## Review Agent Summary (Phase 5 Review)
+
+**Reviewed by**: review-agent (Opus 4.6)
+**Date**: 2026-03-18
+**Verdict**: Phase 5 APPROVED -- zero bugs found
+
+### Review Methodology
+
+Read all 11 new files and 6 modified files. Cross-referenced every task P5-01 through P5-14 against the plan. Performed side-by-side type alignment checks (Report type vs archiveWorkspace writes, AuditLog type vs writeAuditLog writes). Verified auth/membership/role enforcement. Confirmed TypeScript compilation passes for both frontend (`npm run build`) and backend (`cd functions && npm run build`) with zero errors.
+
+### What Passed Review (No Issues)
+
+- **pdfmake type declarations** (`functions/src/types/pdfmake.d.ts`): Clean minimal declarations for v0.3.x API. Correctly declares PdfMake class, DocumentDefinition, ContentElement types, FontEntry, OutputDocument. No `any` types.
+- **pdfGenerator.ts**: Correct pdfmake v0.3.x usage (new PdfMake, addFonts, createPdf, getBuffer). Font resolution via createRequire is CJS-compatible. Report layout includes header, summary stats with pass rate, results table with proper formatting, footer.
+- **generateReport.ts**: Auth validated (validateAuth + validateMembership for all 4 roles). Input validation present. Idempotent re-sign logic correct (checks existing filePath, re-signs if present, generates new if not). Backward-compat for pre-Phase-5 archives (creates report doc on the fly from inspections query). CSV escape function handles commas, quotes, newlines. All three format branches (CSV, PDF, JSON) correctly save to Storage and update report doc. Audit log written on every call.
+- **archiveWorkspace.ts**: Creates report snapshot doc via `set()` (not `update()`). Results array built from existing inspSnap query (no duplicate query). All file path and download URL fields initialized to null. Stats computed correctly.
+- **Report type alignment**: Backend writes match frontend `Report` interface exactly. All 17 fields accounted for (`id` from doc.id, 16 from Firestore data).
+- **AuditLog type alignment**: Backend writes match frontend `AuditLog` interface exactly. All 9 fields accounted for.
+- **reportService.ts**: getReport uses getDoc, subscribeToReports uses onSnapshot with orderBy archivedAt desc, generateReportDownload wraps httpsCallable correctly.
+- **ReportDownloadButton.tsx**: Clean component with loading state, error auto-clear after 5s, disabled during loading, opens URL in new tab. No `any` types.
+- **Reports.tsx**: Subscribes to reports via real-time listener. Empty state message matches plan spec. Stats grid and pass rate badge with color thresholds. Cleanup on unmount.
+- **WorkspaceDetail.tsx**: Report section shown only for archived workspaces. Three-state handling (loading/not-found/loaded). Non-null assertion on workspaceId is safe (from route params, workspace already loaded).
+- **auditLogService.ts**: Cursor-based pagination with `startAfter(lastDoc)`. Fetches limit+1 to detect hasMore. EntityType filter via `where` constraint placed before `orderBy` via `unshift`. PerformedAt fallback to createdAt for backward compat.
+- **AuditLogRow.tsx**: Comprehensive action label map (22 actions). Entity type badges with color coding. Entity type icons. Relative time formatter handles Firestore Timestamps and Date objects. Expandable details with key-value rendering.
+- **AuditLogs.tsx**: Admin-only access check via `hasRole(['owner', 'admin'])`. Access denied state with link back to dashboard. Entity type filter dropdown (8 options). 50 logs per page. Load More button with loading state.
+- **Sidebar.tsx**: Role-based filtering via `navItems.filter(item => !item.roles || hasRole(item.roles))`. Audit Logs has `roles: ['owner', 'admin']`. Nav ordering matches plan spec.
+- **Routes**: `/dashboard/reports` and `/dashboard/audit-logs` correctly added inside dashboard layout.
+- **Firestore indexes**: Composite index for auditLogs (entityType ASC + performedAt DESC) matches filtered query pattern. Single-field index for reports (archivedAt DESC) matches subscription ordering.
+- **TypeScript compilation**: Both frontend and backend compile with zero errors.
+- **index.ts exports**: `generateReport` correctly exported.
+
+### Issues Found and Fixed
+
+None. The Phase 5 build is clean.
+
+### Minor Observations (Not Bugs)
+
+1. **generateReport creates report doc with `createdAt` field; archiveWorkspace does not**: The backward-compat code path in generateReport adds `createdAt: FieldValue.serverTimestamp()` when creating a report doc on the fly, but archiveWorkspace omits it. Since `createdAt` is not in the frontend `Report` type, this is cosmetically inconsistent but functionally harmless. Not worth changing since it only affects the on-the-fly creation path for pre-Phase-5 archives.
+
+2. **Chunk size warning**: The frontend build produces a 776KB chunk. The plan notes (P5-14) do not require addressing this, but adding code-splitting via lazy imports should be considered in a future phase.
+
+### Phase 6 Handoff Note for plan-agent
+
+Phase 5 is complete and reviewed. All 14 tasks verified. The remaining items on the build order are:
+- **Offline sync** (service worker, queued writes, local caching for field inspectors)
+- **Legal attestation** (terms of service, privacy policy, attestation workflows)
+- **Security hardening** (CSP headers, rate limiting, input sanitization, etc.)
+
+Recommended Phase 6 scope: **Offline sync**. This is the next item in the build order and a core requirement for field inspectors working in low-connectivity areas.
 
 ---
 
