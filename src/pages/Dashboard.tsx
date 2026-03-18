@@ -10,12 +10,13 @@ import {
   PlayCircle,
   AlertTriangle,
 } from 'lucide-react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit as fbLimit, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { BillingStatus } from '../components/billing/BillingStatus.tsx';
 import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
+import type { Workspace } from '../services/workspaceService.ts';
 
 interface StatCardProps {
   label: string;
@@ -52,6 +53,7 @@ export default function Dashboard() {
 
   const [extCount, setExtCount] = useState(0);
   const [memberCount, setMemberCount] = useState(0);
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
 
   // Real-time extinguisher count
   useEffect(() => {
@@ -71,6 +73,25 @@ export default function Dashboard() {
       where('status', '==', 'active'),
     );
     return onSnapshot(q, (snap) => setMemberCount(snap.size));
+  }, [orgId]);
+
+  // Get latest active workspace
+  useEffect(() => {
+    if (!orgId) return;
+    const q = query(
+      collection(db, 'org', orgId, 'workspaces'),
+      where('status', '==', 'active'),
+      orderBy('monthYear', 'desc'),
+      fbLimit(1),
+    );
+    return onSnapshot(q, (snap) => {
+      if (!snap.empty) {
+        const doc = snap.docs[0];
+        setActiveWorkspace({ id: doc.id, ...doc.data() } as Workspace);
+      } else {
+        setActiveWorkspace(null);
+      }
+    });
   }, [orgId]);
 
   return (
@@ -135,13 +156,13 @@ export default function Dashboard() {
         />
         <StatCard
           label="Pending Inspections"
-          value="0"
+          value={activeWorkspace ? activeWorkspace.stats.pending.toString() : '0'}
           icon={ClipboardList}
           color="bg-blue-500"
         />
         <StatCard
-          label="Compliance Status"
-          value={extCount > 0 ? 'OK' : '--'}
+          label="Passed This Month"
+          value={activeWorkspace ? activeWorkspace.stats.passed.toString() : '--'}
           icon={ShieldCheck}
           color="bg-green-500"
         />
@@ -165,11 +186,15 @@ export default function Dashboard() {
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Quick Actions</h2>
         <div className="flex flex-wrap gap-3">
           <button
+            onClick={() => activeWorkspace
+              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}`)
+              : navigate('/dashboard/workspaces')
+            }
             disabled={!subActive}
             className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
             <PlayCircle className="h-4 w-4" />
-            Start Inspection
+            {activeWorkspace ? `Inspect (${activeWorkspace.label})` : 'Start Inspection'}
           </button>
           <button
             onClick={() => navigate('/dashboard/inventory/new')}

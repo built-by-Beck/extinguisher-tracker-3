@@ -25,3 +25,11 @@ export { generateQRCode } from './tags/generateQRCode.js';
 // Data import/export
 export { importExtinguishersCSV } from './data/importCSV.js';
 export { exportExtinguishersCSV } from './data/exportCSV.js';
+
+// Workspaces
+export { createWorkspace } from './workspaces/createWorkspace.js';
+export { archiveWorkspace } from './workspaces/archiveWorkspace.js';
+
+// Inspections
+export { saveInspection } from './inspections/saveInspection.js';
+export { resetInspection } from './inspections/resetInspection.js';

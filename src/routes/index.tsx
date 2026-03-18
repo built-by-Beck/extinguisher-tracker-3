@@ -11,6 +11,9 @@ import Inventory from '../pages/Inventory.tsx';
 import ExtinguisherCreate from '../pages/ExtinguisherCreate.tsx';
 import ExtinguisherEdit from '../pages/ExtinguisherEdit.tsx';
 import Locations from '../pages/Locations.tsx';
+import Workspaces from '../pages/Workspaces.tsx';
+import WorkspaceDetail from '../pages/WorkspaceDetail.tsx';
+import InspectionForm from '../pages/InspectionForm.tsx';
 import NotFound from '../pages/NotFound.tsx';
 import { ProtectedRoute } from '../components/guards/ProtectedRoute.tsx';
 import { RootRedirect } from '../components/guards/RootRedirect.tsx';
@@ -37,6 +40,9 @@ export function AppRoutes() {
           <Route path="inventory/new" element={<ExtinguisherCreate />} />
           <Route path="inventory/:extId/edit" element={<ExtinguisherEdit />} />
           <Route path="locations" element={<Locations />} />
+          <Route path="workspaces" element={<Workspaces />} />
+          <Route path="workspaces/:workspaceId" element={<WorkspaceDetail />} />
+          <Route path="workspaces/:workspaceId/inspect/:inspectionId" element={<InspectionForm />} />
         </Route>
       </Route>
 

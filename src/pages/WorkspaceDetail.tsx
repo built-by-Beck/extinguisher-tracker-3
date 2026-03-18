@@ -1,0 +1,220 @@
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Search,
+  Loader2,
+} from 'lucide-react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase.ts';
+import { useAuth } from '../hooks/useAuth.ts';
+import { useOrg } from '../hooks/useOrg.ts';
+import {
+  subscribeToInspections,
+  type Inspection,
+} from '../services/inspectionService.ts';
+import type { Workspace } from '../services/workspaceService.ts';
+
+const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; bg: string }> = {
+  pass: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
+  fail: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-100' },
+  pending: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100' },
+};
+
+export default function WorkspaceDetail() {
+  const navigate = useNavigate();
+  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const { userProfile } = useAuth();
+  const { org } = useOrg();
+
+  const orgId = userProfile?.activeOrgId ?? '';
+  const sections = org?.settings?.sections ?? [];
+
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('');
+
+  // Subscribe to workspace doc
+  useEffect(() => {
+    if (!orgId || !workspaceId) return;
+    const wsRef = doc(db, 'org', orgId, 'workspaces', workspaceId);
+    return onSnapshot(wsRef, (snap) => {
+      if (snap.exists()) {
+        setWorkspace({ id: snap.id, ...snap.data() } as Workspace);
+      }
+    });
+  }, [orgId, workspaceId]);
+
+  // Subscribe to inspections
+  useEffect(() => {
+    if (!orgId || !workspaceId) return;
+    return subscribeToInspections(orgId, workspaceId, setInspections);
+  }, [orgId, workspaceId]);
+
+  const isArchived = workspace?.status === 'archived';
+
+  // Client-side filtering
+  const filtered = inspections.filter((insp) => {
+    if (statusFilter && insp.status !== statusFilter) return false;
+    if (sectionFilter && insp.section !== sectionFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return insp.assetId.toLowerCase().includes(q) || insp.section.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  if (!workspace) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="h-8 w-8 animate-spin text-red-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      {/* Header */}
+      <div className="mb-6">
+        <button
+          onClick={() => navigate('/dashboard/workspaces')}
+          className="mb-3 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Workspaces
+        </button>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{workspace.label}</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              {workspace.stats.total} extinguishers
+              {isArchived && ' (archived — read only)'}
+            </p>
+          </div>
+
+          {/* Stats badges */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span className="text-sm font-semibold text-green-700">{workspace.stats.passed}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <XCircle className="h-4 w-4 text-red-500" />
+              <span className="text-sm font-semibold text-red-700">{workspace.stats.failed}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4 text-gray-400" />
+              <span className="text-sm font-semibold text-gray-600">{workspace.stats.pending}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-3 h-3 rounded-full bg-gray-200">
+          {workspace.stats.total > 0 && (
+            <div className="flex h-3 overflow-hidden rounded-full">
+              <div
+                className="bg-green-500 transition-all"
+                style={{ width: `${(workspace.stats.passed / workspace.stats.total) * 100}%` }}
+              />
+              <div
+                className="bg-red-500 transition-all"
+                style={{ width: `${(workspace.stats.failed / workspace.stats.total) * 100}%` }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by asset ID..."
+            className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+          />
+        </div>
+
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+        >
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="pass">Passed</option>
+          <option value="fail">Failed</option>
+        </select>
+
+        {sections.length > 0 && (
+          <select
+            value={sectionFilter}
+            onChange={(e) => setSectionFilter(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">All Sections</option>
+            {sections.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* Inspection list */}
+      {filtered.length === 0 ? (
+        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
+          <p className="text-sm text-gray-500">No inspections match your filters.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Asset ID</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Section</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Inspector</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filtered.map((insp) => {
+                const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+                const Icon = style.icon;
+
+                return (
+                  <tr
+                    key={insp.id}
+                    className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => insp.id && navigate(`/dashboard/workspaces/${workspaceId}/inspect/${insp.id}`)}
+                  >
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                        <Icon className="h-3.5 w-3.5" />
+                        {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{insp.assetId}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{insp.section || '--'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{insp.inspectedByEmail ?? '--'}</td>
+                    <td className="max-w-xs truncate px-4 py-3 text-sm text-gray-500">{insp.notes || '--'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

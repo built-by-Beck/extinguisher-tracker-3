@@ -7,6 +7,7 @@ import {
   Flame,
   Package,
   MapPin,
+  ClipboardList,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -16,6 +17,7 @@ interface SidebarProps {
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/dashboard/workspaces', label: 'Inspections', icon: ClipboardList, end: false },
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
   { to: '/dashboard/locations', label: 'Locations', icon: MapPin, end: false },
   { to: '/dashboard/members', label: 'Members', icon: Users, end: false },
