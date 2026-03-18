@@ -30,7 +30,8 @@ service firebase.storage {
         || request.resource.contentType.matches('image/png')
         || request.resource.contentType.matches('image/webp')
         || request.resource.contentType.matches('text/csv')
-        || request.resource.contentType.matches('application/json');
+        || request.resource.contentType.matches('application/json')
+        || request.resource.contentType.matches('application/pdf');
     }
 
     // Max file size: 10 MB

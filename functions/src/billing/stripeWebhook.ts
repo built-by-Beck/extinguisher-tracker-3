@@ -61,6 +61,8 @@ async function handleSubscriptionEvent(subscription: Stripe.Subscription) {
   await writeAuditLog(orgId, {
     action: `billing.subscription_${subscription.status}`,
     performedBy: 'stripe-webhook',
+    entityType: 'billing',
+    entityId: orgId,
     details: { plan, subscriptionId: subscription.id, status: subscription.status },
   });
 }
@@ -129,6 +131,8 @@ export const stripeWebhook = onRequest(async (req, res) => {
           await writeAuditLog(orgId, {
             action: 'billing.subscription_canceled',
             performedBy: 'stripe-webhook',
+            entityType: 'billing',
+            entityId: orgId,
             details: { subscriptionId: subscription.id },
           });
         }
@@ -158,6 +162,8 @@ export const stripeWebhook = onRequest(async (req, res) => {
           await writeAuditLog(result.orgId, {
             action: 'billing.payment_failed',
             performedBy: 'stripe-webhook',
+            entityType: 'billing',
+            entityId: result.orgId,
             details: { invoiceId: invoice.id },
           });
         }

@@ -17,6 +17,7 @@
   "dependencies": {
     "firebase-admin": "^13.4.0",
     "firebase-functions": "^6.3.2",
+    "pdfmake": "^0.3.7",
     "stripe": "^18.1.0"
   },
   "devDependencies": {

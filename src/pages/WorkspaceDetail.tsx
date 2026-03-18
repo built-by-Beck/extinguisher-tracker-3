@@ -7,6 +7,7 @@ import {
   Clock,
   Search,
   Loader2,
+  FileText,
 } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
@@ -17,6 +18,9 @@ import {
   type Inspection,
 } from '../services/inspectionService.ts';
 import type { Workspace } from '../services/workspaceService.ts';
+import { getReport } from '../services/reportService.ts';
+import { ReportDownloadButton } from '../components/reports/ReportDownloadButton.tsx';
+import type { Report } from '../types/report.ts';
 
 const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; bg: string }> = {
   pass: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
@@ -35,6 +39,7 @@ export default function WorkspaceDetail() {
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [report, setReport] = useState<Report | null | undefined>(undefined); // undefined = loading, null = not found
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
@@ -57,6 +62,15 @@ export default function WorkspaceDetail() {
   }, [orgId, workspaceId]);
 
   const isArchived = workspace?.status === 'archived';
+
+  // Load report doc when workspace is archived
+  useEffect(() => {
+    if (!isArchived || !orgId || !workspaceId) return;
+    setReport(undefined);
+    getReport(orgId, workspaceId)
+      .then((r) => setReport(r))
+      .catch(() => setReport(null));
+  }, [isArchived, orgId, workspaceId]);
 
   // Client-side filtering
   const filtered = inspections.filter((insp) => {
@@ -131,6 +145,65 @@ export default function WorkspaceDetail() {
           )}
         </div>
       </div>
+
+      {/* Compliance Report section — archived workspaces only */}
+      {isArchived && (
+        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <FileText className="h-5 w-5 text-red-600" />
+            <h2 className="text-base font-semibold text-gray-900">Compliance Report</h2>
+          </div>
+
+          {report === undefined && (
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading report data...
+            </div>
+          )}
+
+          {report === null && (
+            <p className="text-sm text-gray-500">
+              Report data not available for this workspace.
+            </p>
+          )}
+
+          {report !== undefined && report !== null && (
+            <>
+              {/* Stats */}
+              <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
+                  <p className="text-xs text-gray-500">Total</p>
+                  <p className="text-lg font-bold text-gray-900">{report.totalExtinguishers}</p>
+                </div>
+                <div className="rounded-lg bg-green-50 px-3 py-2 text-center">
+                  <p className="text-xs text-green-600">Passed</p>
+                  <p className="text-lg font-bold text-green-700">{report.passedCount}</p>
+                </div>
+                <div className="rounded-lg bg-red-50 px-3 py-2 text-center">
+                  <p className="text-xs text-red-500">Failed</p>
+                  <p className="text-lg font-bold text-red-700">{report.failedCount}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
+                  <p className="text-xs text-gray-500">Pass Rate</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {report.totalExtinguishers > 0
+                      ? `${Math.round((report.passedCount / report.totalExtinguishers) * 100)}%`
+                      : '--'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Download buttons */}
+              <div className="flex flex-wrap gap-2">
+                <span className="self-center text-xs text-gray-500 font-medium mr-1">Download:</span>
+                <ReportDownloadButton orgId={orgId} workspaceId={workspaceId!} format="csv" />
+                <ReportDownloadButton orgId={orgId} workspaceId={workspaceId!} format="pdf" />
+                <ReportDownloadButton orgId={orgId} workspaceId={workspaceId!} format="json" />
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">

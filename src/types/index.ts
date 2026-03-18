@@ -15,3 +15,9 @@ export type { Invite, InviteStatus } from './invite.ts';
 
 // Notifications
 export type { Notification, NotificationType, NotificationSeverity } from './notification.ts';
+
+// Reports
+export type { Report, ReportResult, ReportFormat } from './report.ts';
+
+// Audit logs
+export type { AuditLog, AuditLogAction } from './auditLog.ts';

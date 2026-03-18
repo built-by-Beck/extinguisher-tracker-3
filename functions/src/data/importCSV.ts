@@ -187,6 +187,8 @@ export const importExtinguishersCSV = onCall(async (request) => {
   await writeAuditLog(orgId, {
     action: 'data.imported',
     performedBy: uid,
+    entityType: 'data',
+    entityId: orgId,
     details: {
       totalRows: rows.length,
       created: created.length,

@@ -51,3 +51,6 @@ export { markNotificationRead } from './notifications/markRead.js';
 // Notifications (scheduled)
 export { complianceReminderJob } from './notifications/generateReminders.js';
 export { overdueDetectionJob } from './notifications/detectOverdue.js';
+
+// Reports
+export { generateReport } from './reports/generateReport.js';

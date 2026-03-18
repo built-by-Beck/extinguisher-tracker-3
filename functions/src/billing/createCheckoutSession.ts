@@ -63,6 +63,9 @@ export const createCheckoutSession = onCall(async (request) => {
   await writeAuditLog(orgId, {
     action: 'billing.checkout_started',
     performedBy: uid,
+    performedByEmail: email,
+    entityType: 'billing',
+    entityId: orgId,
     details: { plan: planName, sessionId: session.id },
   });
 

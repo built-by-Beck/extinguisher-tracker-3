@@ -6,6 +6,17 @@ import { throwInvalidArgument, throwNotFound, throwFailedPrecondition } from '..
 import { writeAuditLog } from '../utils/auditLog.js';
 import { FieldValue } from 'firebase-admin/firestore';
 
+interface InspectionResultData {
+  assetId: string;
+  section: string;
+  status: string;
+  inspectedAt: unknown;
+  inspectedBy: string | null;
+  inspectedByEmail: string | null;
+  notes: string;
+  checklistData: Record<string, string> | null;
+}
+
 export const archiveWorkspace = onCall(async (request) => {
   const { uid } = validateAuth(request);
   const { orgId, workspaceId } = request.data as { orgId: string; workspaceId: string };
@@ -39,12 +50,25 @@ export const archiveWorkspace = onCall(async (request) => {
   let passed = 0;
   let failed = 0;
   let pending = 0;
+  const results: InspectionResultData[] = [];
 
-  inspSnap.forEach((doc) => {
-    const status = doc.data().status as string;
+  inspSnap.forEach((d) => {
+    const data = d.data();
+    const status = data.status as string;
     if (status === 'pass') passed++;
     else if (status === 'fail') failed++;
     else pending++;
+
+    results.push({
+      assetId: data.assetId ?? '',
+      section: data.section ?? '',
+      status: data.status ?? 'pending',
+      inspectedAt: data.inspectedAt ?? null,
+      inspectedBy: data.inspectedBy ?? null,
+      inspectedByEmail: data.inspectedByEmail ?? null,
+      notes: data.notes ?? '',
+      checklistData: data.checklistData ?? null,
+    });
   });
 
   await wsRef.update({
@@ -60,9 +84,34 @@ export const archiveWorkspace = onCall(async (request) => {
     },
   });
 
+  // Create report snapshot doc at org/{orgId}/reports/{workspaceId}
+  // File exports (CSV/PDF/JSON) are generated on demand via the generateReport CF.
+  const reportRef = adminDb.doc(`org/${orgId}/reports/${workspaceId}`);
+  await reportRef.set({
+    workspaceId,
+    monthYear: wsData.monthYear ?? '',
+    label: wsData.label ?? '',
+    archivedAt: FieldValue.serverTimestamp(),
+    archivedBy: uid,
+    totalExtinguishers: inspSnap.size,
+    passedCount: passed,
+    failedCount: failed,
+    pendingCount: pending,
+    results,
+    csvDownloadUrl: null,
+    csvFilePath: null,
+    pdfDownloadUrl: null,
+    pdfFilePath: null,
+    jsonDownloadUrl: null,
+    jsonFilePath: null,
+    generatedAt: null,
+  });
+
   await writeAuditLog(orgId, {
     action: 'workspace.archived',
     performedBy: uid,
+    entityType: 'workspace',
+    entityId: workspaceId,
     details: { workspaceId, total: inspSnap.size, passed, failed, pending },
   });
 

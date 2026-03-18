@@ -187,6 +187,8 @@ export const replaceExtinguisher = onCall(async (request) => {
   await writeAuditLog(orgId, {
     action: 'extinguisher.replaced',
     performedBy: uid,
+    entityType: 'extinguisher',
+    entityId: oldExtinguisherId,
     details: {
       oldExtinguisherId,
       oldAssetId: oldExtData.assetId,

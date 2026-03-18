@@ -1,3 +1,11 @@
+/**
+ * Sidebar navigation component.
+ * Supports role-based visibility: nav items with a `roles` field are only shown
+ * to members whose role matches one of the specified roles.
+ *
+ * Author: built_by_Beck
+ */
+
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -9,24 +17,50 @@ import {
   MapPin,
   ClipboardList,
   Bell,
+  FileText,
+  ScrollText,
 } from 'lucide-react';
+import { useOrg } from '../../hooks/useOrg.ts';
+import type { OrgRole } from '../../types/index.ts';
 
-interface SidebarProps {
-  open: boolean;
-  onClose: () => void;
+interface NavItem {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  end: boolean;
+  roles?: OrgRole[];
 }
 
-const navItems = [
+const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/dashboard/workspaces', label: 'Inspections', icon: ClipboardList, end: false },
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
   { to: '/dashboard/locations', label: 'Locations', icon: MapPin, end: false },
   { to: '/dashboard/members', label: 'Members', icon: Users, end: false },
   { to: '/dashboard/notifications', label: 'Notifications', icon: Bell, end: false },
+  { to: '/dashboard/reports', label: 'Reports', icon: FileText, end: false },
+  {
+    to: '/dashboard/audit-logs',
+    label: 'Audit Logs',
+    icon: ScrollText,
+    end: false,
+    roles: ['owner', 'admin'],
+  },
   { to: '/dashboard/settings', label: 'Settings', icon: Settings, end: false },
 ];
 
+interface SidebarProps {
+  open: boolean;
+  onClose: () => void;
+}
+
 export function Sidebar({ open, onClose }: SidebarProps) {
+  const { hasRole } = useOrg();
+
+  const visibleNavItems = navItems.filter(
+    (item) => !item.roles || hasRole(item.roles),
+  );
+
   return (
     <>
       {/* Mobile overlay */}
@@ -63,7 +97,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

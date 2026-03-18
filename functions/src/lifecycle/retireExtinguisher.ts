@@ -64,6 +64,8 @@ export const retireExtinguisher = onCall(async (request) => {
   await writeAuditLog(orgId, {
     action: 'extinguisher.retired',
     performedBy: uid,
+    entityType: 'extinguisher',
+    entityId: extinguisherId,
     details: {
       extinguisherId,
       assetId: extData.assetId,

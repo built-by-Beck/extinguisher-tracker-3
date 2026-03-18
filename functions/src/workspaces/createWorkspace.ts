@@ -119,6 +119,8 @@ export const createWorkspace = onCall(async (request) => {
   await writeAuditLog(orgId, {
     action: 'workspace.created',
     performedBy: uid,
+    entityType: 'workspace',
+    entityId: monthYear,
     details: { monthYear, extinguishersSeeded: totalExtinguishers },
   });
 

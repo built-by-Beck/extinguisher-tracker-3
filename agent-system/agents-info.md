@@ -1,19 +1,28 @@
 # EX3 Agent System -- Project State
 
 **Last Updated**: 2026-03-18
-**Updated By**: build-agent (Sonnet 4.6)
+**Updated By**: plan-agent (Opus 4.6) -- Phase 5 planning (revised)
 
 ---
 
 ## Current Phase
 
-**Phase 4 -- Reminders, Compliance Engine, Lifecycle Engine**
-Status: COMPLETE (all 25 tasks implemented)
+**Phase 5 -- Reports & Audit Logs**
+Status: PLANNED (14 tasks, P5-01 through P5-14) -- revised down from 19 after codebase audit
 
 Phase 1 (Foundation): Complete (28 tasks)
 Phase 2 (Core Operations & Billing): Complete (26 tasks)
 Phase 3 (Workspaces & Inspections): Complete
 Phase 4 (Reminders, Compliance, Lifecycle): Complete -- 25 tasks (P4-01 through P4-25)
+Phase 5 (Reports & Audit Logs): Planned -- 14 tasks (P5-01 through P5-14)
+
+**Pre-existing work discovered during planning (already done, no tasks needed):**
+- writeAuditLog utility already writes performedAt, entityType, entityId, performedByEmail
+- All writeAuditLog call sites already pass entityType and entityId
+- src/types/report.ts and src/types/auditLog.ts already exist with correct types
+- storage.rules already includes application/pdf
+- Firestore security rules for reports and auditLogs already correct
+- complianceReports feature flag is true for all plans
 
 ---
 
@@ -184,7 +193,7 @@ invite/{inviteId}     -- pending org invitations
 
 ## Required Build Order (remaining)
 
-~~Firebase wiring~~ -> ~~Auth~~ -> ~~Org creation~~ -> ~~Memberships~~ -> ~~Firestore schema/types~~ -> ~~Security Rules~~ -> ~~Storage Rules~~ -> ~~Stripe/Pricing~~ -> ~~Org switching~~ -> ~~Dashboard~~ -> ~~Inventory~~ -> ~~Locations~~ -> ~~Asset tagging~~ -> ~~Workspaces~~ -> ~~Inspections~~ -> ~~Reminders~~ -> ~~Compliance engine~~ -> ~~Lifecycle engine~~ -> **Reports** -> Audit logs -> Offline sync -> Legal attestation -> Security hardening
+~~Firebase wiring~~ -> ~~Auth~~ -> ~~Org creation~~ -> ~~Memberships~~ -> ~~Firestore schema/types~~ -> ~~Security Rules~~ -> ~~Storage Rules~~ -> ~~Stripe/Pricing~~ -> ~~Org switching~~ -> ~~Dashboard~~ -> ~~Inventory~~ -> ~~Locations~~ -> ~~Asset tagging~~ -> ~~Workspaces~~ -> ~~Inspections~~ -> ~~Reminders~~ -> ~~Compliance engine~~ -> ~~Lifecycle engine~~ -> **Reports (Phase 5 -- IN PROGRESS)** -> **Audit logs (Phase 5 -- IN PROGRESS)** -> Offline sync -> Legal attestation -> Security hardening
 
 ---
 
@@ -292,32 +301,79 @@ Recommended Phase 5 scope: **Reports + Audit Logs UI**. Offline sync is complex 
 
 ---
 
-## Current Progress
+## Current Progress -- Phase 5
 
 | Task | Status | Notes |
 |------|--------|-------|
-| P4-01 | COMPLETE | complianceCalc.ts pure utility |
-| P4-02 | COMPLETE | recalculateLifecycle.ts callable CF |
-| P4-03 | COMPLETE | batchRecalculate.ts callable CF |
-| P4-04 | COMPLETE | saveInspection.ts hooks lifecycle (was already done) |
-| P4-05 | COMPLETE | onExtinguisherWrite.ts Firestore trigger |
-| P4-06 | COMPLETE | replaceExtinguisher.ts callable CF |
-| P4-07 | COMPLETE | retireExtinguisher.ts callable CF |
-| P4-08 | COMPLETE | notification.ts types (was already built) |
-| P4-09 | COMPLETE | notificationService.ts |
-| P4-10 | COMPLETE | markRead.ts callable CF |
-| P4-11 | COMPLETE | generateReminders.ts scheduled CF |
-| P4-12 | COMPLETE | detectOverdue.ts scheduled CF |
-| P4-13 | COMPLETE | NotificationBell.tsx component |
-| P4-14 | COMPLETE | Notifications.tsx page + route + sidebar nav |
-| P4-15 | COMPLETE | NotificationBell in Topbar |
-| P4-16 | COMPLETE | compliance.ts utilities (was already built) |
-| P4-17 | COMPLETE | ComplianceStatusBadge.tsx (was already built) |
-| P4-18 | COMPLETE | ComplianceSummaryCard.tsx |
-| P4-19 | COMPLETE | Dashboard.tsx compliance overview section |
-| P4-20 | COMPLETE | Inventory.tsx compliance column + filters |
-| P4-21 | COMPLETE | ExtinguisherEdit.tsx lifecycle section + actions |
-| P4-22 | COMPLETE | ReplaceExtinguisherModal.tsx |
-| P4-23 | COMPLETE | lifecycleService.ts |
-| P4-24 | COMPLETE | firestore.indexes.json updated |
-| P4-25 | COMPLETE | Security rules verified correct |
+| P5-01 | COMPLETE | pdfmake v0.3.7 already installed; created functions/src/types/pdfmake.d.ts |
+| P5-02 | COMPLETE | functions/src/reports/pdfGenerator.ts — uses pdfmake v0.3.x createPdf().getBuffer() API |
+| P5-03 | COMPLETE | functions/src/reports/generateReport.ts — callable CF for CSV/PDF/JSON generation |
+| P5-04 | COMPLETE | archiveWorkspace.ts — now creates report snapshot doc on archive |
+| P5-05 | COMPLETE | src/services/reportService.ts — getReport, subscribeToReports, generateReportDownload |
+| P5-06 | COMPLETE | src/components/reports/ReportDownloadButton.tsx — CSV/PDF/JSON download buttons |
+| P5-07 | COMPLETE | src/pages/Reports.tsx + /dashboard/reports route |
+| P5-08 | COMPLETE | WorkspaceDetail.tsx — report section for archived workspaces |
+| P5-09 | COMPLETE | src/services/auditLogService.ts — cursor-based pagination with entityType filter |
+| P5-10 | COMPLETE | src/components/audit/AuditLogRow.tsx — action labels, entity badges, relative time, expandable details |
+| P5-11 | COMPLETE | src/pages/AuditLogs.tsx + /dashboard/audit-logs route |
+| P5-12 | COMPLETE | Sidebar.tsx — role-based visibility, Reports + Audit Logs nav items |
+| P5-13 | COMPLETE | firestore.indexes.json — auditLogs (entityType+performedAt) + reports (archivedAt) |
+| P5-14 | COMPLETE | Both `cd functions && npm run build` and `npm run build` verified zero errors |
+
+---
+
+## Phase 5 Implementation Notes
+
+**Last Updated**: 2026-03-18
+**Updated By**: build-agent (Sonnet 4.6)
+
+### What was built in Phase 5
+
+**Subsystem A: Report Generation Backend**
+- `functions/src/types/pdfmake.d.ts` — NEW: Minimal type declarations for pdfmake v0.3.x (no @types/pdfmake package available). Declares ContentText, ContentStack, ContentColumns, TableNode, ContentCanvas, DocumentDefinition, FontEntry, OutputDocument, PdfMake default class.
+- `functions/src/reports/pdfGenerator.ts` — NEW: PDF generator using pdfmake v0.3.x API (`new PdfMake()`, `addFonts()`, `createPdf()`, `getBuffer()`). Generates formatted compliance report PDF with header, stats summary, results table, and footer. Returns Buffer.
+- `functions/src/reports/generateReport.ts` — NEW: Callable CF for on-demand CSV/PDF/JSON report generation. Auth + membership validated (all 4 roles). Idempotent: re-signs fresh URL if file already exists. Creates report doc if missing (backward compat for pre-Phase-5 archives).
+- `functions/src/workspaces/archiveWorkspace.ts` — MODIFIED: Now creates `org/{orgId}/reports/{workspaceId}` doc with stats + results array on archive. Uses `set()` not `update()`.
+- `functions/src/index.ts` — MODIFIED: Exports `generateReport` CF.
+
+**Subsystem B: Report Frontend**
+- `src/services/reportService.ts` — NEW: getReport (getDoc), subscribeToReports (realtime orderBy archivedAt desc), generateReportDownload (httpsCallable wrapping generateReport CF).
+- `src/components/reports/ReportDownloadButton.tsx` — NEW: Button for CSV/PDF/JSON download. Loading spinner, error auto-clear after 5s, opens URL in new tab.
+- `src/pages/Reports.tsx` — NEW: `/dashboard/reports` page. Realtime report list with stats cards and three download buttons per report.
+- `src/pages/WorkspaceDetail.tsx` — MODIFIED: For archived workspaces, shows Compliance Report card above inspection list with stats grid + download buttons.
+
+**Subsystem C: Audit Logs Frontend**
+- `src/services/auditLogService.ts` — NEW: `getAuditLogPage()` with cursor-based pagination, entityType filter, performedAt fallback to createdAt.
+- `src/components/audit/AuditLogRow.tsx` — NEW: Single audit log entry display with action label map, entity type colored badge, entity type icon, relative time formatter, expandable details section.
+- `src/pages/AuditLogs.tsx` — NEW: `/dashboard/audit-logs` page. Admin-only (hasRole check), entity type filter dropdown, 50 logs/page, Load More button.
+
+**Subsystem D: Sidebar & Routing**
+- `src/components/layout/Sidebar.tsx` — MODIFIED: Added Reports (FileText icon) and Audit Logs (ScrollText icon, roles: ['owner','admin']) nav items. Added role-based filtering using `useOrg().hasRole()`. NavItem interface has optional `roles?: OrgRole[]` field.
+- `src/routes/index.tsx` — MODIFIED: Added `/dashboard/reports` and `/dashboard/audit-logs` routes.
+
+**Subsystem E: Infrastructure**
+- `firestore.indexes.json` — MODIFIED: Added composite index for auditLogs (entityType ASC + performedAt DESC) and single-field index for reports (archivedAt DESC).
+
+### Key Architecture Decisions in Phase 5
+- **pdfmake v0.3.x API**: Uses `new PdfMake()` / `addFonts()` / `createPdf()` / `getBuffer()` — completely different from v0.2.x. Created custom type declarations since no `@types/pdfmake` exists.
+- **Idempotent report generation**: `generateReport` CF checks if `{format}FilePath` already exists in the report doc. If yes, re-signs a fresh 1-hour URL from the stored path. If no, generates the file and saves path + URL to the doc.
+- **Backward-compat report creation**: `generateReport` CF also handles workspaces archived before Phase 5 (no report doc yet) by querying inspections and creating the report doc on the fly.
+- **Role-based sidebar**: NavItem type has `roles?: OrgRole[]`. Items without `roles` are visible to all. Sidebar calls `hasRole(item.roles)` via `useOrg()` to filter.
+- **Audit log pagination**: Uses cursor-based pagination with `startAfter(lastDoc)` rather than offset pagination — scales well for large log datasets.
+
+### Handoff Note for review-agent
+
+Phase 5 is built. Please review:
+1. **pdfmake type declarations**: The `functions/src/types/pdfmake.d.ts` is hand-crafted for v0.3.x. Verify it compiles cleanly with the pdfGenerator.
+2. **generateReport CF**: Check auth flow, idempotent re-sign logic, backward-compat report creation, and all three format branches (CSV/PDF/JSON).
+3. **archiveWorkspace modifications**: Verify the new results array collection and report doc creation with `set()`.
+4. **Report type alignment**: Do a side-by-side comparison of `src/types/report.ts` vs what archiveWorkspace and generateReport write.
+5. **Audit log service**: Verify cursor pagination logic and the `unshift`-based constraint ordering.
+6. **Role-based sidebar**: Verify owners/admins see Audit Logs, inspectors/viewers do not.
+7. **TypeScript compilation**: Both `cd functions && npm run build` and `npm run build` from project root verified zero errors by build-agent.
+
+---
+
+### Phase 4 Progress (COMPLETE)
+
+All 25 tasks (P4-01 through P4-25) completed. See Phase 4 Implementation Notes above.

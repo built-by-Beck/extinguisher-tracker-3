@@ -39,8 +39,10 @@ export const generateQRCode = onCall(async (request) => {
   });
 
   await writeAuditLog(orgId, {
-    action: 'qr.generated',
+    action: 'tag.generated',
     performedBy: uid,
+    entityType: 'extinguisher',
+    entityId: extId,
     details: { extId, qrCodeValue },
   });
 
