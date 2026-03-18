@@ -1,4 +1,4 @@
-04 — Features Specification
+# 04 — Features Specification
 
 This document defines the major product features of Extinguisher Tracker 3 (EX3), including workflows, requirements, acceptance criteria, and important behavioral rules.
 
@@ -6,1508 +6,1119 @@ The goal of this system is to provide a professional, multi-tenant fire extingui
 
 The application must support:
 
-multi-tenant organization accounts
+- multi-tenant organization accounts
+- role-based team collaboration
+- extinguisher inventory management
+- monthly inspections
+- compliance reminders
+- lifecycle tracking
+- barcode / QR asset workflows
+- offline-capable field work
+- audit-ready reporting
+- plan-based feature gating
 
-role-based team collaboration
+## Feature Categories
 
-extinguisher inventory management
+- Authentication and Onboarding
+- Organization and Team Management
+- Extinguisher Inventory Management
+- Monthly Workspace Management
+- Inspection Workflow
+- Barcode and QR Workflows
+- Photo Management
+- GPS Location Tracking
+- Time Tracking
+- Section Notes
+- Data Import
+- Data Export and Reporting
+- Extinguisher Replacement
+- Duplicate Detection and Cleanup
+- Search and Filtering
+- Billing, Plans, and Subscription Enforcement
+- Offline Support
+- Audit Trail
+- Compliance Reminders and Notifications
+- Compliance Lifecycle Tracking
+- Compliance Dashboard
+- Inspection Routes
+- Tag / QR Label Printing
+- Legal Inspection Attestation
 
-monthly inspections
+## 1. Authentication and Onboarding
 
-compliance reminders
-
-lifecycle tracking
-
-barcode / QR asset workflows
-
-offline-capable field work
-
-audit-ready reporting
-
-plan-based feature gating
-
-Feature Categories
-
-Authentication and Onboarding
-
-Organization and Team Management
-
-Extinguisher Inventory Management
-
-Monthly Workspace Management
-
-Inspection Workflow
-
-Barcode and QR Workflows
-
-Photo Management
-
-GPS Location Tracking
-
-Time Tracking
-
-Section Notes
-
-Data Import
-
-Data Export and Reporting
-
-Extinguisher Replacement
-
-Duplicate Detection and Cleanup
-
-Search and Filtering
-
-Billing, Plans, and Subscription Enforcement
-
-Offline Support
-
-Audit Trail
-
-Compliance Reminders and Notifications
-
-Compliance Lifecycle Tracking
-
-Compliance Dashboard
-
-Inspection Routes
-
-Tag / QR Label Printing
-
-Legal Inspection Attestation
-
-1. Authentication and Onboarding
-1.1 User Signup
+### 1.1 User Signup
 
 The user creates an account using Firebase Authentication.
 
-Supported launch method:
+#### Supported Launch Method
 
-email and password
+- email and password
 
-Optional future-ready method:
+#### Optional Future-Ready Method
 
-Google sign-in
+- Google sign-in
 
-After signup:
+#### After Signup
 
-a usr/{uid} document is created
+- a `usr/{uid}` document is created
+- if the user has no memberships, they are routed to organization creation or invite acceptance
 
-if the user has no memberships, they are routed to organization creation or invite acceptance
+#### Acceptance Criteria
 
-Acceptance Criteria
+- user can create an account with email and password
+- duplicate email addresses are rejected
+- password requirements follow Firebase Auth behavior
+- user document is created on first authenticated session
+- user is routed correctly based on membership state
 
-user can create an account with email and password
-
-duplicate email addresses are rejected
-
-password requirements follow Firebase Auth behavior
-
-user document is created on first authenticated session
-
-user is routed correctly based on membership state
-
-1.2 User Login
+### 1.2 User Login
 
 The user signs in with valid credentials.
 
-After login:
+#### After Login
 
-the app loads the user profile
+- the app loads the user profile
+- resolves active organization
+- loads org-scoped dashboard data
+- updates lastLoginAt
 
-resolves active organization
+#### Acceptance Criteria
 
-loads org-scoped dashboard data
+- user can sign in with valid credentials
+- invalid credentials show a clear error
+- active org is loaded after login
+- last login timestamp is updated
+- if the user has multiple organizations, the current or default org is loaded
 
-updates lastLoginAt
-
-Acceptance Criteria
-
-user can sign in with valid credentials
-
-invalid credentials show a clear error
-
-active org is loaded after login
-
-last login timestamp is updated
-
-if the user has multiple organizations, the current or default org is loaded
-
-1.3 Organization Creation
+### 1.3 Organization Creation
 
 A user with no organization memberships can create an organization.
 
 Organization creation is a backend-controlled workflow.
 
-Flow
+#### Flow
 
-user opens Create Organization
+1. user opens Create Organization
+2. user enters org details
+3. Cloud Function creates:
+   - org document
+   - owner membership
+   - **Stripe** customer
+   - active/default org fields on user profile
+4. client routes owner into plan selection / **Stripe** checkout
 
-user enters org details
+#### Acceptance Criteria
 
-Cloud Function creates:
+- organization can be created only by authenticated users
+- creating an org creates an owner membership automatically
+- **Stripe** customer is created
+- user becomes active in the new org
+- user is routed to plan selection or checkout
 
-org document
-
-owner membership
-
-Stripe customer
-
-active/default org fields on user profile
-
-client routes owner into plan selection / Stripe checkout
-
-Acceptance Criteria
-
-organization can be created only by authenticated users
-
-creating an org creates an owner membership automatically
-
-Stripe customer is created
-
-user becomes active in the new org
-
-user is routed to plan selection or checkout
-
-1.4 Invite Acceptance
+### 1.4 Invite Acceptance
 
 A user with an invite link can join an existing organization.
 
 Invite acceptance must always be backend-controlled.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-invite link displays invite details when valid
+- invite link displays invite details when valid
+- invited user can sign in or sign up
+- invite can only be accepted by matching email
+- expired/revoked invites show a clear error
+- accepted invites create active membership
+- user is redirected into the correct org after acceptance
 
-invited user can sign in or sign up
+## 2. Organization and Team Management
 
-invite can only be accepted by matching email
-
-expired/revoked invites show a clear error
-
-accepted invites create active membership
-
-user is redirected into the correct org after acceptance
-
-2. Organization and Team Management
-2.1 Member Management
+### 2.1 Member Management
 
 Owners and admins can manage organization members.
 
-Supported actions:
+#### Supported Actions
 
-invite member
+- invite member
+- revoke pending invite
+- remove member
+- change role
+- view member list
 
-revoke pending invite
+#### Acceptance Criteria
 
-remove member
+- member list shows current active members
+- pending invites are visible
+- owner/admin can invite by email
+- owner/admin can assign roles allowed by business rules
+- owner/admin can remove members except the owner restrictions
+- removed users lose org access immediately
+- membership actions are logged in audit logs
 
-change role
-
-view member list
-
-Acceptance Criteria
-
-member list shows current active members
-
-pending invites are visible
-
-owner/admin can invite by email
-
-owner/admin can assign roles allowed by business rules
-
-owner/admin can remove members except the owner restrictions
-
-removed users lose org access immediately
-
-membership actions are logged in audit logs
-
-2.2 Organization Settings
+### 2.2 Organization Settings
 
 Owners and admins can configure organization-level settings.
 
 Initial settings include:
 
-organization name
+- organization name
+- timezone
+- sections
+- checklist defaults
+- future compliance-related settings
 
-timezone
+#### Acceptance Criteria
 
-sections
+- settings save successfully
+- section changes appear everywhere relevant
+- timezone affects org-specific dates/reminders
+- removing a section does not delete extinguisher records automatically
+- updates are visible to all members
 
-checklist defaults
-
-future compliance-related settings
-
-Acceptance Criteria
-
-settings save successfully
-
-section changes appear everywhere relevant
-
-timezone affects org-specific dates/reminders
-
-removing a section does not delete extinguisher records automatically
-
-updates are visible to all members
-
-2.3 Organization Switching
+### 2.3 Organization Switching
 
 Users may belong to multiple organizations.
 
 The application must support switching active organization context safely.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-org switcher appears only when user belongs to multiple orgs
+- org switcher appears only when user belongs to multiple orgs
+- switching org clears old org state and loads new org state
+- active org persists for future sessions
+- user cannot switch into orgs where membership is inactive or missing
+- no data from another org remains visible after switch
 
-switching org clears old org state and loads new org state
+## 3. Extinguisher Inventory Management
 
-active org persists for future sessions
-
-user cannot switch into orgs where membership is inactive or missing
-
-no data from another org remains visible after switch
-
-3. Extinguisher Inventory Management
-3.1 Add Extinguisher
+### 3.1 Add Extinguisher
 
 Owners and admins can manually add new extinguisher records.
 
-Required Fields
+#### Required Fields
 
-asset ID
+- asset ID
 
-Optional Fields
+#### Optional Fields
 
-barcode
+- barcode
+- serial number
+- manufacturer
+- vicinity
+- parent location
+- section
+- location hierarchy reference
+- category
+- extinguisher type
+- service class
+- extinguisher size
+- manufacture date / year
+- install date
+- GPS
+- reference photo(s)
+- lifecycle metadata if known
 
-serial number
+#### Acceptance Criteria
 
-manufacturer
+- asset ID uniqueness is validated within the org
+- new extinguisher appears in inventory
+- optional fields can be saved when available
+- default category is applied if none is chosen
+- manufacture/service fields support later lifecycle calculations
+- creation is logged
 
-vicinity
-
-parent location
-
-section
-
-location hierarchy reference
-
-category
-
-extinguisher type
-
-service class
-
-extinguisher size
-
-manufacture date / year
-
-install date
-
-GPS
-
-reference photo(s)
-
-lifecycle metadata if known
-
-Acceptance Criteria
-
-asset ID uniqueness is validated within the org
-
-new extinguisher appears in inventory
-
-optional fields can be saved when available
-
-default category is applied if none is chosen
-
-manufacture/service fields support later lifecycle calculations
-
-creation is logged
-
-3.2 Edit Extinguisher
+### 3.2 Edit Extinguisher
 
 Owners and admins can edit extinguisher records.
 
 Inspectors may edit only limited workflow-safe fields if explicitly allowed by business rules.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-editable fields can be changed and saved
+- editable fields can be changed and saved
+- asset ID uniqueness is revalidated if changed
+- plan-restricted features are enforced
+- edits are logged in audit logs
+- compliance and lifecycle recalculation can be triggered when needed
 
-asset ID uniqueness is revalidated if changed
-
-plan-restricted features are enforced
-
-edits are logged in audit logs
-
-compliance and lifecycle recalculation can be triggered when needed
-
-3.3 Delete Extinguisher
+### 3.3 Delete Extinguisher
 
 Owners and admins can delete extinguishers through soft delete.
 
-Deletion stores:
+#### Deletion Stores
 
-deletedAt
+- `deletedAt`
+- `deletedBy`
+- `deletionReason`
 
-deletedBy
+#### Acceptance Criteria
 
-deletionReason
+- delete requires confirmation
+- reason is collected
+- deleted records no longer show in normal inventory lists
+- deletion is audit logged
+- deleted data remains recoverable for future admin restore workflows if implemented later
 
-Acceptance Criteria
-
-delete requires confirmation
-
-reason is collected
-
-deleted records no longer show in normal inventory lists
-
-deletion is audit logged
-
-deleted data remains recoverable for future admin restore workflows if implemented later
-
-3.4 Extinguisher Detail View
+### 3.4 Extinguisher Detail View
 
 Any authorized member can view full extinguisher detail.
 
 Detail view may display:
 
-identity fields
+- identity fields
+- type / size / category
+- location fields
+- GPS
+- photos
+- compliance summary
+- lifecycle dates
+- replacement history
+- inspection history
+- tag information
 
-type / size / category
+#### Acceptance Criteria
 
-location fields
+- detail view shows all permitted fields
+- photos are expandable
+- GPS shows map link when available
+- replacement history is visible
+- inspection history is ordered newest first
+- compliance due dates are visible
 
-GPS
+## 4. Monthly Workspace Management
 
-photos
-
-compliance summary
-
-lifecycle dates
-
-replacement history
-
-inspection history
-
-tag information
-
-Acceptance Criteria
-
-detail view shows all permitted fields
-
-photos are expandable
-
-GPS shows map link when available
-
-replacement history is visible
-
-inspection history is ordered newest first
-
-compliance due dates are visible
-
-4. Monthly Workspace Management
-4.1 Create Workspace
+### 4.1 Create Workspace
 
 Owners and admins can create a new monthly workspace.
 
 Workspace represents one monthly inspection cycle.
 
-On Workspace Creation
+#### On Workspace Creation
 
-one inspection record is created or seeded for each active extinguisher
+- one inspection record is created or seeded for each active extinguisher
+- carry-forward notes may be applied based on settings
+- workspace stats start in pending state
+- duplicate month-year workspaces are prevented in v1
 
-carry-forward notes may be applied based on settings
+#### Acceptance Criteria
 
-workspace stats start in pending state
+- workspace can be created for a month/year
+- correct label and month key are generated
+- one active inspection state exists per extinguisher per workspace
+- duplicate month workspaces are blocked or clearly warned
+- creation is logged
 
-duplicate month-year workspaces are prevented in v1
-
-Acceptance Criteria
-
-workspace can be created for a month/year
-
-correct label and month key are generated
-
-one active inspection state exists per extinguisher per workspace
-
-duplicate month workspaces are blocked or clearly warned
-
-creation is logged
-
-4.2 Switch Workspace
+### 4.2 Switch Workspace
 
 Users can switch between workspaces.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-workspace switcher lists accessible workspaces
+- workspace switcher lists accessible workspaces
+- switching reloads inspection data
+- section timer or route context is paused/reset appropriately
+- archived workspaces are visible as read-only
 
-switching reloads inspection data
-
-section timer or route context is paused/reset appropriately
-
-archived workspaces are visible as read-only
-
-4.3 Archive Workspace
+### 4.3 Archive Workspace
 
 Owners and admins can archive a completed workspace.
 
 Archival should:
 
-lock workspace
+- lock workspace
+- generate report snapshot
+- preserve results
+- prevent further editing
 
-generate report snapshot
+#### Acceptance Criteria
 
-preserve results
+- archival requires confirmation
+- archived workspace becomes read-only
+- report snapshot is created
+- archived workspace remains viewable
+- future editing is blocked
+- archival is logged
 
-prevent further editing
-
-Acceptance Criteria
-
-archival requires confirmation
-
-archived workspace becomes read-only
-
-report snapshot is created
-
-archived workspace remains viewable
-
-future editing is blocked
-
-archival is logged
-
-4.4 Reset Workspace
+### 4.4 Reset Workspace
 
 Owners and admins can reset a workspace to pending if business rules allow.
 
 This is a dangerous action and must be explicitly confirmed.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-reset requires strong confirmation
+- reset requires strong confirmation
+- current state is preserved via report snapshot or event history
+- inspections return to pending state
+- reset is logged
+- archived workspaces cannot be reset unless explicitly reopened through trusted workflow
 
-current state is preserved via report snapshot or event history
+## 5. Inspection Workflow
 
-inspections return to pending state
-
-reset is logged
-
-archived workspaces cannot be reset unless explicitly reopened through trusted workflow
-
-5. Inspection Workflow
-5.1 Perform Inspection
+### 5.1 Perform Inspection
 
 Inspectors, admins, and owners can perform inspections within an active workspace.
 
-Inspection Flow
+#### Inspection Flow
 
-user navigates to section, route, search result, or scanned extinguisher
+1. user navigates to section, route, search result, or scanned extinguisher
+2. user opens inspection view
+3. user completes checklist
+4. user optionally adds photo
+5. user optionally captures GPS if plan allows
+6. user optionally enters notes
+7. user sets pass or fail
+8. user confirms legal attestation if required
+9. inspection record is saved
+10. inspection event is appended
+11. workspace stats update
 
-user opens inspection view
+#### Acceptance Criteria
 
-user completes checklist
+- checklist items are visible and editable
+- photo capture works when allowed by plan
+- GPS works when allowed by plan
+- notes can be added
+- pass/fail saves correctly
+- inspector identity is recorded automatically
+- attestation is captured when required
+- inspection timestamp is stored
+- inspection status updates in UI immediately
 
-user optionally adds photo
-
-user optionally captures GPS if plan allows
-
-user optionally enters notes
-
-user sets pass or fail
-
-user confirms legal attestation if required
-
-inspection record is saved
-
-inspection event is appended
-
-workspace stats update
-
-Acceptance Criteria
-
-checklist items are visible and editable
-
-photo capture works when allowed by plan
-
-GPS works when allowed by plan
-
-notes can be added
-
-pass/fail saves correctly
-
-inspector identity is recorded automatically
-
-attestation is captured when required
-
-inspection timestamp is stored
-
-inspection status updates in UI immediately
-
-5.2 Reset Inspection to Pending
+### 5.2 Reset Inspection to Pending
 
 A completed inspection may be reset to pending if permissions and workspace state allow.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-reset is permission-checked
+- reset is permission-checked
+- previous state is preserved in inspection events
+- current inspection returns to pending
+- event is logged as `reset_to_pending`
 
-previous state is preserved in inspection events
-
-current inspection returns to pending
-
-event is logged as reset_to_pending
-
-5.3 Quick Pass
+### 5.3 Quick Pass
 
 Allows fast pass marking without opening full workflow.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-quick pass is available where allowed
+- quick pass is available where allowed
+- records timestamp and inspector
+- creates inspection event
+- supports plan/role restrictions if needed
 
-records timestamp and inspector
-
-creates inspection event
-
-supports plan/role restrictions if needed
-
-5.4 Quick Fail
+### 5.4 Quick Fail
 
 Allows fast fail marking with required reason/note.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-quick fail requires note/reason
+- quick fail requires note/reason
+- fail status is saved
+- timestamp and inspector are stored
+- event history is created
 
-fail status is saved
+## 6. Barcode and QR Workflows
 
-timestamp and inspector are stored
+### 6.1 Manual Barcode / Asset Search
 
-event history is created
-
-6. Barcode and QR Workflows
-6.1 Manual Barcode / Asset Search
-
-All plans, including Basic, must support manual entry search.
+All plans, including **Basic**, must support manual entry search.
 
 Search targets:
 
-barcode
+- barcode
+- asset ID
+- optionally QR value if manually entered
 
-asset ID
+#### Acceptance Criteria
 
-optionally QR value if manually entered
+- user can type search term
+- app searches relevant fields within current org only
+- matching extinguisher opens correctly
+- no-match message is clear
 
-Acceptance Criteria
-
-user can type search term
-
-app searches relevant fields within current org only
-
-matching extinguisher opens correctly
-
-no-match message is clear
-
-6.2 Camera Barcode Scanning
+### 6.2 Camera Barcode Scanning
 
 Camera barcode scanning is available on:
 
-Pro
+- **Pro**
+- **Elite**
+- **Enterprise**
 
-Elite
+#### Not available on:
 
-Enterprise
+- **Basic**
 
-Not available on:
+#### Acceptance Criteria
 
-Basic
+- scanner opens with live preview
+- successful scan resolves to extinguisher record
+- no-match is handled cleanly
+- scan respects current org only
+- closing scanner is possible without action
 
-Acceptance Criteria
-
-scanner opens with live preview
-
-successful scan resolves to extinguisher record
-
-no-match is handled cleanly
-
-scan respects current org only
-
-closing scanner is possible without action
-
-6.3 QR Scanning
+### 6.3 QR Scanning
 
 QR scanning is available on:
 
-Pro
+- **Pro**
+- **Elite**
+- **Enterprise**
 
-Elite
+#### Not available on:
 
-Enterprise
+- **Basic**
 
-Not available on:
+#### Acceptance Criteria
 
-Basic
+- QR scan opens matching extinguisher or route target
+- deep links still require auth and org membership
+- cross-org access is not possible through QR codes
 
-Acceptance Criteria
+## 7. Photo Management
 
-QR scan opens matching extinguisher or route target
-
-deep links still require auth and org membership
-
-cross-org access is not possible through QR codes
-
-7. Photo Management
-7.1 Asset Reference Photos
+### 7.1 Asset Reference Photos
 
 Each extinguisher may have reference photos.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-photos can be uploaded or captured
+- photos can be uploaded or captured
+- thumbnails appear in detail view
+- photos can be expanded
+- photo limits are enforced
+- upload progress is shown
+- photo deletion is permission-checked
 
-thumbnails appear in detail view
-
-photos can be expanded
-
-photo limits are enforced
-
-upload progress is shown
-
-photo deletion is permission-checked
-
-7.2 Inspection Photos
+### 7.2 Inspection Photos
 
 Each inspection may include a workflow photo.
 
-Available on:
+#### Available on:
 
-Pro
+- **Pro**
+- **Elite**
+- **Enterprise**
 
-Elite
+#### Not available on:
 
-Enterprise
+- **Basic**
 
-Not available on:
+#### Acceptance Criteria
 
-Basic
+- user can capture/upload inspection photo where plan allows
+- photo is tied to inspection record
+- inspection history can show photo reference
 
-Acceptance Criteria
+## 8. GPS Location Tracking
 
-user can capture/upload inspection photo where plan allows
-
-photo is tied to inspection record
-
-inspection history can show photo reference
-
-8. GPS Location Tracking
-8.1 Asset GPS
+### 8.1 Asset GPS
 
 Extinguishers may store a permanent location coordinate.
 
-Available on:
+#### Available on:
 
-Pro
+- **Pro**
+- **Elite**
+- **Enterprise**
 
-Elite
+#### Acceptance Criteria
 
-Enterprise
+- GPS can be captured from device
+- coordinates and accuracy are saved
+- map link is displayed when data exists
+- capture shows loading state
+- GPS can be recaptured
 
-Acceptance Criteria
-
-GPS can be captured from device
-
-coordinates and accuracy are saved
-
-map link is displayed when data exists
-
-capture shows loading state
-
-GPS can be recaptured
-
-8.2 Inspection GPS
+### 8.2 Inspection GPS
 
 Inspection workflow may record GPS at time of inspection.
 
-Available on:
+#### Available on:
 
-Pro
+- **Pro**
+- **Elite**
+- **Enterprise**
 
-Elite
+#### Acceptance Criteria
 
-Enterprise
+- GPS can be captured during inspection
+- coordinates store on inspection record
+- inspection history can display GPS data
 
-Acceptance Criteria
+## 9. Time Tracking
 
-GPS can be captured during inspection
-
-coordinates store on inspection record
-
-inspection history can display GPS data
-
-9. Time Tracking
-9.1 Section Timers
+### 9.1 Section Timers
 
 Sections may have time tracking totals for inspection work.
 
 Available on:
 
-Basic and above if enabled
+- **Basic** and above if enabled
+- may be emphasized on **Pro**+
 
-may be emphasized on Pro+
+#### Behavior
 
-Behavior
+- start
+- pause
+- stop
+- one timer active at a time
 
-start
+#### Acceptance Criteria
 
-pause
+- timer controls are visible where allowed
+- time displays clearly
+- local state survives refresh where possible
+- totals persist to **Firestore**
+- switching workspace pauses active timer
 
-stop
-
-one timer active at a time
-
-Acceptance Criteria
-
-timer controls are visible where allowed
-
-time displays clearly
-
-local state survives refresh where possible
-
-totals persist to Firestore
-
-switching workspace pauses active timer
-
-9.2 Time Summary
+### 9.2 Time Summary
 
 Section time summary can be viewed and exported.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-all sections show totals
+- all sections show totals
+- total time summary is visible
+- export works if feature is enabled
+- reset/clear action is permission-checked
 
-total time summary is visible
+## 10. Section Notes
 
-export works if feature is enabled
-
-reset/clear action is permission-checked
-
-10. Section Notes
-10.1 Per-Section Notes
+### 10.1 Per-Section Notes
 
 Each section can have notes.
 
-Supported forms:
+#### Supported Forms
 
-global notes
+- global notes
+- workspace-specific notes
+- save-for-next-month notes
 
-workspace-specific notes
+#### Acceptance Criteria
 
-save-for-next-month notes
+- notes are editable by allowed roles
+- save-for-next-month behavior works
+- notes show last editor and timestamp
+- notes are visible to appropriate team members
 
-Acceptance Criteria
+## 11. Data Import
 
-notes are editable by allowed roles
-
-save-for-next-month behavior works
-
-notes show last editor and timestamp
-
-notes are visible to appropriate team members
-
-11. Data Import
-11.1 Excel / CSV Import
+### 11.1 Excel / CSV Import
 
 Owners and admins can import extinguisher inventory.
 
-Supported formats:
+#### Supported Formats
 
-.xlsx
+- `.xlsx`
+- `.xls`
+- `.csv`
 
-.xls
+#### Import Behavior
 
-.csv
+- file parsed on client or trusted workflow
+- common headers mapped automatically
+- duplicate asset IDs merged or flagged based on business rule
+- new records created with safe defaults
+- plan limits and over-limit logic enforced
 
-Import Behavior
+#### Acceptance Criteria
 
-file parsed on client or trusted workflow
+- supported files upload successfully
+- headers map flexibly
+- duplicate handling is clear
+- import summary reports adds/updates/errors
+- import is audit logged
+- import respects plan and org boundaries
 
-common headers mapped automatically
-
-duplicate asset IDs merged or flagged based on business rule
-
-new records created with safe defaults
-
-plan limits and over-limit logic enforced
-
-Acceptance Criteria
-
-supported files upload successfully
-
-headers map flexibly
-
-duplicate handling is clear
-
-import summary reports adds/updates/errors
-
-import is audit logged
-
-import respects plan and org boundaries
-
-11.2 JSON Database Import
+### 11.2 JSON Database Import
 
 Owners/admins may import full JSON backup if supported.
 
 This is a high-risk destructive workflow.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-valid JSON required
+- valid JSON required
+- strong confirmation required
+- backup is created before replace/import if destructive mode exists
+- import summary is shown
+- import is audit logged
 
-strong confirmation required
+## 12. Data Export and Reporting
 
-backup is created before replace/import if destructive mode exists
-
-import summary is shown
-
-import is audit logged
-
-12. Data Export and Reporting
-12.1 Export Inspection Data
+### 12.1 Export Inspection Data
 
 Supported export formats:
 
-CSV
-
-Excel
-
-JSON
+- CSV
+- Excel
+- JSON
 
 Exports may include:
 
-inspection status
+- inspection status
+- notes
+- checklist data
+- timestamps
+- inspector
+- compliance fields
 
-notes
+#### Acceptance Criteria
 
-checklist data
+- filters work correctly
+- exported file downloads successfully
+- exports are org-scoped only
+- export actions can be logged
 
-timestamps
-
-inspector
-
-compliance fields
-
-Acceptance Criteria
-
-filters work correctly
-
-exported file downloads successfully
-
-exports are org-scoped only
-
-export actions can be logged
-
-12.2 Export Time Data
+### 12.2 Export Time Data
 
 Section time data can be exported when enabled.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-all visible sections included
+- all visible sections included
+- time values are human-readable
+- export reflects current workspace or selected scope
 
-time values are human-readable
-
-export reflects current workspace or selected scope
-
-12.3 Printable List / Report View
+### 12.3 Printable List / Report View
 
 Users can open a print-friendly list of extinguishers or inspection results.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-print layout is readable
+- print layout is readable
+- sections are grouped clearly
+- output reflects current org and filters
 
-sections are grouped clearly
-
-output reflects current org and filters
-
-12.4 Full Backup Export
+### 12.4 Full Backup Export
 
 Owners/admins can export org data as JSON backup if enabled.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-valid JSON produced
+- valid JSON produced
+- organization data remains scoped correctly
+- file can support restore workflows if implemented
+- export is audit logged
 
-organization data remains scoped correctly
+## 13. Extinguisher Replacement
 
-file can support restore workflows if implemented
-
-export is audit logged
-
-13. Extinguisher Replacement
-13.1 Replace Extinguisher
+### 13.1 Replace Extinguisher
 
 The system must track extinguisher replacement while preserving history.
 
-Replacement Flow
+#### Replacement Flow
 
-user opens extinguisher detail
+1. user opens extinguisher detail
+2. chooses replace
+3. enters replacement metadata
+4. old/new relationship is stored
+5. lifecycle state updates
+6. old history remains traceable
 
-chooses replace
+#### Acceptance Criteria
 
-enters replacement metadata
+- replacement is logged
+- new serial must be valid if required
+- historical identity is preserved
+- GPS may be preserved if same mounting point
+- photos/history are handled according to replacement rules
+- lifecycle status updates correctly
 
-old/new relationship is stored
+## 14. Duplicate Detection and Cleanup
 
-lifecycle state updates
-
-old history remains traceable
-
-Acceptance Criteria
-
-replacement is logged
-
-new serial must be valid if required
-
-historical identity is preserved
-
-GPS may be preserved if same mounting point
-
-photos/history are handled according to replacement rules
-
-lifecycle status updates correctly
-
-14. Duplicate Detection and Cleanup
-14.1 Duplicate Scanner
+### 14.1 Duplicate Scanner
 
 Owners/admins can scan inventory for duplicates.
 
-Potential duplicate keys:
+#### Potential Duplicate Keys
 
-asset ID
+- asset ID
+- barcode
+- serial
+- configurable combinations if needed later
 
-barcode
+#### Acceptance Criteria
 
-serial
+- duplicate groups are shown clearly
+- system identifies keep vs review candidates
+- nothing is merged automatically without review unless explicitly configured
 
-configurable combinations if needed later
-
-Acceptance Criteria
-
-duplicate groups are shown clearly
-
-system identifies keep vs review candidates
-
-nothing is merged automatically without review unless explicitly configured
-
-14.2 Duplicate Merge
+### 14.2 Duplicate Merge
 
 Duplicate records can be reviewed and merged.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-user can review before confirm
+- user can review before confirm
+- safe merge rules are applied
+- audit trail is preserved
+- deleted/merged records are handled safely
+- operation is logged
 
-safe merge rules are applied
+## 15. Search and Filtering
 
-audit trail is preserved
-
-deleted/merged records are handled safely
-
-operation is logged
-
-15. Search and Filtering
-15.1 Section Filter
+### 15.1 Section Filter
 
 Users can filter by section.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-section stats update dynamically
+- section stats update dynamically
+- counts reflect visible records
 
-counts reflect visible records
-
-15.2 Status Filter
+### 15.2 Status Filter
 
 Users can filter by:
 
-pending
+- pending
+- pass
+- fail
+- archived states where relevant
+- lifecycle/compliance states where relevant
 
-pass
+#### Acceptance Criteria
 
-fail
+- filters combine correctly with search and section
 
-archived states where relevant
-
-lifecycle/compliance states where relevant
-
-Acceptance Criteria
-
-filters combine correctly with search and section
-
-15.3 Text Search
+### 15.3 Text Search
 
 Users can search by:
 
-asset ID
+- asset ID
+- barcode
+- serial
+- vicinity
+- location
+- section
+- other indexed fields as available
 
-barcode
+#### Acceptance Criteria
 
-serial
+- partial search works where supported
+- results are org-scoped
+- search remains reasonably fast
 
-vicinity
-
-location
-
-section
-
-other indexed fields as available
-
-Acceptance Criteria
-
-partial search works where supported
-
-results are org-scoped
-
-search remains reasonably fast
-
-15.4 Sort
+### 15.4 Sort
 
 Sorting may support:
 
-asset ID
+- asset ID
+- location
+- compliance due date
+- status
+- created date
 
-location
+#### Acceptance Criteria
 
-compliance due date
+- sort is predictable
+- natural sort behavior is used where appropriate
 
-status
-
-created date
-
-Acceptance Criteria
-
-sort is predictable
-
-natural sort behavior is used where appropriate
-
-15.5 Quick Lists
+### 15.5 Quick Lists
 
 Shortcut filtered views may include:
 
-all passed
+- all passed
+- all failed
+- all pending
+- all overdue
+- all spare
+- all replaced
+- all hydro due
+- all annual due
 
-all failed
+#### Acceptance Criteria
 
-all pending
+- quick lists apply correct filters
+- quick lists remain searchable and sortable
 
-all overdue
+## 16. Billing, Plans, and Subscription
 
-all spare
-
-all replaced
-
-all hydro due
-
-all annual due
-
-Acceptance Criteria
-
-quick lists apply correct filters
-
-quick lists remain searchable and sortable
-
-16. Billing, Plans, and Subscription
-16.1 Subscription Management
+### 16.1 Subscription Management
 
 Owner can:
 
-subscribe
+- subscribe
+- manage billing through **Stripe** portal
+- see current subscription state
+- see plan and included limit
 
-manage billing through Stripe portal
+#### Acceptance Criteria
 
-see current subscription state
+- plan is visible in UI
+- billing portal opens correctly
+- status updates after **Stripe** sync
 
-see plan and included limit
+### 16.2 Plan Gating
 
-Acceptance Criteria
-
-plan is visible in UI
-
-billing portal opens correctly
-
-status updates after Stripe sync
-
-16.2 Plan Gating
-Basic
+#### Basic
 
 Includes:
 
-manual barcode entry/search
-
-inventory management
-
-monthly inspections
-
-reminders / notifications
-
-compliance dashboard basics
-
-reports
-
-lifecycle visibility
-
-50 extinguishers included
-
-+$10/month per additional 50 extinguishers
+- manual barcode entry/search
+- inventory management
+- monthly inspections
+- reminders / notifications
+- compliance dashboard basics
+- reports
+- lifecycle visibility
+- 50 extinguishers included
+- +$10/month per additional 50 extinguishers
 
 Does not include:
 
-camera scanning
+- camera scanning
+- QR scanning
+- GPS
+- photo inspection workflows
+- advanced field workflows reserved for higher plans
 
-QR scanning
-
-GPS
-
-photo inspection workflows
-
-advanced field workflows reserved for higher plans
-
-Pro
+#### Pro
 
 Includes:
 
-everything in Basic
+- everything in **Basic**
+- camera barcode scanning
+- QR scanning
+- GPS capture
+- photo capture
+- tag printing
+- routes
+- audit logs
+- 250 extinguishers included
+- +$10/month per additional 50 extinguishers
 
-camera barcode scanning
-
-QR scanning
-
-GPS capture
-
-photo capture
-
-tag printing
-
-routes
-
-audit logs
-
-250 extinguishers included
-
-+$10/month per additional 50 extinguishers
-
-Elite
+#### Elite
 
 Includes:
 
-everything in Pro
+- everything in **Pro**
+- advanced reporting
+- higher scale
+- 500 extinguishers included
+- +$10/month per additional 50 extinguishers
 
-advanced reporting
-
-higher scale
-
-500 extinguishers included
-
-+$10/month per additional 50 extinguishers
-
-Enterprise
+#### Enterprise
 
 Includes:
 
-unlimited extinguishers
+- unlimited extinguishers
+- custom pricing
+- contact-sales / admin-managed setup
+- future custom onboarding/integration readiness
 
-custom pricing
+#### Acceptance Criteria
 
-contact-sales / admin-managed setup
+- UI hides unavailable features
+- backend blocks restricted features
+- over-limit rules are enforced
+- plan changes update access after sync
 
-future custom onboarding/integration readiness
-
-Acceptance Criteria
-
-UI hides unavailable features
-
-backend blocks restricted features
-
-over-limit rules are enforced
-
-plan changes update access after sync
-
-16.3 Billing Restriction States
+### 16.3 Billing Restriction States
 
 When subscription is not healthy:
 
-past_due → read-only or grace behavior
+- `past_due` → read-only or grace behavior
+- `canceled` → limited retention behavior
+- `unpaid` → billing recovery required
+- no subscription → owner routed to checkout
 
-canceled → limited retention behavior
+#### Acceptance Criteria
 
-unpaid → billing recovery required
+- restriction banners appear
+- write restrictions apply
+- access follows billing rules consistently
 
-no subscription → owner routed to checkout
+## 17. Offline Support
 
-Acceptance Criteria
-
-restriction banners appear
-
-write restrictions apply
-
-access follows billing rules consistently
-
-17. Offline Support
-17.1 Firestore Offline Persistence
+### 17.1 Firestore Offline Persistence
 
 App should support offline-capable inspection behavior.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-previously loaded data remains viewable offline
+- previously loaded data remains viewable offline
+- inspection actions queue safely when offline
+- offline writes appear in UI immediately where supported
+- data syncs when connectivity returns
+- org boundaries are not mixed in offline cache
 
-inspection actions queue safely when offline
-
-offline writes appear in UI immediately where supported
-
-data syncs when connectivity returns
-
-org boundaries are not mixed in offline cache
-
-17.2 Backup / Recovery Safety Net
+### 17.2 Backup / Recovery Safety Net
 
 Optional local backup/recovery support may exist as a safety net.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-local backup does not bypass server truth
+- local backup does not bypass server truth
+- restore operations require confirmation
+- backup data is org-scoped
 
-restore operations require confirmation
+## 18. Audit Trail
 
-backup data is org-scoped
-
-18. Audit Trail
-18.1 Inspection Events
+### 18.1 Inspection Events
 
 Every meaningful inspection action creates immutable event history.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-inspection saves create events
+- inspection saves create events
+- events cannot be modified or deleted through normal app use
+- performer identity is preserved
+- event history spans all workspaces as applicable
 
-events cannot be modified or deleted through normal app use
-
-performer identity is preserved
-
-event history spans all workspaces as applicable
-
-18.2 Audit Logs
+### 18.2 Audit Logs
 
 Administrative and major operational actions create audit log entries.
 
 Examples:
 
-member changes
+- member changes
+- extinguisher CRUD
+- replacements
+- workspace creation/archive/reset
+- billing events
+- imports/exports
+- tag printing
+- attestation events
 
-extinguisher CRUD
+#### Acceptance Criteria
 
-replacements
+- specified actions create logs
+- logs are append-only
+- logs are visible to authorized roles
+- logs include who and when
 
-workspace creation/archive/reset
+## 19. Compliance Reminders and Notifications
 
-billing events
-
-imports/exports
-
-tag printing
-
-attestation events
-
-Acceptance Criteria
-
-specified actions create logs
-
-logs are append-only
-
-logs are visible to authorized roles
-
-logs include who and when
-
-19. Compliance Reminders and Notifications
-19.1 Monthly Reminders
+### 19.1 Monthly Reminders
 
 The system generates monthly inspection reminders.
 
-Available on:
+#### Available on:
 
-Basic
+- **Basic**
+- **Pro**
+- **Elite**
+- **Enterprise**
 
-Pro
+#### Acceptance Criteria
 
-Elite
+- reminders are generated on schedule
+- duplicate reminders are prevented
+- reminders appear in dashboard and notifications
+- reminder links open relevant workflow
 
-Enterprise
-
-Acceptance Criteria
-
-reminders are generated on schedule
-
-duplicate reminders are prevented
-
-reminders appear in dashboard and notifications
-
-reminder links open relevant workflow
-
-19.2 Compliance Alerts
+### 19.2 Compliance Alerts
 
 The system generates alerts for:
 
-overdue monthly inspections
+- overdue monthly inspections
+- overdue annual inspections
+- overdue six-year maintenance
+- overdue hydro tests
+- over-limit org state where relevant
 
-overdue annual inspections
+#### Acceptance Criteria
 
-overdue six-year maintenance
+- compliance alerts appear in dashboard
+- alerts can link to filtered lists
+- alerts update when status changes
 
-overdue hydro tests
-
-over-limit org state where relevant
-
-Acceptance Criteria
-
-compliance alerts appear in dashboard
-
-alerts can link to filtered lists
-
-alerts update when status changes
-
-20. Compliance Lifecycle Tracking
+## 20. Compliance Lifecycle Tracking
 
 The system tracks:
 
-monthly inspection cycle
+- monthly inspection cycle
+- annual inspection cycle
+- 6-year maintenance where applicable
+- hydrostatic test schedule by extinguisher type
 
-annual inspection cycle
+#### Acceptance Criteria
 
-6-year maintenance where applicable
+- due dates calculate automatically
+- compliance status updates automatically
+- overdue flags are visible
+- lifecycle calculations are reflected in inventory and reports
 
-hydrostatic test schedule by extinguisher type
-
-Acceptance Criteria
-
-due dates calculate automatically
-
-compliance status updates automatically
-
-overdue flags are visible
-
-lifecycle calculations are reflected in inventory and reports
-
-21. Compliance Dashboard
+## 21. Compliance Dashboard
 
 Dashboard provides real-time operational and compliance visibility.
 
 Example metrics:
 
-total extinguishers
+- total extinguishers
+- pending this month
+- passed
+- failed
+- overdue monthly
+- annual due
+- hydro due
+- six-year due
 
-pending this month
+#### Acceptance Criteria
 
-passed
+- dashboard loads key metrics quickly
+- clicking metrics opens filtered results
+- alerts are visually clear
+- dashboard respects org and plan context
 
-failed
-
-overdue monthly
-
-annual due
-
-hydro due
-
-six-year due
-
-Acceptance Criteria
-
-dashboard loads key metrics quickly
-
-clicking metrics opens filtered results
-
-alerts are visually clear
-
-dashboard respects org and plan context
-
-22. Inspection Routes
+## 22. Inspection Routes
 
 Route-based workflows help inspectors move through facilities efficiently.
 
-Available on:
+#### Available on:
 
-Pro
+- **Pro**
+- **Elite**
+- **Enterprise**
 
-Elite
+#### Acceptance Criteria
 
-Enterprise
+- admins can create/edit routes
+- routes display extinguisher order
+- inspectors can work through route progress
+- completion percentage is visible
 
-Acceptance Criteria
-
-admins can create/edit routes
-
-routes display extinguisher order
-
-inspectors can work through route progress
-
-completion percentage is visible
-
-23. Tag / QR Label Printing
+## 23. Tag / QR Label Printing
 
 System supports tag generation and printing.
 
-Available on:
+#### Available on:
 
-Pro
+- **Pro**
+- **Elite**
+- **Enterprise**
 
-Elite
+#### Acceptance Criteria
 
-Enterprise
+- tags can be generated from extinguisher data
+- QR links resolve correctly
+- batch printing works where enabled
+- printing actions are logged
 
-Acceptance Criteria
-
-tags can be generated from extinguisher data
-
-QR links resolve correctly
-
-batch printing works where enabled
-
-printing actions are logged
-
-24. Legal Inspection Attestation
+## 24. Legal Inspection Attestation
 
 Inspection save may require legal confirmation.
 
 Example text:
 
-I certify this inspection was performed according to NFPA 10.
+- I certify this inspection was performed according to **NFPA 10**.
 
-Acceptance Criteria
+#### Acceptance Criteria
 
-attestation can be required by org/workflow settings
+- attestation can be required by org/workflow settings
+- attestation stores inspector identity and timestamp
+- attestation is preserved in inspection state/history
+- attestation is not casually editable after save
 
-attestation stores inspector identity and timestamp
-
-attestation is preserved in inspection state/history
-
-attestation is not casually editable after save
-
-Final Feature Rule
+## Final Feature Rule
 
 Every feature in this document must be implemented in a way that respects:
 
-organization isolation
-
-role permissions
-
-billing state
-
-plan-based access
-
-audit integrity
-
-lifecycle/compliance accuracy
-
-mobile field usability
+- organization isolation
+- role permissions
+- billing state
+- plan-based access
+- audit integrity
+- lifecycle/compliance accuracy
+- mobile field usability

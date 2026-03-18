@@ -1,4 +1,4 @@
-# 07 --- API and Cloud Functions Specification
+# 07 — API and Cloud Functions Specification
 
 This document defines the backend operations and Firebase Cloud
 Functions required for **Extinguisher Tracker 3 (EX3)**.
@@ -14,155 +14,160 @@ Functions**.
 
 This design ensures:
 
--   multi-tenant data isolation
--   strict role enforcement
--   secure billing synchronization
--   auditable privileged actions
--   scalable serverless infrastructure
+- multi-tenant data isolation
+- strict role enforcement
+- secure billing synchronization
+- auditable privileged actions
+- scalable serverless infrastructure
 
-Reference source: fileciteturn1file0
+Reference source: fileciteturn1file0
 
-------------------------------------------------------------------------
+---
 
-# Architecture Model
+## Architecture Model
 
-## Backend Strategy
+### Backend Strategy
 
 Backend logic is implemented using:
 
--   Firebase **Callable Functions**
--   Firebase **HTTPS Functions**
--   Firebase **Scheduled Functions**
--   Firebase **Event-triggered Functions**
--   Stripe **Webhook Handlers**
+- Firebase **Callable Functions**
+- Firebase **HTTPS Functions**
+- Firebase **Scheduled Functions**
+- Firebase **Event-triggered Functions**
+- Stripe **Webhook Handlers**
 
 There is **no persistent backend server**.
 
 Cloud Functions perform:
 
--   validation
--   membership checks
--   role checks
--   billing enforcement
--   privileged writes
--   audit logging
--   complex transactional workflows
+- validation
+- membership checks
+- role checks
+- billing enforcement
+- privileged writes
+- audit logging
+- complex transactional workflows
 
-------------------------------------------------------------------------
+---
 
-# Core Security Rules for Functions
+## Core Security Rules for Functions
 
 Every function must enforce the following rules before executing logic.
 
-## Authentication Validation
+### Authentication Validation
 
 All functions must validate:
 
+```
 request.auth != null
+```
 
 If the user is not authenticated, return:
 
-    unauthenticated
+```
+unauthenticated
+```
 
-## Organization Membership Validation
+### Organization Membership Validation
 
 For any org-scoped function:
 
-1.  Load membership record
+1. Load membership record
 
-org/{orgId}/members/{uid}
+   `org/{orgId}/members/{uid}`
 
-2.  Verify:
+2. Verify:
 
--   membership exists
--   membership.active == true
+   - membership exists
+   - `membership.active == true`
 
 If not:
 
-    permission_denied
+```
+permission_denied
+```
 
-## Role Validation
+### Role Validation
 
 Roles allowed by the system:
 
--   owner
--   admin
--   inspector
--   viewer
+- `owner`
+- `admin`
+- `inspector`
+- `viewer`
 
 Functions must verify role permissions depending on the operation.
 
 Example:
 
-  Role        Allowed Actions
-  ----------- -----------------------
-  owner       full access
-  admin       management operations
-  inspector   inspection operations
-  viewer      read only
+| Role | Allowed Actions |
+| --- | --- |
+| `owner` | full access |
+| `admin` | management operations |
+| `inspector` | inspection operations |
+| `viewer` | read only |
 
-## Plan Validation
+### Plan Validation
 
 Functions must validate organization plan where required.
 
 Plans:
 
--   basic
--   pro
--   elite
--   enterprise
+- `basic`
+- `pro`
+- `elite`
+- `enterprise`
 
 Plan checks control features such as:
 
--   barcode scanning
--   GPS capture
--   photo uploads
--   route optimization
--   reporting tools
+- barcode scanning
+- GPS capture
+- photo uploads
+- route optimization
+- reporting tools
 
-## Billing Validation
+### Billing Validation
 
-Billing state is stored in the organization document as a **cache of
-Stripe state**.
+Billing state is stored in the organization document as a **cache of Stripe state**.
 
 Possible states:
 
--   active
--   trialing
--   past_due
--   unpaid
--   canceled
+- `active`
+- `trialing`
+- `past_due`
+- `unpaid`
+- `canceled`
 
 Write operations must verify billing state when appropriate.
 
-------------------------------------------------------------------------
+---
 
-# Function Categories
+## Function Categories
 
 Cloud Functions fall into several major categories.
 
-1.  Authentication and onboarding
-2.  Organization management
-3.  Member and invite management
-4.  Billing and Stripe integration
-5.  Workspace lifecycle management
-6.  Inspection workflows
-7.  Asset management
-8.  Reporting and exports
-9.  Compliance and reminder systems
+1. Authentication and onboarding
+2. Organization management
+3. Member and invite management
+4. Billing and Stripe integration
+5. Workspace lifecycle management
+6. Inspection workflows
+7. Asset management
+8. Reporting and exports
+9. Compliance and reminder systems
 10. Scheduled maintenance jobs
 
-------------------------------------------------------------------------
+---
 
-# Authentication and Onboarding
+## Authentication and Onboarding
 
-## createOrganization
+### createOrganization
 
 Creates a new organization and assigns the caller as owner.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "name": "Acme Hospital",
   "slug": "acme-hospital",
@@ -170,51 +175,51 @@ Creates a new organization and assigns the caller as owner.
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires authenticated user
--   Creates:
+- Requires authenticated user
+- Creates:
 
-org/{orgId}
+  `org/{orgId}`
 
--   Creates membership:
+- Creates membership:
 
-org/{orgId}/members/{uid}
+  `org/{orgId}/members/{uid}`
 
-role = owner
+  `role = owner`
 
--   Creates or updates user document:
+- Creates or updates user document:
 
-usr/{uid}
+  `usr/{uid}`
 
--   Sets:
+- Sets:
 
-defaultOrgId\
-activeOrgId
+  - `defaultOrgId`
+  - `activeOrgId`
 
--   Creates Stripe customer
--   Writes audit log
+- Creates Stripe customer
+- Writes audit log
 
-### Output
+#### Output
 
-``` json
+```json
 {
   "orgId": "generatedOrgId",
   "stripeCustomerId": "cus_xxxxx"
 }
 ```
 
-------------------------------------------------------------------------
+---
 
-# Member and Invite Management
+## Member and Invite Management
 
-## createInvite
+### createInvite
 
 Creates a pending invite to join an organization.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123",
   "email": "user@example.com",
@@ -222,49 +227,49 @@ Creates a pending invite to join an organization.
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires owner or admin
--   Prevents duplicate invites
--   Generates secure invite token
--   Stores **tokenHash only**
--   Sends optional email invite
--   Writes audit log
+- Requires `owner` or `admin`
+- Prevents duplicate invites
+- Generates secure invite token
+- Stores **tokenHash only**
+- Sends optional email invite
+- Writes audit log
 
-------------------------------------------------------------------------
+---
 
-## acceptInvite
+### acceptInvite
 
 Accepts an invitation and creates membership.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "token": "rawInviteToken"
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires authenticated user
--   Validates token hash
--   Ensures invite not expired
--   Confirms email matches invite
--   Creates membership
--   Updates invite status
--   Updates user's active organization
--   Writes audit log
+- Requires authenticated user
+- Validates token hash
+- Ensures invite not expired
+- Confirms email matches invite
+- Creates membership
+- Updates invite status
+- Updates user's active organization
+- Writes audit log
 
-------------------------------------------------------------------------
+---
 
-## changeMemberRole
+### changeMemberRole
 
 Changes a member's role.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123",
   "targetUid": "user456",
@@ -272,193 +277,190 @@ Changes a member's role.
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires owner or admin
--   Admin cannot modify owner
--   Updates membership role
--   Writes audit log
+- Requires `owner` or `admin`
+- Admin cannot modify owner
+- Updates membership role
+- Writes audit log
 
-------------------------------------------------------------------------
+---
 
-## removeMember
+### removeMember
 
 Removes a member from an organization.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123",
   "targetUid": "user456"
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires owner or admin
--   Cannot remove owner
--   Deactivates membership
--   Writes audit log
+- Requires `owner` or `admin`
+- Cannot remove owner
+- Deactivates membership
+- Writes audit log
 
-------------------------------------------------------------------------
+---
 
-## transferOwnership
+### transferOwnership
 
 Transfers organization ownership.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123",
   "newOwnerUid": "user456"
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires current owner
--   Updates org.ownerUid
--   Promotes target member
--   Demotes previous owner
--   Writes audit log
+- Requires current owner
+- Updates `org.ownerUid`
+- Promotes target member
+- Demotes previous owner
+- Writes audit log
 
-------------------------------------------------------------------------
+---
 
-# Billing and Stripe Integration
+## Billing and Stripe Integration
 
-## createCheckoutSession
+### createCheckoutSession
 
 Creates Stripe checkout session for subscription.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123",
   "plan": "pro"
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires owner
+- Requires `owner`
 
--   Valid plans:
-
--   basic
-
--   pro
-
--   elite
+- Valid plans:
+  - `basic`
+  - `pro`
+  - `elite`
 
 Enterprise requires manual sales process.
 
 Returns Stripe checkout URL.
 
-------------------------------------------------------------------------
+---
 
-## createPortalSession
+### createPortalSession
 
 Creates Stripe customer portal session.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123"
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires owner
--   Uses stored Stripe customer ID
--   Returns portal URL
+- Requires `owner`
+- Uses stored Stripe customer ID
+- Returns portal URL
 
-------------------------------------------------------------------------
+---
 
-## stripeWebhook
+### stripeWebhook
 
 Processes Stripe lifecycle events.
 
 Handled events:
 
--   checkout.session.completed
--   customer.subscription.created
--   customer.subscription.updated
--   customer.subscription.deleted
--   invoice.payment_succeeded
--   invoice.payment_failed
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.payment_succeeded`
+- `invoice.payment_failed`
 
-### Behavior
+#### Behavior
 
--   Verifies webhook signature
--   Resolves org by Stripe customer
--   Updates organization billing cache
--   Updates plan features
--   Writes audit log
+- Verifies webhook signature
+- Resolves org by Stripe customer
+- Updates organization billing cache
+- Updates plan features
+- Writes audit log
 
-------------------------------------------------------------------------
+---
 
-# Workspace Lifecycle
+## Workspace Lifecycle
 
-## createWorkspace
+### createWorkspace
 
 Creates monthly inspection workspace.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123",
   "monthYear": "2026-03"
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires owner/admin
--   Validates subscription
--   Prevents duplicate workspace
--   Seeds inspections
--   Writes audit log
+- Requires `owner`/`admin`
+- Validates subscription
+- Prevents duplicate workspace
+- Seeds inspections
+- Writes audit log
 
-------------------------------------------------------------------------
+---
 
-## archiveWorkspace
+### archiveWorkspace
 
 Archives a workspace.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123",
   "workspaceId": "2026-03"
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires owner/admin
--   Generates final report
--   Locks inspections
--   Marks workspace archived
--   Writes audit log
+- Requires `owner`/`admin`
+- Generates final report
+- Locks inspections
+- Marks workspace archived
+- Writes audit log
 
-------------------------------------------------------------------------
+---
 
-# Inspection Workflows
+## Inspection Workflows
 
-## upsertInspection
+### upsertInspection
 
 Creates or updates inspection.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123",
   "workspaceId": "2026-03",
@@ -471,26 +473,26 @@ Creates or updates inspection.
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires inspector/admin/owner
--   Validates workspace active
--   Validates plan features
--   Updates inspection
--   Creates inspection event
--   Updates workspace stats
+- Requires `inspector`/`admin`/`owner`
+- Validates workspace active
+- Validates plan features
+- Updates inspection
+- Creates inspection event
+- Updates workspace stats
 
-------------------------------------------------------------------------
+---
 
-# Asset Management
+## Asset Management
 
-## replaceExtinguisher
+### replaceExtinguisher
 
 Handles replacement lifecycle.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123",
   "oldExtinguisherId": "extOld",
@@ -498,24 +500,24 @@ Handles replacement lifecycle.
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Records replacement history
--   Updates serial and metadata
--   Preserves location
--   Logs audit event
+- Records replacement history
+- Updates serial and metadata
+- Preserves location
+- Logs audit event
 
-------------------------------------------------------------------------
+---
 
-# Reporting and Exports
+## Reporting and Exports
 
-## generateReport
+### generateReport
 
 Creates report snapshot.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123",
   "workspaceId": "2026-03",
@@ -523,21 +525,21 @@ Creates report snapshot.
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires authorized member
--   Generates or returns cached report
--   Saves report artifact in storage
+- Requires authorized member
+- Generates or returns cached report
+- Saves report artifact in storage
 
-------------------------------------------------------------------------
+---
 
-## exportData
+### exportData
 
 Exports organization data.
 
-### Input
+#### Input
 
-``` json
+```json
 {
   "orgId": "org123",
   "entity": "inspections",
@@ -546,74 +548,71 @@ Exports organization data.
 }
 ```
 
-### Behavior
+#### Behavior
 
--   Requires permission
+- Requires permission
 
--   Exports only org data
+- Exports only org data
 
--   Supports:
+- Supports:
+  - CSV
+  - Excel
+  - JSON
 
--   CSV
+---
 
--   Excel
+## Reminder and Compliance Systems
 
--   JSON
-
-------------------------------------------------------------------------
-
-# Reminder and Compliance Systems
-
-## generateReminders
+### generateReminders
 
 Generates reminder alerts.
 
 Triggers when:
 
--   monthly inspections due
--   annual inspections due
--   hydro tests due
--   six-year maintenance due
+- monthly inspections due
+- annual inspections due
+- hydro tests due
+- six-year maintenance due
 
 Reminders may generate:
 
--   dashboard alerts
--   email notifications
--   push notifications
+- dashboard alerts
+- email notifications
+- push notifications
 
-------------------------------------------------------------------------
+---
 
-# Scheduled Maintenance Jobs
+## Scheduled Maintenance Jobs
 
-## expireInvitesJob
+### expireInvitesJob
 
 Expires stale invites.
 
-## billingSyncJob
+### billingSyncJob
 
 Ensures billing cache matches Stripe.
 
-## complianceReminderJob
+### complianceReminderJob
 
 Generates inspection reminders.
 
-## workspaceAutoCreateJob
+### workspaceAutoCreateJob
 
 Creates workspace for new month.
 
-## retentionCleanupJob
+### retentionCleanupJob
 
 Handles long-term archival cleanup.
 
-------------------------------------------------------------------------
+---
 
-# Error Handling
+## Error Handling
 
 All functions must return structured errors.
 
 Example:
 
-``` json
+```json
 {
   "error": {
     "code": "permission_denied",
@@ -624,23 +623,23 @@ Example:
 
 Standard codes:
 
--   unauthenticated
--   permission_denied
--   invalid_argument
--   not_found
--   failed_precondition
--   resource_exhausted
+- `unauthenticated`
+- `permission_denied`
+- `invalid_argument`
+- `not_found`
+- `failed_precondition`
+- `resource_exhausted`
 
-------------------------------------------------------------------------
+---
 
-# Security Requirements
+## Security Requirements
 
 Every function must:
 
--   validate authentication
--   validate org membership
--   validate role permissions
--   validate billing status
--   prevent cross-org access
--   prevent client-controlled billing changes
--   log sensitive actions
+- validate authentication
+- validate org membership
+- validate role permissions
+- validate billing status
+- prevent cross-org access
+- prevent client-controlled billing changes
+- log sensitive actions

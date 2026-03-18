@@ -1,29 +1,28 @@
-# 09 --- Plans and Pricing
+# 09 — Plans and Pricing
 
-Pricing for Extinguisher Tracker 3 is **organization‑based SaaS
-pricing**.
+Pricing for **Extinguisher Tracker 3** is **organization-based SaaS pricing**.
 
 Organizations subscribe based on the number of extinguishers they manage
 and the operational features required.
 
 Reference source: turn2file1
 
-------------------------------------------------------------------------
+---
 
-# Pricing Model
+## Pricing Model
 
-## Basic Plan
+### Basic Plan
 
 Price:
 
-\$29.99 per month
+$29.99 per month
 
 Designed for:
 
--   small businesses
--   restaurants
--   retail stores
--   small facilities
+- small businesses
+- restaurants
+- retail stores
+- small facilities
 
 Limit:
 
@@ -31,37 +30,37 @@ Limit:
 
 Additional extinguishers:
 
-+\$10 per month per 50 assets
++$10 per month per 50 assets
 
 Features:
 
--   manual inspections
--   monthly compliance reminders
--   inventory tracking
--   compliance reports
--   CSV / Excel / JSON export
--   manual barcode entry
+- manual inspections
+- monthly compliance reminders
+- inventory tracking
+- compliance reports
+- CSV / Excel / JSON export
+- manual barcode entry
 
-Optional Add‑On:
+Optional Add-On:
 
 Barcode scanning module
 
-+\$25/month
++$25/month
 
-------------------------------------------------------------------------
+---
 
-## Pro Plan
+### Pro Plan
 
 Price:
 
-\$99 per month
+$99 per month
 
 Designed for:
 
--   medium facilities
--   property management companies
--   schools
--   small hospitals
+- medium facilities
+- property management companies
+- schools
+- small hospitals
 
 Limit:
 
@@ -69,32 +68,32 @@ Limit:
 
 Additional extinguishers:
 
-+\$10 per month per 100 assets
++$10 per month per 100 assets
 
 Features:
 
--   camera barcode scanning
--   GPS capture
--   inspection photos
--   real‑time inspection updates
--   advanced reporting
--   section progress tracking
--   replacement tracking
+- camera barcode scanning
+- GPS capture
+- inspection photos
+- real-time inspection updates
+- advanced reporting
+- section progress tracking
+- replacement tracking
 
-------------------------------------------------------------------------
+---
 
-## Elite Plan
+### Elite Plan
 
 Price:
 
-\$199 per month
+$199 per month
 
 Designed for:
 
--   large facilities
--   hospitals
--   universities
--   industrial campuses
+- large facilities
+- hospitals
+- universities
+- industrial campuses
 
 Limit:
 
@@ -102,20 +101,20 @@ Limit:
 
 Additional extinguishers:
 
-+\$10 per month per 200 assets
++$10 per month per 200 assets
 
 Features:
 
--   all Pro features
--   route optimization
--   advanced analytics
--   priority support
--   multi‑facility reporting
--   lifecycle compliance tracking
+- all Pro features
+- route optimization
+- advanced analytics
+- priority support
+- multi-facility reporting
+- lifecycle compliance tracking
 
-------------------------------------------------------------------------
+---
 
-## Enterprise Plan
+### Enterprise Plan
 
 Unlimited extinguishers.
 
@@ -123,71 +122,71 @@ Custom pricing.
 
 Includes:
 
--   unlimited assets
--   unlimited inspectors
--   advanced integrations
--   custom compliance workflows
--   SLA support
+- unlimited assets
+- unlimited inspectors
+- advanced integrations
+- custom compliance workflows
+- SLA support
 
 Contact:
 
 help@beck-publishing.com
 
-------------------------------------------------------------------------
+---
 
-# Feature Enforcement
+## Feature Enforcement
 
 Feature access must be enforced in:
 
--   UI components
--   Cloud Functions
--   Firestore security rules
+- UI components
+- Cloud Functions
+- Firestore security rules
 
-Client‑side checks are **not sufficient**.
+Client-side checks are **not sufficient**.
 
-------------------------------------------------------------------------
+---
 
-# Plan Upgrade Rules
+## Plan Upgrade Rules
 
 When upgrading:
 
--   features become immediately available
--   asset limits expand automatically
+- features become immediately available
+- asset limits expand automatically
 
 When downgrading:
 
--   system must prevent exceeding plan limits
--   existing data must remain intact
+- system must prevent exceeding plan limits
+- existing data must remain intact
 
-------------------------------------------------------------------------
+---
 
-# Billing Integration
+## Billing Integration
 
 Billing handled via **Stripe**.
 
 Stripe controls:
 
--   subscription lifecycle
--   billing cycles
--   invoices
--   payment failures
+- subscription lifecycle
+- billing cycles
+- invoices
+- payment failures
 
 Firestore stores **billing state cache only**.
 
-------------------------------------------------------------------------
+---
 
-# Billing States
+## Billing States
 
 Possible states:
 
-active\
-trialing\
-past_due\
-unpaid\
-canceled
+- `active`
+- `trialing`
+- `past_due`
+- `unpaid`
+- `canceled`
 
 Application features must respect billing state during:
 
--   writes
--   workspace creation
--   exports
+- writes
+- workspace creation
+- exports
