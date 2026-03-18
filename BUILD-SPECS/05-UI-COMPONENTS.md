@@ -157,25 +157,25 @@ Display plans and encourage signups.
 
 ##### Required Pricing Display
 
-###### Basic
+**Basic**
 
 - $29.99/month
 - 50 extinguishers included
 - +$10/month per additional 50 extinguishers
 
-###### Pro
+**Pro**
 
 - $99/month
 - 250 extinguishers included
 - +$10/month per additional 50 extinguishers
 
-###### Elite
+**Elite**
 
 - $199/month
 - 500 extinguishers included
 - +$10/month per additional 50 extinguishers
 
-###### Enterprise
+**Enterprise**
 
 - Contact Sales
 - help@beck-publishing.com

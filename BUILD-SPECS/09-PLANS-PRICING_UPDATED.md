@@ -11,7 +11,7 @@ Reference source: turn2file1
 
 ## Pricing Model
 
-#### Basic Plan
+### Basic Plan
 
 Price:
 
@@ -49,7 +49,7 @@ Barcode scanning module
 
 ---
 
-#### Pro Plan
+### Pro Plan
 
 Price:
 
@@ -82,7 +82,7 @@ Features:
 
 ---
 
-#### Elite Plan
+### Elite Plan
 
 Price:
 
@@ -114,7 +114,7 @@ Features:
 
 ---
 
-#### Enterprise Plan
+### Enterprise Plan
 
 Unlimited extinguishers.
 

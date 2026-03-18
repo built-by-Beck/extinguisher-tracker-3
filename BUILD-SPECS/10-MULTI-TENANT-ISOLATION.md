@@ -1,4 +1,4 @@
-# 08 — Reports and Exports Specification
+# 10 — Multi-Tenant Isolation
 
 This document defines reporting, export formats, compliance snapshots,
 and report access rules for **Extinguisher Tracker 3 (EX3)**.
