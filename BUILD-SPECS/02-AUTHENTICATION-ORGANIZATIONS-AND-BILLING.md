@@ -1,137 +1,115 @@
-02 — Authentication, Organizations, and Billing
+# 02 — Authentication, Organizations, and Billing
 
 This document defines the authentication system, organization management, user roles and permissions, invitation workflow, organization switching behavior, account lifecycle rules, and Stripe subscription billing model for Extinguisher Tracker 3 (EX3).
 
-The platform is organization-centric.
+The platform is **organization-centric**.
 
 Users authenticate individually, but all operational data belongs to an organization.
 Billing is also organization-level, not user-level.
 
 The system must support:
 
-multi-tenant organization accounts
+- multi-tenant organization accounts
+- multiple users per organization
+- users belonging to multiple organizations
+- secure invitation workflows
+- role-based access control
+- Stripe-managed subscription billing
+- plan-based access control
+- overage-aware pricing logic
+- backend-controlled privileged operations
 
-multiple users per organization
-
-users belonging to multiple organizations
-
-secure invitation workflows
-
-role-based access control
-
-Stripe-managed subscription billing
-
-plan-based access control
-
-overage-aware pricing logic
-
-backend-controlled privileged operations
-
-Core Identity Model
+## Core Identity Model
 
 The platform separates:
 
-authentication
-
-authorization
-
-organization membership
-
-billing
+- authentication
+- authorization
+- organization membership
+- billing
 
 These are not the same thing.
 
-Authentication
+### Authentication
 
 Authentication answers:
 
-Who is this user?
+**Who is this user?**
 
 Handled by:
 
-Firebase Authentication
+- Firebase Authentication
 
-Authorization
+### Authorization
 
 Authorization answers:
 
-What is this user allowed to do?
+**What is this user allowed to do?**
 
 Handled by:
 
-organization membership documents
+- organization membership documents
+- organization-specific roles
+- Firestore Security Rules
+- Cloud Function authorization checks
+- plan-aware business rules where applicable
 
-organization-specific roles
-
-Firestore Security Rules
-
-Cloud Function authorization checks
-
-plan-aware business rules where applicable
-
-Billing
+### Billing
 
 Billing answers:
 
-What paid features and limits does this organization have access to?
+**What paid features and limits does this organization have access to?**
 
 Handled by:
 
-Stripe
+- Stripe
+- cached billing fields on the organization document
+- plan-aware backend and UI logic
 
-cached billing fields on the organization document
+## Authentication
 
-plan-aware backend and UI logic
+### Identity Provider
 
-Authentication
-Identity Provider
+**Firebase Authentication** is the identity provider for all users.
 
-Firebase Authentication is the identity provider for all users.
+### Supported Sign-In Methods
 
-Supported Sign-In Methods
-Primary
+#### Primary
 
-Email/password
+- Email/password
 
-Optional / Future-Ready
+#### Optional / Future-Ready
 
-Google SSO
+- Google SSO
 
 The architecture should remain compatible with additional providers later if needed.
 
-Authentication Flow
+### Authentication Flow
 
-User opens the application.
+1. User opens the application.
+2. If unauthenticated, the user is redirected to the login or signup screen.
+3. On signup, the user creates a Firebase Auth account.
+4. After authentication, the application checks for an existing `usr/{uid}` document.
+5. If no user document exists, one is created with default values.
+6. The app checks the user's organization memberships.
+7. If the user belongs to one or more organizations, the app loads the user's active organization context.
+8. If the user belongs to no organization, the app routes the user into:
+   - organization creation
+   - or invite acceptance flow
 
-If unauthenticated, the user is redirected to the login or signup screen.
-
-On signup, the user creates a Firebase Auth account.
-
-After authentication, the application checks for an existing usr/{uid} document.
-
-If no user document exists, one is created with default values.
-
-The app checks the user’s organization memberships.
-
-If the user belongs to one or more organizations, the app loads the user’s active organization context.
-
-If the user belongs to no organization, the app routes the user into:
-
-organization creation
-
-or invite acceptance flow
-
-Authentication alone must never grant access to organization data.
+**Authentication alone must never grant access to organization data.**
 
 Membership and role must still be verified.
 
-User Document
+## User Document
 
 User documents store user-level profile metadata only.
 
-No operational business data should ever be stored under usr/{uid}.
+No operational business data should ever be stored under `usr/{uid}`.
 
-User Profile Shape
+### User Profile Shape
+
+```
 usr/{uid}
   displayName: string
   email: string
@@ -141,76 +119,61 @@ usr/{uid}
   createdAt: timestamp
   updatedAt: timestamp
   lastLoginAt: timestamp | null
-Field Meaning
+```
 
-displayName
-user-facing display name
+### Field Meaning
 
-email
-authenticated user email
+| Field | Meaning |
+|-------|---------|
+| `displayName` | user-facing display name |
+| `email` | authenticated user email |
+| `photoURL` | optional profile image |
+| `defaultOrgId` | organization selected by default on login |
+| `activeOrgId` | currently selected organization in the UI |
+| `createdAt` / `updatedAt` / `lastLoginAt` | lifecycle metadata for the user account |
 
-photoURL
-optional profile image
-
-defaultOrgId
-organization selected by default on login
-
-activeOrgId
-currently selected organization in the UI
-
-createdAt / updatedAt / lastLoginAt
-lifecycle metadata for the user account
-
-Important Rule
+### Important Rule
 
 User documents are not allowed to contain:
 
-extinguisher inventory
+- extinguisher inventory
+- inspection data
+- reports
+- notifications
+- org-owned business records
+- billing state
 
-inspection data
+## Session Management
 
-reports
+**Firebase Authentication** manages session tokens and login persistence.
 
-notifications
+### Client Behavior
 
-org-owned business records
+- the client uses `onAuthStateChanged()` or equivalent auth listeners
+- on logout, the app clears local organization state
+- the app must unload active org-scoped listeners
+- user is redirected to the login screen or public entry page
 
-billing state
-
-Session Management
-
-Firebase Authentication manages session tokens and login persistence.
-
-Client Behavior
-
-the client uses onAuthStateChanged() or equivalent auth listeners
-
-on logout, the app clears local organization state
-
-the app must unload active org-scoped listeners
-
-user is redirected to the login screen or public entry page
-
-Important Rule
+### Important Rule
 
 A valid auth session does not automatically authorize access to organization data.
 
 The app must still verify:
 
-organization membership
+- organization membership
+- membership status
+- role permissions
+- plan restrictions where relevant
 
-membership status
+## Organization Management
 
-role permissions
-
-plan restrictions where relevant
-
-Organization Management
-Organization Document
+### Organization Document
 
 Each organization is a tenant in the SaaS platform.
 
-Organization Shape
+#### Organization Shape
+
+```
 org/{orgId}
   name: string
   slug: string | null
@@ -253,159 +216,128 @@ org/{orgId}
     bulkTagPrinting: boolean
     inspectionRoutes: boolean
   } | null
-Meaning of Key Organization Fields
-Organization Identity
+```
 
-name
+### Meaning of Key Organization Fields
 
-slug
+#### Organization Identity
 
-ownerUid
+- `name`
+- `slug`
+- `ownerUid`
+- `createdBy`
 
-createdBy
+#### Lifecycle
 
-Lifecycle
+- `createdAt`
+- `updatedAt`
+- `deletedAt`
 
-createdAt
+#### Plan and Limits
 
-updatedAt
+- `plan`
+- `assetLimit`
+- `overLimit`
 
-deletedAt
+#### Billing Cache
 
-Plan and Limits
+- `stripeCustomerId`
+- `stripeSubscriptionId`
+- `subscriptionStatus`
+- `subscriptionPriceId`
+- `subscriptionCurrentPeriodEnd`
+- `trialEnd`
 
-plan
+#### Settings
 
-assetLimit
+- `timezone`
+- `sections`
+- configurable checklist defaults
 
-overLimit
-
-Billing Cache
-
-stripeCustomerId
-
-stripeSubscriptionId
-
-subscriptionStatus
-
-subscriptionPriceId
-
-subscriptionCurrentPeriodEnd
-
-trialEnd
-
-Settings
-
-timezone
-
-sections
-
-configurable checklist defaults
-
-Feature Flags
+#### Feature Flags
 
 Feature flags may be cached on the org document for easy plan-aware UI and backend checks.
 
-Organization Creation Flow
+### Organization Creation Flow
 
-Organization creation is a privileged backend operation and must be handled by a Cloud Function.
+**Organization creation is a privileged backend operation and must be handled by a Cloud Function.**
 
-Flow
+#### Flow
 
-Authenticated user opens the Create Organization screen.
+1. Authenticated user opens the Create Organization screen.
+2. User enters organization details.
+3. Client calls:
 
-User enters organization details.
-
-Client calls:
-
+```
 createOrganization({ name, slug?, timezone? })
+```
 
-The Cloud Function:
+4. The Cloud Function:
+   - validates caller is authenticated
+   - creates `org/{orgId}`
+   - creates `org/{orgId}/members/{uid}` with role `owner`
+   - creates or updates `usr/{uid}` with `defaultOrgId` and `activeOrgId`
+   - creates a Stripe customer for the organization
+   - stores the Stripe customer ID on the organization document
+   - initializes default plan-related fields
+   - writes an audit log entry if applicable
+   - returns the `orgId`
 
-validates caller is authenticated
+5. Client redirects the owner to checkout or plan-selection flow.
+6. Stripe webhook events later update the official billing fields.
 
-creates org/{orgId}
-
-creates org/{orgId}/members/{uid} with role owner
-
-creates or updates usr/{uid} with defaultOrgId and activeOrgId
-
-creates a Stripe customer for the organization
-
-stores the Stripe customer ID on the organization document
-
-initializes default plan-related fields
-
-writes an audit log entry if applicable
-
-returns the orgId
-
-Client redirects the owner to checkout or plan-selection flow.
-
-Stripe webhook events later update the official billing fields.
-
-Important Rule
+#### Important Rule
 
 The client must never create organizations through direct Firestore writes.
 
-Organization Switching
+### Organization Switching
 
 A user may belong to multiple organizations.
 
-Active Organization Rules
+#### Active Organization Rules
 
-usr/{uid}.activeOrgId determines the currently loaded organization
+- `usr/{uid}.activeOrgId` determines the currently loaded organization
+- `usr/{uid}.defaultOrgId` determines which org loads by default at login
+- switching orgs must reload all org-scoped listeners, caches, and data
+- user may only switch into organizations where membership status is `active`
 
-usr/{uid}.defaultOrgId determines which org loads by default at login
-
-switching orgs must reload all org-scoped listeners, caches, and data
-
-user may only switch into organizations where membership status is active
-
-Required UX Behavior
+#### Required UX Behavior
 
 When org switching happens, the app must:
 
-clear old org state
+- clear old org state
+- unsubscribe old listeners
+- load new org settings
+- load new permissions
+- load new plan state
+- load new organization-scoped data
 
-unsubscribe old listeners
-
-load new org settings
-
-load new permissions
-
-load new plan state
-
-load new organization-scoped data
-
-Critical Isolation Rule
+#### Critical Isolation Rule
 
 A user may belong to multiple organizations, but the app must never mix records between them.
 
-Organization Ownership
+### Organization Ownership
 
 Each organization has exactly one owner at a time.
 
-Rules
+#### Rules
 
-org.ownerUid is the canonical owner reference
+- `org.ownerUid` is the canonical owner reference
+- the corresponding member document must also have role `owner`
+- ownership transfer must be handled by a Cloud Function
+- admins cannot promote themselves to owner
+- admins cannot remove or demote the current owner
+- normal role editing must never accidentally break ownership state
 
-the corresponding member document must also have role owner
+## Membership and Roles
 
-ownership transfer must be handled by a Cloud Function
-
-admins cannot promote themselves to owner
-
-admins cannot remove or demote the current owner
-
-normal role editing must never accidentally break ownership state
-
-Membership and Roles
-Member Document
+### Member Document
 
 Membership is organization-specific and stored under the organization.
 
-Member Shape
+#### Member Shape
+
+```
 org/{orgId}/members/{uid}
   uid: string
   email: string
@@ -416,191 +348,151 @@ org/{orgId}/members/{uid}
   joinedAt: timestamp | null
   createdAt: timestamp
   updatedAt: timestamp
-Member Rules
+```
 
-document ID is the Firebase Auth UID
+#### Member Rules
 
-membership is per-organization
+- document ID is the Firebase Auth UID
+- membership is per-organization
+- status must be checked as well as role
+- role changes are privileged operations
+- ownership transfer is not a normal role edit
 
-status must be checked as well as role
+### Role Definitions
 
-role changes are privileged operations
-
-ownership transfer is not a normal role edit
-
-Role Definitions
-Owner
+#### Owner
 
 The owner has the highest level of authority in the organization.
 
-Owner Permissions
+**Owner Permissions**
 
-manage billing
+- manage billing
+- manage subscription
+- transfer ownership
+- invite members
+- remove members
+- change member roles
+- manage settings
+- manage locations
+- manage extinguisher inventory
+- create/archive workspaces
+- perform inspections
+- access all reports and exports
+- trigger org deletion through backend workflow
 
-manage subscription
-
-transfer ownership
-
-invite members
-
-remove members
-
-change member roles
-
-manage settings
-
-manage locations
-
-manage extinguisher inventory
-
-create/archive workspaces
-
-perform inspections
-
-access all reports and exports
-
-trigger org deletion through backend workflow
-
-Admin
+#### Admin
 
 Admins operate the organization but do not control ownership or billing.
 
-Admin Permissions
+**Admin Permissions**
 
-invite members
+- invite members
+- remove members except owner
+- change member roles except owner transfer
+- manage sections and organization settings
+- import and export data
+- create and archive workspaces
+- manage extinguisher inventory
+- manage locations
+- perform inspections
+- view reports and operational history
 
-remove members except owner
+**Admin Restrictions**
 
-change member roles except owner transfer
+- cannot manage billing
+- cannot transfer ownership
+- cannot remove owner
+- cannot demote owner
+- cannot delete organization
 
-manage sections and organization settings
-
-import and export data
-
-create and archive workspaces
-
-manage extinguisher inventory
-
-manage locations
-
-perform inspections
-
-view reports and operational history
-
-Admin Restrictions
-
-cannot manage billing
-
-cannot transfer ownership
-
-cannot remove owner
-
-cannot demote owner
-
-cannot delete organization
-
-Inspector
+#### Inspector
 
 Inspectors are field users.
 
-Inspector Permissions
+**Inspector Permissions**
 
-perform inspections
+- perform inspections
+- complete checklist items
+- add notes
+- capture photos if plan allows
+- capture GPS if plan allows
+- scan barcode or QR if plan allows
+- use field workflows necessary for inspections
+- view operational data needed for assigned work
 
-complete checklist items
+**Inspector Restrictions**
 
-add notes
+- cannot manage billing
+- cannot manage members
+- cannot manage org settings
+- cannot archive workspaces
+- cannot change roles
+- cannot delete the organization
 
-capture photos if plan allows
-
-capture GPS if plan allows
-
-scan barcode or QR if plan allows
-
-use field workflows necessary for inspections
-
-view operational data needed for assigned work
-
-Inspector Restrictions
-
-cannot manage billing
-
-cannot manage members
-
-cannot manage org settings
-
-cannot archive workspaces
-
-cannot change roles
-
-cannot delete the organization
-
-Limited Update Rule
+**Limited Update Rule**
 
 Inspectors may update only workflow-safe inspection-related fields when business rules permit.
 
-Viewer
+#### Viewer
 
 Viewers are read-only users.
 
-Viewer Permissions
+**Viewer Permissions**
 
-read extinguisher data
+- read extinguisher data
+- read inspection results
+- read reports
+- read photos/history if access is allowed
 
-read inspection results
+**Viewer Restrictions**
 
-read reports
+- cannot perform inspections
+- cannot modify data
+- cannot manage users
+- cannot manage settings
+- cannot manage billing
 
-read photos/history if access is allowed
+### Role Permission Matrix
 
-Viewer Restrictions
+| Action | Owner | Admin | Inspector | Viewer |
+|--------|-------|-------|-----------|--------|
+| Manage billing | Yes | No | No | No |
+| Transfer ownership | Yes | No | No | No |
+| Delete organization via backend workflow | Yes | No | No | No |
+| Invite members | Yes | Yes | No | No |
+| Remove members | Yes | Yes | No | No |
+| Change member roles | Yes | Yes\* | No | No |
+| Manage organization settings | Yes | Yes | No | No |
+| Import data | Yes | Yes | No | No |
+| Export data | Yes | Yes | No | Yes\*\* |
+| Create workspace | Yes | Yes | No | No |
+| Archive workspace | Yes | Yes | No | No |
+| Add extinguisher | Yes | Yes | No | No |
+| Edit extinguisher | Yes | Yes | Limited\*\*\* | No |
+| Delete extinguisher | Yes | Yes | No | No |
+| Perform inspection | Yes | Yes | Yes | No |
+| Replace extinguisher in workflow | Yes | Yes | Limited\*\*\*\* | No |
+| Capture photo | Yes | Yes | Yes | No |
+| Capture GPS | Yes | Yes | Yes | No |
+| Scan barcode / QR | Yes | Yes | Yes | No |
+| View operational data | Yes | Yes | Yes | Yes |
+| View reports | Yes | Yes | Yes | Yes |
+| Manage section notes | Yes | Yes | Yes | No |
 
-cannot perform inspections
+\* Admin cannot change owner role or remove owner.
+\*\* Viewer export access depends on product/export rules.
+\*\*\* Inspector may edit only limited workflow-safe fields if allowed.
+\*\*\*\* Replacement workflows for inspectors must be constrained, audited, and permission-checked.
 
-cannot modify data
+## Invitation System
 
-cannot manage users
-
-cannot manage settings
-
-cannot manage billing
-
-Role Permission Matrix
-Action	Owner	Admin	Inspector	Viewer
-Manage billing	Yes	No	No	No
-Transfer ownership	Yes	No	No	No
-Delete organization via backend workflow	Yes	No	No	No
-Invite members	Yes	Yes	No	No
-Remove members	Yes	Yes	No	No
-Change member roles	Yes	Yes*	No	No
-Manage organization settings	Yes	Yes	No	No
-Import data	Yes	Yes	No	No
-Export data	Yes	Yes	No	Yes**
-Create workspace	Yes	Yes	No	No
-Archive workspace	Yes	Yes	No	No
-Add extinguisher	Yes	Yes	No	No
-Edit extinguisher	Yes	Yes	Limited***	No
-Delete extinguisher	Yes	Yes	No	No
-Perform inspection	Yes	Yes	Yes	No
-Replace extinguisher in workflow	Yes	Yes	Limited****	No
-Capture photo	Yes	Yes	Yes	No
-Capture GPS	Yes	Yes	Yes	No
-Scan barcode / QR	Yes	Yes	Yes	No
-View operational data	Yes	Yes	Yes	Yes
-View reports	Yes	Yes	Yes	Yes
-Manage section notes	Yes	Yes	Yes	No
-
-* Admin cannot change owner role or remove owner.
-** Viewer export access depends on product/export rules.
-*** Inspector may edit only limited workflow-safe fields if allowed.
-**** Replacement workflows for inspectors must be constrained, audited, and permission-checked.
-
-Invitation System
-Invite Document
+### Invite Document
 
 Invites are stored in a top-level collection because they may be resolved before the user fully enters the organization.
 
-Invite Shape
+#### Invite Shape
+
+```
 invite/{inviteId}
   orgId: string
   orgName: string
@@ -614,484 +506,360 @@ invite/{inviteId}
   expiresAt: timestamp
   acceptedAt: timestamp | null
   revokedAt: timestamp | null
-Important Rule
+```
+
+#### Important Rule
 
 Invite tokens must never be stored in raw form.
 
 Only a hashed token may be stored.
 
-Invite Flow
+### Invite Flow
 
-Owner or admin starts invite flow from organization settings.
+1. Owner or admin starts invite flow from organization settings.
+2. User enters invitee email and target role.
+3. Client calls:
 
-User enters invitee email and target role.
-
-Client calls:
-
+```
 createInvite({ orgId, email, role })
+```
 
-The Cloud Function:
+4. The Cloud Function:
+   - validates caller has permission
+   - validates requested role is allowed
+   - checks for duplicate pending invites
+   - generates secure invite token
+   - stores only `tokenHash`
+   - creates invite document
+   - optionally sends invite email
+   - returns invite link
 
-validates caller has permission
+5. Invitee opens a link like:
 
-validates requested role is allowed
-
-checks for duplicate pending invites
-
-generates secure invite token
-
-stores only tokenHash
-
-creates invite document
-
-optionally sends invite email
-
-returns invite link
-
-Invitee opens a link like:
-
+```
 /invite/{token}
+```
 
-If unauthenticated, invitee signs in or signs up.
+6. If unauthenticated, invitee signs in or signs up.
+7. Client calls:
 
-Client calls:
-
+```
 acceptInvite({ token })
+```
 
-The Cloud Function:
+8. The Cloud Function:
+   - hashes submitted token
+   - resolves pending invite
+   - validates invite is pending, not expired, not revoked
+   - validates authenticated user email matches invite email
+   - creates or updates `org/{orgId}/members/{uid}`
+   - sets membership status to `active`
+   - sets `joinedAt`
+   - updates invite status to `accepted`
+   - updates `usr/{uid}.activeOrgId` if needed
+   - optionally updates `defaultOrgId`
+   - writes audit log if applicable
+   - returns success
 
-hashes submitted token
+9. Client redirects user into the organization dashboard.
 
-resolves pending invite
+### Invite Management Rules
 
-validates invite is pending, not expired, not revoked
+- pending invites can be revoked by owner or admin
+- expired invites cannot be accepted
+- duplicate pending invites for same org/email are not allowed
+- accepted invites remain stored for audit/history
+- invite acceptance must always be server-side
+- invite resolution must not bypass authentication
 
-validates authenticated user email matches invite email
+## Stripe Billing Integration
 
-creates or updates org/{orgId}/members/{uid}
-
-sets membership status to active
-
-sets joinedAt
-
-updates invite status to accepted
-
-updates usr/{uid}.activeOrgId if needed
-
-optionally updates defaultOrgId
-
-writes audit log if applicable
-
-returns success
-
-Client redirects user into the organization dashboard.
-
-Invite Management Rules
-
-pending invites can be revoked by owner or admin
-
-expired invites cannot be accepted
-
-duplicate pending invites for same org/email are not allowed
-
-accepted invites remain stored for audit/history
-
-invite acceptance must always be server-side
-
-invite resolution must not bypass authentication
-
-Stripe Billing Integration
-Billing Model
+### Billing Model
 
 Billing is organization-level, not user-level.
 
 Each organization has:
 
-one Stripe customer
+- one Stripe customer
+- one active subscription at a time
+- one active plan
+- plan-specific feature access
+- plan-specific included extinguisher count
+- possible overage billing logic
 
-one active subscription at a time
+### Launch Plan Structure
 
-one active plan
+#### Basic
 
-plan-specific feature access
+- $29.99/month
+- 50 extinguishers included
+- +$10/month per additional 50 extinguishers
+- includes reminders and compliance notifications
+- manual entry only for barcode/asset lookup
 
-plan-specific included extinguisher count
+#### Pro
 
-possible overage billing logic
+- $99/month
+- 250 extinguishers included
+- +$10/month per additional 50 extinguishers
+- includes scanning, GPS, photo workflows, routes, tagging, advanced workflows
 
-Launch Plan Structure
-Basic
+#### Elite
 
-$29.99/month
+- $199/month
+- 500 extinguishers included
+- +$10/month per additional 50 extinguishers
+- includes everything in Pro plus higher scale and advanced reporting support
 
-50 extinguishers included
+#### Enterprise
 
-+$10/month per additional 50 extinguishers
+- custom pricing
+- unlimited extinguishers
+- contact: help@beck-publishing.com
 
-includes reminders and compliance notifications
+### Stripe Objects Used
 
-manual entry only for barcode/asset lookup
-
-Pro
-
-$99/month
-
-250 extinguishers included
-
-+$10/month per additional 50 extinguishers
-
-includes scanning, GPS, photo workflows, routes, tagging, advanced workflows
-
-Elite
-
-$199/month
-
-500 extinguishers included
-
-+$10/month per additional 50 extinguishers
-
-includes everything in Pro plus higher scale and advanced reporting support
-
-Enterprise
-
-custom pricing
-
-unlimited extinguishers
-
-contact: help@beck-publishing.com
-
-Stripe Objects Used
-
-Customer
-one per organization
-
-Subscription
-one active subscription per organization
-
-Price
-recurring monthly price configured in Stripe
-
-Checkout Session
-used for self-serve plan signup
-
-Customer Portal Session
-used for billing self-service
+| Object | Description |
+|--------|-------------|
+| Customer | one per organization |
+| Subscription | one active subscription per organization |
+| Price | recurring monthly price configured in Stripe |
+| Checkout Session | used for self-serve plan signup |
+| Customer Portal Session | used for billing self-service |
 
 Enterprise may remain outside self-serve checkout.
 
-Checkout Flow
+### Checkout Flow
 
-After organization creation, owner starts checkout.
+1. After organization creation, owner starts checkout.
+2. Client calls:
 
-Client calls:
-
+```
 createCheckoutSession({ orgId, plan })
+```
 
-The Cloud Function:
+3. The Cloud Function:
+   - validates caller is authenticated
+   - validates caller is org owner
+   - validates selected plan is self-serve
+   - rejects enterprise self-serve if disabled
+   - loads org Stripe customer ID
+   - maps selected plan to correct Stripe price ID
+   - creates Stripe Checkout session with:
+     - customer
+     - mode = subscription
+     - correct recurring price
+     - optional trial settings
+     - `metadata.orgId`
+     - success URL
+     - cancel URL
+   - returns checkout URL
 
-validates caller is authenticated
+4. Client redirects user to Stripe Checkout.
+5. Stripe sends webhook events after checkout completes.
+6. Webhook handlers update organization billing fields.
 
-validates caller is org owner
+### Customer Portal Flow
 
-validates selected plan is self-serve
+1. Owner clicks **Manage Billing**.
+2. Client calls:
 
-rejects enterprise self-serve if disabled
-
-loads org Stripe customer ID
-
-maps selected plan to correct Stripe price ID
-
-creates Stripe Checkout session with:
-
-customer
-
-mode = subscription
-
-correct recurring price
-
-optional trial settings
-
-metadata.orgId
-
-success URL
-
-cancel URL
-
-returns checkout URL
-
-Client redirects user to Stripe Checkout.
-
-Stripe sends webhook events after checkout completes.
-
-Webhook handlers update organization billing fields.
-
-Customer Portal Flow
-
-Owner clicks Manage Billing.
-
-Client calls:
-
+```
 createPortalSession({ orgId })
+```
 
-The Cloud Function:
+3. The Cloud Function:
+   - validates caller is owner
+   - loads Stripe customer ID
+   - creates Stripe Customer Portal session
+   - returns portal URL
 
-validates caller is owner
+4. Client redirects to Stripe billing portal.
+5. Any subscription changes are reflected through webhook updates.
 
-loads Stripe customer ID
-
-creates Stripe Customer Portal session
-
-returns portal URL
-
-Client redirects to Stripe billing portal.
-
-Any subscription changes are reflected through webhook updates.
-
-Stripe Webhook Events
+### Stripe Webhook Events
 
 The following webhook events must be handled:
 
-Event	Action
-checkout.session.completed	associate completed checkout with org and sync plan/subscription
-customer.subscription.created	set initial subscription fields
-customer.subscription.updated	update plan, status, period, price
-customer.subscription.deleted	mark subscription canceled
-invoice.payment_succeeded	clear failure state, update period
-invoice.payment_failed	mark org past_due or unpaid
-customer.subscription.trial_will_end	optional reminder workflow
+| Event | Action |
+|-------|--------|
+| `checkout.session.completed` | associate completed checkout with org and sync plan/subscription |
+| `customer.subscription.created` | set initial subscription fields |
+| `customer.subscription.updated` | update plan, status, period, price |
+| `customer.subscription.deleted` | mark subscription canceled |
+| `invoice.payment_succeeded` | clear failure state, update period |
+| `invoice.payment_failed` | mark org `past_due` or `unpaid` |
+| `customer.subscription.trial_will_end` | optional reminder workflow |
 
-Webhook logic must always be authoritative over client assumptions.
+**Webhook logic must always be authoritative over client assumptions.**
 
-Billing Cache and Plan State
+### Billing Cache and Plan State
 
-Stripe is the billing source of truth.
+**Stripe is the billing source of truth.**
 
 Firestore stores cached copies of:
 
-subscription status
+- subscription status
+- selected plan
+- price reference
+- period end
+- trial state
+- feature flags if cached
+- asset limit if cached
 
-selected plan
+#### Rules
 
-price reference
+- billing cache is updated by webhook handlers or trusted backend sync
+- client reads billing state from Firestore, not directly from Stripe
+- stale cache may be corrected by backend sync
+- client must never directly mutate official billing fields
 
-period end
-
-trial state
-
-feature flags if cached
-
-asset limit if cached
-
-Rules
-
-billing cache is updated by webhook handlers or trusted backend sync
-
-client reads billing state from Firestore, not directly from Stripe
-
-stale cache may be corrected by backend sync
-
-client must never directly mutate official billing fields
-
-Subscription Status and Access
+### Subscription Status and Access
 
 Subscription status determines organization access level.
 
-Supported Statuses
+#### Supported Statuses
 
-active
+- `active`
+- `trialing`
+- `past_due`
+- `canceled`
+- `unpaid`
+- no subscription
 
-trialing
+#### Recommended Access Rules
 
-past_due
+| Status | Access |
+|--------|--------|
+| `active` | full access based on plan |
+| `trialing` | full access based on plan |
+| `past_due` | read-only or grace-period limited behavior |
+| `canceled` | read-only for retention period, then export-only or restricted recovery |
+| `unpaid` | billing recovery required |
+| no subscription | owner is redirected to checkout |
 
-canceled
+### Enforcement Layers
 
-unpaid
-
-no subscription
-
-Recommended Access Rules
-Status	Access
-active	full access based on plan
-trialing	full access based on plan
-past_due	read-only or grace-period limited behavior
-canceled	read-only for retention period, then export-only or restricted recovery
-unpaid	billing recovery required
-no subscription	owner is redirected to checkout
-Enforcement Layers
-1. Client-Side Enforcement
+#### 1. Client-Side Enforcement
 
 Used for UX only.
 
 Examples:
 
-hide buttons
+- hide buttons
+- disable workflows
+- show upgrade messages
+- show billing banners
 
-disable workflows
-
-show upgrade messages
-
-show billing banners
-
-2. Firestore Security Rules
+#### 2. Firestore Security Rules
 
 Used to restrict reads/writes where appropriate based on:
 
-authentication
+- authentication
+- active membership
+- role
+- allowed subscription status
 
-active membership
-
-role
-
-allowed subscription status
-
-3. Cloud Functions
+#### 3. Cloud Functions
 
 Used to enforce privileged and billing-aware workflows such as:
 
-workspace creation
+- workspace creation
+- archival
+- imports
+- ownership actions
+- member management
+- report generation
+- plan-aware over-limit enforcement
 
-archival
-
-imports
-
-ownership actions
-
-member management
-
-report generation
-
-plan-aware over-limit enforcement
-
-Plan and Overage Enforcement
+## Plan and Overage Enforcement
 
 The system must support included extinguisher limits and overage rules.
 
-Included Limits
+### Included Limits
 
-Basic: 50
+- Basic: 50
+- Pro: 250
+- Elite: 500
+- Enterprise: unlimited
 
-Pro: 250
+### Overage Logic
 
-Elite: 500
+- additional extinguishers may be billed in 50-unit increments
+- each extra 50 extinguishers adds +$10/month
+- overage rules must be centralized
+- app must prevent silent uncontrolled over-limit growth if billing enforcement requires restriction
 
-Enterprise: unlimited
-
-Overage Logic
-
-additional extinguishers may be billed in 50-unit increments
-
-each extra 50 extinguishers adds +$10/month
-
-overage rules must be centralized
-
-app must prevent silent uncontrolled over-limit growth if billing enforcement requires restriction
-
-Downgrade Rule
+### Downgrade Rule
 
 If a customer downgrades below their current active extinguisher count:
 
-existing data must remain intact
+- existing data must remain intact
+- system may mark org `overLimit`
+- customer may be prevented from adding more extinguishers until usage fits plan or plan is upgraded
+- data must not be automatically deleted
 
-system may mark org overLimit
-
-customer may be prevented from adding more extinguishers until usage fits plan or plan is upgraded
-
-data must not be automatically deleted
-
-Security Rules Summary
+## Security Rules Summary
 
 Firestore Security Rules must enforce:
 
-authenticated users can only access their own usr/{uid} document
-
-organization data requires active membership
-
-writes must be role-aware
-
-subscription-aware restrictions may apply to writes
-
-client code is never a security boundary
-
-invite acceptance must validate authenticated email matches invite
-
-sensitive operations remain backend-controlled
-
-organization switching must not bypass membership
-
-org isolation must apply to reports, notifications, and exports as well
+- authenticated users can only access their own `usr/{uid}` document
+- organization data requires active membership
+- writes must be role-aware
+- subscription-aware restrictions may apply to writes
+- client code is never a security boundary
+- invite acceptance must validate authenticated email matches invite
+- sensitive operations remain backend-controlled
+- organization switching must not bypass membership
+- org isolation must apply to reports, notifications, and exports as well
 
 Detailed rules are defined in the schema and isolation documents.
 
-Account Deletion
-User Account Deletion
+## Account Deletion
+
+### User Account Deletion
 
 User deletion must be handled by Cloud Function.
 
-Flow
+#### Flow
 
-user requests account deletion
+1. user requests account deletion
+2. backend checks whether user is sole owner of any org
+3. if sole owner, ownership transfer or org deletion must happen first
+4. backend removes user from memberships as appropriate
+5. backend writes audit logs
+6. backend deletes `usr/{uid}`
+7. backend deletes Firebase Auth account
 
-backend checks whether user is sole owner of any org
-
-if sole owner, ownership transfer or org deletion must happen first
-
-backend removes user from memberships as appropriate
-
-backend writes audit logs
-
-backend deletes usr/{uid}
-
-backend deletes Firebase Auth account
-
-Organization Deletion
+### Organization Deletion
 
 Organization deletion must be a privileged backend workflow.
 
-Flow
+#### Flow
 
-only owner may request deletion
+1. only owner may request deletion
+2. backend validates ownership and recent auth if required
+3. backend cancels Stripe subscription if needed
+4. backend soft-deletes org with `deletedAt`
+5. org enters retention state
+6. restoration may be allowed during retention if business rules allow
+7. scheduled backend job later performs hard delete or archival cleanup
+8. deletion is logged
 
-backend validates ownership and recent auth if required
-
-backend cancels Stripe subscription if needed
-
-backend soft-deletes org with deletedAt
-
-org enters retention state
-
-restoration may be allowed during retention if business rules allow
-
-scheduled backend job later performs hard delete or archival cleanup
-
-deletion is logged
-
-Design Rules
+## Design Rules
 
 The following rules must always be respected:
 
-authentication does not equal authorization
-
-all operational data is organization-scoped
-
-billing belongs to the organization, not the user
-
-organization membership is the basis for access control
-
-roles are organization-specific
-
-Stripe is the source of truth for subscription state
-
-Firestore is the source of truth for application data
-
-Cloud Functions handle privileged operations
-
-invite tokens must never be stored raw
-
-ownership transfer must always be explicit and backend-controlled
-
-plan restrictions must not live only in the UI
-
-overage handling must be centralized
-
-enterprise setup must remain admin/contact-sales aware if not self-serve
+- authentication does not equal authorization
+- all operational data is organization-scoped
+- billing belongs to the organization, not the user
+- organization membership is the basis for access control
+- roles are organization-specific
+- **Stripe** is the source of truth for subscription state
+- **Firestore** is the source of truth for application data
+- **Cloud Functions** handle privileged operations
+- invite tokens must never be stored raw
+- ownership transfer must always be explicit and backend-controlled
+- plan restrictions must not live only in the UI
+- overage handling must be centralized
+- enterprise setup must remain admin/contact-sales aware if not self-serve

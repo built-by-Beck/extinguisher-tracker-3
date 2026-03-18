@@ -1,144 +1,110 @@
-03 — Database Schema
+# 03 — Database Schema
 
 This document defines the Firestore database schema for Extinguisher Tracker 3 (EX3).
 
-The system is organization-scoped.
+The system is **organization-scoped**.
 All operational data belongs to an organization. No business data is stored under user documents.
 
 The schema is designed to support:
 
-strict multi-tenant isolation
+- strict multi-tenant isolation
+- role-based access control
+- organization-based billing
+- plan-based feature enforcement
+- monthly inspection workflows
+- annual inspection tracking
+- 6-year maintenance tracking
+- hydrostatic testing tracking
+- immutable audit history
+- offline-capable field workflows
+- barcode and QR asset tracking
+- lifecycle calculations
+- exportable reports
+- legal inspection attestation
+- future scale for large organizations
 
-role-based access control
-
-organization-based billing
-
-plan-based feature enforcement
-
-monthly inspection workflows
-
-annual inspection tracking
-
-6-year maintenance tracking
-
-hydrostatic testing tracking
-
-immutable audit history
-
-offline-capable field workflows
-
-barcode and QR asset tracking
-
-lifecycle calculations
-
-exportable reports
-
-legal inspection attestation
-
-future scale for large organizations
-
-Schema Conventions
+## Schema Conventions
 
 The following conventions apply across the entire database.
 
-All timestamps use Firestore Timestamp, not ISO strings.
+- All timestamps use Firestore `Timestamp`, not ISO strings.
+- All field names use camelCase.
+- All document IDs are auto-generated unless explicitly stated otherwise.
+- All string identifiers such as asset IDs, serial numbers, barcodes, QR values, and invite tokens are stored as strings.
+- Numeric values such as years, counters, sort orders, coordinates, limits, and durations use numeric types.
+- Soft deletion uses `deletedAt: Timestamp | null` unless otherwise specified.
+- Organization subcollections follow the pattern:
 
-All field names use camelCase.
-
-All document IDs are auto-generated unless explicitly stated otherwise.
-
-All string identifiers such as asset IDs, serial numbers, barcodes, QR values, and invite tokens are stored as strings.
-
-Numeric values such as years, counters, sort orders, coordinates, limits, and durations use numeric types.
-
-Soft deletion uses deletedAt: Timestamp | null unless otherwise specified.
-
-Organization subcollections follow the pattern:
-
+```
 org/{orgId}/{collectionName}/{docId}
+```
 
-Arrays must not be used for unbounded growth. Any potentially unbounded list must be modeled as a subcollection.
+- Arrays must not be used for unbounded growth. Any potentially unbounded list must be modeled as a subcollection.
+- Firestore does not provide native uniqueness constraints. Any uniqueness requirement must be enforced through backend logic, transactions, or deterministic document patterns.
+- Archived or immutable records must never be casually overwritten.
+- Compliance calculations should be driven by centralized logic, not random UI-only computations.
 
-Firestore does not provide native uniqueness constraints. Any uniqueness requirement must be enforced through backend logic, transactions, or deterministic document patterns.
-
-Archived or immutable records must never be casually overwritten.
-
-Compliance calculations should be driven by centralized logic, not random UI-only computations.
-
-Data Modeling Principles
+## Data Modeling Principles
 
 The schema is based on the following categories.
 
-1. Identity and Access
+### 1. Identity and Access
 
 Documents related to:
 
-users
+- users
+- organizations
+- invites
+- memberships
+- roles
+- active organization context
 
-organizations
-
-invites
-
-memberships
-
-roles
-
-active organization context
-
-2. Operational Reference Data
+### 2. Operational Reference Data
 
 Long-lived records such as:
 
-extinguisher inventory
+- extinguisher inventory
+- locations
+- routes
+- organization settings
+- tag metadata
 
-locations
-
-routes
-
-organization settings
-
-tag metadata
-
-3. Mutable Workspace Data
+### 3. Mutable Workspace Data
 
 Records that change during active workflows, such as:
 
-monthly inspections
+- monthly inspections
+- section notes
+- section time totals
+- in-app notifications
+- workspace stats
 
-section notes
-
-section time totals
-
-in-app notifications
-
-workspace stats
-
-4. Immutable or Archived Historical Data
+### 4. Immutable or Archived Historical Data
 
 Append-only or snapshot data such as:
 
-inspection events
+- inspection events
+- audit logs
+- archived reports
+- legal attestation records where persisted separately
 
-audit logs
-
-archived reports
-
-legal attestation records where persisted separately
-
-Top-Level Collections
+## Top-Level Collections
 
 The system uses three primary top-level collections:
 
-org/{orgId}
-usr/{uid}
-invite/{inviteId}
-org/{orgId} — Organizations
+- `org/{orgId}`
+- `usr/{uid}`
+- `invite/{inviteId}`
 
-This is the tenant root document.
+### `org/{orgId}` — Organizations
+
+This is the **tenant root document**.
 
 All operational data for an organization lives under this path.
 
-Organization Shape
+#### Organization Shape
+
+```
 org/{orgId}
   name: string
   slug: string | null
@@ -182,39 +148,34 @@ org/{orgId}
     sections: string[]
     defaultChecklistItems: string[]
   }
-Notes
+```
 
-ownerUid is the canonical owner reference.
+#### Notes
 
-status controls org lifecycle state.
+- `ownerUid` is the canonical owner reference.
+- `status` controls org lifecycle state.
+- `plan`, `assetLimit`, and `overLimit` support plan-aware workflows.
+- Stripe fields are cached billing state only. **Stripe remains the billing source of truth.**
+- `slug` is intended for friendly URLs, but uniqueness must be enforced by backend logic.
+- `featureFlags` may be derived from plan and cached for performance and UI convenience.
 
-plan, assetLimit, and overLimit support plan-aware workflows.
+#### Suggested Indexes
 
-Stripe fields are cached billing state only. Stripe remains the billing source of truth.
+- `slug`
+- `stripeCustomerId`
+- `status`
+- `plan`
+- composite: `status` + `plan`
 
-slug is intended for friendly URLs, but uniqueness must be enforced by backend logic.
-
-featureFlags may be derived from plan and cached for performance and UI convenience.
-
-Suggested Indexes
-
-slug
-
-stripeCustomerId
-
-status
-
-plan
-
-composite: status + plan
-
-usr/{uid} — User Profiles
+### `usr/{uid}` — User Profiles
 
 One document per Firebase Auth user.
 
 Contains only user-level metadata.
 
-User Shape
+#### User Shape
+
+```
 usr/{uid}
   displayName: string
   email: string
@@ -224,27 +185,27 @@ usr/{uid}
   createdAt: Timestamp
   updatedAt: Timestamp
   lastLoginAt: Timestamp | null
-Rules
+```
 
-A user may only read and write their own document.
+#### Rules
 
-The document ID must match request.auth.uid.
+- A user may only read and write their own document.
+- The document ID must match `request.auth.uid`.
 
-Notes
+#### Notes
 
-No organization business data is stored under usr/{uid}.
+- No organization business data is stored under `usr/{uid}`.
+- Membership is stored under `org/{orgId}/members/{uid}`.
+- `activeOrgId` controls current organization context in the UI.
+- `defaultOrgId` controls default org selection after login.
 
-Membership is stored under org/{orgId}/members/{uid}.
-
-activeOrgId controls current organization context in the UI.
-
-defaultOrgId controls default org selection after login.
-
-invite/{inviteId} — Pending Invitations
+### `invite/{inviteId}` — Pending Invitations
 
 Stores organization invite records before membership is accepted.
 
-Invite Shape
+#### Invite Shape
+
+```
 invite/{inviteId}
   orgId: string
   orgName: string
@@ -258,36 +219,37 @@ invite/{inviteId}
   expiresAt: Timestamp
   acceptedAt: Timestamp | null
   revokedAt: Timestamp | null
-Suggested Indexes
+```
 
-tokenHash
+#### Suggested Indexes
 
-composite: email + status
+- `tokenHash`
+- composite: `email` + `status`
+- composite: `orgId` + `status`
 
-composite: orgId + status
+#### Security Notes
 
-Security Notes
+- Invite creation and acceptance must be handled by Cloud Functions.
+- Raw invite tokens must never be stored in Firestore.
+- Reads must be limited to:
+  - authorized invite resolution flows
+  - org admins/owners when appropriate
 
-Invite creation and acceptance must be handled by Cloud Functions.
-
-Raw invite tokens must never be stored in Firestore.
-
-Reads must be limited to:
-
-authorized invite resolution flows
-
-org admins/owners when appropriate
-
-Organization Subcollections
+## Organization Subcollections
 
 All collections below are relative to:
 
+```
 org/{orgId}/...
-members/{uid} — Organization Members
+```
+
+### `members/{uid}` — Organization Members
 
 Stores org-specific membership and role information.
 
-Member Shape
+#### Member Shape
+
+```
 org/{orgId}/members/{uid}
   uid: string
   email: string
@@ -298,31 +260,30 @@ org/{orgId}/members/{uid}
   joinedAt: Timestamp | null
   createdAt: Timestamp
   updatedAt: Timestamp
-Rules
+```
 
-Document ID is the Firebase Auth UID.
+#### Rules
 
-Exactly one active member must hold role owner.
+- Document ID is the Firebase Auth UID.
+- Exactly one active member must hold role `owner`.
+- Role changes and ownership transfer must be backend-controlled.
+- Client code must not directly manage membership lifecycle.
 
-Role changes and ownership transfer must be backend-controlled.
+#### Suggested Indexes
 
-Client code must not directly manage membership lifecycle.
+- `status`
+- `role`
+- composite: `status` + `role`
 
-Suggested Indexes
-
-status
-
-role
-
-composite: status + role
-
-locations/{locationId} — Physical Locations
+### `locations/{locationId}` — Physical Locations
 
 Represents structured facility location data.
 
 This supports campuses, buildings, floors, wings, zones, and rooms.
 
-Location Shape
+#### Location Shape
+
+```
 org/{orgId}/locations/{locationId}
   name: string
   parentLocationId: string | null
@@ -338,29 +299,28 @@ org/{orgId}/locations/{locationId}
   updatedAt: Timestamp
   createdBy: string
   deletedAt: Timestamp | null
-Notes
+```
 
-Supports hierarchical facility maps.
+#### Notes
 
-parentLocationId creates hierarchy.
+- Supports hierarchical facility maps.
+- `parentLocationId` creates hierarchy.
+- `section` can remain as a simpler grouping field for legacy or quick filtering.
 
-section can remain as a simpler grouping field for legacy or quick filtering.
+#### Suggested Indexes
 
-Suggested Indexes
+- `section`
+- `parentLocationId`
+- `locationType`
+- composite: `parentLocationId` + `sortOrder`
 
-section
-
-parentLocationId
-
-locationType
-
-composite: parentLocationId + sortOrder
-
-inspectionRoutes/{routeId} — Inspection Routes
+### `inspectionRoutes/{routeId}` — Inspection Routes
 
 Stores route-based inspection workflows.
 
-Route Shape
+#### Route Shape
+
+```
 org/{orgId}/inspectionRoutes/{routeId}
   name: string
   description: string | null
@@ -371,19 +331,19 @@ org/{orgId}/inspectionRoutes/{routeId}
   createdAt: Timestamp
   updatedAt: Timestamp
   createdBy: string
-Notes
+```
 
-Routes are useful for large facilities.
+#### Notes
 
-Keep extinguisherIds bounded. If future route size becomes huge, route membership can move to a subcollection.
+- Routes are useful for large facilities.
+- Keep `extinguisherIds` bounded. If future route size becomes huge, route membership can move to a subcollection.
 
-Suggested Indexes
+#### Suggested Indexes
 
-active
+- `active`
+- `locationId`
 
-locationId
-
-extinguishers/{extId} — Extinguisher Inventory
+### `extinguishers/{extId}` — Extinguisher Inventory
 
 This is the long-lived asset record for a physical extinguisher.
 
@@ -391,7 +351,9 @@ It stores identity, location, classification, compliance metadata, lifecycle met
 
 It does not store the mutable monthly inspection state for a workspace.
 
-Extinguisher Shape
+#### Extinguisher Shape
+
+```
 org/{orgId}/extinguishers/{extId}
   // Identity
   assetId: string
@@ -500,73 +462,56 @@ org/{orgId}/extinguishers/{extId}
   deletedAt: Timestamp | null
   deletedBy: string | null
   deletionReason: string | null
-Notes
+```
 
-assetId, barcode, serial, qrCodeValue, and qrCodeUrl are strings.
+#### Notes
 
-manufactureYear, expirationYear, hydroTestIntervalYears are numeric.
+- `assetId`, `barcode`, `serial`, `qrCodeValue`, and `qrCodeUrl` are strings.
+- `manufactureYear`, `expirationYear`, `hydroTestIntervalYears` are numeric.
+- `photos` must remain bounded. It is not a full media history store.
+- `replacementHistory` must remain bounded.
+- `assetId` uniqueness is required within an org and must be enforced by backend logic.
+- Barcode uniqueness should be enforced if business rules require one active barcode per active extinguisher.
+- Compliance and lifecycle fields support centralized lifecycle calculations.
+- Replacement and retirement state must not destroy historical traceability.
 
-photos must remain bounded. It is not a full media history store.
+#### Suggested Indexes
 
-replacementHistory must remain bounded.
+- `assetId`
+- `barcode`
+- `serial`
+- `section`
+- `category`
+- `locationId`
+- `lifecycleStatus`
+- `complianceStatus`
+- `deletedAt`
+- `nextMonthlyInspection`
+- `nextAnnualInspection`
+- `nextSixYearMaintenance`
+- `nextHydroTest`
+- composite: `section` + `category`
+- composite: `section` + `deletedAt`
+- composite: `barcode` + `deletedAt`
+- composite: `assetId` + `deletedAt`
+- composite: `complianceStatus` + `deletedAt`
+- composite: `section` + `complianceStatus`
 
-assetId uniqueness is required within an org and must be enforced by backend logic.
-
-Barcode uniqueness should be enforced if business rules require one active barcode per active extinguisher.
-
-Compliance and lifecycle fields support centralized lifecycle calculations.
-
-Replacement and retirement state must not destroy historical traceability.
-
-Suggested Indexes
-
-assetId
-
-barcode
-
-serial
-
-section
-
-category
-
-locationId
-
-lifecycleStatus
-
-complianceStatus
-
-deletedAt
-
-nextMonthlyInspection
-
-nextAnnualInspection
-
-nextSixYearMaintenance
-
-nextHydroTest
-
-composite: section + category
-
-composite: section + deletedAt
-
-composite: barcode + deletedAt
-
-composite: assetId + deletedAt
-
-composite: complianceStatus + deletedAt
-
-composite: section + complianceStatus
-
-workspaces/{workspaceId} — Monthly Inspection Cycles
+### `workspaces/{workspaceId}` — Monthly Inspection Cycles
 
 A workspace represents one monthly inspection cycle for an organization.
 
-For version 1, the document ID should be the monthYear string.
+For version 1, the document ID should be the `monthYear` string.
 
-Example
+**Example**
+
+```
 workspaceId = "2026-03"
-Workspace Shape
+```
+
+#### Workspace Shape
+
+```
 org/{orgId}/workspaces/{workspaceId}
   label: string                      // "Mar '26"
   monthYear: string                  // YYYY-MM
@@ -583,31 +528,30 @@ org/{orgId}/workspaces/{workspaceId}
     pending: number
     lastUpdated: Timestamp
   }
-Rules
+```
 
-At most one workspace per org per month in version 1.
+#### Rules
 
-Workspace archival is a privileged workflow.
+- At most one workspace per org per month in version 1.
+- Workspace archival is a privileged workflow.
+- Archived workspaces are read-only.
+- Locked/archive state must prevent casual record changes.
 
-Archived workspaces are read-only.
+#### Suggested Indexes
 
-Locked/archive state must prevent casual record changes.
+- `status`
+- `monthYear`
+- composite: `status` + `monthYear`
 
-Suggested Indexes
-
-status
-
-monthYear
-
-composite: status + monthYear
-
-inspections/{inspectionId} — Workspace Inspection Records
+### `inspections/{inspectionId}` — Workspace Inspection Records
 
 Each inspection document represents the current inspection state of one extinguisher within one workspace.
 
 This document is mutable while the workspace is active.
 
-Inspection Shape
+#### Inspection Shape
+
+```
 org/{orgId}/inspections/{inspectionId}
   extinguisherId: string
   workspaceId: string
@@ -660,39 +604,34 @@ org/{orgId}/inspections/{inspectionId}
 
   createdAt: Timestamp
   updatedAt: Timestamp
-Notes
+```
 
-There must be only one inspection record per extinguisherId + workspaceId.
+#### Notes
 
-This is the current mutable state for the monthly inspection.
+- There must be only one inspection record per `extinguisherId` + `workspaceId`.
+- This is the current mutable state for the monthly inspection.
+- Historical changes are preserved in `inspectionEvents`.
+- Once the workspace is archived, inspection records become read-only.
+- Legal attestation may live inline here or in a dedicated sub-record model, but must be preserved.
 
-Historical changes are preserved in inspectionEvents.
+#### Suggested Indexes
 
-Once the workspace is archived, inspection records become read-only.
+- `assetId`
+- composite: `workspaceId` + `status`
+- composite: `workspaceId` + `section`
+- composite: `workspaceId` + `section` + `status`
+- composite: `extinguisherId` + `workspaceId`
+- composite: `extinguisherId` + `inspectedAt`
 
-Legal attestation may live inline here or in a dedicated sub-record model, but must be preserved.
-
-Suggested Indexes
-
-assetId
-
-composite: workspaceId + status
-
-composite: workspaceId + section
-
-composite: workspaceId + section + status
-
-composite: extinguisherId + workspaceId
-
-composite: extinguisherId + inspectedAt
-
-inspectionEvents/{eventId} — Immutable Inspection Event Log
+### `inspectionEvents/{eventId}` — Immutable Inspection Event Log
 
 Every meaningful inspection action creates an immutable event record.
 
-This collection is append-only and is the authoritative audit trail for inspection activity.
+This collection is **append-only** and is the authoritative audit trail for inspection activity.
 
-Event Shape
+#### Event Shape
+
+```
 org/{orgId}/inspectionEvents/{eventId}
   inspectionId: string
   extinguisherId: string
@@ -712,27 +651,27 @@ org/{orgId}/inspectionEvents/{eventId}
   performedBy: string
   performedByEmail: string
   performedAt: Timestamp
-Rules
+```
 
-append-only
+#### Rules
 
-no updates
+- append-only
+- no updates
+- no deletes
 
-no deletes
+#### Suggested Indexes
 
-Suggested Indexes
+- composite: `extinguisherId` + `performedAt`
+- composite: `workspaceId` + `performedAt`
+- composite: `performedBy` + `performedAt`
 
-composite: extinguisherId + performedAt
-
-composite: workspaceId + performedAt
-
-composite: performedBy + performedAt
-
-sectionNotes/{noteId} — Per-Section Notes
+### `sectionNotes/{noteId}` — Per-Section Notes
 
 Stores notes by section, optionally scoped to a workspace.
 
-Note Shape
+#### Note Shape
+
+```
 org/{orgId}/sectionNotes/{noteId}
   section: string
   workspaceId: string | null
@@ -742,36 +681,46 @@ org/{orgId}/sectionNotes/{noteId}
   lastUpdatedByEmail: string
   lastUpdated: Timestamp
   createdAt: Timestamp
-Document ID Convention
+```
 
-global note: {section_slug}
+#### Document ID Convention
 
-workspace note: {workspaceId}_{section_slug}
+- global note: `{section_slug}`
+- workspace note: `{workspaceId}_{section_slug}`
 
-sectionTimes/{timeId} — Section Time Totals
+### `sectionTimes/{timeId}` — Section Time Totals
 
 Stores accumulated section-level time totals for a workspace.
 
-Time Shape
+#### Time Shape
+
+```
 org/{orgId}/sectionTimes/{timeId}
   workspaceId: string
   section: string
   totalTimeMs: number
   lastUpdatedBy: string
   lastUpdated: Timestamp
-Document ID Convention
+```
+
+#### Document ID Convention
+
+```
 {workspaceId}_{section_slug}
-Notes
+```
 
-Running timer state is client-side only.
+#### Notes
 
-Firestore stores only accumulated totals.
+- Running timer state is client-side only.
+- Firestore stores only accumulated totals.
 
-notifications/{notificationId} — In-App Notifications
+### `notifications/{notificationId}` — In-App Notifications
 
 Stores organization-scoped notifications such as reminders and alerts.
 
-Notification Shape
+#### Notification Shape
+
+```
 org/{orgId}/notifications/{notificationId}
   type: string                       // inspection_reminder, annual_due, hydro_due, over_limit, system
   title: string
@@ -782,27 +731,27 @@ org/{orgId}/notifications/{notificationId}
   sentAt: Timestamp | null
   createdAt: Timestamp
   readBy: string[] | null            // keep bounded; move later if needed
-Notes
+```
 
-Notifications must be org-scoped.
+#### Notes
 
-Reminder generation must avoid duplicates.
+- Notifications must be org-scoped.
+- Reminder generation must avoid duplicates.
+- If read-state grows too large, move to per-user notification-read tracking.
 
-If read-state grows too large, move to per-user notification-read tracking.
+#### Suggested Indexes
 
-Suggested Indexes
+- `type`
+- `createdAt`
+- `sentAt`
 
-type
-
-createdAt
-
-sentAt
-
-reports/{reportId} — Archived Monthly Reports
+### `reports/{reportId}` — Archived Monthly Reports
 
 Reports are generated during workspace archival and provide a read-only compliance snapshot.
 
-Report Shape
+#### Report Shape
+
+```
 org/{orgId}/reports/{reportId}
   workspaceId: string
   monthYear: string
@@ -831,27 +780,28 @@ org/{orgId}/reports/{reportId}
   excelDownloadUrl: string | null
   pdfDownloadUrl: string | null
   jsonDownloadUrl: string | null
-Notes
+```
 
-Reports are created only by Cloud Functions or trusted backend workflows.
+#### Notes
 
-Reports are immutable after creation.
+- Reports are created only by Cloud Functions or trusted backend workflows.
+- Reports are immutable after creation.
+- If result arrays become too large for Firestore size limits, detailed snapshots must move to Storage or subcollections.
 
-If result arrays become too large for Firestore size limits, detailed snapshots must move to Storage or subcollections.
+#### Suggested Indexes
 
-Suggested Indexes
+- `monthYear`
+- `workspaceId`
 
-monthYear
-
-workspaceId
-
-auditLogs/{logId} — Organization Audit Log
+### `auditLogs/{logId}` — Organization Audit Log
 
 Tracks administrative and major operational events.
 
-This collection is append-only.
+This collection is **append-only**.
 
-Audit Log Shape
+#### Audit Log Shape
+
+```
 org/{orgId}/auditLogs/{logId}
   action: string
   entityType: string
@@ -860,130 +810,100 @@ org/{orgId}/auditLogs/{logId}
   performedBy: string
   performedByEmail: string
   performedAt: Timestamp
-Example Action Types
+```
 
-member.invited
+#### Example Action Types
 
-member.joined
+- `member.invited`
+- `member.joined`
+- `member.removed`
+- `member.role_changed`
+- `member.suspended`
+- `extinguisher.created`
+- `extinguisher.updated`
+- `extinguisher.deleted`
+- `extinguisher.replaced`
+- `extinguisher.imported`
+- `workspace.created`
+- `workspace.archived`
+- `workspace.locked`
+- `settings.updated`
+- `billing.subscription_created`
+- `billing.subscription_canceled`
+- `billing.payment_failed`
+- `data.exported`
+- `data.imported`
+- `tag.generated`
+- `tag.printed`
+- `tag.reissued`
+- `inspection.attested`
 
-member.removed
+#### Suggested Indexes
 
-member.role_changed
+- `performedAt` descending
+- composite: `entityType` + `entityId`
+- composite: `performedBy` + `performedAt`
 
-member.suspended
-
-extinguisher.created
-
-extinguisher.updated
-
-extinguisher.deleted
-
-extinguisher.replaced
-
-extinguisher.imported
-
-workspace.created
-
-workspace.archived
-
-workspace.locked
-
-settings.updated
-
-billing.subscription_created
-
-billing.subscription_canceled
-
-billing.payment_failed
-
-data.exported
-
-data.imported
-
-tag.generated
-
-tag.printed
-
-tag.reissued
-
-inspection.attested
-
-Suggested Indexes
-
-performedAt descending
-
-composite: entityType + entityId
-
-composite: performedBy + performedAt
-
-Firebase Storage Structure
+## Firebase Storage Structure
 
 The following storage path conventions must be used:
 
+```
 /org/{orgId}/assets/{extId}/{timestamp}_{filename}
 /org/{orgId}/inspections/{inspectionId}/{timestamp}_{filename}
 /org/{orgId}/reports/{reportId}/{filename}
 /org/{orgId}/imports/{timestamp}_{filename}
 /org/{orgId}/tags/{extId}/{timestamp}_{filename}
-Storage Rules Summary
-Read
+```
 
-any active member of the organization
+### Storage Rules Summary
 
-Write
+**Read**
 
-owner
+- any active member of the organization
 
-admin
+**Write**
 
-inspector where workflow allows
+- owner
+- admin
+- inspector where workflow allows
 
-Delete
+**Delete**
 
-owner
+- owner
+- admin
 
-admin
+**Max File Size**
 
-Max File Size
+- 10 MB per file
 
-10 MB per file
+### Allowed MIME Types
 
-Allowed MIME Types
+- `image/jpeg`
+- `image/png`
+- `image/webp`
+- `text/csv`
+- `application/json`
+- additional types such as PDF may be added if report generation requires them
 
-image/jpeg
-
-image/png
-
-image/webp
-
-text/csv
-
-application/json
-
-additional types such as PDF may be added if report generation requires them
-
-Storage Metadata Recommendations
+### Storage Metadata Recommendations
 
 Uploaded files should include metadata when useful:
 
-orgId
+- `orgId`
+- `uploadedBy`
+- `entityType`
+- `entityId`
+- `workspaceId`
+- `assetId` where relevant
 
-uploadedBy
-
-entityType
-
-entityId
-
-workspaceId
-
-assetId where relevant
-
-Firestore Security Rules
+## Firestore Security Rules
 
 The following rules are the baseline access model.
 
 Exact validation rules may expand during implementation.
 
+```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -1127,163 +1047,120 @@ service cloud.firestore {
     }
   }
 }
-Notes on Rules
+```
 
-These are baseline rules, not the final exhaustive validation layer.
+### Notes on Rules
 
-Billing state remains backend-controlled.
+- These are baseline rules, not the final exhaustive validation layer.
+- Billing state remains backend-controlled.
+- Membership lifecycle remains backend-controlled.
+- Notifications are expected to be backend-generated.
+- Plan-aware UI logic must not replace rules or backend checks.
+- Additional field-level validation may be added later.
 
-Membership lifecycle remains backend-controlled.
-
-Notifications are expected to be backend-generated.
-
-Plan-aware UI logic must not replace rules or backend checks.
-
-Additional field-level validation may be added later.
-
-NFPA 13-Point Checklist Reference
+## NFPA 13-Point Checklist Reference
 
 Each monthly inspection uses the following 13 checklist items.
 
 Each value must be one of:
 
-pass
+- `pass`
+- `fail`
+- `n/a`
 
-fail
+| Key | Description |
+|-----|-------------|
+| `pinPresent` | Safety pin is present and intact |
+| `tamperSealIntact` | Tamper seal is intact and unbroken |
+| `gaugeCorrectPressure` | Pressure gauge reads in the correct zone |
+| `weightCorrect` | Weight is within acceptable range |
+| `noDamage` | No visible physical damage |
+| `inDesignatedLocation` | Unit is in the designated location |
+| `clearlyVisible` | Unit is clearly visible and unobstructed |
+| `nearestUnder75ft` | Nearest extinguisher is within 75 feet travel distance |
+| `topUnder5ft` | Top is no more than 5 feet from floor |
+| `bottomOver4in` | Bottom is at least 4 inches from floor |
+| `mountedSecurely` | Unit is securely mounted |
+| `inspectionWithin30Days` | Last inspection date is within 30 days |
+| `tagSignedDated` | Tag is signed and dated |
 
-n/a
-
-Key	Description
-pinPresent	Safety pin is present and intact
-tamperSealIntact	Tamper seal is intact and unbroken
-gaugeCorrectPressure	Pressure gauge reads in the correct zone
-weightCorrect	Weight is within acceptable range
-noDamage	No visible physical damage
-inDesignatedLocation	Unit is in the designated location
-clearlyVisible	Unit is clearly visible and unobstructed
-nearestUnder75ft	Nearest extinguisher is within 75 feet travel distance
-topUnder5ft	Top is no more than 5 feet from floor
-bottomOver4in	Bottom is at least 4 inches from floor
-mountedSecurely	Unit is securely mounted
-inspectionWithin30Days	Last inspection date is within 30 days
-tagSignedDated	Tag is signed and dated
-Data Integrity Rules
+## Data Integrity Rules
 
 The following integrity rules must be respected:
 
-assetId must be unique within an organization
+- `assetId` must be unique within an organization
+- barcode values must be stored as strings
+- serial values must be stored as strings
+- QR values must be stored as strings
+- only one inspection record may exist per `extinguisherId` + `workspaceId`
+- `inspectionEvents` are append-only
+- `auditLogs` are append-only
+- reports are immutable after creation
+- member lifecycle changes are backend-controlled
+- billing fields on the org document are backend-controlled
+- archived workspaces must be read-only
+- soft-deleted records must be excluded from normal operational queries
+- cross-organization operational queries are forbidden
+- notifications and exports must remain org-scoped
+- replacement links must not create logical loops
+- lifecycle calculations must not run blindly on retired/deleted assets without context
 
-barcode values must be stored as strings
+## Primary Query Patterns
 
-serial values must be stored as strings
+### Extinguisher Queries
 
-QR values must be stored as strings
+- all active extinguishers: `where deletedAt == null`
+- by section: `where section == {section} and deletedAt == null`
+- by barcode: `where barcode == {barcode} and deletedAt == null`
+- by assetId: `where assetId == {assetId} and deletedAt == null`
+- by category: `where category == {category} and deletedAt == null`
+- by compliance status: `where complianceStatus == {status} and deletedAt == null`
+- due monthly soon: `where nextMonthlyInspection <= {date}`
+- due annual soon: `where nextAnnualInspection <= {date}`
 
-only one inspection record may exist per extinguisherId + workspaceId
+### Inspection Queries
 
-inspectionEvents are append-only
+- all for workspace: `where workspaceId == {wsId}`
+- by workspace and section: `where workspaceId == {wsId} and section == {section}`
+- by workspace and status: `where workspaceId == {wsId} and status == {status}`
+- by workspace, section, and status: `where workspaceId == {wsId} and section == {section} and status == {status}`
+- by extinguisher history: `where extinguisherId == {extId} orderBy inspectedAt desc`
 
-auditLogs are append-only
+### Inspection Event Queries
 
-reports are immutable after creation
+- asset history: `where extinguisherId == {extId} orderBy performedAt desc`
+- workspace activity: `where workspaceId == {wsId} orderBy performedAt desc`
+- user activity: `where performedBy == {uid} orderBy performedAt desc`
 
-member lifecycle changes are backend-controlled
+### Workspace Queries
 
-billing fields on the org document are backend-controlled
+- active workspaces: `where status == 'active' orderBy createdAt desc`
+- all workspaces: `orderBy monthYear desc`
 
-archived workspaces must be read-only
+### Notification Queries
 
-soft-deleted records must be excluded from normal operational queries
+- recent notifications: `orderBy createdAt desc`
+- type-based alerts: `where type == {type}`
 
-cross-organization operational queries are forbidden
+### Member Queries
 
-notifications and exports must remain org-scoped
+- active members: `where status == 'active'`
+- all members: no filter
 
-replacement links must not create logical loops
+### Audit Log Queries
 
-lifecycle calculations must not run blindly on retired/deleted assets without context
+- recent activity: `orderBy performedAt desc limit 50`
+- entity history: `where entityType == {type} and entityId == {id} orderBy performedAt desc`
 
-Primary Query Patterns
-Extinguisher Queries
+## Implementation Notes
 
-all active extinguishers: where deletedAt == null
-
-by section: where section == {section} and deletedAt == null
-
-by barcode: where barcode == {barcode} and deletedAt == null
-
-by assetId: where assetId == {assetId} and deletedAt == null
-
-by category: where category == {category} and deletedAt == null
-
-by compliance status: where complianceStatus == {status} and deletedAt == null
-
-due monthly soon: where nextMonthlyInspection <= {date}
-
-due annual soon: where nextAnnualInspection <= {date}
-
-Inspection Queries
-
-all for workspace: where workspaceId == {wsId}
-
-by workspace and section: where workspaceId == {wsId} and section == {section}
-
-by workspace and status: where workspaceId == {wsId} and status == {status}
-
-by workspace, section, and status: where workspaceId == {wsId} and section == {section} and status == {status}
-
-by extinguisher history: where extinguisherId == {extId} orderBy inspectedAt desc
-
-Inspection Event Queries
-
-asset history: where extinguisherId == {extId} orderBy performedAt desc
-
-workspace activity: where workspaceId == {wsId} orderBy performedAt desc
-
-user activity: where performedBy == {uid} orderBy performedAt desc
-
-Workspace Queries
-
-active workspaces: where status == 'active' orderBy createdAt desc
-
-all workspaces: orderBy monthYear desc
-
-Notification Queries
-
-recent notifications: orderBy createdAt desc
-
-type-based alerts: where type == {type}
-
-Member Queries
-
-active members: where status == 'active'
-
-all members: no filter
-
-Audit Log Queries
-
-recent activity: orderBy performedAt desc limit 50
-
-entity history: where entityType == {type} and entityId == {id} orderBy performedAt desc
-
-Implementation Notes
-
-client code must never directly manage billing fields
-
-client code must never directly manage membership roles
-
-invite resolution and acceptance must be backend-controlled
-
-workspace archival should create a report snapshot and lock future edits
-
-report or export files that exceed Firestore size limits must move to Firebase Storage
-
-lifecycle calculations should be centralized
-
-reminder generation should be centralized
-
-plan enforcement must not live only in the UI
-
-route, location, and notification models must remain organization-scoped
-
-legal attestation data must remain preserved and audit-traceable
+- client code must never directly manage billing fields
+- client code must never directly manage membership roles
+- invite resolution and acceptance must be backend-controlled
+- workspace archival should create a report snapshot and lock future edits
+- report or export files that exceed Firestore size limits must move to Firebase Storage
+- lifecycle calculations should be centralized
+- reminder generation should be centralized
+- plan enforcement must not live only in the UI
+- route, location, and notification models must remain organization-scoped
+- legal attestation data must remain preserved and audit-traceable
