@@ -10,15 +10,18 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
+import { useOffline } from '../hooks/useOffline.ts';
 import {
   getInspection,
-  saveInspectionCall,
+  saveInspectionOfflineAware,
   resetInspectionCall,
   CHECKLIST_ITEMS,
   EMPTY_CHECKLIST,
   type Inspection,
   type ChecklistData,
 } from '../services/inspectionService.ts';
+import { getCachedInspectionsForWorkspace } from '../services/offlineCacheService.ts';
+import { WifiOff } from 'lucide-react';
 
 type CheckValue = 'pass' | 'fail' | 'n/a';
 
@@ -70,6 +73,7 @@ export default function InspectionForm() {
   const orgId = userProfile?.activeOrgId ?? '';
   const canInspect = hasRole(['owner', 'admin', 'inspector']);
   const canReset = hasRole(['owner', 'admin']);
+  const { isOnline } = useOffline();
 
   const [inspection, setInspection] = useState<Inspection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,43 +88,81 @@ export default function InspectionForm() {
 
   useEffect(() => {
     if (!orgId || !inspectionId) return;
-    getInspection(orgId, inspectionId).then((insp) => {
-      setInspection(insp);
-      if (insp?.checklistData) {
-        setChecklist(insp.checklistData);
-      }
-      if (insp?.notes) {
-        setNotes(insp.notes);
-      }
-      setLoading(false);
-    });
-  }, [orgId, inspectionId]);
+
+    getInspection(orgId, inspectionId)
+      .then((insp) => {
+        setInspection(insp);
+        if (insp?.checklistData) {
+          setChecklist(insp.checklistData);
+        }
+        if (insp?.notes) {
+          setNotes(insp.notes);
+        }
+        setLoading(false);
+      })
+      .catch(async () => {
+        // On network error when offline, fall back to IndexedDB cache
+        if (!isOnline && workspaceId) {
+          try {
+            const cached = await getCachedInspectionsForWorkspace(orgId, workspaceId);
+            const match = cached.find((c) => c['id'] === inspectionId);
+            if (match) {
+              const insp = match as unknown as Inspection;
+              setInspection(insp);
+              if (insp.checklistData) {
+                setChecklist(insp.checklistData);
+              }
+              if (insp.notes) {
+                setNotes(insp.notes);
+              }
+            }
+          } catch {
+            // Cache read failed — leave inspection as null
+          }
+        }
+        setLoading(false);
+      });
+  }, [orgId, inspectionId, workspaceId, isOnline]);
 
   function updateChecklist(key: keyof ChecklistData, value: CheckValue) {
     setChecklist((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSave(status: 'pass' | 'fail') {
-    if (!orgId || !inspectionId) return;
+    if (!orgId || !inspectionId || !inspection) return;
     setSaving(true);
     setError('');
     setSuccessMsg('');
 
     try {
-      await saveInspectionCall(orgId, inspectionId, {
-        status,
-        checklistData: checklist,
-        notes,
-        attestation: {
-          confirmed: true,
-          text: 'I certify this inspection was performed according to NFPA 10 standards.',
-          inspectorName: user?.displayName ?? user?.email ?? 'Unknown',
+      const result = await saveInspectionOfflineAware(
+        orgId,
+        inspectionId,
+        inspection.extinguisherId,
+        inspection.workspaceId,
+        {
+          status,
+          checklistData: checklist,
+          notes,
+          attestation: {
+            confirmed: true,
+            text: 'I certify this inspection was performed according to NFPA 10 standards.',
+            inspectorName: user?.displayName ?? user?.email ?? 'Unknown',
+          },
         },
-      });
-      setSuccessMsg(`Inspection marked as ${status}.`);
-      // Reload inspection data
-      const updated = await getInspection(orgId, inspectionId);
-      setInspection(updated);
+        isOnline,
+      );
+
+      if (result.synced) {
+        setSuccessMsg(`Inspection marked as ${status}.`);
+        // Reload inspection data from server
+        const updated = await getInspection(orgId, inspectionId);
+        setInspection(updated);
+      } else {
+        setSuccessMsg(
+          'Inspection saved locally. It will sync when you\'re back online.',
+        );
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save inspection.');
     } finally {
@@ -205,6 +247,14 @@ export default function InspectionForm() {
           )}
         </div>
       </div>
+
+      {/* Offline banner */}
+      {!isOnline && (
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          You are offline. Viewing cached data.
+        </div>
+      )}
 
       {error && (
         <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>

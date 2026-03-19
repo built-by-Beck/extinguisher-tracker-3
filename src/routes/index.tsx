@@ -15,6 +15,7 @@ import Workspaces from '../pages/Workspaces.tsx';
 import WorkspaceDetail from '../pages/WorkspaceDetail.tsx';
 import InspectionForm from '../pages/InspectionForm.tsx';
 import Notifications from '../pages/Notifications.tsx';
+import SyncQueue from '../pages/SyncQueue.tsx';
 import Reports from '../pages/Reports.tsx';
 import AuditLogs from '../pages/AuditLogs.tsx';
 import NotFound from '../pages/NotFound.tsx';
@@ -47,6 +48,7 @@ export function AppRoutes() {
           <Route path="workspaces/:workspaceId" element={<WorkspaceDetail />} />
           <Route path="workspaces/:workspaceId/inspect/:inspectionId" element={<InspectionForm />} />
           <Route path="notifications" element={<Notifications />} />
+          <Route path="sync-queue" element={<SyncQueue />} />
           <Route path="reports" element={<Reports />} />
           <Route path="audit-logs" element={<AuditLogs />} />
         </Route>

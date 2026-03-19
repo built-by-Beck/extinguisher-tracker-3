@@ -19,8 +19,11 @@ import {
   Bell,
   FileText,
   ScrollText,
+  RefreshCw,
 } from 'lucide-react';
 import { useOrg } from '../../hooks/useOrg.ts';
+import { useOffline } from '../../hooks/useOffline.ts';
+import { SyncStatusIndicator } from '../offline/SyncStatusIndicator.tsx';
 import type { OrgRole } from '../../types/index.ts';
 
 interface NavItem {
@@ -38,6 +41,7 @@ const navItems: NavItem[] = [
   { to: '/dashboard/locations', label: 'Locations', icon: MapPin, end: false },
   { to: '/dashboard/members', label: 'Members', icon: Users, end: false },
   { to: '/dashboard/notifications', label: 'Notifications', icon: Bell, end: false },
+  { to: '/dashboard/sync-queue', label: 'Sync Queue', icon: RefreshCw, end: false },
   { to: '/dashboard/reports', label: 'Reports', icon: FileText, end: false },
   {
     to: '/dashboard/audit-logs',
@@ -56,6 +60,7 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { hasRole } = useOrg();
+  const { pendingCount } = useOffline();
 
   const visibleNavItems = navItems.filter(
     (item) => !item.roles || hasRole(item.roles),
@@ -113,12 +118,19 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             >
               <item.icon className="h-5 w-5 shrink-0" />
               {item.label}
+              {/* Pending count badge for Sync Queue */}
+              {item.to === '/dashboard/sync-queue' && pendingCount > 0 && (
+                <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500 px-1 text-xs font-bold text-white">
+                  {pendingCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 px-4 py-3">
+        <div className="border-t border-gray-200 px-4 py-3 space-y-2">
+          <SyncStatusIndicator />
           <p className="text-xs text-gray-400">Extinguisher Tracker v0.1</p>
         </div>
       </aside>

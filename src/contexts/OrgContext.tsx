@@ -19,6 +19,8 @@ import {
 import { db } from '../lib/firebase.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import type { Organization, OrgMember, OrgRole } from '../types/index.ts';
+import { clearOrgCache } from '../services/offlineCacheService.ts';
+import { clearOrgQueue, getPendingCount, processQueue } from '../services/offlineSyncService.ts';
 
 interface UserOrgEntry {
   orgId: string;
@@ -178,6 +180,32 @@ export function OrgProvider({ children }: OrgProviderProps) {
   const switchOrg = useCallback(
     async (orgId: string): Promise<void> => {
       if (!user) return;
+
+      const currentOrgId = activeOrgId;
+
+      // Org isolation: handle pending queue before switching away
+      if (currentOrgId && currentOrgId !== orgId) {
+        const pending = await getPendingCount(currentOrgId);
+        if (pending > 0) {
+          // Check if we're online by trying to process the queue
+          try {
+            await processQueue(currentOrgId);
+          } catch {
+            // processQueue failed — check if any remain
+          }
+          const stillPending = await getPendingCount(currentOrgId);
+          if (stillPending > 0) {
+            throw new Error(
+              `You have ${stillPending} unsynced inspection${stillPending !== 1 ? 's' : ''}. Please sync before switching organizations.`,
+            );
+          }
+        }
+
+        // Clear cached data for the org being left
+        await clearOrgCache(currentOrgId).catch(() => undefined);
+        await clearOrgQueue(currentOrgId).catch(() => undefined);
+      }
+
       const userDocRef = doc(db, 'usr', user.uid);
       await updateDoc(userDocRef, {
         activeOrgId: orgId,
@@ -186,7 +214,7 @@ export function OrgProvider({ children }: OrgProviderProps) {
       // The onSnapshot listener on the user profile in AuthContext
       // will pick up the change and trigger re-renders via activeOrgId
     },
-    [user],
+    [user, activeOrgId],
   );
 
   const hasRole = useCallback(

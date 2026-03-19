@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../lib/firebase.ts';
+import { queueInspection } from './offlineSyncService.ts';
 
 export interface ChecklistData {
   pinPresent: string;
@@ -148,6 +149,70 @@ export async function saveInspectionCall(
   );
   const result = await fn({ orgId, inspectionId, ...data });
   return result.data;
+}
+
+/**
+ * Offline-aware inspection save.
+ *
+ * - If online: tries saveInspectionCall() directly.
+ *   On network error (fetch failure), falls through to offline queue.
+ * - If offline OR network error: queues via IndexedDB for later sync.
+ *
+ * Returns { synced: true } if saved directly, or { synced: false, queueId } if queued.
+ */
+export async function saveInspectionOfflineAware(
+  orgId: string,
+  inspectionId: string,
+  extinguisherId: string,
+  workspaceId: string,
+  data: {
+    status: 'pass' | 'fail';
+    checklistData: ChecklistData;
+    notes: string;
+    attestation: {
+      confirmed: boolean;
+      text: string;
+      inspectorName: string;
+    } | null;
+  },
+  isOnline: boolean,
+): Promise<{ synced: boolean; queueId?: string }> {
+  if (isOnline) {
+    try {
+      await saveInspectionCall(orgId, inspectionId, data);
+      return { synced: true };
+    } catch (err: unknown) {
+      // Check if it's a network error (fetch failed) vs a server error
+      const msg = err instanceof Error ? err.message.toLowerCase() : '';
+      const isNetworkError =
+        msg.includes('network') ||
+        msg.includes('fetch') ||
+        msg.includes('failed to fetch') ||
+        msg.includes('offline') ||
+        msg.includes('internet');
+
+      if (!isNetworkError) {
+        // Re-throw server errors (permission denied, not-found, etc.)
+        throw err;
+      }
+      // Fall through to queue on network error
+    }
+  }
+
+  // Offline path: queue the inspection
+  const queueId = await queueInspection({
+    orgId,
+    inspectionId,
+    extinguisherId,
+    workspaceId,
+    status: data.status,
+    checklistData: data.checklistData,
+    notes: data.notes,
+    attestation: data.attestation,
+    queuedAt: Date.now(),
+  });
+
+  return { synced: false, queueId };
 }
 
 /**

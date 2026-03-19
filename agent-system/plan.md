@@ -1,6 +1,6 @@
 # Plan -- extinguisher-tracker-3
 
-**Current Phase**: 5 -- Reports & Audit Logs
+**Current Phase**: 6 -- Offline Sync
 **Last Updated**: 2026-03-18
 **Author**: built_by_Beck
 
@@ -8,33 +8,27 @@
 
 ## Current Objective
 
-Build the reporting system (workspace inspection report generation, PDF/CSV/JSON export, report storage, report download UI) and audit logs UI so that EX3 provides compliance-ready report snapshots on workspace archival, on-demand report generation, and a browsable admin audit log page.
+Build the offline sync system so field inspectors can continue working in low-connectivity environments (basements, stairwells, mechanical rooms). This includes: IndexedDB local caching of inspection data, a write queue that persists across app restarts, online/offline status detection, automatic sync when connectivity returns, conflict detection, and org-scoped cache isolation.
 
 ---
 
 ## Project State Summary
 
-**Phases 1-4 Complete:**
+**Phases 1-5 Complete:**
 - Phase 1: Foundation -- Firebase wiring, Auth, Org creation, Memberships, Firestore types, Security Rules, Dashboard shell, Protected routing.
-- Phase 2: Stripe billing (checkout, portal, webhook), Inventory CRUD (create/edit/delete/list), Locations (hierarchy, selector), Asset tagging (barcode/QR fields, QR generation), CSV import/export, Dashboard enhancements, Org switching, Asset limit enforcement.
+- Phase 2: Stripe billing (checkout, portal, webhook), Inventory CRUD, Locations, Asset tagging, CSV import/export, Dashboard enhancements, Org switching, Asset limit enforcement.
 - Phase 3: Workspaces (create/archive), Inspections (save/reset with NFPA 13-point checklist), InspectionForm page, WorkspaceDetail page.
-- Phase 4: Lifecycle Engine (complianceCalc, recalculate, batch recalculate, replace, retire, Firestore trigger), Notifications (markRead, generateReminders scheduled, detectOverdue scheduled), Notification UI (NotificationBell, Notifications page), Compliance Dashboard (ComplianceSummaryCard, ComplianceStatusBadge, Inventory compliance columns + filters, ExtinguisherEdit lifecycle section with replace/retire).
+- Phase 4: Lifecycle Engine, Notifications (markRead, generateReminders, detectOverdue), Notification UI, Compliance Dashboard.
+- Phase 5: Report generation (PDF/CSV/JSON), Report frontend (Reports page, WorkspaceDetail report section), Audit logs frontend (AuditLogRow, AuditLogs page), Role-based sidebar, Firestore indexes.
 
 **What exists now (key files):**
-- Frontend: 17 pages, 18+ components, 8 services, 2 contexts (Auth, Org), types for user/org/member/invite/notification/report/auditLog
-- Backend: 20+ Cloud Functions (createOrg, createInvite, acceptInvite, changeMemberRole, removeMember, createCheckoutSession, createPortalSession, stripeWebhook, generateQRCode, importCSV, exportCSV, createWorkspace, archiveWorkspace, saveInspection, resetInspection, recalculateLifecycle, batchRecalculate, replaceExtinguisher, retireExtinguisher, onExtinguisherCreated, markNotificationRead, complianceReminderJob, overdueDetectionJob)
-
-**Phase 5 pre-existing work (already done before planning):**
-- `writeAuditLog()` utility ALREADY writes `performedAt`, `entityType`, `entityId`, `performedByEmail`, plus `createdAt` for backward compat -- no fix needed
-- ALL existing `writeAuditLog` call sites ALREADY pass `entityType` and `entityId` -- no updates needed
-- `src/types/report.ts` ALREADY exists with `Report`, `ReportResult`, `ReportFormat` types
-- `src/types/auditLog.ts` ALREADY exists with `AuditLog`, `AuditLogAction` types
-- `src/types/index.ts` ALREADY re-exports both report and auditLog types
-- `storage.rules` ALREADY includes `application/pdf` in `isAllowedContentType()`
-- `planConfig.ts` confirms `complianceReports: true` for ALL plans (Basic, Pro, Elite, Enterprise)
-- `OrgContext` exposes `membership` object and `hasRole()` function -- role check is available for sidebar
-- Firestore security rules for reports (`allow read: if isMember(orgId); allow write: if false;`) and auditLogs (`allow read: if hasRole(orgId, ['owner', 'admin']); allow write: if false;`) are ALREADY correct
-- `archiveWorkspace` already computes stats (total, passed, failed, pending) from inspections query -- data is available for report snapshot
+- Frontend: 19 pages, 20+ components, 10 services, 2 contexts (Auth, Org), hooks (useAuth, useOrg), types for all entities
+- Backend: 23+ Cloud Functions including saveInspection, resetInspection, generateReport, archiveWorkspace, lifecycle functions, notification functions
+- Inspections flow: `saveInspection` CF receives `{ orgId, inspectionId, status, checklistData, notes, attestation }` and updates the inspection doc, creates an inspectionEvent, updates workspace stats, and recalculates extinguisher lifecycle
+- No service worker, no IndexedDB code, no offline detection exists yet
+- Package manager: pnpm
+- Vite config: basic (no PWA plugin)
+- Firebase SDK: `firebase@12.10.0` (client SDK has built-in enablePersistence but we need explicit IndexedDB for the write queue)
 
 ---
 
@@ -52,185 +46,315 @@ Workspaces (create/archive), Inspections (save/reset with NFPA 13-point checklis
 ### Phase 4 -- Reminders, Compliance Engine, Lifecycle Engine (COMPLETE)
 25 tasks: Lifecycle calc utility, recalculate/batch/replace/retire Cloud Functions, Firestore trigger on creation, scheduled reminder + overdue detection, notification types/service/UI, compliance dashboard/badge/card, inventory compliance columns, extinguisher lifecycle section.
 
+### Phase 5 -- Reports & Audit Logs (COMPLETE)
+14 tasks: pdfmake install, PDF generator, generateReport CF, archiveWorkspace report snapshot, report service/frontend, audit log service/frontend, role-based sidebar, Firestore indexes.
+
 ---
 
 ## Tasks for This Round
 
-### Subsystem A: Report Generation Backend
+### Subsystem A: Connectivity Detection & Offline Context
 
-**P5-01: Install pdfmake dependency in functions/**
-- Run `cd functions && npm install pdfmake @types/pdfmake`
-- If `@types/pdfmake` does not exist or has issues, create a minimal type declaration at `functions/src/types/pdfmake.d.ts`
-- Verify `cd functions && npm run build` still compiles
+**P6-01: Install idb (IndexedDB wrapper) dependency**
+- Run `pnpm add idb` in project root
+- `idb` is a tiny (~1KB) Promise-based IndexedDB wrapper by Jake Archibald, widely used and well-typed
+- Verify `npm run build` (or `pnpm build`) still compiles
 
-**P5-02: Create PDF generation utility**
-Create `functions/src/reports/pdfGenerator.ts`:
-- Export `generateInspectionReportPDF(data: { orgName: string; label: string; monthYear: string; generatedAt: Date; stats: { total: number; passed: number; failed: number; pending: number }; results: Array<{ assetId: string; section: string; status: string; inspectedAt: string; inspectedBy: string; notes: string; checklistData: Record<string, string> | null }> }): Promise<Buffer>`
-- Use `pdfmake` to create a document definition with:
-  - Header: "EX3 Compliance Report" + org name + workspace label + date
-  - Summary section: total, passed, failed, pending counts, pass rate percentage
-  - Results table: columns for assetId, section, status, inspectedAt, inspectedBy, notes
-  - Footer: "Generated by Extinguisher Tracker 3 (EX3)"
-- Return the PDF as a Buffer
-- Do NOT use `any` types. Use proper pdfmake typings.
+**P6-02: Create IndexedDB schema and database utility**
+Create `src/lib/offlineDb.ts`:
+- Import `openDB` from `idb`
+- Define database name: `'ex3-offline'`, version: `1`
+- Define object stores in the `upgrade` callback:
+  - `inspectionQueue`: key path `queueId` (auto-generated UUID), indexes on `orgId`, `inspectionId`, `queuedAt`
+  - `cachedExtinguishers`: key path `cacheKey` (compound: `${orgId}_${extinguisherId}`), index on `orgId`
+  - `cachedInspections`: key path `cacheKey` (compound: `${orgId}_${inspectionId}`), indexes on `orgId`, `workspaceId` (compound: `${orgId}_${workspaceId}`)
+  - `cachedWorkspaces`: key path `cacheKey` (compound: `${orgId}_${workspaceId}`), index on `orgId`
+  - `cachedLocations`: key path `cacheKey` (compound: `${orgId}_${locationId}`), index on `orgId`
+  - `syncMeta`: key path `key` (string) -- stores metadata like `lastSyncTimestamp`, `activeOrgId`
+- Export `getOfflineDb()` that returns the opened DB instance (singleton pattern)
+- Export TypeScript interfaces for each store's record shape:
+  - `QueuedInspection`: `{ queueId: string; orgId: string; inspectionId: string; extinguisherId: string; workspaceId: string; status: 'pass' | 'fail'; checklistData: ChecklistData; notes: string; attestation: { confirmed: boolean; text: string; inspectorName: string } | null; queuedAt: number; attempts: number; lastAttemptAt: number | null; error: string | null; syncStatus: 'pending' | 'syncing' | 'failed' | 'synced' }`
+  - `CachedExtinguisher`: `{ cacheKey: string; orgId: string; extinguisherId: string; data: Record<string, unknown>; cachedAt: number }`
+  - `CachedInspection`: `{ cacheKey: string; orgId: string; inspectionId: string; workspaceId: string; data: Record<string, unknown>; cachedAt: number }`
+  - `CachedWorkspace`: `{ cacheKey: string; orgId: string; workspaceId: string; data: Record<string, unknown>; cachedAt: number }`
+  - `CachedLocation`: `{ cacheKey: string; orgId: string; locationId: string; data: Record<string, unknown>; cachedAt: number }`
+- Do NOT use `any` types
 
-**P5-03: Create generateReport Cloud Function**
-Create `functions/src/reports/generateReport.ts` as a callable function:
-- Input: `{ orgId, workspaceId, format: 'csv' | 'pdf' | 'json' }`
-- Auth: requires authenticated active member (all roles can view reports -- per spec, reports allow read to `isMember(orgId)`)
-- Logic:
-  1. Load workspace doc from `org/{orgId}/workspaces/{workspaceId}`, verify it exists
-  2. Load existing report doc from `org/{orgId}/reports/{workspaceId}` if it exists
-  3. If report doc does not exist, query all inspections for that workspace (ordered by section + assetId), build results array, compute stats, create report doc
-  4. Check if the requested format's filePath already exists in the report doc. If so, generate a fresh signed URL from the stored path and return it (idempotent re-download)
-  5. If format file does not exist yet:
-     - **CSV**: Build CSV string with headers (assetId, section, status, inspectedAt, inspectedBy, notes), save to Storage at `org/{orgId}/reports/{workspaceId}/report.csv`, get signed URL (1hr expiry)
-     - **JSON**: Serialize results array as formatted JSON, save to Storage at `org/{orgId}/reports/{workspaceId}/report.json`, get signed URL
-     - **PDF**: Call `generateInspectionReportPDF()` from P5-02, save Buffer to Storage at `org/{orgId}/reports/{workspaceId}/report.pdf`, get signed URL
-  6. Update report doc with `{format}FilePath` and `{format}DownloadUrl` fields
-  7. Write audit log: `action: 'report.generated'`, `entityType: 'report'`, `entityId: workspaceId`
-  8. Return `{ downloadUrl, reportId: workspaceId }`
-- Export from `functions/src/index.ts`
+**P6-03: Create online/offline detection hook**
+Create `src/hooks/useOnlineStatus.ts`:
+- Export `useOnlineStatus(): { isOnline: boolean; wasOffline: boolean }`
+- Use `navigator.onLine` for initial value
+- Add `window.addEventListener('online', ...)` and `'offline'` listeners in a `useEffect`, return cleanup
+- `wasOffline` tracks if the app was offline at any point during the session (set to `true` on `offline` event, reset on explicit user action or never -- helps show "you were offline, syncing now" banners)
+- Return `{ isOnline, wasOffline }`
 
-**P5-04: Hook report snapshot into archiveWorkspace**
-Modify `functions/src/workspaces/archiveWorkspace.ts`:
-- After archiving the workspace and computing stats (already done), build a results array from `inspSnap`:
-  - For each inspection doc, extract: `assetId`, `section`, `status`, `inspectedAt`, `inspectedBy` (uid), `inspectedByEmail` (if available), `notes`, `checklistData`
-- Create report doc at `org/{orgId}/reports/{workspaceId}` using `set()` (not `update()`) with:
-  - `workspaceId`, `monthYear` (from workspace data), `label` (from workspace data), `archivedAt: FieldValue.serverTimestamp()`, `archivedBy: uid`
-  - `totalExtinguishers: inspSnap.size`, `passedCount`, `failedCount`, `pendingCount`
-  - `results` array
-  - `csvDownloadUrl: null`, `csvFilePath: null`, `pdfDownloadUrl: null`, `pdfFilePath: null`, `jsonDownloadUrl: null`, `jsonFilePath: null`
-  - `generatedAt: null` (file downloads are generated on demand via `generateReport`)
-- This ensures every archived workspace has a Firestore report snapshot immediately. File exports are generated on demand.
-- Do NOT generate CSV/PDF/JSON files during archival -- keep archival fast.
+**P6-04: Create OfflineContext and OfflineProvider**
+Create `src/contexts/OfflineContext.tsx`:
+- Import `useOnlineStatus` from `src/hooks/useOnlineStatus.ts`
+- Context value interface `OfflineContextValue`:
+  - `isOnline: boolean`
+  - `wasOffline: boolean`
+  - `pendingCount: number` (number of queued inspection writes)
+  - `isSyncing: boolean`
+  - `syncError: string | null`
+  - `forcSync: () => Promise<void>` (manually trigger sync)
+- Create `OfflineProvider` component:
+  - Uses `useOnlineStatus()`
+  - Maintains `pendingCount` state by querying IndexedDB `inspectionQueue` store count where `syncStatus === 'pending' || syncStatus === 'failed'`
+  - Maintains `isSyncing` state
+  - Provides `forceSync` function (calls the sync engine from P6-07)
+  - On `isOnline` transition from false to true, automatically triggers sync
+  - Polls pending count on interval (every 5 seconds) or after sync operations
+- Export `OfflineContext` and `OfflineProvider`
 
-### Subsystem B: Report Frontend
+**P6-05: Create useOffline hook**
+Create `src/hooks/useOffline.ts`:
+- Export `useOffline()` that reads from `OfflineContext`
+- Throws if used outside `OfflineProvider`
+- Returns `OfflineContextValue`
 
-**P5-05: Create report service layer**
-Create `src/services/reportService.ts`:
-- `getReport(orgId: string, workspaceId: string): Promise<Report | null>` -- reads `org/{orgId}/reports/{workspaceId}` via `getDoc()`
-- `subscribeToReports(orgId: string, callback: (reports: Report[]) => void): Unsubscribe` -- real-time listener on `org/{orgId}/reports` ordered by `archivedAt desc`, maps docs to `Report` type including `id` from `doc.id`
-- `generateReportDownload(orgId: string, workspaceId: string, format: ReportFormat): Promise<{ downloadUrl: string }>` -- calls the `generateReport` callable Cloud Function via `httpsCallable`
-- Import `Report`, `ReportFormat` from `src/types/report.ts`
+**P6-06: Wire OfflineProvider into App**
+Modify `src/App.tsx`:
+- Import `OfflineProvider` from `src/contexts/OfflineContext.tsx`
+- Wrap it around the existing provider tree, inside `AuthProvider` and `OrgProvider` (needs auth context for user identity, org context for orgId)
+- The OfflineProvider should be a child of OrgProvider so it can access the active org
 
-**P5-06: Create ReportDownloadButton component**
-Create `src/components/reports/ReportDownloadButton.tsx`:
-- Props: `orgId: string`, `workspaceId: string`, `format: ReportFormat`, `label?: string`
-- Renders a button with appropriate icon: `FileSpreadsheet` for CSV, `FileText` for PDF, `FileJson` for JSON (all from lucide-react)
-- On click: calls `generateReportDownload()`, shows loading state (spinner replaces icon), on success opens the download URL in a new tab via `window.open(url, '_blank')`
-- Error state: shows inline red text error message, auto-clears after 5 seconds
-- Disabled state when loading
-- Button style: secondary/outline style consistent with existing codebase button patterns
+### Subsystem B: Inspection Queue (Write Queue)
 
-**P5-07: Create Reports page**
-Create `src/pages/Reports.tsx`:
-- Uses `useOrg()` to get org context, validates org exists
-- Subscribes to all reports via `subscribeToReports()` in a `useEffect`
-- Displays a table/card list of archived workspace reports, each showing:
-  - Workspace label (e.g., "March 2026")
-  - monthYear value
-  - Archived date (formatted from `archivedAt`)
-  - Stats: total, passed, failed, pending
-  - Pass rate percentage: `Math.round((passedCount / totalExtinguishers) * 100)`
-  - Three `<ReportDownloadButton />` instances for CSV, PDF, JSON
-- Empty state when no reports: message "No reports yet. Archive a workspace to generate your first compliance report."
-- Loading skeleton while data loads
-- Add route `/dashboard/reports` in `src/routes/index.tsx` -- import `Reports` page and add `<Route path="reports" element={<Reports />} />` inside the dashboard layout
-- Add sidebar nav item in `src/components/layout/Sidebar.tsx` with `FileText` icon from lucide-react, positioned after Notifications and before Settings
+**P6-07: Create offline sync engine**
+Create `src/services/offlineSyncService.ts`:
+- Import `getOfflineDb`, `QueuedInspection` from `src/lib/offlineDb.ts`
+- Import `saveInspectionCall` from `src/services/inspectionService.ts`
+- Export `queueInspection(data: Omit<QueuedInspection, 'queueId' | 'attempts' | 'lastAttemptAt' | 'error' | 'syncStatus'>): Promise<string>`:
+  - Generates a UUID `queueId` (use `crypto.randomUUID()`)
+  - Stores the record in `inspectionQueue` with `syncStatus: 'pending'`, `attempts: 0`
+  - Returns the `queueId`
+- Export `processQueue(orgId: string): Promise<{ synced: number; failed: number }>`:
+  - Opens IndexedDB, gets all records from `inspectionQueue` where `orgId` matches and `syncStatus` is `'pending'` or `'failed'`, ordered by `queuedAt` ASC
+  - For each record:
+    - Set `syncStatus` to `'syncing'`, increment `attempts`, set `lastAttemptAt` to `Date.now()`
+    - Try calling `saveInspectionCall(record.orgId, record.inspectionId, { status: record.status, checklistData: record.checklistData, notes: record.notes, attestation: record.attestation })`
+    - On success: set `syncStatus` to `'synced'`
+    - On error: set `syncStatus` to `'failed'`, store error message. If `attempts >= 5`, leave as `'failed'` (admin review). Otherwise leave as `'failed'` for retry on next sync.
+  - Return counts of synced and failed
+- Export `getPendingCount(orgId: string): Promise<number>`:
+  - Count records where orgId matches and syncStatus is 'pending' or 'failed'
+- Export `getQueuedInspections(orgId: string): Promise<QueuedInspection[]>`:
+  - Return all records for the org, ordered by queuedAt ASC
+- Export `clearSyncedItems(orgId: string): Promise<void>`:
+  - Delete all records where syncStatus is 'synced' for that org
+- Export `clearOrgQueue(orgId: string): Promise<void>`:
+  - Delete ALL records for that org (used on org switch to prevent cross-org contamination)
 
-**P5-08: Add report section to WorkspaceDetail page**
+**P6-08: Create offline-aware inspection save wrapper**
+Modify `src/services/inspectionService.ts`:
+- Add new export `saveInspectionOfflineAware(orgId, inspectionId, data, isOnline)`:
+  - If `isOnline`: try `saveInspectionCall()` directly. On network error (fetch failure), fall through to offline path.
+  - If offline OR network error: call `queueInspection()` from `offlineSyncService.ts` with the inspection data
+  - Return `{ synced: boolean; queueId?: string }` so the caller knows if it went through immediately or was queued
+- Also add `extinguisherId` and `workspaceId` params (needed for queue record) -- these can be derived from the inspection data loaded in InspectionForm
+- Do NOT modify `saveInspectionCall` itself -- keep it as the pure online path
+
+### Subsystem C: Local Data Caching
+
+**P6-09: Create cache service for inspection workflow data**
+Create `src/services/offlineCacheService.ts`:
+- Import `getOfflineDb` and cache type interfaces from `src/lib/offlineDb.ts`
+- Export `cacheExtinguishersForWorkspace(orgId: string, extinguishers: Array<Record<string, unknown>>): Promise<void>`:
+  - Writes each extinguisher to `cachedExtinguishers` store with `cacheKey: ${orgId}_${ext.id}`
+  - Uses a transaction for batch writes
+- Export `cacheInspectionsForWorkspace(orgId: string, workspaceId: string, inspections: Array<Record<string, unknown>>): Promise<void>`:
+  - Writes each inspection to `cachedInspections` with `cacheKey: ${orgId}_${insp.id}`, includes `workspaceId` field for indexing
+- Export `cacheWorkspace(orgId: string, workspace: Record<string, unknown>): Promise<void>`:
+  - Writes workspace to `cachedWorkspaces`
+- Export `cacheLocations(orgId: string, locations: Array<Record<string, unknown>>): Promise<void>`:
+  - Writes locations to `cachedLocations`
+- Export `getCachedInspectionsForWorkspace(orgId: string, workspaceId: string): Promise<Array<Record<string, unknown>>>`:
+  - Query `cachedInspections` by orgId + workspaceId index
+- Export `getCachedExtinguisher(orgId: string, extinguisherId: string): Promise<Record<string, unknown> | null>`:
+  - Get from `cachedExtinguishers` by cacheKey
+- Export `getCachedWorkspace(orgId: string, workspaceId: string): Promise<Record<string, unknown> | null>`:
+  - Get from `cachedWorkspaces` by cacheKey
+- Export `clearOrgCache(orgId: string): Promise<void>`:
+  - Clear all cached data for the specified orgId from all cache stores
+  - Critical for org-switch isolation (spec: "offline caches must not mix records from multiple orgs")
+- Export `getCacheAge(orgId: string): Promise<number | null>`:
+  - Read last sync timestamp from `syncMeta` store, return age in ms
+
+**P6-10: Hook caching into existing Firestore listeners**
 Modify `src/pages/WorkspaceDetail.tsx`:
-- For archived workspaces only, add a "Compliance Report" card/section at the top (above the inspection list):
-  - Show summary stats: total, passed, failed, pending, pass rate percentage
-  - Show three `<ReportDownloadButton />` for CSV, PDF, JSON
-- Use `reportService.getReport(orgId, workspaceId)` to load the report data (call in `useEffect`, store in state)
-- For active (non-archived) workspaces, do not show this section
-- Handle the case where workspace is archived but report doc doesn't exist yet (edge case from pre-Phase-5 archives): show a message "Report data not available for this workspace"
+- In the existing `onSnapshot` callback for inspections (the `subscribeToInspections` effect), after setting state, also call `cacheInspectionsForWorkspace(orgId, workspaceId, inspections)` -- fire-and-forget (no await in the callback)
+- In the existing workspace `onSnapshot` callback, also call `cacheWorkspace(orgId, workspace)` -- fire-and-forget
+- Import functions from `offlineCacheService.ts`
+- This is the "cache on read" pattern: every time Firestore delivers data, we update the local cache
 
-### Subsystem C: Audit Logs Frontend
+**P6-11: Hook extinguisher caching into Inventory page**
+Modify `src/pages/Inventory.tsx`:
+- In the existing extinguisher subscription/fetch effect, after data arrives, call `cacheExtinguishersForWorkspace(orgId, extinguishers)` -- fire-and-forget
+- Import from `offlineCacheService.ts`
 
-**P5-09: Create audit log service layer**
-Create `src/services/auditLogService.ts`:
-- `getAuditLogPage(orgId: string, options: { limit: number; startAfterDoc?: DocumentSnapshot; entityType?: string }): Promise<{ logs: AuditLog[]; lastDoc: DocumentSnapshot | null; hasMore: boolean }>` -- cursor-based pagination:
-  - Build query: `collection(doc(db, 'org', orgId), 'auditLogs')`, `orderBy('performedAt', 'desc')`, `limit(options.limit + 1)` (fetch one extra to determine hasMore)
-  - If `entityType` provided and not 'all', add `where('entityType', '==', entityType)`
-  - If `startAfterDoc` provided, add `startAfter(startAfterDoc)`
-  - Execute with `getDocs()`, map to `AuditLog[]` including `id` from `doc.id`
-  - Handle backward compat: if `performedAt` is null, fall back to `createdAt` for display
-  - Return `{ logs, lastDoc, hasMore }`
-- Import `AuditLog` from `src/types/auditLog.ts`
+**P6-12: Hook location caching into Locations page**
+Modify `src/pages/Locations.tsx`:
+- In the existing location subscription effect, after data arrives, call `cacheLocations(orgId, locations)` -- fire-and-forget
+- Import from `offlineCacheService.ts`
 
-**P5-10: Create AuditLogRow component**
-Create `src/components/audit/AuditLogRow.tsx`:
-- Props: `log: AuditLog`
-- Displays in a single row/card:
-  - Action label: human-readable via a lookup map (e.g., `'member.invited'` -> `'Member Invited'`, `'workspace.archived'` -> `'Workspace Archived'`, etc.)
-  - Performer: show `performedByEmail` if available, otherwise show truncated `performedBy` (uid)
-  - Timestamp: relative time (e.g., "2 hours ago", "3 days ago") computed from `performedAt` (or `createdAt` fallback). Use a simple relative time formatter (implement inline or use `date-fns` if already a dependency, otherwise write a small utility)
-  - Entity type badge: colored pill/badge showing entityType (use Tailwind colors: blue for member, green for workspace, orange for extinguisher, purple for billing, gray for data)
-  - Expandable details: a toggle to show/hide the `details` map as key-value pairs
-- Icon per entity type: `Users` for member, `Package` for extinguisher, `ClipboardList` for workspace, `CreditCard` for billing, `Download` for data, `Tag` for tag, `FileText` for report (all from lucide-react)
+### Subsystem D: Offline-Aware Inspection UI
 
-**P5-11: Create AuditLogs page**
-Create `src/pages/AuditLogs.tsx`:
-- Admin-only page. Use `useOrg()` to get `hasRole`. If `!hasRole(['owner', 'admin'])`, show "Access Denied -- You need owner or admin permissions to view audit logs." with a link back to dashboard.
-- Filter dropdown at top: entity type filter with options: All, Member, Extinguisher, Workspace, Billing, Data, Tag, Report. Default: All.
-- Loads 50 audit logs at a time using `getAuditLogPage()` from P5-09
-- Renders each entry with `<AuditLogRow />` from P5-10
-- "Load More" button at bottom when `hasMore` is true. On click, passes `lastDoc` as cursor to fetch next page.
-- Loading skeleton on initial load
-- Empty state: "No audit log entries yet."
-- Add route `/dashboard/audit-logs` in `src/routes/index.tsx`
-- Add sidebar nav item in `src/components/layout/Sidebar.tsx` with `ScrollText` icon from lucide-react, positioned after Reports, **only visible to owner/admin roles**
+**P6-13: Make InspectionForm offline-aware**
+Modify `src/pages/InspectionForm.tsx`:
+- Import `useOffline` from `src/hooks/useOffline.ts`
+- Import `getCachedInspectionsForWorkspace` from `src/services/offlineCacheService.ts` (for fallback data load)
+- Call `const { isOnline } = useOffline()` in the component
+- In `handleSave()`:
+  - Replace direct `saveInspectionCall()` with `saveInspectionOfflineAware(orgId, inspectionId, data, isOnline)` from the updated `inspectionService.ts`
+  - Pass `extinguisherId` and `workspaceId` (already available from `inspection` state and URL params)
+  - On success when offline (queued): show success message "Inspection saved locally. It will sync when you're back online." instead of the normal success message
+  - On success when online (synced): show normal success message
+- In the `useEffect` data loading:
+  - If `getInspection()` fails (network error) and `!isOnline`, fall back to loading from IndexedDB cache via `getCachedInspectionsForWorkspace()` and find the matching inspection
+  - Show a small yellow banner at the top: "You are offline. Viewing cached data." when `!isOnline`
+- Do NOT modify the reset flow for offline (resets are admin-only and require online)
 
-**P5-12: Add role-based sidebar visibility**
+**P6-14: Make WorkspaceDetail fallback to cached data**
+Modify `src/pages/WorkspaceDetail.tsx`:
+- Import `useOffline` from `src/hooks/useOffline.ts`
+- Import cache getters from `offlineCacheService.ts`
+- In the workspace `onSnapshot`, add an error handler:
+  - If error occurs and `!isOnline`, load from `getCachedWorkspace(orgId, workspaceId)` and set state
+- In the inspections `subscribeToInspections`, add error handler:
+  - If error occurs and `!isOnline`, load from `getCachedInspectionsForWorkspace(orgId, workspaceId)` and set state
+- Show offline banner when `!isOnline`
+
+### Subsystem E: Offline Status UI
+
+**P6-15: Create OfflineBanner component**
+Create `src/components/offline/OfflineBanner.tsx`:
+- Import `useOffline` from `src/hooks/useOffline.ts`
+- When `!isOnline`: render a fixed-top (or top of dashboard content area) yellow/amber banner:
+  - Icon: `WifiOff` from lucide-react
+  - Text: "You are offline. Changes will sync when connection returns."
+  - If `pendingCount > 0`: show "(X pending inspections)"
+- When `isOnline && isSyncing`: render a blue banner:
+  - Icon: `RefreshCw` (spinning) from lucide-react
+  - Text: "Syncing X inspection(s)..."
+- When `isOnline && pendingCount > 0 && !isSyncing`: render an amber banner:
+  - Text: "X inspection(s) pending sync."
+  - Button: "Sync Now" -- calls `forceSync()`
+- When `isOnline && pendingCount === 0`: render nothing
+- Use Tailwind for styling. Fixed position or sticky at top of content area.
+
+**P6-16: Create SyncStatusIndicator component for Sidebar**
+Create `src/components/offline/SyncStatusIndicator.tsx`:
+- Small indicator that shows in the sidebar footer area
+- When `isOnline && pendingCount === 0`: green dot + "Online"
+- When `isOnline && pendingCount > 0`: amber dot + "X pending"
+- When `!isOnline`: red dot + "Offline"
+- Import `useOffline` from `src/hooks/useOffline.ts`
+
+**P6-17: Wire OfflineBanner into DashboardLayout**
+Modify `src/pages/DashboardLayout.tsx`:
+- Import `OfflineBanner` from `src/components/offline/OfflineBanner.tsx`
+- Render `<OfflineBanner />` at the top of the main content area (above `<Outlet />`)
+
+**P6-18: Wire SyncStatusIndicator into Sidebar**
 Modify `src/components/layout/Sidebar.tsx`:
-- Add optional `roles?: OrgRole[]` field to the nav item type (or inline type)
-- For the Audit Logs nav item, set `roles: ['owner', 'admin']`
-- All other nav items have no `roles` field (visible to all)
-- Import `useOrg` from `src/hooks/useOrg.ts`
-- In the component body, call `const { hasRole } = useOrg()` (the hook returns the OrgContext which includes `hasRole`)
-- Filter `navItems` before rendering: `navItems.filter(item => !item.roles || hasRole(item.roles))`
-- Import `OrgRole` type and `ScrollText`, `FileText` icons from lucide-react
+- Import `SyncStatusIndicator` from `src/components/offline/SyncStatusIndicator.tsx`
+- Render at the bottom of the sidebar (below the nav items list, in a footer area)
 
-### Subsystem D: Firestore Indexes
+### Subsystem F: Org Switch Cache Isolation
 
-**P5-13: Add Firestore indexes for reports and audit logs queries**
-Update `firestore.indexes.json` with new composite indexes:
-- `auditLogs` collection: `entityType` ASC + `performedAt` DESC (for filtered audit log queries)
-- `reports` collection: `archivedAt` DESC (single-field index may auto-create, but add for safety)
-- Note: `auditLogs` ordered by `performedAt desc` alone should work with auto-index. The composite index is needed for the entityType filter + performedAt ordering combination.
+**P6-19: Clear offline cache on org switch**
+Modify `src/contexts/OrgContext.tsx`:
+- Import `clearOrgCache`, `clearOrgQueue` from `src/services/offlineCacheService.ts` and `src/services/offlineSyncService.ts`
+- In the `switchOrg` function, before updating `activeOrgId` on the user doc:
+  - Call `await clearOrgCache(currentOrgId)` (clear cached data from the org being left)
+  - Call `await clearOrgQueue(currentOrgId)` only if the queue is empty (if there are pending items, warn the user -- but for v1, just process the queue first if online, or warn)
+  - Actually, for safety: check `getPendingCount(currentOrgId)`. If > 0 and online, process queue first. If > 0 and offline, throw an error / warn the user that they should sync before switching.
+- This ensures spec requirement: "offline caches must not mix records from multiple orgs"
 
-### Subsystem E: Verification & Cleanup
+### Subsystem G: Sync Queue Admin View
 
-**P5-14: Verify TypeScript compilation and integration**
-- Run `cd functions && npm run build` -- verify zero errors
-- Run `npm run build` (or `npx tsc --noEmit`) from project root -- verify zero frontend errors
-- Verify all new Cloud Functions are exported from `functions/src/index.ts`
-- Spot-check that Report type fields in `src/types/report.ts` match EXACTLY what `archiveWorkspace` writes to the report doc (side-by-side comparison per lessons-learned)
-- Spot-check that AuditLog type fields in `src/types/auditLog.ts` match what `writeAuditLog` writes
+**P6-20: Create SyncQueue page**
+Create `src/pages/SyncQueue.tsx`:
+- Shows all queued inspection writes for the current org
+- Uses `getQueuedInspections(orgId)` from `offlineSyncService.ts`
+- Displays each queued item: inspectionId, assetId (if available), status, queuedAt (formatted), attempts, syncStatus, error message (if any)
+- Action buttons:
+  - "Sync Now" button (calls `forceSync()`) -- only enabled when online
+  - "Clear Synced" button (calls `clearSyncedItems(orgId)`) -- removes already-synced items from the queue display
+- Refresh data after sync or clear operations
+- Empty state: "No pending offline inspections."
+- Accessible to all roles (inspectors need to see their own queued items)
+
+**P6-21: Add SyncQueue route and sidebar nav item**
+Modify `src/routes/index.tsx`:
+- Import `SyncQueue` from `src/pages/SyncQueue.tsx`
+- Add route `<Route path="sync-queue" element={<SyncQueue />} />` inside dashboard layout
+
+Modify `src/components/layout/Sidebar.tsx`:
+- Add "Sync Queue" nav item with `RefreshCw` icon from lucide-react
+- Position after Notifications and before Reports
+- Show pending count badge (like notification bell) if `pendingCount > 0` -- import `useOffline`
+
+### Subsystem H: Conflict Detection
+
+**P6-22: Create conflict detection in sync engine**
+Modify `src/services/offlineSyncService.ts` -- enhance `processQueue()`:
+- When `saveInspectionCall()` fails with specific error codes, categorize:
+  - `'failed-precondition'` (workspace archived during offline): mark as `syncStatus: 'conflict'`, store `conflictReason: 'workspace_archived'`
+  - `'not-found'` (inspection or extinguisher deleted): mark as `syncStatus: 'conflict'`, store `conflictReason: 'entity_deleted'`
+  - `'permission-denied'`: mark as `syncStatus: 'conflict'`, store `conflictReason: 'permission_denied'`
+  - Network errors (fetch failed, timeout): leave as `syncStatus: 'failed'` for retry
+- Update `QueuedInspection` type in `offlineDb.ts` to add optional `conflictReason?: string`
+- Update `SyncQueue.tsx` to display conflict status with explanation and different color (red badge for conflicts vs amber for pending)
+
+### Subsystem I: Verification & Cleanup
+
+**P6-23: Enable Firestore offline persistence**
+Modify `src/lib/firebase.ts`:
+- Import `enableMultiTabIndexedDbPersistence` (or `enableIndexedDbPersistence`) from `firebase/firestore`
+- After `getFirestore()`, call `enableMultiTabIndexedDbPersistence(db).catch((err) => { console.warn('Firestore persistence failed:', err.code); })` -- this is Firebase's built-in offline cache for Firestore queries. It complements our custom IndexedDB queue by making Firestore reads work offline automatically.
+- Note: Firebase v12 may use `initializeFirestore` with `persistenceEnabled: true` instead. Check the actual API. If `enableMultiTabIndexedDbPersistence` is removed in v12, use `initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) })` instead.
+
+**P6-24: Verify TypeScript compilation and integration**
+- Run `pnpm build` from project root -- verify zero frontend errors
+- Verify all new files compile without `any` types
+- Verify IndexedDB schema matches the type interfaces
+- Verify org-switch cache clearing works (trace the code path)
+- Verify the offline inspection save path: InspectionForm -> saveInspectionOfflineAware -> queueInspection -> processQueue -> saveInspectionCall
+- Verify the cache-on-read path: WorkspaceDetail onSnapshot -> cacheInspectionsForWorkspace
+- Verify the fallback-on-offline path: WorkspaceDetail error handler -> getCachedInspectionsForWorkspace
 
 ---
 
 ## Task Order
 
-1. **P5-01** (pdfmake install) -- no dependencies, npm install needed before PDF code
-2. **P5-02** (PDF generator utility) -- depends on P5-01
-3. **P5-03** (generateReport CF) -- depends on P5-02
-4. **P5-04** (archiveWorkspace hook) -- depends on P5-03 being defined (uses same report doc shape)
-5. **P5-05** (report service) -- depends on P5-03 (needs CF to exist)
-6. **P5-06** (ReportDownloadButton) -- depends on P5-05
-7. **P5-07** (Reports page + route + sidebar) -- depends on P5-06
-8. **P5-08** (WorkspaceDetail report section) -- depends on P5-06
-9. **P5-09** (audit log service) -- no backend dependencies (auditLogs already exist in Firestore)
-10. **P5-10** (AuditLogRow component) -- depends on P5-09 (for type imports, but could be parallel)
-11. **P5-11** (AuditLogs page + route) -- depends on P5-09, P5-10
-12. **P5-12** (role-based sidebar) -- depends on P5-07, P5-11 (both sidebar items must exist)
-13. **P5-13** (Firestore indexes) -- best done after queries are defined
-14. **P5-14** (verification) -- must be last
+1. **P6-01** (install idb) -- no deps, npm install needed before IndexedDB code
+2. **P6-02** (IndexedDB schema) -- depends on P6-01
+3. **P6-03** (online/offline hook) -- no deps, standalone
+4. **P6-04** (OfflineContext) -- depends on P6-03, P6-02 (needs hook + DB for pending count)
+5. **P6-05** (useOffline hook) -- depends on P6-04
+6. **P6-06** (wire OfflineProvider into App) -- depends on P6-04
+7. **P6-07** (sync engine) -- depends on P6-02 (IndexedDB schema)
+8. **P6-08** (offline-aware inspection save) -- depends on P6-07
+9. **P6-09** (cache service) -- depends on P6-02
+10. **P6-10** (cache hook in WorkspaceDetail) -- depends on P6-09
+11. **P6-11** (cache hook in Inventory) -- depends on P6-09
+12. **P6-12** (cache hook in Locations) -- depends on P6-09
+13. **P6-13** (InspectionForm offline-aware) -- depends on P6-05, P6-08, P6-09
+14. **P6-14** (WorkspaceDetail fallback) -- depends on P6-05, P6-09
+15. **P6-15** (OfflineBanner) -- depends on P6-05
+16. **P6-16** (SyncStatusIndicator) -- depends on P6-05
+17. **P6-17** (wire banner into DashboardLayout) -- depends on P6-15
+18. **P6-18** (wire indicator into Sidebar) -- depends on P6-16
+19. **P6-19** (org switch cache isolation) -- depends on P6-07, P6-09
+20. **P6-20** (SyncQueue page) -- depends on P6-05, P6-07
+21. **P6-21** (SyncQueue route + sidebar) -- depends on P6-20
+22. **P6-22** (conflict detection) -- depends on P6-07, P6-20
+23. **P6-23** (Firestore offline persistence) -- no strict deps, but best done after IndexedDB work is validated
+24. **P6-24** (verification) -- must be last
 
-Rationale: Install dependency first, then backend (PDF utility -> generateReport CF -> archiveWorkspace hook), then frontend services, then components, then pages, then sidebar integration, then indexes, then final verification. Backend before frontend ensures working endpoints exist before building consumers. Audit log frontend (P5-09 through P5-11) can be done in parallel with report frontend (P5-05 through P5-08) since they have no cross-dependencies, but are ordered sequentially for the build-agent to process linearly.
+Rationale: Install dep first. Build the foundation layer (IndexedDB schema, online detection, context) before consumers. Build the sync engine and cache service as the core offline infrastructure. Then wire into existing pages (InspectionForm, WorkspaceDetail, Inventory, Locations). Then build UI indicators (banner, sidebar status). Then handle org isolation and admin view. Finally, enable Firestore persistence and verify everything compiles.
 
 ---
 
@@ -238,93 +362,109 @@ Rationale: Install dependency first, then backend (PDF utility -> generateReport
 
 | Task | Depends On |
 |------|-----------|
-| P5-01 | None |
-| P5-02 | P5-01 |
-| P5-03 | P5-02 |
-| P5-04 | P5-03 (shared report doc shape) |
-| P5-05 | P5-03 |
-| P5-06 | P5-05 |
-| P5-07 | P5-06 |
-| P5-08 | P5-06 |
-| P5-09 | None |
-| P5-10 | None (uses types from src/types/auditLog.ts which already exists) |
-| P5-11 | P5-09, P5-10 |
-| P5-12 | P5-07, P5-11 |
-| P5-13 | P5-09 (query patterns finalized) |
-| P5-14 | All prior tasks |
+| P6-01 | None |
+| P6-02 | P6-01 |
+| P6-03 | None |
+| P6-04 | P6-02, P6-03 |
+| P6-05 | P6-04 |
+| P6-06 | P6-04 |
+| P6-07 | P6-02 |
+| P6-08 | P6-07 |
+| P6-09 | P6-02 |
+| P6-10 | P6-09 |
+| P6-11 | P6-09 |
+| P6-12 | P6-09 |
+| P6-13 | P6-05, P6-08, P6-09 |
+| P6-14 | P6-05, P6-09 |
+| P6-15 | P6-05 |
+| P6-16 | P6-05 |
+| P6-17 | P6-15 |
+| P6-18 | P6-16 |
+| P6-19 | P6-07, P6-09 |
+| P6-20 | P6-05, P6-07 |
+| P6-21 | P6-20 |
+| P6-22 | P6-07, P6-20 |
+| P6-23 | None (but best after P6-02) |
+| P6-24 | All prior tasks |
 
 ---
 
 ## Blockers or Risks
 
-1. **PDF generation in Cloud Functions**: `pdfmake` is pure JS and works well in Cloud Functions, but PDF generation can be memory-intensive for large reports (1000+ inspections). For v1, this is acceptable. Cloud Functions v2 supports up to 8GB memory if needed. Default 256MB should handle most orgs.
+1. **Firebase SDK offline persistence API**: Firebase v12 may have changed the offline persistence API. The older `enableMultiTabIndexedDbPersistence()` was deprecated in favor of `initializeFirestore()` with `localCache` option. The build-agent must check the actual `firebase@12.10.0` API. If the old API is gone, use `initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) })` and update `src/lib/firebase.ts` accordingly (replacing `getFirestore(app)` with `initializeFirestore()`).
 
-2. **Report results array size**: The schema stores `results[]` directly in the Firestore report document. Firestore doc max size is 1 MB. For an org with ~1000 extinguishers, each result entry is ~200 bytes, totaling ~200KB -- well within limits. For very large orgs (5000+), consider moving results to a subcollection or Storage-only approach. For v1, the array approach is fine.
+2. **IndexedDB storage limits**: Browsers typically allow 50-100MB per origin for IndexedDB. For most orgs (up to 500 extinguishers), cached data will be well under 5MB. Not a concern for v1.
 
-3. **Signed URL expiration**: Report download URLs from signed Storage URLs expire in 1 hour. The `generateReport` function is idempotent -- re-calling it with the same format regenerates a fresh signed URL from the stored `filePath`. The report doc stores both `{format}FilePath` (permanent Storage path) and `{format}DownloadUrl` (ephemeral signed URL). The frontend should always call `generateReportDownload()` to get a fresh URL rather than reading the cached URL from the report doc.
+3. **Firestore onSnapshot error handling during offline**: When the device goes offline, Firestore `onSnapshot` listeners continue using cached data if persistence is enabled. But if persistence is NOT enabled, listeners may fire errors. P6-23 (enabling Firestore persistence) should be done early in the build to prevent issues during testing. However, in the task ordering it's near the end. The build-agent should consider doing P6-23 right after P6-02 if they encounter issues with Firestore listeners failing during offline testing.
 
-4. **pdfmake types**: The `@types/pdfmake` package may have incomplete or incorrect types. If the types package causes compilation issues, create a minimal declaration file at `functions/src/types/pdfmake.d.ts` with just the types needed.
+4. **Service Worker**: The spec mentions "service worker" in the build order description, but the actual 17-OFFLINE-SYNC.md spec does not require a service worker. The offline system works via IndexedDB caching + write queue + online/offline detection, which does NOT require a service worker. A service worker would be needed for full PWA (caching static assets for app-shell offline), which is listed as "optional/future-ready" in the build instructions. For Phase 6, we skip the service worker and focus on data-level offline support. A service worker + PWA manifest can be added in a future hardening phase.
 
-5. **Audit log backward compat**: Existing audit log documents already have both `performedAt` and `createdAt` fields (the utility was already fixed). The frontend audit log service should prefer `performedAt` but fall back to `createdAt` for display. All existing documents should have both fields, so this is mostly defensive coding.
+5. **Sync ordering**: Queued inspections are processed in `queuedAt ASC` order. If two inspections for the same extinguisher are queued, the second one will use stale lifecycle data from the first. This is acceptable because the `saveInspection` CF always recalculates lifecycle on every save. The server-side lifecycle calc uses server timestamps, so ordering is correct.
 
-6. **Role-based sidebar**: The `useOrg()` hook exposes `hasRole()` which checks `membership.role`. This is already available in the OrgContext. The Sidebar component just needs to import and use it. No new queries or context changes needed.
+6. **Cross-tab sync**: If the user has the app open in multiple tabs, IndexedDB operations in one tab won't automatically update state in another. For v1, this is acceptable. The pending count poll (every 5s in OfflineContext) will eventually catch up. A future enhancement could use `BroadcastChannel` API for cross-tab coordination.
 
-7. **Feature gating for reports**: Verified that `complianceReports: true` for ALL plans (Basic+). No feature gate check needed in `generateReport` -- all paying customers can generate reports. However, the function should still verify org has an active subscription (`subscriptionStatus === 'active' || 'trialing'`).
+7. **Org switch with pending queue**: If a user switches orgs while having pending inspections, the queue must be processed first (if online) or the switch must be blocked (if offline with pending items). P6-19 handles this. The UX needs to be clear about why the switch is blocked.
+
+8. **Type alignment for cached data**: Cached data in IndexedDB uses `Record<string, unknown>` to avoid coupling the cache schema to the Firestore document types too tightly. When reading cached data for offline fallback, the consumer must cast to the expected type. This is a pragmatic tradeoff -- the alternative (storing fully typed objects) would require updating the IndexedDB schema every time a Firestore document type changes. The `Record<string, unknown>` + cast approach means cached data survives minor type changes gracefully.
 
 ---
 
 ## Definition of Done
 
-Phase 5 is complete when ALL of the following are true:
+Phase 6 is complete when ALL of the following are true:
 
-1. **pdfmake installed**: `functions/package.json` includes pdfmake, `npm run build` works.
-2. **PDF generator**: `functions/src/reports/pdfGenerator.ts` generates a formatted compliance report PDF with header, summary stats, and results table. Returns a Buffer.
-3. **generateReport CF**: Callable Cloud Function generates CSV, PDF, and JSON report files for a given workspace, stores them in Firebase Storage, creates/updates the report Firestore doc with file paths and download URLs. Exported from `functions/src/index.ts`.
-4. **archiveWorkspace creates report snapshot**: `archiveWorkspace` automatically creates a report doc in `org/{orgId}/reports/{workspaceId}` with stats and results array. Download URLs are null (generated on demand).
-5. **Report service**: Frontend service reads reports and calls generateReport Cloud Function.
-6. **ReportDownloadButton**: Reusable component for triggering report download in CSV, PDF, or JSON format. Shows loading state, opens download in new tab.
-7. **Reports page**: `/dashboard/reports` lists all archived workspace reports with stats and download buttons.
-8. **WorkspaceDetail report section**: Archived workspaces show report summary and download buttons.
-9. **Audit log service**: Frontend service reads audit logs with cursor-based pagination and entity type filtering.
-10. **AuditLogRow**: Component renders a single audit log entry with formatted action, performer email, relative timestamp, entity type badge, and expandable details.
-11. **AuditLogs page**: `/dashboard/audit-logs` shows paginated audit log entries with entity type filter. Admin-only access enforced in UI.
-12. **Role-based sidebar**: Audit Logs nav item only visible to owner/admin. Reports nav item visible to all members.
-13. **Firestore indexes**: Composite index for auditLogs (entityType + performedAt desc) defined in `firestore.indexes.json`.
-14. **TypeScript compiles clean**: Both `src/` and `functions/src/` compile with zero errors.
-15. **All new functions exported**: `generateReport` exported from `functions/src/index.ts`.
+1. **idb installed**: `package.json` includes `idb`, `pnpm build` works.
+2. **IndexedDB schema**: `src/lib/offlineDb.ts` defines the database, 5 object stores, typed interfaces, and a `getOfflineDb()` singleton.
+3. **Online/offline detection**: `useOnlineStatus` hook accurately tracks `navigator.onLine` + event listeners.
+4. **OfflineContext**: `OfflineProvider` manages offline state, pending count, sync status, and exposes `forceSync`.
+5. **useOffline hook**: Provides access to offline context from any component.
+6. **OfflineProvider wired**: `App.tsx` wraps the app with `OfflineProvider` inside the auth/org providers.
+7. **Sync engine**: `offlineSyncService.ts` can queue inspections, process the queue (calling `saveInspectionCall` per item), track sync status, and handle errors.
+8. **Offline-aware inspection save**: `saveInspectionOfflineAware` tries online first, falls back to queue on failure.
+9. **Cache service**: `offlineCacheService.ts` can write/read extinguishers, inspections, workspaces, locations to/from IndexedDB, and clear per-org.
+10. **Cache-on-read**: WorkspaceDetail, Inventory, and Locations pages cache data on every Firestore snapshot.
+11. **InspectionForm offline**: Can save inspections while offline (queued), shows appropriate success message, falls back to cached data for read.
+12. **WorkspaceDetail fallback**: Falls back to cached inspections/workspace when offline.
+13. **OfflineBanner**: Shows offline/syncing/pending banners at top of dashboard content.
+14. **SyncStatusIndicator**: Shows online/offline/pending status in sidebar.
+15. **Org switch isolation**: Clears offline cache and queue when switching orgs.
+16. **SyncQueue page**: `/dashboard/sync-queue` shows all queued inspections with sync/clear actions.
+17. **Conflict detection**: Sync engine categorizes errors (workspace archived, entity deleted, permission denied) as conflicts.
+18. **Firestore persistence**: Firebase Firestore has offline persistence enabled.
+19. **TypeScript compiles clean**: `pnpm build` from project root compiles with zero errors.
+20. **No `any` types**: All new code uses proper TypeScript types.
 
 ---
 
 ## Handoff to build-agent
 
-**Start with P5-01** (install pdfmake). This is a quick npm install that unblocks the PDF generation utility.
+**Start with P6-01** (install idb). This is a quick pnpm install that unblocks IndexedDB code.
 
 **Key context:**
 
-- **What's already done (skip these)**: The auditLog utility, all writeAuditLog call sites, frontend report/auditLog types, storage rules PDF support, and Firestore security rules are ALL already correct. Do NOT modify these files unless a bug is found during verification.
+- **No service worker needed for this phase**: The offline system is data-layer only (IndexedDB + write queue + online detection). PWA/service worker is a future enhancement.
 
-- **Report doc ID convention**: Use `workspaceId` as the report document ID (e.g., the monthYear string like "2026-03"). One report per workspace. Path: `org/{orgId}/reports/{workspaceId}`.
+- **Firebase v12 persistence API**: Check if `enableMultiTabIndexedDbPersistence` still exists in `firebase@12.10.0`. If not, use `initializeFirestore()` with `localCache: persistentLocalCache(...)`. See the Firebase docs for the v12 API.
 
-- **Report doc shape**: Must match `src/types/report.ts` EXACTLY. The type has `csvFilePath`, `pdfFilePath`, `jsonFilePath` fields (for permanent Storage paths) in addition to the `*DownloadUrl` fields (for ephemeral signed URLs). This is the dual-path pattern: store both so `generateReport` can re-sign fresh URLs without regenerating files.
+- **idb package**: Use `idb` (not `idb-keyval`). Import `openDB` from `idb`. It provides a clean Promise-based API over IndexedDB. Types are built-in.
 
-- **archiveWorkspace already has inspections data**: The `inspSnap` query result at line 35-38 of `functions/src/workspaces/archiveWorkspace.ts` already loads all inspections for the workspace. Reuse this data to build the results array for the report doc. Do NOT make a second query.
+- **saveInspectionCall is the online path**: The existing `saveInspectionCall` in `inspectionService.ts` calls `httpsCallable` which requires network. The new `saveInspectionOfflineAware` wrapper tries this first, then falls back to queuing in IndexedDB.
 
-- **Storage paths**: `org/{orgId}/reports/{workspaceId}/report.csv`, `org/{orgId}/reports/{workspaceId}/report.pdf`, `org/{orgId}/reports/{workspaceId}/report.json`.
+- **ChecklistData type**: Already exported from `src/services/inspectionService.ts`. Reuse it in the queue record type.
 
-- **Signed URLs**: Generate 1-hour signed URLs via `file.getSignedUrl({ action: 'read', expires: Date.now() + 60 * 60 * 1000 })`. The same pattern used in `functions/src/data/exportCSV.ts` line 110-112.
+- **Org isolation is critical**: The spec says "offline caches must not mix records from multiple orgs". The `clearOrgCache()` + `clearOrgQueue()` on org switch (P6-19) enforces this. Every IndexedDB record includes `orgId` and all queries filter by `orgId`.
 
-- **OrgContext role access**: The Sidebar should use `useOrg()` which returns `{ hasRole }`. Call `hasRole(['owner', 'admin'])` to check visibility. Already proven pattern in the codebase.
+- **Cache-on-read pattern**: We do NOT proactively fetch all data for caching. Instead, we cache data as the user views it via existing Firestore `onSnapshot` listeners. This means only recently-viewed data is available offline. This is the simplest approach for v1.
 
-- **Routes**: Add `reports` and `audit-logs` routes inside the dashboard layout in `src/routes/index.tsx`. Import the new pages.
+- **InspectionForm loads data via `getInspection()`**: This is a one-time `getDoc()` call, not a real-time listener. When offline with Firestore persistence enabled (P6-23), `getDoc()` should still work from the Firestore cache. The custom IndexedDB cache (P6-13 fallback) is a safety net for cases where Firestore persistence is not available.
 
-- **Sidebar nav ordering**: Dashboard > Inspections > Inventory > Locations > Members > Notifications > **Reports** > **Audit Logs** (admin-only) > Settings.
+- **Package manager is pnpm**: Use `pnpm add idb`, not `npm install`.
 
-- **pdfmake usage**: Import as `import PdfPrinter from 'pdfmake';`. Create a printer instance with font definitions (use Roboto from `pdfmake/build/vfs_fonts` or define paths to standard fonts). Define a document definition object with `content`, `styles`, etc. Call `printer.createPdfKitDocument(docDefinition)` and collect the output stream into a Buffer.
+- **Store directory is empty**: `src/store/` exists but is empty. We are NOT using it. Offline state is managed via Context + IndexedDB services.
 
 **Warnings from lessons-learned:**
-- When the backend creates or modifies a document shape, always update the corresponding frontend TypeScript interface to match EXACTLY. Do a side-by-side comparison.
-- When implementing functions that must cover "all fields", always enumerate every field explicitly. Do not assume a subset is sufficient.
-- Never call `DocumentReference.update()` without first confirming the document exists. Use `set({...}, {merge: true})` if you need an upsert pattern. For the report doc in archiveWorkspace, use `set()` (not `update()`) since the doc won't exist yet.
+- When the backend creates or modifies a document shape, always update the corresponding frontend TypeScript interface to match EXACTLY.
+- Never call `DocumentReference.update()` without first confirming the document exists.
 - Do NOT use `any` types. TypeScript strict mode is enforced.
-- Do NOT skip auth/membership/role validation in Cloud Functions.
 - Always include `built_by_Beck` in commit messages.
+- Always check installed package version against docs before writing code against it (lesson from pdfmake v0.3.x).

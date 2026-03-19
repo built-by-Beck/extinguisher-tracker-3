@@ -29,6 +29,7 @@ import {
   type Extinguisher,
 } from '../services/extinguisherService.ts';
 import { formatDueDate } from '../utils/compliance.ts';
+import { cacheExtinguishersForWorkspace } from '../services/offlineCacheService.ts';
 
 export default function Inventory() {
   const navigate = useNavigate();
@@ -53,11 +54,18 @@ export default function Inventory() {
 
   const sections = org?.settings?.sections ?? [];
 
-  // Subscribe to extinguishers
+  // Subscribe to extinguishers — cache on read
   useEffect(() => {
     if (!orgId) return;
 
-    const unsub = subscribeToExtinguishers(orgId, setItems, { showDeleted });
+    const unsub = subscribeToExtinguishers(orgId, (extinguishers) => {
+      setItems(extinguishers);
+      // Cache on read (fire-and-forget)
+      cacheExtinguishersForWorkspace(
+        orgId,
+        extinguishers as unknown as Array<Record<string, unknown>>,
+      ).catch(() => undefined);
+    }, { showDeleted });
     return () => unsub();
   }, [orgId, showDeleted]);
 

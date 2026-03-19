@@ -8,11 +8,13 @@ import {
   Search,
   Loader2,
   FileText,
+  WifiOff,
 } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
+import { useOffline } from '../hooks/useOffline.ts';
 import {
   subscribeToInspections,
   type Inspection,
@@ -21,6 +23,12 @@ import type { Workspace } from '../services/workspaceService.ts';
 import { getReport } from '../services/reportService.ts';
 import { ReportDownloadButton } from '../components/reports/ReportDownloadButton.tsx';
 import type { Report } from '../types/report.ts';
+import {
+  cacheInspectionsForWorkspace,
+  cacheWorkspace,
+  getCachedInspectionsForWorkspace,
+  getCachedWorkspace,
+} from '../services/offlineCacheService.ts';
 
 const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; bg: string }> = {
   pass: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
@@ -36,6 +44,7 @@ export default function WorkspaceDetail() {
 
   const orgId = userProfile?.activeOrgId ?? '';
   const sections = org?.settings?.sections ?? [];
+  const { isOnline } = useOffline();
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [inspections, setInspections] = useState<Inspection[]>([]);
@@ -44,24 +53,67 @@ export default function WorkspaceDetail() {
   const [statusFilter, setStatusFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
 
-  // Subscribe to workspace doc
+  // Subscribe to workspace doc — cache on every snapshot, fall back to IndexedDB when offline
   useEffect(() => {
     if (!orgId || !workspaceId) return;
     const wsRef = doc(db, 'org', orgId, 'workspaces', workspaceId);
-    return onSnapshot(wsRef, (snap) => {
-      if (snap.exists()) {
-        setWorkspace({ id: snap.id, ...snap.data() } as Workspace);
-      }
-    });
-  }, [orgId, workspaceId]);
+    return onSnapshot(
+      wsRef,
+      (snap) => {
+        if (snap.exists()) {
+          const ws = { id: snap.id, ...snap.data() } as Workspace;
+          setWorkspace(ws);
+          // Cache on read (fire-and-forget)
+          cacheWorkspace(orgId, { id: snap.id, ...snap.data() }).catch(() => undefined);
+        }
+      },
+      () => {
+        // Firestore error — fall back to IndexedDB cache when offline
+        if (!isOnline) {
+          getCachedWorkspace(orgId, workspaceId)
+            .then((cached) => {
+              if (cached) {
+                setWorkspace(cached as unknown as Workspace);
+              }
+            })
+            .catch(() => undefined);
+        }
+      },
+    );
+  }, [orgId, workspaceId, isOnline]);
 
-  // Subscribe to inspections
+  // Subscribe to inspections — cache on every snapshot, fall back to IndexedDB when offline
   useEffect(() => {
     if (!orgId || !workspaceId) return;
-    return subscribeToInspections(orgId, workspaceId, setInspections);
+    return subscribeToInspections(
+      orgId,
+      workspaceId,
+      (items) => {
+        setInspections(items);
+        // Cache on read (fire-and-forget)
+        cacheInspectionsForWorkspace(
+          orgId,
+          workspaceId,
+          items as unknown as Array<Record<string, unknown>>,
+        ).catch(() => undefined);
+      },
+    );
   }, [orgId, workspaceId]);
 
   const isArchived = workspace?.status === 'archived';
+
+  // When offline and inspections haven't loaded from Firestore, try loading from cache
+  useEffect(() => {
+    if (!orgId || !workspaceId || isOnline || inspections.length > 0) return;
+
+    getCachedInspectionsForWorkspace(orgId, workspaceId)
+      .then((cached) => {
+        if (cached.length > 0) {
+          setInspections(cached as unknown as Inspection[]);
+        }
+      })
+      .catch(() => undefined);
+  }, [orgId, workspaceId, isOnline, inspections.length]);
 
   // Load report doc when workspace is archived
   useEffect(() => {
@@ -93,6 +145,14 @@ export default function WorkspaceDetail() {
 
   return (
     <div className="p-6">
+      {/* Offline banner */}
+      {!isOnline && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          You are offline. Viewing cached data.
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6">
         <button

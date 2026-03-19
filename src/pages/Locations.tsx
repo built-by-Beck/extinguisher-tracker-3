@@ -21,6 +21,7 @@ import {
   type Location,
   type LocationTreeNode,
 } from '../services/locationService.ts';
+import { cacheLocations } from '../services/offlineCacheService.ts';
 
 function TreeNode({
   node,
@@ -112,7 +113,13 @@ export default function Locations() {
 
   useEffect(() => {
     if (!orgId) return;
-    return subscribeToLocations(orgId, setLocations);
+    return subscribeToLocations(orgId, (locs) => {
+      setLocations(locs);
+      // Cache on read (fire-and-forget)
+      cacheLocations(orgId, locs as unknown as Array<Record<string, unknown>>).catch(
+        () => undefined,
+      );
+    });
   }, [orgId]);
 
   const tree = buildLocationTree(locations);

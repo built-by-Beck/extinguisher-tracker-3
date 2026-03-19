@@ -1,6 +1,7 @@
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext.tsx';
 import { OrgProvider } from './contexts/OrgContext.tsx';
+import { OfflineProvider } from './contexts/OfflineContext.tsx';
 import { AppRoutes } from './routes/index.tsx';
 
 function App() {
@@ -8,7 +9,9 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <OrgProvider>
-          <AppRoutes />
+          <OfflineProvider>
+            <AppRoutes />
+          </OfflineProvider>
         </OrgProvider>
       </AuthProvider>
     </BrowserRouter>
