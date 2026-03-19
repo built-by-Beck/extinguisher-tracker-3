@@ -1,14 +1,40 @@
 # EX3 Agent System -- Project State
 
 **Last Updated**: 2026-03-18
-**Updated By**: build-agent (Sonnet 4.6) -- Phase 6 offline sync built, zero TypeScript errors
+**Updated By**: review-agent (Opus 4.6) -- Phase 7 REVIEWED (Guest Access, 25 tasks, 5 fixes applied)
 
 ---
 
 ## Current Phase
 
-**Phase 6 -- Offline Sync**
-Status: COMPLETE and REVIEWED (24 tasks, P6-01 through P6-24)
+**Phase 7 -- Guest Access (Read-Only) — Elite/Enterprise Feature**
+Status: COMPLETE and REVIEWED (25 tasks, P7-01 through P7-25)
+
+### Phase 7 Review Summary (review-agent, 2026-03-18)
+
+**5 issues found and fixed:**
+
+1. **CRITICAL: Code-session routing bug** — When a guest used the share code path via `GuestCodeEntry`, they were redirected to `/guest/{orgId}/code-session`. `GuestRoute` would call `activateWithToken(orgId, 'code-session')` which would fail because `'code-session'` is not a valid token, and the `GuestProvider` was a new instance (state lost). **Fix**: Added `resumeSession(orgId)` method to `GuestContext` that reads the existing anonymous user's member doc instead of re-calling the CF. `GuestRouteInner` now detects `token === 'code-session'` and calls `resumeSession` instead of `activateWithToken`.
+
+2. **BUG: GuestLayout sidebar nav links broken** — `GuestLayout` built `baseUrl` as `/guest/${orgId}` but the route structure is `/guest/:orgId/:token/*`, so all sidebar nav links (Dashboard, Inventory, Locations, Workspaces) would 404. **Fix**: Added `:token` param extraction from `useParams` and included it in `baseUrl`.
+
+3. **BUG: Batch size limit in toggleGuestAccess disable path** — When disabling guest access, all guest member docs were added to a single Firestore batch with no chunking. If there were 500+ guest members, the batch would exceed Firestore's 500-operation limit. **Fix**: Added chunked batching (499 per batch, reserving 1 slot for the org doc update in the last batch).
+
+4. **BUG: Batch size limit in cleanupExpiredGuests org update** — Same issue for the org doc auto-disable batch. **Fix**: Added chunked batching (500 per batch).
+
+5. **Security hardening: activateGuestSession idempotency check** — The idempotency check for existing member docs didn't verify the doc's role was `'guest'`. A non-guest member doc (theoretically impossible with anonymous auth, but defensively wrong) would be returned as a successful guest activation. **Fix**: Added `role === 'guest'` check; throws `already-exists` error if a non-guest doc is found.
+
+**Minor fix**: `OrgSettings.tsx` `handleSave` onClick was missing void wrapper for the async call.
+
+**No issues found in**: Types (guest.ts, member.ts, organization.ts), planConfig.ts, membership.ts, index.ts exports, firestore.rules, firestore.indexes.json, guestService.ts, useGuest.ts, GuestCodeEntry.tsx, GuestDashboard.tsx, GuestInventory.tsx, GuestLocations.tsx, GuestWorkspaces.tsx, GuestWorkspaceDetail.tsx.
+
+**Both builds pass clean after fixes.**
+
+**Both builds pass clean:**
+- `pnpm build` — zero TypeScript errors, zero warnings (other than chunk size)
+- `cd functions && npm run build` — zero errors
+
+Phase 6 (Offline Sync): COMPLETE and REVIEWED (24 tasks, P6-01 through P6-24)
 
 Phase 1 (Foundation): Complete (28 tasks)
 Phase 2 (Core Operations & Billing): Complete (26 tasks)
@@ -54,6 +80,63 @@ Phase 6 (Offline Sync): COMPLETE and REVIEWED -- 24 tasks (P6-01 through P6-24)
 - `agent-system/lessons-learned.md` -- Lessons log
 
 ### Application Code -- Frontend (src/)
+
+---
+
+## Phase 7 Implementation Summary
+
+### Files Created (Phase 7)
+
+**Types:**
+- `src/types/guest.ts` — GuestAccessConfig and GuestActivationResult interfaces
+
+**Cloud Functions:**
+- `functions/src/guest/toggleGuestAccess.ts` — Enable/disable guest access (owner/admin only, Elite+ plan)
+- `functions/src/guest/activateGuestSession.ts` — Activate guest session via token or share code
+- `functions/src/guest/cleanupExpiredGuests.ts` — Hourly scheduled function to delete expired guest docs
+
+**Frontend Services:**
+- `src/services/guestService.ts` — Frontend wrappers for toggleGuestAccess and activateGuestSession
+
+**Context & Hooks:**
+- `src/contexts/GuestContext.tsx` — GuestProvider managing anon auth, activation, org/member subscriptions
+- `src/hooks/useGuest.ts` — Access GuestContext values
+
+**Route Guards & Layout:**
+- `src/components/guards/GuestRoute.tsx` — Wraps subtree with GuestProvider, auto-activates from URL params
+- `src/components/layout/GuestLayout.tsx` — Read-only layout with amber banner, simplified sidebar
+
+**Guest Pages:**
+- `src/pages/guest/GuestCodeEntry.tsx` — Public page for 6-char share code entry
+- `src/pages/guest/GuestDashboard.tsx` — Read-only org stats dashboard
+- `src/pages/guest/GuestInventory.tsx` — Read-only extinguisher list with filters
+- `src/pages/guest/GuestLocations.tsx` — Read-only location hierarchy tree
+- `src/pages/guest/GuestWorkspaces.tsx` — Read-only workspace list
+- `src/pages/guest/GuestWorkspaceDetail.tsx` — Read-only workspace detail + inspection list
+
+### Files Modified (Phase 7)
+
+- `src/types/member.ts` — Added 'guest' to OrgRole, added isGuest/expiresAt to OrgMember
+- `src/types/organization.ts` — Added guestAccess to OrgFeatureFlags and Organization
+- `src/types/index.ts` — Export GuestAccessConfig and GuestActivationResult
+- `functions/src/utils/membership.ts` — Added 'guest' to local OrgRole type, added isGuest/expiresAt to MemberData
+- `functions/src/billing/planConfig.ts` — Added guestAccess: false (basic/pro), true (elite/enterprise)
+- `functions/src/index.ts` — Export 3 guest functions
+- `firestore.rules` — Added isGuest() helper, blocked guests from members/notifications/reports reads, added guestAccess to blocked org update keys
+- `firestore.indexes.json` — Added collectionGroup index on members(role, expiresAt) for cleanup query
+- `src/routes/index.tsx` — Added /guest/code and /guest/:orgId/:token guest routes
+- `src/pages/OrgSettings.tsx` — Added Guest Access card section with toggle, date picker, share link/code display
+- `src/components/members/MemberRow.tsx` — Added 'guest' to roleBadgeStyles and roleIcons (required by Record<OrgRole, ...>)
+
+### Implementation Notes
+
+1. **GuestCodeEntry redirect**: When a guest uses the share code path, they're redirected to `/guest/{orgId}/code-session`. The `code-session` token literal causes GuestRoute to attempt `activateWithToken('orgId', 'code-session')` which will fail. The correct flow for code-session redirect is that the GuestContext already has the session activated before the redirect, so GuestRoute's `isGuest` check passes immediately. However, this edge case warrants review — the token activation only fires when `!isGuest && !loading && !error`. Since the code-entry page calls signInAnonymously + activateGuestSessionCall before navigating, the anonymous user already has a Firebase session and the member doc already exists. The GuestRoute attempts activation with the literal token 'code-session' which will fail with "permission-denied". The review-agent should consider a better pattern for the code path — one option is a separate `/guest/session/:orgId` route that skips token activation and just subscribes to the existing anonymous session.
+
+2. **Firebase Anonymous Auth**: Must be enabled in the Firebase Console (Authentication > Sign-in method > Anonymous) for guest access to work.
+
+3. **Share code path Firestore query**: The activateGuestSession function queries `org` collection by `guestAccess.shareCode` and `guestAccess.enabled`. This is a top-level collection query on nested fields. If Firestore requires a composite index at runtime, it can be added via the error link.
+
+---
 
 **Pages (src/pages/):**
 - Login.tsx, Signup.tsx -- Authentication
@@ -133,6 +216,28 @@ Phase 6 (Offline Sync): COMPLETE and REVIEWED -- 24 tasks (P6-01 through P6-24)
 - firestore.rules -- Security rules (P4-25: notifications write-only from backend, verified correct)
 - storage.rules -- Storage security rules
 - firestore.indexes.json -- Firestore indexes (P4-24: added 8 new indexes for lifecycle and notifications queries)
+
+### Phase 7 Planning Notes (plan-agent, 2026-03-18)
+
+**Approach**: Anonymous Auth + Guest Member Doc. Guest clicks share link or enters code -> Firebase anonymous sign-in -> CF creates `org/{orgId}/members/{anonUid}` with `role: 'guest'` -> existing `isMember(orgId)` rules work automatically -> guest sees read-only UI.
+
+**Key design decisions**:
+- Existing `isMember()` security rule already works for guests (no rule rewrites for read access)
+- Existing write rules already block guests (no role lists include 'guest')
+- Existing `validateMembership()` in CFs already blocks guests from privileged operations
+- Only NEW security rule work: `isGuest()` helper to BLOCK reads on members/notifications/reports
+- Guest pages are separate components (not reuse of existing pages) because they need different context (GuestContext vs OrgContext) and must omit all edit controls
+- GuestContext is independent from AuthContext/OrgContext -- no contamination between regular and guest sessions
+- Token stored raw on org doc (for admin re-display) + SHA-256 hash (for server verification in activateGuestSession)
+- 100-guest cap per org enforced in activateGuestSession CF
+- Hourly cleanup function for expired guest member docs
+
+**Files to create (15)**: 3 CFs (guest/), 1 context, 1 hook, 1 guard, 1 layout, 6 pages (guest/), 1 service, 1 type
+**Files to modify (9)**: member.ts, organization.ts, planConfig.ts, membership.ts, index.ts (functions), firestore.rules, firestore.indexes.json, routes/index.tsx, OrgSettings.tsx
+
+**No new npm dependencies needed** -- crypto is built into Node.js, signInAnonymously is in existing firebase SDK.
+
+**Manual prerequisite**: Firebase Anonymous Auth must be enabled in Firebase Console (Authentication > Sign-in method > Anonymous).
 
 ---
 

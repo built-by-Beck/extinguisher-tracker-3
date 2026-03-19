@@ -33,6 +33,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       tagPrinting: false,
       bulkTagPrinting: false,
       inspectionRoutes: false,
+      guestAccess: false,
     },
   },
   pro: {
@@ -53,6 +54,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       tagPrinting: true,
       bulkTagPrinting: true,
       inspectionRoutes: true,
+      guestAccess: false,
     },
   },
   elite: {
@@ -73,6 +75,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       tagPrinting: true,
       bulkTagPrinting: true,
       inspectionRoutes: true,
+      guestAccess: true,
     },
   },
   enterprise: {
@@ -93,6 +96,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       tagPrinting: true,
       bulkTagPrinting: true,
       inspectionRoutes: true,
+      guestAccess: true,
     },
   },
 };

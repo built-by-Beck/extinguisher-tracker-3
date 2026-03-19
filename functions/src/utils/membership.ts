@@ -2,7 +2,7 @@ import { adminDb } from './admin.js';
 import { throwPermissionDenied, throwNotFound } from './errors.js';
 
 /** Organization roles */
-type OrgRole = 'owner' | 'admin' | 'inspector' | 'viewer';
+type OrgRole = 'owner' | 'admin' | 'inspector' | 'viewer' | 'guest';
 
 /** Member status */
 type MemberStatus = 'active' | 'invited' | 'suspended' | 'removed';
@@ -17,6 +17,8 @@ interface MemberData {
   joinedAt: FirebaseFirestore.Timestamp | null;
   createdAt: FirebaseFirestore.Timestamp;
   updatedAt: FirebaseFirestore.Timestamp;
+  isGuest?: boolean;
+  expiresAt?: FirebaseFirestore.Timestamp | null;
 }
 
 /**

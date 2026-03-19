@@ -16,6 +16,7 @@ const roleBadgeStyles: Record<OrgRole, string> = {
   admin: 'bg-blue-100 text-blue-800',
   inspector: 'bg-green-100 text-green-800',
   viewer: 'bg-gray-100 text-gray-700',
+  guest: 'bg-orange-100 text-orange-700',
 };
 
 const roleIcons: Record<OrgRole, React.ComponentType<{ className?: string }>> = {
@@ -23,6 +24,7 @@ const roleIcons: Record<OrgRole, React.ComponentType<{ className?: string }>> = 
   admin: Shield,
   inspector: ClipboardCheck,
   viewer: Eye,
+  guest: Eye,
 };
 
 const statusBadgeStyles: Record<string, string> = {

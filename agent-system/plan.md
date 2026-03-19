@@ -1,6 +1,6 @@
 # Plan -- extinguisher-tracker-3
 
-**Current Phase**: 6 -- Offline Sync (COMPLETE and REVIEWED)
+**Current Phase**: 7 -- Guest Access (Read-Only) — Elite/Enterprise Feature
 **Last Updated**: 2026-03-18
 **Author**: built_by_Beck
 
@@ -8,27 +8,32 @@
 
 ## Current Objective
 
-Build the offline sync system so field inspectors can continue working in low-connectivity environments (basements, stairwells, mechanical rooms). This includes: IndexedDB local caching of inspection data, a write queue that persists across app restarts, online/offline status detection, automatic sync when connectivity returns, conflict detection, and org-scoped cache isolation.
+Build a guest access system that lets owners/admins on Elite ($199) or Enterprise plans generate a share link and short code that allows unauthenticated visitors to view org data read-only. Guests use Firebase anonymous auth, get a temporary `org/{orgId}/members/{anonUid}` doc with `role: 'guest'`, and see a stripped-down read-only UI. A scheduled function cleans up expired guest sessions hourly.
 
 ---
 
 ## Project State Summary
 
-**Phases 1-5 Complete:**
+**Phases 1-6 Complete:**
 - Phase 1: Foundation -- Firebase wiring, Auth, Org creation, Memberships, Firestore types, Security Rules, Dashboard shell, Protected routing.
 - Phase 2: Stripe billing (checkout, portal, webhook), Inventory CRUD, Locations, Asset tagging, CSV import/export, Dashboard enhancements, Org switching, Asset limit enforcement.
 - Phase 3: Workspaces (create/archive), Inspections (save/reset with NFPA 13-point checklist), InspectionForm page, WorkspaceDetail page.
 - Phase 4: Lifecycle Engine, Notifications (markRead, generateReminders, detectOverdue), Notification UI, Compliance Dashboard.
 - Phase 5: Report generation (PDF/CSV/JSON), Report frontend (Reports page, WorkspaceDetail report section), Audit logs frontend (AuditLogRow, AuditLogs page), Role-based sidebar, Firestore indexes.
+- Phase 6: Offline Sync -- IndexedDB caching, write queue, online/offline detection, sync engine, conflict detection, OfflineBanner, SyncQueue page, org-switch cache isolation, Firestore persistence.
 
-**What exists now (key files):**
-- Frontend: 19 pages, 20+ components, 10 services, 2 contexts (Auth, Org), hooks (useAuth, useOrg), types for all entities
-- Backend: 23+ Cloud Functions including saveInspection, resetInspection, generateReport, archiveWorkspace, lifecycle functions, notification functions
-- Inspections flow: `saveInspection` CF receives `{ orgId, inspectionId, status, checklistData, notes, attestation }` and updates the inspection doc, creates an inspectionEvent, updates workspace stats, and recalculates extinguisher lifecycle
-- No service worker, no IndexedDB code, no offline detection exists yet
+**What exists now (key files relevant to Phase 7):**
+- `src/types/member.ts`: `OrgRole = 'owner' | 'admin' | 'inspector' | 'viewer'` — needs `'guest'` added
+- `src/types/organization.ts`: `OrgFeatureFlags` has 11 flags — needs `guestAccess` added; `Organization` needs `guestAccess` config field
+- `functions/src/billing/planConfig.ts`: 4 plans with feature flags — needs `guestAccess: false/true`
+- `functions/src/utils/membership.ts`: local `OrgRole` type — needs `'guest'` added
+- `functions/src/index.ts`: 23+ exports — needs 3 new guest function exports
+- `firestore.rules`: `isMember()` helper checks `status == 'active'` — guest docs will pass this check automatically; needs `isGuest()` helper to block guest reads on sensitive subcollections
+- `firestore.indexes.json`: needs collectionGroup index for guest cleanup query
+- `src/routes/index.tsx`: needs guest routes (`/guest/:orgId/:token`, `/guest/code`)
+- `src/pages/OrgSettings.tsx`: needs Guest Access card section between Subscription and Danger Zone
 - Package manager: pnpm
-- Vite config: basic (no PWA plugin)
-- Firebase SDK: `firebase@12.10.0` (client SDK has built-in enablePersistence but we need explicit IndexedDB for the write queue)
+- Firebase SDK: `firebase@12.10.0` (has `signInAnonymously`)
 
 ---
 
@@ -49,312 +54,385 @@ Workspaces (create/archive), Inspections (save/reset with NFPA 13-point checklis
 ### Phase 5 -- Reports & Audit Logs (COMPLETE)
 14 tasks: pdfmake install, PDF generator, generateReport CF, archiveWorkspace report snapshot, report service/frontend, audit log service/frontend, role-based sidebar, Firestore indexes.
 
+### Phase 6 -- Offline Sync (COMPLETE)
+24 tasks: idb install, IndexedDB schema, online/offline hook, OfflineContext, sync engine, offline-aware inspection save, cache service, cache-on-read hooks, InspectionForm offline-aware, WorkspaceDetail fallback, OfflineBanner, SyncStatusIndicator, org-switch cache isolation, SyncQueue page, conflict detection, Firestore persistence.
+
 ---
 
 ## Tasks for This Round
 
-### Subsystem A: Connectivity Detection & Offline Context
+### Subsystem A: Types, Feature Flags & Backend Plumbing
 
-**P6-01: Install idb (IndexedDB wrapper) dependency**
-- Run `pnpm add idb` in project root
-- `idb` is a tiny (~1KB) Promise-based IndexedDB wrapper by Jake Archibald, widely used and well-typed
-- Verify `npm run build` (or `pnpm build`) still compiles
+**P7-01: Add `'guest'` to OrgRole and extend OrgMember type**
+- Modify `src/types/member.ts`:
+  - Change `OrgRole` from `'owner' | 'admin' | 'inspector' | 'viewer'` to `'owner' | 'admin' | 'inspector' | 'viewer' | 'guest'`
+  - Add optional fields to `OrgMember`: `isGuest?: boolean`, `expiresAt?: Timestamp | null`
+- Modify `functions/src/utils/membership.ts`:
+  - Change local `OrgRole` type to include `'guest'`: `type OrgRole = 'owner' | 'admin' | 'inspector' | 'viewer' | 'guest';`
+  - Note: `validateMembership` will naturally reject guests for privileged operations since `'guest'` will not be in the `requiredRoles` arrays passed by existing Cloud Functions
 
-**P6-02: Create IndexedDB schema and database utility**
-Create `src/lib/offlineDb.ts`:
-- Import `openDB` from `idb`
-- Define database name: `'ex3-offline'`, version: `1`
-- Define object stores in the `upgrade` callback:
-  - `inspectionQueue`: key path `queueId` (auto-generated UUID), indexes on `orgId`, `inspectionId`, `queuedAt`
-  - `cachedExtinguishers`: key path `cacheKey` (compound: `${orgId}_${extinguisherId}`), index on `orgId`
-  - `cachedInspections`: key path `cacheKey` (compound: `${orgId}_${inspectionId}`), indexes on `orgId`, `workspaceId` (compound: `${orgId}_${workspaceId}`)
-  - `cachedWorkspaces`: key path `cacheKey` (compound: `${orgId}_${workspaceId}`), index on `orgId`
-  - `cachedLocations`: key path `cacheKey` (compound: `${orgId}_${locationId}`), index on `orgId`
-  - `syncMeta`: key path `key` (string) -- stores metadata like `lastSyncTimestamp`, `activeOrgId`
-- Export `getOfflineDb()` that returns the opened DB instance (singleton pattern)
-- Export TypeScript interfaces for each store's record shape:
-  - `QueuedInspection`: `{ queueId: string; orgId: string; inspectionId: string; extinguisherId: string; workspaceId: string; status: 'pass' | 'fail'; checklistData: ChecklistData; notes: string; attestation: { confirmed: boolean; text: string; inspectorName: string } | null; queuedAt: number; attempts: number; lastAttemptAt: number | null; error: string | null; syncStatus: 'pending' | 'syncing' | 'failed' | 'synced' }`
-  - `CachedExtinguisher`: `{ cacheKey: string; orgId: string; extinguisherId: string; data: Record<string, unknown>; cachedAt: number }`
-  - `CachedInspection`: `{ cacheKey: string; orgId: string; inspectionId: string; workspaceId: string; data: Record<string, unknown>; cachedAt: number }`
-  - `CachedWorkspace`: `{ cacheKey: string; orgId: string; workspaceId: string; data: Record<string, unknown>; cachedAt: number }`
-  - `CachedLocation`: `{ cacheKey: string; orgId: string; locationId: string; data: Record<string, unknown>; cachedAt: number }`
-- Do NOT use `any` types
+**P7-02: Create GuestAccessConfig type**
+- Create `src/types/guest.ts`:
+  - Export `GuestAccessConfig` interface:
+    ```
+    {
+      enabled: boolean;
+      token: string;           // raw token for admin display
+      tokenHash: string;       // SHA-256 hex hash for server verification
+      shareCode: string;       // 6-character alphanumeric code
+      expiresAt: Timestamp;    // when guest access expires
+      createdAt: Timestamp;    // when guest access was enabled
+      createdBy: string;       // uid of admin who enabled it
+      maxGuests: number;       // cap (default 100)
+    }
+    ```
+  - Export `GuestActivationResult` interface:
+    ```
+    {
+      orgId: string;
+      orgName: string;
+      memberDocId: string;
+      expiresAt: string;       // ISO string
+    }
+    ```
 
-**P6-03: Create online/offline detection hook**
-Create `src/hooks/useOnlineStatus.ts`:
-- Export `useOnlineStatus(): { isOnline: boolean; wasOffline: boolean }`
-- Use `navigator.onLine` for initial value
-- Add `window.addEventListener('online', ...)` and `'offline'` listeners in a `useEffect`, return cleanup
-- `wasOffline` tracks if the app was offline at any point during the session (set to `true` on `offline` event, reset on explicit user action or never -- helps show "you were offline, syncing now" banners)
-- Return `{ isOnline, wasOffline }`
+**P7-03: Add guestAccess to Organization type and OrgFeatureFlags**
+- Modify `src/types/organization.ts`:
+  - Add `guestAccess: boolean;` to `OrgFeatureFlags` interface
+  - Add `guestAccess?: GuestAccessConfig | null;` to `Organization` interface (after `settings`)
+  - Import `GuestAccessConfig` from `./guest.ts`
 
-**P6-04: Create OfflineContext and OfflineProvider**
-Create `src/contexts/OfflineContext.tsx`:
-- Import `useOnlineStatus` from `src/hooks/useOnlineStatus.ts`
-- Context value interface `OfflineContextValue`:
-  - `isOnline: boolean`
-  - `wasOffline: boolean`
-  - `pendingCount: number` (number of queued inspection writes)
-  - `isSyncing: boolean`
-  - `syncError: string | null`
-  - `forcSync: () => Promise<void>` (manually trigger sync)
-- Create `OfflineProvider` component:
-  - Uses `useOnlineStatus()`
-  - Maintains `pendingCount` state by querying IndexedDB `inspectionQueue` store count where `syncStatus === 'pending' || syncStatus === 'failed'`
-  - Maintains `isSyncing` state
-  - Provides `forceSync` function (calls the sync engine from P6-07)
-  - On `isOnline` transition from false to true, automatically triggers sync
-  - Polls pending count on interval (every 5 seconds) or after sync operations
-- Export `OfflineContext` and `OfflineProvider`
+**P7-04: Add guestAccess feature flag to planConfig.ts**
+- Modify `functions/src/billing/planConfig.ts`:
+  - Add `guestAccess: false` to `basic.featureFlags`
+  - Add `guestAccess: false` to `pro.featureFlags`
+  - Add `guestAccess: true` to `elite.featureFlags`
+  - Add `guestAccess: true` to `enterprise.featureFlags`
 
-**P6-05: Create useOffline hook**
-Create `src/hooks/useOffline.ts`:
-- Export `useOffline()` that reads from `OfflineContext`
-- Throws if used outside `OfflineProvider`
-- Returns `OfflineContextValue`
+### Subsystem B: Cloud Functions (Backend)
 
-**P6-06: Wire OfflineProvider into App**
-Modify `src/App.tsx`:
-- Import `OfflineProvider` from `src/contexts/OfflineContext.tsx`
-- Wrap it around the existing provider tree, inside `AuthProvider` and `OrgProvider` (needs auth context for user identity, org context for orgId)
-- The OfflineProvider should be a child of OrgProvider so it can access the active org
+**P7-05: Create toggleGuestAccess Cloud Function**
+- Create `functions/src/guest/toggleGuestAccess.ts`:
+  - `onCall` Cloud Function, receives `{ orgId: string; enabled: boolean; expiresAt: string }` (ISO date)
+  - Validate auth: `request.auth` must exist and not be anonymous
+  - Validate membership: `validateMembership(orgId, uid, ['owner', 'admin'])`
+  - Validate plan: read org doc, check `featureFlags.guestAccess === true`. If not, throw `failed-precondition` with "Guest access is only available on Elite and Enterprise plans."
+  - When `enabled === true`:
+    - Generate `token` using `crypto.randomBytes(32).toString('hex')` (64-char hex string)
+    - Generate `tokenHash` using `crypto.createHash('sha256').update(token).digest('hex')`
+    - Generate `shareCode`: 6-character alphanumeric, uppercase, using `crypto.randomBytes(3).toString('hex').toUpperCase()` (yields 6 hex chars)
+    - Validate `expiresAt` is a valid future date, max 365 days out
+    - Write `guestAccess` object to org doc: `{ enabled: true, token, tokenHash, shareCode, expiresAt: Timestamp.fromDate(new Date(expiresAt)), createdAt: FieldValue.serverTimestamp(), createdBy: uid, maxGuests: 100 }`
+    - Write audit log: action `'guest_access_enabled'`, entityType `'organization'`, entityId `orgId`
+    - Return `{ token, shareCode, expiresAt }` so the admin can display it
+  - When `enabled === false`:
+    - Set `guestAccess` field on org doc to `null`
+    - Batch-delete all guest member docs: query `org/{orgId}/members` where `role == 'guest'`, delete in batch
+    - Write audit log: action `'guest_access_disabled'`
+    - Return `{ success: true }`
+  - Import `adminDb` from `../utils/admin.js`, `validateMembership` from `../utils/membership.js`, `writeAuditLog` from `../utils/auditLog.js`
 
-### Subsystem B: Inspection Queue (Write Queue)
+**P7-06: Create activateGuestSession Cloud Function**
+- Create `functions/src/guest/activateGuestSession.ts`:
+  - `onCall` Cloud Function, receives `{ orgId: string; token: string }` OR `{ shareCode: string }`
+  - Validate auth: `request.auth` must exist. Verify `request.auth.token.firebase.sign_in_provider === 'anonymous'` (only anonymous users can activate guest sessions)
+  - **Token path** (when `orgId` + `token` provided):
+    - Load org doc, check `guestAccess` exists and `guestAccess.enabled === true`
+    - Compute `crypto.createHash('sha256').update(token).digest('hex')` and compare to `guestAccess.tokenHash`
+    - If mismatch, throw `permission-denied` "Invalid guest access token."
+  - **Share code path** (when `shareCode` provided):
+    - Query all org docs where `guestAccess.shareCode == shareCode` and `guestAccess.enabled == true` -- this requires reading org docs. Since share codes are short, query: `adminDb.collection('org').where('guestAccess.shareCode', '==', shareCode.toUpperCase()).where('guestAccess.enabled', '==', true).limit(1).get()`
+    - If no match, throw `not-found` "Invalid share code."
+    - Set `orgId` from the found org doc
+  - **Common validation** (both paths):
+    - Check `guestAccess.expiresAt` is in the future. If expired, throw `failed-precondition` "Guest access has expired."
+    - Count existing guest members: query `org/{orgId}/members` where `role == 'guest'`, get count. If `>= guestAccess.maxGuests` (default 100), throw `resource-exhausted` "Maximum guest limit reached."
+    - Check if this anonymous UID already has a guest member doc in this org (idempotency). If so, return existing data without creating a new doc.
+  - **Create guest member doc**:
+    - `adminDb.doc(\`org/${orgId}/members/${anonUid}\`).set({ uid: anonUid, email: '', displayName: 'Guest', role: 'guest', status: 'active', isGuest: true, expiresAt: guestAccess.expiresAt, invitedBy: null, joinedAt: FieldValue.serverTimestamp(), createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })`
+  - Return `{ orgId, orgName: orgDoc.data().name, memberDocId: anonUid, expiresAt: guestAccess.expiresAt.toDate().toISOString() }`
 
-**P6-07: Create offline sync engine**
-Create `src/services/offlineSyncService.ts`:
-- Import `getOfflineDb`, `QueuedInspection` from `src/lib/offlineDb.ts`
-- Import `saveInspectionCall` from `src/services/inspectionService.ts`
-- Export `queueInspection(data: Omit<QueuedInspection, 'queueId' | 'attempts' | 'lastAttemptAt' | 'error' | 'syncStatus'>): Promise<string>`:
-  - Generates a UUID `queueId` (use `crypto.randomUUID()`)
-  - Stores the record in `inspectionQueue` with `syncStatus: 'pending'`, `attempts: 0`
-  - Returns the `queueId`
-- Export `processQueue(orgId: string): Promise<{ synced: number; failed: number }>`:
-  - Opens IndexedDB, gets all records from `inspectionQueue` where `orgId` matches and `syncStatus` is `'pending'` or `'failed'`, ordered by `queuedAt` ASC
-  - For each record:
-    - Set `syncStatus` to `'syncing'`, increment `attempts`, set `lastAttemptAt` to `Date.now()`
-    - Try calling `saveInspectionCall(record.orgId, record.inspectionId, { status: record.status, checklistData: record.checklistData, notes: record.notes, attestation: record.attestation })`
-    - On success: set `syncStatus` to `'synced'`
-    - On error: set `syncStatus` to `'failed'`, store error message. If `attempts >= 5`, leave as `'failed'` (admin review). Otherwise leave as `'failed'` for retry on next sync.
-  - Return counts of synced and failed
-- Export `getPendingCount(orgId: string): Promise<number>`:
-  - Count records where orgId matches and syncStatus is 'pending' or 'failed'
-- Export `getQueuedInspections(orgId: string): Promise<QueuedInspection[]>`:
-  - Return all records for the org, ordered by queuedAt ASC
-- Export `clearSyncedItems(orgId: string): Promise<void>`:
-  - Delete all records where syncStatus is 'synced' for that org
-- Export `clearOrgQueue(orgId: string): Promise<void>`:
-  - Delete ALL records for that org (used on org switch to prevent cross-org contamination)
+**P7-07: Create cleanupExpiredGuests scheduled Cloud Function**
+- Create `functions/src/guest/cleanupExpiredGuests.ts`:
+  - Scheduled function: `onSchedule({ schedule: 'every 1 hours', timeoutSeconds: 120 })`
+  - Query `adminDb.collectionGroup('members').where('role', '==', 'guest').where('expiresAt', '<', Timestamp.now()).get()`
+  - Batch-delete all matched documents (use batched writes, max 500 per batch)
+  - Log count of deleted guest docs: `functions.logger.info(\`Cleaned up ${count} expired guest members\`)`
+  - Also query org docs where `guestAccess.expiresAt < now` and `guestAccess.enabled == true`, and set `guestAccess` to `null` on those orgs (auto-disable expired guest access)
 
-**P6-08: Create offline-aware inspection save wrapper**
-Modify `src/services/inspectionService.ts`:
-- Add new export `saveInspectionOfflineAware(orgId, inspectionId, data, isOnline)`:
-  - If `isOnline`: try `saveInspectionCall()` directly. On network error (fetch failure), fall through to offline path.
-  - If offline OR network error: call `queueInspection()` from `offlineSyncService.ts` with the inspection data
-  - Return `{ synced: boolean; queueId?: string }` so the caller knows if it went through immediately or was queued
-- Also add `extinguisherId` and `workspaceId` params (needed for queue record) -- these can be derived from the inspection data loaded in InspectionForm
-- Do NOT modify `saveInspectionCall` itself -- keep it as the pure online path
+**P7-08: Export guest functions from index.ts**
+- Modify `functions/src/index.ts`:
+  - Add comment section: `// Guest access`
+  - Add: `export { toggleGuestAccess } from './guest/toggleGuestAccess.js';`
+  - Add: `export { activateGuestSession } from './guest/activateGuestSession.js';`
+  - Add: `export { cleanupExpiredGuestsJob } from './guest/cleanupExpiredGuests.js';`
+  - Place after the Reports section, before any closing content
 
-### Subsystem C: Local Data Caching
+### Subsystem C: Security Rules
 
-**P6-09: Create cache service for inspection workflow data**
-Create `src/services/offlineCacheService.ts`:
-- Import `getOfflineDb` and cache type interfaces from `src/lib/offlineDb.ts`
-- Export `cacheExtinguishersForWorkspace(orgId: string, extinguishers: Array<Record<string, unknown>>): Promise<void>`:
-  - Writes each extinguisher to `cachedExtinguishers` store with `cacheKey: ${orgId}_${ext.id}`
-  - Uses a transaction for batch writes
-- Export `cacheInspectionsForWorkspace(orgId: string, workspaceId: string, inspections: Array<Record<string, unknown>>): Promise<void>`:
-  - Writes each inspection to `cachedInspections` with `cacheKey: ${orgId}_${insp.id}`, includes `workspaceId` field for indexing
-- Export `cacheWorkspace(orgId: string, workspace: Record<string, unknown>): Promise<void>`:
-  - Writes workspace to `cachedWorkspaces`
-- Export `cacheLocations(orgId: string, locations: Array<Record<string, unknown>>): Promise<void>`:
-  - Writes locations to `cachedLocations`
-- Export `getCachedInspectionsForWorkspace(orgId: string, workspaceId: string): Promise<Array<Record<string, unknown>>>`:
-  - Query `cachedInspections` by orgId + workspaceId index
-- Export `getCachedExtinguisher(orgId: string, extinguisherId: string): Promise<Record<string, unknown> | null>`:
-  - Get from `cachedExtinguishers` by cacheKey
-- Export `getCachedWorkspace(orgId: string, workspaceId: string): Promise<Record<string, unknown> | null>`:
-  - Get from `cachedWorkspaces` by cacheKey
-- Export `clearOrgCache(orgId: string): Promise<void>`:
-  - Clear all cached data for the specified orgId from all cache stores
-  - Critical for org-switch isolation (spec: "offline caches must not mix records from multiple orgs")
-- Export `getCacheAge(orgId: string): Promise<number | null>`:
-  - Read last sync timestamp from `syncMeta` store, return age in ms
+**P7-09: Update Firestore security rules for guest access**
+- Modify `firestore.rules`:
+  - Add `isGuest(orgId)` helper function after `hasRole()`:
+    ```
+    function isGuest(orgId) {
+      return isMember(orgId) && memberData(orgId).role == 'guest';
+    }
+    ```
+  - Modify `match /org/{orgId}/members/{uid}` read rule: change from `allow read: if isMember(orgId);` to `allow read: if isMember(orgId) && !isGuest(orgId);` -- guests should NOT see the member list
+  - Modify `match /org/{orgId}/notifications/{notificationId}` read rule: change from `allow read: if isMember(orgId);` to `allow read: if isMember(orgId) && !isGuest(orgId);` -- guests should NOT see notifications
+  - Modify `match /org/{orgId}/reports/{reportId}` read rule: change from `allow read: if isMember(orgId);` to `allow read: if isMember(orgId) && !isGuest(orgId);` -- guests should NOT see reports
+  - Audit logs are already restricted to `hasRole(orgId, ['owner', 'admin'])` so guests are blocked automatically
+  - Add `'guestAccess'` to the blocked keys list in the org doc update rule (the `affectedKeys().hasAny([...])` array) -- prevents client-side tampering with guest access config
+  - NOTE: Guest reads on extinguishers, locations, workspaces, inspections, inspectionEvents are intentionally allowed (they pass `isMember(orgId)` because the guest has a member doc). This is the desired read-only view behavior.
 
-**P6-10: Hook caching into existing Firestore listeners**
-Modify `src/pages/WorkspaceDetail.tsx`:
-- In the existing `onSnapshot` callback for inspections (the `subscribeToInspections` effect), after setting state, also call `cacheInspectionsForWorkspace(orgId, workspaceId, inspections)` -- fire-and-forget (no await in the callback)
-- In the existing workspace `onSnapshot` callback, also call `cacheWorkspace(orgId, workspace)` -- fire-and-forget
-- Import functions from `offlineCacheService.ts`
-- This is the "cache on read" pattern: every time Firestore delivers data, we update the local cache
+### Subsystem D: Firestore Indexes
 
-**P6-11: Hook extinguisher caching into Inventory page**
-Modify `src/pages/Inventory.tsx`:
-- In the existing extinguisher subscription/fetch effect, after data arrives, call `cacheExtinguishersForWorkspace(orgId, extinguishers)` -- fire-and-forget
-- Import from `offlineCacheService.ts`
+**P7-10: Add Firestore indexes for guest access queries**
+- Modify `firestore.indexes.json`:
+  - Add collectionGroup index for the cleanup query:
+    ```json
+    {
+      "collectionGroup": "members",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "role", "order": "ASCENDING" },
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
+      ]
+    }
+    ```
+  - This supports the `collectionGroup('members').where('role', '==', 'guest').where('expiresAt', '<', now)` query in `cleanupExpiredGuests.ts`
 
-**P6-12: Hook location caching into Locations page**
-Modify `src/pages/Locations.tsx`:
-- In the existing location subscription effect, after data arrives, call `cacheLocations(orgId, locations)` -- fire-and-forget
-- Import from `offlineCacheService.ts`
+### Subsystem E: Guest Frontend Service & Context
 
-### Subsystem D: Offline-Aware Inspection UI
+**P7-11: Create guest service (frontend callable wrappers)**
+- Create `src/services/guestService.ts`:
+  - Import `httpsCallable` from `firebase/functions`, `functions` from `../lib/firebase.ts`
+  - Export `toggleGuestAccessCall(orgId: string, enabled: boolean, expiresAt: string): Promise<{ token?: string; shareCode?: string; expiresAt?: string; success?: boolean }>`:
+    - Calls `httpsCallable(functions, 'toggleGuestAccess')({ orgId, enabled, expiresAt })`
+  - Export `activateGuestSessionCall(params: { orgId: string; token: string } | { shareCode: string }): Promise<GuestActivationResult>`:
+    - Calls `httpsCallable(functions, 'activateGuestSession')(params)`
+  - Import `GuestActivationResult` from `../types/guest.ts`
 
-**P6-13: Make InspectionForm offline-aware**
-Modify `src/pages/InspectionForm.tsx`:
-- Import `useOffline` from `src/hooks/useOffline.ts`
-- Import `getCachedInspectionsForWorkspace` from `src/services/offlineCacheService.ts` (for fallback data load)
-- Call `const { isOnline } = useOffline()` in the component
-- In `handleSave()`:
-  - Replace direct `saveInspectionCall()` with `saveInspectionOfflineAware(orgId, inspectionId, data, isOnline)` from the updated `inspectionService.ts`
-  - Pass `extinguisherId` and `workspaceId` (already available from `inspection` state and URL params)
-  - On success when offline (queued): show success message "Inspection saved locally. It will sync when you're back online." instead of the normal success message
-  - On success when online (synced): show normal success message
-- In the `useEffect` data loading:
-  - If `getInspection()` fails (network error) and `!isOnline`, fall back to loading from IndexedDB cache via `getCachedInspectionsForWorkspace()` and find the matching inspection
-  - Show a small yellow banner at the top: "You are offline. Viewing cached data." when `!isOnline`
-- Do NOT modify the reset flow for offline (resets are admin-only and require online)
+**P7-12: Create GuestContext and GuestProvider**
+- Create `src/contexts/GuestContext.tsx`:
+  - Context value interface `GuestContextValue`:
+    - `isGuest: boolean`
+    - `guestOrg: Organization | null` (the org data)
+    - `guestMember: OrgMember | null` (the guest member doc)
+    - `guestOrgId: string | null`
+    - `expiresAt: Date | null`
+    - `loading: boolean`
+    - `error: string | null`
+    - `activateWithToken: (orgId: string, token: string) => Promise<void>`
+    - `activateWithCode: (shareCode: string) => Promise<void>`
+    - `signOut: () => Promise<void>`
+  - `GuestProvider` component:
+    - On `activateWithToken(orgId, token)`:
+      1. Call `signInAnonymously(auth)` from `firebase/auth`
+      2. Call `activateGuestSessionCall({ orgId, token })`
+      3. Store orgId and activation result in state
+      4. Subscribe to org doc `onSnapshot` for real-time org data
+      5. Subscribe to member doc `onSnapshot` for real-time guest member data
+    - On `activateWithCode(shareCode)`:
+      1. Call `signInAnonymously(auth)` from `firebase/auth`
+      2. Call `activateGuestSessionCall({ shareCode })`
+      3. Same subscription setup as token path
+    - On `signOut()`: call `auth.signOut()`, clear all state
+    - Detect guest member expiration: if `expiresAt < now`, show expired state, call `signOut()`
+    - Cleanup: unsubscribe from all listeners on unmount
 
-**P6-14: Make WorkspaceDetail fallback to cached data**
-Modify `src/pages/WorkspaceDetail.tsx`:
-- Import `useOffline` from `src/hooks/useOffline.ts`
-- Import cache getters from `offlineCacheService.ts`
-- In the workspace `onSnapshot`, add an error handler:
-  - If error occurs and `!isOnline`, load from `getCachedWorkspace(orgId, workspaceId)` and set state
-- In the inspections `subscribeToInspections`, add error handler:
-  - If error occurs and `!isOnline`, load from `getCachedInspectionsForWorkspace(orgId, workspaceId)` and set state
-- Show offline banner when `!isOnline`
+**P7-13: Create useGuest hook**
+- Create `src/hooks/useGuest.ts`:
+  - Export `useGuest()` that reads from `GuestContext`
+  - Throws if used outside `GuestProvider`
+  - Returns `GuestContextValue`
 
-### Subsystem E: Offline Status UI
+### Subsystem F: Guest Routing & Guards
 
-**P6-15: Create OfflineBanner component**
-Create `src/components/offline/OfflineBanner.tsx`:
-- Import `useOffline` from `src/hooks/useOffline.ts`
-- When `!isOnline`: render a fixed-top (or top of dashboard content area) yellow/amber banner:
-  - Icon: `WifiOff` from lucide-react
-  - Text: "You are offline. Changes will sync when connection returns."
-  - If `pendingCount > 0`: show "(X pending inspections)"
-- When `isOnline && isSyncing`: render a blue banner:
-  - Icon: `RefreshCw` (spinning) from lucide-react
-  - Text: "Syncing X inspection(s)..."
-- When `isOnline && pendingCount > 0 && !isSyncing`: render an amber banner:
-  - Text: "X inspection(s) pending sync."
-  - Button: "Sync Now" -- calls `forceSync()`
-- When `isOnline && pendingCount === 0`: render nothing
-- Use Tailwind for styling. Fixed position or sticky at top of content area.
+**P7-14: Create GuestRoute guard component**
+- Create `src/components/guards/GuestRoute.tsx`:
+  - Import `useGuest` from `src/hooks/useGuest.ts`
+  - If `loading`: show centered spinner
+  - If `error`: show error message with "Try Again" button
+  - If `!isGuest`: trigger the activation flow (redirect to code entry or show activation UI)
+  - If `isGuest` and valid: render `<Outlet />`
+  - Wrap children in the GuestContext-dependent rendering
 
-**P6-16: Create SyncStatusIndicator component for Sidebar**
-Create `src/components/offline/SyncStatusIndicator.tsx`:
-- Small indicator that shows in the sidebar footer area
-- When `isOnline && pendingCount === 0`: green dot + "Online"
-- When `isOnline && pendingCount > 0`: amber dot + "X pending"
-- When `!isOnline`: red dot + "Offline"
-- Import `useOffline` from `src/hooks/useOffline.ts`
+**P7-15: Create GuestLayout component**
+- Create `src/components/layout/GuestLayout.tsx`:
+  - Import `useGuest` from `src/hooks/useGuest.ts`
+  - Render a simplified layout:
+    - Top banner (yellow/amber): "Viewing [orgName] as Guest — Read Only" with expiration info ("Expires: [date]")
+    - Simplified left sidebar with only: Dashboard, Inventory, Locations, Workspaces nav items (no: Members, Settings, Notifications, Reports, Audit Logs, Sync Queue)
+    - Main content area: `<Outlet />`
+    - No create/edit/delete buttons anywhere
+    - Footer or sidebar footer: "Guest Access" badge
+  - Use Tailwind styling consistent with `DashboardLayout.tsx`
+  - Import nav icons from lucide-react: `LayoutDashboard`, `Package`, `MapPin`, `FolderOpen`
 
-**P6-17: Wire OfflineBanner into DashboardLayout**
-Modify `src/pages/DashboardLayout.tsx`:
-- Import `OfflineBanner` from `src/components/offline/OfflineBanner.tsx`
-- Render `<OfflineBanner />` at the top of the main content area (above `<Outlet />`)
+**P7-16: Add guest routes to router**
+- Modify `src/routes/index.tsx`:
+  - Import: `GuestCodeEntry` from `../pages/guest/GuestCodeEntry.tsx`
+  - Import: `GuestRoute` from `../components/guards/GuestRoute.tsx`
+  - Import: `GuestLayout` from `../components/layout/GuestLayout.tsx`
+  - Import guest pages: `GuestDashboard`, `GuestInventory`, `GuestLocations`, `GuestWorkspaces`, `GuestWorkspaceDetail`
+  - Add public route: `<Route path="/guest/code" element={<GuestCodeEntry />} />`
+  - Add guest route group:
+    ```tsx
+    <Route path="/guest/:orgId/:token" element={<GuestRoute />}>
+      <Route element={<GuestLayout />}>
+        <Route index element={<GuestDashboard />} />
+        <Route path="inventory" element={<GuestInventory />} />
+        <Route path="locations" element={<GuestLocations />} />
+        <Route path="workspaces" element={<GuestWorkspaces />} />
+        <Route path="workspaces/:workspaceId" element={<GuestWorkspaceDetail />} />
+      </Route>
+    </Route>
+    ```
+  - Wrap the guest route group with `<GuestProvider>` (or have `GuestRoute` handle provider injection)
 
-**P6-18: Wire SyncStatusIndicator into Sidebar**
-Modify `src/components/layout/Sidebar.tsx`:
-- Import `SyncStatusIndicator` from `src/components/offline/SyncStatusIndicator.tsx`
-- Render at the bottom of the sidebar (below the nav items list, in a footer area)
+**P7-17: Wire GuestProvider into App**
+- The GuestProvider should NOT wrap the entire app (it is independent from the regular auth flow). Instead, it wraps only guest routes. The `GuestRoute` guard component (P7-14) or the route definition (P7-16) should render `<GuestProvider>` around the guest route subtree.
+- If the implementation is cleaner, `GuestRoute` itself can render `<GuestProvider>` internally and auto-trigger activation based on URL params (`:orgId`, `:token`).
 
-### Subsystem F: Org Switch Cache Isolation
+### Subsystem G: Guest UI Pages
 
-**P6-19: Clear offline cache on org switch**
-Modify `src/contexts/OrgContext.tsx`:
-- Import `clearOrgCache`, `clearOrgQueue` from `src/services/offlineCacheService.ts` and `src/services/offlineSyncService.ts`
-- In the `switchOrg` function, before updating `activeOrgId` on the user doc:
-  - Call `await clearOrgCache(currentOrgId)` (clear cached data from the org being left)
-  - Call `await clearOrgQueue(currentOrgId)` only if the queue is empty (if there are pending items, warn the user -- but for v1, just process the queue first if online, or warn)
-  - Actually, for safety: check `getPendingCount(currentOrgId)`. If > 0 and online, process queue first. If > 0 and offline, throw an error / warn the user that they should sync before switching.
-- This ensures spec requirement: "offline caches must not mix records from multiple orgs"
+**P7-18: Create GuestCodeEntry page**
+- Create `src/pages/guest/GuestCodeEntry.tsx`:
+  - Public page (no auth required to view the form)
+  - UI: centered card with EX3 branding, title "Enter Guest Access Code"
+  - 6-character input field (uppercase, alphanumeric), auto-capitalize
+  - "View Organization" submit button
+  - On submit:
+    1. Call `signInAnonymously(auth)`
+    2. Call `activateGuestSessionCall({ shareCode })`
+    3. On success: redirect to `/guest/{orgId}/{token}` (use orgId from response, use shareCode as path param or a session marker)
+    4. On error: show error message (invalid code, expired, guest limit reached)
+  - Alternative: since share code activation returns orgId but not the raw token, the redirect could go to `/guest/{orgId}/code-session` and GuestRoute can detect that the session is already activated via the anonymous auth state + member doc listener
+  - Loading state while activating
 
-### Subsystem G: Sync Queue Admin View
+**P7-19: Create GuestDashboard page**
+- Create `src/pages/guest/GuestDashboard.tsx`:
+  - Import `useGuest` from `src/hooks/useGuest.ts`
+  - Read-only dashboard showing org stats:
+    - Total extinguishers count (query `org/{orgId}/extinguishers` where `deletedAt == null`, get count)
+    - Total locations count
+    - Compliance overview: compliant / due-soon / overdue counts (same queries as regular Dashboard but read-only)
+    - Total workspaces count
+  - No action buttons (no "Create Workspace", "Add Extinguisher", etc.)
+  - Title: "[OrgName] — Guest View"
 
-**P6-20: Create SyncQueue page**
-Create `src/pages/SyncQueue.tsx`:
-- Shows all queued inspection writes for the current org
-- Uses `getQueuedInspections(orgId)` from `offlineSyncService.ts`
-- Displays each queued item: inspectionId, assetId (if available), status, queuedAt (formatted), attempts, syncStatus, error message (if any)
-- Action buttons:
-  - "Sync Now" button (calls `forceSync()`) -- only enabled when online
-  - "Clear Synced" button (calls `clearSyncedItems(orgId)`) -- removes already-synced items from the queue display
-- Refresh data after sync or clear operations
-- Empty state: "No pending offline inspections."
-- Accessible to all roles (inspectors need to see their own queued items)
+**P7-20: Create GuestInventory page**
+- Create `src/pages/guest/GuestInventory.tsx`:
+  - Import `useGuest` from `src/hooks/useGuest.ts`
+  - Read-only extinguisher list, same data as regular Inventory page:
+    - Table with columns: Asset ID, Serial, Category, Location, Section, Compliance Status
+    - Pagination (reuse existing pattern from Inventory.tsx)
+    - Category/Location/Section/Compliance filter dropdowns (read-only filtering)
+  - No "Add Extinguisher", "Import CSV", "Export CSV", edit, or delete buttons
+  - Uses `orgId` from `useGuest()` for Firestore queries
 
-**P6-21: Add SyncQueue route and sidebar nav item**
-Modify `src/routes/index.tsx`:
-- Import `SyncQueue` from `src/pages/SyncQueue.tsx`
-- Add route `<Route path="sync-queue" element={<SyncQueue />} />` inside dashboard layout
+**P7-21: Create GuestLocations page**
+- Create `src/pages/guest/GuestLocations.tsx`:
+  - Read-only location hierarchy, same data as regular Locations page
+  - Tree view of locations with names and descriptions
+  - No create/edit/delete actions
+  - Uses `orgId` from `useGuest()` for Firestore queries
 
-Modify `src/components/layout/Sidebar.tsx`:
-- Add "Sync Queue" nav item with `RefreshCw` icon from lucide-react
-- Position after Notifications and before Reports
-- Show pending count badge (like notification bell) if `pendingCount > 0` -- import `useOffline`
+**P7-22: Create GuestWorkspaces page**
+- Create `src/pages/guest/GuestWorkspaces.tsx`:
+  - Read-only workspace list, same data as Workspaces page
+  - Table/cards with: workspace name, status (open/archived), creation date, inspection counts
+  - No "Create Workspace" or "Archive" actions
+  - Click to navigate to GuestWorkspaceDetail
 
-### Subsystem H: Conflict Detection
+**P7-23: Create GuestWorkspaceDetail page**
+- Create `src/pages/guest/GuestWorkspaceDetail.tsx`:
+  - Read-only workspace detail, same data as WorkspaceDetail page
+  - Shows workspace info: name, status, created date, description
+  - Inspection list with columns: Asset ID, Section, Status (pass/fail/pending), Inspector, Date
+  - No "Start Inspection", "Reset", "Generate Report" buttons
+  - Uses `orgId` from `useGuest()` and `workspaceId` from URL params
 
-**P6-22: Create conflict detection in sync engine**
-Modify `src/services/offlineSyncService.ts` -- enhance `processQueue()`:
-- When `saveInspectionCall()` fails with specific error codes, categorize:
-  - `'failed-precondition'` (workspace archived during offline): mark as `syncStatus: 'conflict'`, store `conflictReason: 'workspace_archived'`
-  - `'not-found'` (inspection or extinguisher deleted): mark as `syncStatus: 'conflict'`, store `conflictReason: 'entity_deleted'`
-  - `'permission-denied'`: mark as `syncStatus: 'conflict'`, store `conflictReason: 'permission_denied'`
-  - Network errors (fetch failed, timeout): leave as `syncStatus: 'failed'` for retry
-- Update `QueuedInspection` type in `offlineDb.ts` to add optional `conflictReason?: string`
-- Update `SyncQueue.tsx` to display conflict status with explanation and different color (red badge for conflicts vs amber for pending)
+### Subsystem H: OrgSettings Guest Access Section
+
+**P7-24: Add Guest Access section to OrgSettings page**
+- Modify `src/pages/OrgSettings.tsx`:
+  - Import: `Link2`, `Copy`, `Key`, `Calendar`, `ToggleLeft`, `ToggleRight` from lucide-react (as needed)
+  - Import: `toggleGuestAccessCall` from `../services/guestService.ts`
+  - Import: `GuestAccessConfig` from `../types/guest.ts`
+  - Add new state variables: `guestEnabled`, `guestExpiresAt`, `guestToken`, `guestShareCode`, `guestToggling`, `guestError`, `guestCopied`
+  - Sync guest state from `org.guestAccess` in the existing `useEffect` that syncs from org context
+  - Add a new card section **between the Subscription card and the Save button**:
+    - **When org has Elite/Enterprise plan (`org.featureFlags?.guestAccess === true`):**
+      - Card title: "Guest Access (Read-Only)"
+      - Description: "Allow external users to view your organization's data without creating an account."
+      - Toggle switch (checkbox styled as toggle): enables/disables guest access
+      - When enabled, show:
+        - Expiration date picker (date input, required)
+        - "Enable Guest Access" button (calls `toggleGuestAccessCall(orgId, true, expiresAt)`)
+        - After enabling, display:
+          - Share Link: `{window.location.origin}/guest/{orgId}/{token}` with Copy button
+          - Share Code: `{shareCode}` (large, monospace) with Copy button
+          - Expiration date display
+          - "Disable Guest Access" button (calls `toggleGuestAccessCall(orgId, false, '')`)
+      - When `org.guestAccess` already exists and is enabled, pre-populate the share link and code from the org doc
+    - **When org does NOT have Elite/Enterprise plan:**
+      - Locked card: "Guest Access (Read-Only)" with lock icon
+      - Text: "Guest Access is available on Elite and Enterprise plans."
+      - "Upgrade" link/button that scrolls to or highlights the plan selector
+    - Only visible to owner/admin (guard with `canEdit` which is already `hasRole(['owner', 'admin'])`)
 
 ### Subsystem I: Verification & Cleanup
 
-**P6-23: Enable Firestore offline persistence**
-Modify `src/lib/firebase.ts`:
-- Import `enableMultiTabIndexedDbPersistence` (or `enableIndexedDbPersistence`) from `firebase/firestore`
-- After `getFirestore()`, call `enableMultiTabIndexedDbPersistence(db).catch((err) => { console.warn('Firestore persistence failed:', err.code); })` -- this is Firebase's built-in offline cache for Firestore queries. It complements our custom IndexedDB queue by making Firestore reads work offline automatically.
-- Note: Firebase v12 may use `initializeFirestore` with `persistenceEnabled: true` instead. Check the actual API. If `enableMultiTabIndexedDbPersistence` is removed in v12, use `initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) })` instead.
-
-**P6-24: Verify TypeScript compilation and integration**
+**P7-25: Verify TypeScript compilation and integration**
 - Run `pnpm build` from project root -- verify zero frontend errors
+- Run `cd functions && npm run build` -- verify zero backend errors
 - Verify all new files compile without `any` types
-- Verify IndexedDB schema matches the type interfaces
-- Verify org-switch cache clearing works (trace the code path)
-- Verify the offline inspection save path: InspectionForm -> saveInspectionOfflineAware -> queueInspection -> processQueue -> saveInspectionCall
-- Verify the cache-on-read path: WorkspaceDetail onSnapshot -> cacheInspectionsForWorkspace
-- Verify the fallback-on-offline path: WorkspaceDetail error handler -> getCachedInspectionsForWorkspace
+- Verify the guest activation flow: GuestCodeEntry -> signInAnonymously -> activateGuestSession CF -> guest member doc created -> GuestContext subscribes to org + member docs -> GuestLayout renders
+- Verify the token activation flow: share link URL -> GuestRoute -> signInAnonymously -> activateGuestSession CF (token path) -> same downstream
+- Verify security rules: guests can read extinguishers, locations, workspaces, inspections; guests CANNOT read members, notifications, reports, audit logs; guests CANNOT write anything
+- Verify cleanup function: cleanupExpiredGuests queries by role + expiresAt using the new collectionGroup index
+- Verify OrgSettings: Guest Access card appears for Elite/Enterprise, locked card for Basic/Pro
 
 ---
 
 ## Task Order
 
-1. **P6-01** (install idb) -- no deps, npm install needed before IndexedDB code
-2. **P6-02** (IndexedDB schema) -- depends on P6-01
-3. **P6-03** (online/offline hook) -- no deps, standalone
-4. **P6-04** (OfflineContext) -- depends on P6-03, P6-02 (needs hook + DB for pending count)
-5. **P6-05** (useOffline hook) -- depends on P6-04
-6. **P6-06** (wire OfflineProvider into App) -- depends on P6-04
-7. **P6-07** (sync engine) -- depends on P6-02 (IndexedDB schema)
-8. **P6-08** (offline-aware inspection save) -- depends on P6-07
-9. **P6-09** (cache service) -- depends on P6-02
-10. **P6-10** (cache hook in WorkspaceDetail) -- depends on P6-09
-11. **P6-11** (cache hook in Inventory) -- depends on P6-09
-12. **P6-12** (cache hook in Locations) -- depends on P6-09
-13. **P6-13** (InspectionForm offline-aware) -- depends on P6-05, P6-08, P6-09
-14. **P6-14** (WorkspaceDetail fallback) -- depends on P6-05, P6-09
-15. **P6-15** (OfflineBanner) -- depends on P6-05
-16. **P6-16** (SyncStatusIndicator) -- depends on P6-05
-17. **P6-17** (wire banner into DashboardLayout) -- depends on P6-15
-18. **P6-18** (wire indicator into Sidebar) -- depends on P6-16
-19. **P6-19** (org switch cache isolation) -- depends on P6-07, P6-09
-20. **P6-20** (SyncQueue page) -- depends on P6-05, P6-07
-21. **P6-21** (SyncQueue route + sidebar) -- depends on P6-20
-22. **P6-22** (conflict detection) -- depends on P6-07, P6-20
-23. **P6-23** (Firestore offline persistence) -- no strict deps, but best done after IndexedDB work is validated
-24. **P6-24** (verification) -- must be last
+1. **P7-01** (add 'guest' to OrgRole + OrgMember) -- no deps, foundational type change
+2. **P7-02** (create GuestAccessConfig type) -- no deps, new file
+3. **P7-03** (add guestAccess to Organization + OrgFeatureFlags) -- depends on P7-02
+4. **P7-04** (add guestAccess to planConfig) -- no deps on frontend types
+5. **P7-05** (toggleGuestAccess CF) -- depends on P7-01, P7-04
+6. **P7-06** (activateGuestSession CF) -- depends on P7-01, P7-04
+7. **P7-07** (cleanupExpiredGuests CF) -- depends on P7-01
+8. **P7-08** (export guest functions) -- depends on P7-05, P7-06, P7-07
+9. **P7-09** (update Firestore security rules) -- depends on P7-01 (needs 'guest' role concept)
+10. **P7-10** (add Firestore indexes) -- no strict deps, but logically after P7-07
+11. **P7-11** (guest service frontend) -- depends on P7-02
+12. **P7-12** (GuestContext + GuestProvider) -- depends on P7-11, P7-01, P7-03
+13. **P7-13** (useGuest hook) -- depends on P7-12
+14. **P7-14** (GuestRoute guard) -- depends on P7-13
+15. **P7-15** (GuestLayout) -- depends on P7-13
+16. **P7-16** (add guest routes to router) -- depends on P7-14, P7-15, P7-18 through P7-23
+17. **P7-17** (wire GuestProvider into guest routes) -- depends on P7-12, P7-16
+18. **P7-18** (GuestCodeEntry page) -- depends on P7-11, P7-13
+19. **P7-19** (GuestDashboard page) -- depends on P7-13
+20. **P7-20** (GuestInventory page) -- depends on P7-13
+21. **P7-21** (GuestLocations page) -- depends on P7-13
+22. **P7-22** (GuestWorkspaces page) -- depends on P7-13
+23. **P7-23** (GuestWorkspaceDetail page) -- depends on P7-13
+24. **P7-24** (OrgSettings Guest Access section) -- depends on P7-03, P7-11
+25. **P7-25** (verification) -- must be last, depends on all prior tasks
 
-Rationale: Install dep first. Build the foundation layer (IndexedDB schema, online detection, context) before consumers. Build the sync engine and cache service as the core offline infrastructure. Then wire into existing pages (InspectionForm, WorkspaceDetail, Inventory, Locations). Then build UI indicators (banner, sidebar status). Then handle org isolation and admin view. Finally, enable Firestore persistence and verify everything compiles.
+Rationale: Build types first (P7-01 through P7-04) since everything depends on them. Build backend Cloud Functions next (P7-05 through P7-08) since the frontend needs callable endpoints. Update security rules and indexes (P7-09, P7-10) in parallel with backend. Build frontend service and context layer (P7-11 through P7-13). Build route guards and layout (P7-14, P7-15). Build all guest pages (P7-18 through P7-23) which can be done in parallel. Wire routes (P7-16, P7-17). Add OrgSettings section (P7-24). Verify everything compiles (P7-25).
+
+**Parallelization opportunities for build-agent:**
+- P7-01, P7-02, P7-04 can all be done in parallel (no interdependencies)
+- P7-05, P7-06, P7-07 can be done in parallel after types are in place
+- P7-09, P7-10 can be done in parallel with backend CFs
+- P7-19, P7-20, P7-21, P7-22, P7-23 can all be done in parallel after P7-13
+- P7-24 can be done in parallel with guest pages
 
 ---
 
@@ -362,109 +440,117 @@ Rationale: Install dep first. Build the foundation layer (IndexedDB schema, onli
 
 | Task | Depends On |
 |------|-----------|
-| P6-01 | None |
-| P6-02 | P6-01 |
-| P6-03 | None |
-| P6-04 | P6-02, P6-03 |
-| P6-05 | P6-04 |
-| P6-06 | P6-04 |
-| P6-07 | P6-02 |
-| P6-08 | P6-07 |
-| P6-09 | P6-02 |
-| P6-10 | P6-09 |
-| P6-11 | P6-09 |
-| P6-12 | P6-09 |
-| P6-13 | P6-05, P6-08, P6-09 |
-| P6-14 | P6-05, P6-09 |
-| P6-15 | P6-05 |
-| P6-16 | P6-05 |
-| P6-17 | P6-15 |
-| P6-18 | P6-16 |
-| P6-19 | P6-07, P6-09 |
-| P6-20 | P6-05, P6-07 |
-| P6-21 | P6-20 |
-| P6-22 | P6-07, P6-20 |
-| P6-23 | None (but best after P6-02) |
-| P6-24 | All prior tasks |
+| P7-01 | None |
+| P7-02 | None |
+| P7-03 | P7-02 |
+| P7-04 | None |
+| P7-05 | P7-01, P7-04 |
+| P7-06 | P7-01, P7-04 |
+| P7-07 | P7-01 |
+| P7-08 | P7-05, P7-06, P7-07 |
+| P7-09 | P7-01 |
+| P7-10 | None (logically after P7-07) |
+| P7-11 | P7-02 |
+| P7-12 | P7-01, P7-03, P7-11 |
+| P7-13 | P7-12 |
+| P7-14 | P7-13 |
+| P7-15 | P7-13 |
+| P7-16 | P7-14, P7-15, P7-18-P7-23 |
+| P7-17 | P7-12, P7-16 |
+| P7-18 | P7-11, P7-13 |
+| P7-19 | P7-13 |
+| P7-20 | P7-13 |
+| P7-21 | P7-13 |
+| P7-22 | P7-13 |
+| P7-23 | P7-13 |
+| P7-24 | P7-03, P7-11 |
+| P7-25 | All prior tasks |
 
 ---
 
 ## Blockers or Risks
 
-1. **Firebase SDK offline persistence API**: Firebase v12 may have changed the offline persistence API. The older `enableMultiTabIndexedDbPersistence()` was deprecated in favor of `initializeFirestore()` with `localCache` option. The build-agent must check the actual `firebase@12.10.0` API. If the old API is gone, use `initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) })` and update `src/lib/firebase.ts` accordingly (replacing `getFirestore(app)` with `initializeFirestore()`).
+1. **Firebase Anonymous Auth must be enabled**: The Firebase project must have Anonymous Auth enabled in the Firebase Console (Authentication > Sign-in method > Anonymous). If not enabled, `signInAnonymously()` will throw. The build-agent cannot enable this programmatically -- it must be noted for manual configuration.
 
-2. **IndexedDB storage limits**: Browsers typically allow 50-100MB per origin for IndexedDB. For most orgs (up to 500 extinguishers), cached data will be well under 5MB. Not a concern for v1.
+2. **Share code query requires Firestore index**: The `activateGuestSession` CF queries org-level docs by `guestAccess.shareCode` and `guestAccess.enabled`. Firestore may require a composite index for this. If the query fails at runtime, create the index via the link in the error message or add it to `firestore.indexes.json`. This is an org-level (top-level collection) query, not a subcollection query, so it should work without a composite index if `shareCode` is indexed automatically.
 
-3. **Firestore onSnapshot error handling during offline**: When the device goes offline, Firestore `onSnapshot` listeners continue using cached data if persistence is enabled. But if persistence is NOT enabled, listeners may fire errors. P6-23 (enabling Firestore persistence) should be done early in the build to prevent issues during testing. However, in the task ordering it's near the end. The build-agent should consider doing P6-23 right after P6-02 if they encounter issues with Firestore listeners failing during offline testing.
+3. **Anonymous UID persistence**: Firebase anonymous auth creates a persistent UID per device/browser. If a guest clears browser data or uses incognito, they get a new UID. This means a new guest member doc is created each time. The cleanup function handles expired docs, and the 100-guest cap prevents abuse. Not a problem for v1.
 
-4. **Service Worker**: The spec mentions "service worker" in the build order description, but the actual 17-OFFLINE-SYNC.md spec does not require a service worker. The offline system works via IndexedDB caching + write queue + online/offline detection, which does NOT require a service worker. A service worker would be needed for full PWA (caching static assets for app-shell offline), which is listed as "optional/future-ready" in the build instructions. For Phase 6, we skip the service worker and focus on data-level offline support. A service worker + PWA manifest can be added in a future hardening phase.
+4. **Token exposure in URL**: The share link contains the raw token in the URL path (`/guest/:orgId/:token`). This is acceptable for the intended use case (shared via email/chat to trusted parties). The token is long (64 hex chars) and unguessable. For extra security, the token has an expiration date. A future enhancement could add one-time-use tokens.
 
-5. **Sync ordering**: Queued inspections are processed in `queuedAt ASC` order. If two inspections for the same extinguisher are queued, the second one will use stale lifecycle data from the first. This is acceptable because the `saveInspection` CF always recalculates lifecycle on every save. The server-side lifecycle calc uses server timestamps, so ordering is correct.
+5. **Guest member doc and existing isMember() rule**: The existing `isMember(orgId)` rule checks `memberExists(orgId) && memberData(orgId).status == 'active'`. Guest member docs will have `status: 'active'`, so they pass this check. This is the intended behavior -- it means guest read access works without rewriting any existing rules. The `isGuest()` helper is only needed to BLOCK guest access on specific subcollections (members, notifications, reports).
 
-6. **Cross-tab sync**: If the user has the app open in multiple tabs, IndexedDB operations in one tab won't automatically update state in another. For v1, this is acceptable. The pending count poll (every 5s in OfflineContext) will eventually catch up. A future enhancement could use `BroadcastChannel` API for cross-tab coordination.
+6. **Existing write rules already block guests**: All write rules use `hasRole(orgId, ['owner', 'admin'])` or `hasRole(orgId, ['owner', 'admin', 'inspector'])`. Since `'guest'` is not in any of these role lists, guests cannot write anything. No write rule changes needed.
 
-7. **Org switch with pending queue**: If a user switches orgs while having pending inspections, the queue must be processed first (if online) or the switch must be blocked (if offline with pending items). P6-19 handles this. The UX needs to be clear about why the switch is blocked.
+7. **GuestContext vs AuthContext/OrgContext isolation**: The guest flow uses a completely separate context (GuestContext) from the regular auth flow (AuthContext + OrgContext). This prevents contamination between guest sessions and regular user sessions. If a logged-in user visits a guest link, the guest route should either prompt them to use their regular access or proceed with guest mode. For v1, guest routes always use anonymous auth regardless of existing auth state.
 
-8. **Type alignment for cached data**: Cached data in IndexedDB uses `Record<string, unknown>` to avoid coupling the cache schema to the Firestore document types too tightly. When reading cached data for offline fallback, the consumer must cast to the expected type. This is a pragmatic tradeoff -- the alternative (storing fully typed objects) would require updating the IndexedDB schema every time a Firestore document type changes. The `Record<string, unknown>` + cast approach means cached data survives minor type changes gracefully.
+8. **collectionGroup('members') index for cleanup**: The cleanup function uses `collectionGroup('members')` which queries across ALL orgs. This is a cross-org query performed by a Cloud Function using the Admin SDK, so it bypasses security rules. This is acceptable because it only reads/deletes guest member docs with expired timestamps.
+
+9. **OrgSettings guest access config visibility**: The `org.guestAccess.token` (raw token) is stored on the org doc. Since guests can read the org doc (via `isMember(orgId)`), a guest could technically read the raw token. This is not a security issue because: (a) the guest already has access via the token, and (b) the token only grants the same level of access the guest already has. If this is a concern in the future, the token could be stored in a separate admin-only subcollection.
 
 ---
 
 ## Definition of Done
 
-Phase 6 is complete when ALL of the following are true:
+Phase 7 is complete when ALL of the following are true:
 
-1. **idb installed**: `package.json` includes `idb`, `pnpm build` works.
-2. **IndexedDB schema**: `src/lib/offlineDb.ts` defines the database, 5 object stores, typed interfaces, and a `getOfflineDb()` singleton.
-3. **Online/offline detection**: `useOnlineStatus` hook accurately tracks `navigator.onLine` + event listeners.
-4. **OfflineContext**: `OfflineProvider` manages offline state, pending count, sync status, and exposes `forceSync`.
-5. **useOffline hook**: Provides access to offline context from any component.
-6. **OfflineProvider wired**: `App.tsx` wraps the app with `OfflineProvider` inside the auth/org providers.
-7. **Sync engine**: `offlineSyncService.ts` can queue inspections, process the queue (calling `saveInspectionCall` per item), track sync status, and handle errors.
-8. **Offline-aware inspection save**: `saveInspectionOfflineAware` tries online first, falls back to queue on failure.
-9. **Cache service**: `offlineCacheService.ts` can write/read extinguishers, inspections, workspaces, locations to/from IndexedDB, and clear per-org.
-10. **Cache-on-read**: WorkspaceDetail, Inventory, and Locations pages cache data on every Firestore snapshot.
-11. **InspectionForm offline**: Can save inspections while offline (queued), shows appropriate success message, falls back to cached data for read.
-12. **WorkspaceDetail fallback**: Falls back to cached inspections/workspace when offline.
-13. **OfflineBanner**: Shows offline/syncing/pending banners at top of dashboard content.
-14. **SyncStatusIndicator**: Shows online/offline/pending status in sidebar.
-15. **Org switch isolation**: Clears offline cache and queue when switching orgs.
-16. **SyncQueue page**: `/dashboard/sync-queue` shows all queued inspections with sync/clear actions.
-17. **Conflict detection**: Sync engine categorizes errors (workspace archived, entity deleted, permission denied) as conflicts.
-18. **Firestore persistence**: Firebase Firestore has offline persistence enabled.
-19. **TypeScript compiles clean**: `pnpm build` from project root compiles with zero errors.
-20. **No `any` types**: All new code uses proper TypeScript types.
+1. **OrgRole includes 'guest'**: Both frontend (`src/types/member.ts`) and backend (`functions/src/utils/membership.ts`) OrgRole types include `'guest'`.
+2. **OrgMember has guest fields**: `isGuest?: boolean` and `expiresAt?: Timestamp | null` on `OrgMember`.
+3. **GuestAccessConfig type exists**: `src/types/guest.ts` exports `GuestAccessConfig` and `GuestActivationResult`.
+4. **Organization type updated**: `OrgFeatureFlags` has `guestAccess: boolean`, `Organization` has `guestAccess?: GuestAccessConfig | null`.
+5. **planConfig gated**: `guestAccess: false` for basic/pro, `true` for elite/enterprise.
+6. **toggleGuestAccess CF**: Owner/admin can enable (generates token + code) and disable (deletes all guest members) guest access. Validates Elite+ plan.
+7. **activateGuestSession CF**: Anonymous user can activate via token or share code. Creates guest member doc. Enforces expiration and 100-guest cap.
+8. **cleanupExpiredGuests CF**: Hourly scheduled function deletes expired guest member docs and auto-disables expired guest access on org docs.
+9. **Guest functions exported**: All 3 functions exported from `functions/src/index.ts`.
+10. **Security rules updated**: `isGuest()` helper added; guests blocked from members, notifications, reports reads; `guestAccess` added to blocked org update keys.
+11. **Firestore index added**: collectionGroup index on members for `role + expiresAt`.
+12. **Guest service**: `src/services/guestService.ts` wraps toggle and activate callables.
+13. **GuestContext**: Manages anonymous sign-in, activation, org/member subscriptions, expiration detection, sign-out.
+14. **useGuest hook**: Provides access to GuestContext.
+15. **GuestRoute guard**: Triggers activation flow, shows loading/error, renders outlet when active.
+16. **GuestLayout**: Stripped-down layout with read-only banner, simplified sidebar (Dashboard/Inventory/Locations/Workspaces only), expiration info.
+17. **Guest routes**: `/guest/:orgId/:token` (with nested pages), `/guest/code` (code entry).
+18. **GuestCodeEntry page**: Public page to enter 6-char code, activates and redirects.
+19. **GuestDashboard**: Read-only dashboard stats.
+20. **GuestInventory**: Read-only extinguisher list with filters.
+21. **GuestLocations**: Read-only location hierarchy.
+22. **GuestWorkspaces**: Read-only workspace list.
+23. **GuestWorkspaceDetail**: Read-only workspace + inspection list.
+24. **OrgSettings Guest Access section**: Toggle, date picker, share link/code display, copy buttons for Elite+; locked card for lower plans.
+25. **TypeScript compiles clean**: Both `pnpm build` and `cd functions && npm run build` pass with zero errors.
+26. **No `any` types**: All new code uses proper TypeScript types.
 
 ---
 
 ## Handoff to build-agent
 
-**Start with P6-01** (install idb). This is a quick pnpm install that unblocks IndexedDB code.
+**Start with P7-01, P7-02, and P7-04 in parallel.** These are independent type/config changes that unblock everything else.
 
 **Key context:**
 
-- **No service worker needed for this phase**: The offline system is data-layer only (IndexedDB + write queue + online detection). PWA/service worker is a future enhancement.
+- **Anonymous auth**: Use `signInAnonymously(auth)` from `firebase/auth`. Returns a `UserCredential` with a real UID. Firebase project must have Anonymous Auth enabled in the console.
 
-- **Firebase v12 persistence API**: Check if `enableMultiTabIndexedDbPersistence` still exists in `firebase@12.10.0`. If not, use `initializeFirestore()` with `localCache: persistentLocalCache(...)`. See the Firebase docs for the v12 API.
+- **Token generation**: Use Node.js `crypto` module (available in Cloud Functions): `crypto.randomBytes(32).toString('hex')` for the 64-char token, `crypto.createHash('sha256').update(token).digest('hex')` for the hash, `crypto.randomBytes(3).toString('hex').toUpperCase()` for the 6-char share code.
 
-- **idb package**: Use `idb` (not `idb-keyval`). Import `openDB` from `idb`. It provides a clean Promise-based API over IndexedDB. Types are built-in.
+- **Existing isMember() is the key insight**: Guest member docs with `status: 'active'` and `role: 'guest'` automatically pass the existing `isMember(orgId)` check in Firestore rules. This means ALL existing read rules work for guests without modification. The only changes needed are BLOCKING guest reads on sensitive collections (members, notifications, reports) via the new `isGuest()` helper.
 
-- **saveInspectionCall is the online path**: The existing `saveInspectionCall` in `inspectionService.ts` calls `httpsCallable` which requires network. The new `saveInspectionOfflineAware` wrapper tries this first, then falls back to queuing in IndexedDB.
+- **Existing write rules already block guests**: Every write rule uses `hasRole(orgId, ['owner', 'admin'])` or includes `'inspector'`. None include `'guest'`. So guests cannot write anything. No write rule changes needed.
 
-- **ChecklistData type**: Already exported from `src/services/inspectionService.ts`. Reuse it in the queue record type.
+- **validateMembership blocks guests from privileged CFs**: All existing Cloud Functions call `validateMembership(orgId, uid, ['owner', 'admin'])` or similar. Since `'guest'` is never in the required roles arrays, guests are automatically blocked from all existing Cloud Functions. No CF changes needed except the 3 new guest functions.
 
-- **Org isolation is critical**: The spec says "offline caches must not mix records from multiple orgs". The `clearOrgCache()` + `clearOrgQueue()` on org switch (P6-19) enforces this. Every IndexedDB record includes `orgId` and all queries filter by `orgId`.
+- **Guest pages are read-only clones**: The guest pages (Dashboard, Inventory, Locations, Workspaces, WorkspaceDetail) are simplified read-only versions of existing pages. They use the same Firestore queries but omit all create/edit/delete UI. Use `orgId` from `useGuest()` instead of `useOrg()`. Do NOT reuse the existing page components directly (they have edit controls and depend on OrgContext which is not available in guest routes).
 
-- **Cache-on-read pattern**: We do NOT proactively fetch all data for caching. Instead, we cache data as the user views it via existing Firestore `onSnapshot` listeners. This means only recently-viewed data is available offline. This is the simplest approach for v1.
+- **OrgSettings placement**: The Guest Access card goes between the Subscription card and the Save button. Check `src/pages/OrgSettings.tsx` for the exact JSX insertion point.
 
-- **InspectionForm loads data via `getInspection()`**: This is a one-time `getDoc()` call, not a real-time listener. When offline with Firestore persistence enabled (P6-23), `getDoc()` should still work from the Firestore cache. The custom IndexedDB cache (P6-13 fallback) is a safety net for cases where Firestore persistence is not available.
+- **Share link format**: `${window.location.origin}/guest/${orgId}/${token}` -- the token is the raw 64-char hex token, not the hash.
 
-- **Package manager is pnpm**: Use `pnpm add idb`, not `npm install`.
-
-- **Store directory is empty**: `src/store/` exists but is empty. We are NOT using it. Offline state is managed via Context + IndexedDB services.
+- **Package manager is pnpm**: Use `pnpm` for any installs. No new dependencies needed for Phase 7 (crypto is built into Node.js, signInAnonymously is in the existing firebase SDK).
 
 **Warnings from lessons-learned:**
-- When the backend creates or modifies a document shape, always update the corresponding frontend TypeScript interface to match EXACTLY.
-- Never call `DocumentReference.update()` without first confirming the document exists.
+- When the backend creates or modifies a document shape, always update the corresponding frontend TypeScript interface to match EXACTLY. (Relevant: guest member docs have `isGuest` and `expiresAt` fields not on the standard OrgMember -- P7-01 adds these.)
+- Never call `DocumentReference.update()` without first confirming the document exists. (Relevant: toggleGuestAccess disabling should batch-delete guest docs, not update them.)
 - Do NOT use `any` types. TypeScript strict mode is enforced.
 - Always include `built_by_Beck` in commit messages.
-- Always check installed package version against docs before writing code against it (lesson from pdfmake v0.3.x).
+- Always check installed package version against docs before writing code against it.
+- Always use explicit parentheses when mixing `||` and `&&` in boolean expressions.

@@ -21,6 +21,14 @@ import AuditLogs from '../pages/AuditLogs.tsx';
 import NotFound from '../pages/NotFound.tsx';
 import { ProtectedRoute } from '../components/guards/ProtectedRoute.tsx';
 import { RootRedirect } from '../components/guards/RootRedirect.tsx';
+import { GuestRoute } from '../components/guards/GuestRoute.tsx';
+import { GuestLayout } from '../components/layout/GuestLayout.tsx';
+import GuestCodeEntry from '../pages/guest/GuestCodeEntry.tsx';
+import GuestDashboard from '../pages/guest/GuestDashboard.tsx';
+import GuestInventory from '../pages/guest/GuestInventory.tsx';
+import GuestLocations from '../pages/guest/GuestLocations.tsx';
+import GuestWorkspaces from '../pages/guest/GuestWorkspaces.tsx';
+import GuestWorkspaceDetail from '../pages/guest/GuestWorkspaceDetail.tsx';
 
 export function AppRoutes() {
   return (
@@ -33,6 +41,21 @@ export function AppRoutes() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
       <Route path="/create-org" element={<CreateOrg />} />
+
+      {/* Guest routes — public share link entry */}
+      <Route path="/guest/code" element={<GuestCodeEntry />} />
+
+      {/* Guest routes — token-based share link
+          GuestRoute wraps with GuestProvider and auto-activates from :orgId + :token */}
+      <Route path="/guest/:orgId/:token" element={<GuestRoute />}>
+        <Route element={<GuestLayout />}>
+          <Route index element={<GuestDashboard />} />
+          <Route path="inventory" element={<GuestInventory />} />
+          <Route path="locations" element={<GuestLocations />} />
+          <Route path="workspaces" element={<GuestWorkspaces />} />
+          <Route path="workspaces/:workspaceId" element={<GuestWorkspaceDetail />} />
+        </Route>
+      </Route>
 
       {/* Protected dashboard routes */}
       <Route element={<ProtectedRoute />}>

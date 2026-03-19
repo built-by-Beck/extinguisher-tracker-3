@@ -26,6 +26,10 @@ service cloud.firestore {
       return isMember(orgId) && memberData(orgId).role in roles;
     }
 
+    function isGuest(orgId) {
+      return isMember(orgId) && memberData(orgId).role == 'guest';
+    }
+
     function orgDoc(orgId) {
       return /databases/$(database)/documents/org/$(orgId);
     }
@@ -64,13 +68,14 @@ service cloud.firestore {
           'ownerUid',
           'createdBy',
           'createdAt',
-          'deletedAt'
+          'deletedAt',
+          'guestAccess'
         ]);
 
       allow create, delete: if false;
 
       match /members/{uid} {
-        allow read: if isMember(orgId);
+        allow read: if isMember(orgId) && !isGuest(orgId);
         allow write: if false;
       }
 
@@ -124,13 +129,13 @@ service cloud.firestore {
       }
 
       match /notifications/{notificationId} {
-        allow read: if isMember(orgId);
+        allow read: if isMember(orgId) && !isGuest(orgId);
         allow create, update: if false;
         allow delete: if false;
       }
 
       match /reports/{reportId} {
-        allow read: if isMember(orgId);
+        allow read: if isMember(orgId) && !isGuest(orgId);
         allow write: if false;
       }
 

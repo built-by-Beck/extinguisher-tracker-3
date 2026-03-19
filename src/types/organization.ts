@@ -1,4 +1,5 @@
 import type { Timestamp } from 'firebase/firestore';
+import type { GuestAccessConfig } from './guest.ts';
 
 /**
  * Cached feature flags derived from the organization's plan.
@@ -15,6 +16,8 @@ export interface OrgFeatureFlags {
   tagPrinting: boolean;
   bulkTagPrinting: boolean;
   inspectionRoutes: boolean;
+  /** Elite/Enterprise: Allow anonymous read-only guest access via share link or code */
+  guestAccess: boolean;
 }
 
 /**
@@ -56,4 +59,7 @@ export interface Organization {
 
   // Organization settings
   settings: OrgSettings;
+
+  // Guest access configuration (Elite/Enterprise only, null when disabled)
+  guestAccess?: GuestAccessConfig | null;
 }

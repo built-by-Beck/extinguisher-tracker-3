@@ -54,3 +54,8 @@ export { overdueDetectionJob } from './notifications/detectOverdue.js';
 
 // Reports
 export { generateReport } from './reports/generateReport.js';
+
+// Guest access
+export { toggleGuestAccess } from './guest/toggleGuestAccess.js';
+export { activateGuestSession } from './guest/activateGuestSession.js';
+export { cleanupExpiredGuestsJob } from './guest/cleanupExpiredGuests.js';

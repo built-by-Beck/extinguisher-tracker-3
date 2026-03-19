@@ -44,8 +44,32 @@ Each entry follows this structure:
 - **Resolution**: Added explicit parentheses: `a || (b && c)`.
 - **Rule**: Always use explicit parentheses when mixing `||` and `&&` in the same expression. Never rely on implicit operator precedence for mixed boolean operators.
 
+### 2026-03-18 -- Adding a value to a union type in TypeScript requires updating ALL Record<UnionType, ...> usages
+- **Context**: Phase 7, adding 'guest' to OrgRole union type
+- **Issue**: After adding `'guest'` to `OrgRole`, TypeScript reported errors in `src/components/members/MemberRow.tsx` because `roleBadgeStyles: Record<OrgRole, string>` and `roleIcons: Record<OrgRole, ...>` were missing the 'guest' key. TypeScript's `Record<K, V>` requires ALL union members to be present.
+- **Resolution**: Added `guest: 'bg-orange-100 text-orange-700'` to `roleBadgeStyles` and `guest: Eye` to `roleIcons`.
+- **Rule**: When extending a union type (e.g., adding a new role), search the codebase for `Record<TheUnionType,` and update every such record to include the new union member. Also search for switch/if chains that enumerate the union values.
+
 ### 2026-03-18 -- Frontend Extinguisher type diverged from backend writes
 - **Context**: Phase 4 review of the replacementHistory field on the Extinguisher interface
 - **Issue**: The frontend `Extinguisher` interface defined `replacementHistory` with one field structure (`date, oldAssetId, oldSerial, newAssetId, newSerial, ...`) while the backend `replaceExtinguisher.ts` actually writes a completely different structure (`replacedExtId, replacedAssetId, replacedAt, replacedBy, replacedByEmail, reason`). Also missing retirement tracking fields.
 - **Resolution**: Updated frontend type to match actual backend writes. Added `retiredAt`, `retiredBy`, `retirementReason` fields. Added `requiresSixYearMaintenance` and `hydroTestIntervalYears` to createExtinguisher.
 - **Rule**: When the backend creates or modifies a document shape, always update the corresponding frontend TypeScript interface to match EXACTLY. Do a side-by-side comparison of backend write fields vs frontend type fields.
+
+### 2026-03-18 -- React context state lost on navigation to a new Provider instance
+- **Context**: Phase 7 guest access code-session routing bug
+- **Issue**: `GuestCodeEntry` activated the session (signInAnonymously + activateGuestSessionCall), then navigated to `/guest/{orgId}/code-session`. But `GuestRoute` renders a NEW `GuestProvider`, so all activation state was lost. The `GuestRouteInner` then tried to re-activate with the literal token `'code-session'`, which failed.
+- **Resolution**: Added a `resumeSession(orgId)` method to `GuestContext` that checks the current anonymous auth user and reads their existing member doc to restore the session without calling the Cloud Function again. `GuestRouteInner` detects `token === 'code-session'` and uses `resumeSession` instead of `activateWithToken`.
+- **Rule**: When a multi-step flow navigates between routes that create fresh context provider instances, the state from the previous step is lost. Either persist activation state outside React (e.g., sessionStorage, URL params, or Firebase auth state) or provide a "resume" path that re-reads persisted data.
+
+### 2026-03-18 -- Route param segments must match in all navigation paths
+- **Context**: Phase 7 GuestLayout sidebar nav links
+- **Issue**: `GuestLayout` built `baseUrl` as `/guest/${orgId}` but the route was `/guest/:orgId/:token/*`, omitting the required `:token` segment. All sidebar navigation links silently 404'd.
+- **Resolution**: Extracted `:token` from `useParams` and included it in `baseUrl`.
+- **Rule**: When building navigation URLs for nested routes, always include ALL required route segments from `useParams`. Cross-check the URL pattern in the route definition against the constructed links.
+
+### 2026-03-18 -- Firestore batch operations have a 500-operation hard limit
+- **Context**: Phase 7 toggleGuestAccess disable path and cleanupExpiredGuests
+- **Issue**: Guest member doc deletions were added to a single Firestore batch without chunking. With the 100-guest cap this was unlikely to fail, but other batch operations (org cleanup) had no cap and could exceed 500.
+- **Resolution**: Added chunked batching (max 500 operations per batch) to all batch write paths.
+- **Rule**: ALWAYS chunk Firestore batch writes to 500 or fewer operations per batch. Never assume a query result set will be small enough to fit in one batch.
