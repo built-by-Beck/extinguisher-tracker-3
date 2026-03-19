@@ -1,6 +1,6 @@
 # EX3 Lessons Learned
 
-**Last Updated**: 2026-03-16
+**Last Updated**: 2026-03-18
 
 This file tracks lessons learned during development. The review-agent updates this after reviewing completed work. Build-agent and plan-agent should consult this before starting new tasks.
 
@@ -37,6 +37,12 @@ Each entry follows this structure:
 - **Issue**: The pdfmake v0.3.x API is fundamentally different from v0.2.x. v0.2.x used `new PdfPrinter(fonts)` + `createPdfKitDocument()` + stream piping. v0.3.x uses `new PdfMake()` + `addFonts()` + `createPdf()` + `getBuffer()` (Promise-based).
 - **Resolution**: Updated pdfGenerator.ts to use the v0.3.x API. Created custom type declarations in `functions/src/types/pdfmake.d.ts` since no `@types/pdfmake` package exists for v0.3.x.
 - **Rule**: Always check the installed package version against the docs before writing code against it. For packages without `@types/`, inspect the source or README to determine the actual API before writing a type declaration file.
+
+### 2026-03-18 -- Operator precedence ambiguity in boolean conditions
+- **Context**: Phase 6 review of `detectConflictReason()` in `offlineSyncService.ts`
+- **Issue**: The condition `a || b && c` evaluates correctly by JavaScript precedence rules (as `a || (b && c)`), but is ambiguous to human readers. Without explicit parentheses, a future developer or linter may misread the intent or introduce a bug when modifying the condition.
+- **Resolution**: Added explicit parentheses: `a || (b && c)`.
+- **Rule**: Always use explicit parentheses when mixing `||` and `&&` in the same expression. Never rely on implicit operator precedence for mixed boolean operators.
 
 ### 2026-03-18 -- Frontend Extinguisher type diverged from backend writes
 - **Context**: Phase 4 review of the replacementHistory field on the Extinguisher interface

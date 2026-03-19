@@ -8,14 +8,14 @@
 ## Current Phase
 
 **Phase 6 -- Offline Sync**
-Status: BUILT (24 tasks, P6-01 through P6-24) — awaiting review-agent
+Status: COMPLETE and REVIEWED (24 tasks, P6-01 through P6-24)
 
 Phase 1 (Foundation): Complete (28 tasks)
 Phase 2 (Core Operations & Billing): Complete (26 tasks)
 Phase 3 (Workspaces & Inspections): Complete
 Phase 4 (Reminders, Compliance, Lifecycle): Complete -- 25 tasks (P4-01 through P4-25)
 Phase 5 (Reports & Audit Logs): COMPLETE and REVIEWED -- 14 tasks (P5-01 through P5-14)
-Phase 6 (Offline Sync): PLANNED -- 24 tasks (P6-01 through P6-24)
+Phase 6 (Offline Sync): COMPLETE and REVIEWED -- 24 tasks (P6-01 through P6-24)
 
 **Pre-existing work discovered during planning (already done, no tasks needed):**
 - writeAuditLog utility already writes performedAt, entityType, entityId, performedByEmail
@@ -576,3 +576,69 @@ Phase 6 is built. Please review:
 6. **WorkspaceDetail cache-on-read**: Verify both workspace and inspections are cached on snapshot. Verify offline fallback effect has correct dependency array.
 7. **Firebase.ts persistence**: Confirm `initializeFirestore` with `persistentLocalCache` is called correctly and the emulator connection still works.
 8. **TypeScript compilation**: Both `pnpm build` and `cd functions && npm run build` verified zero errors by build-agent.
+
+---
+
+## Review Agent Summary (Phase 6 Review)
+
+**Reviewed by**: review-agent (Opus 4.6)
+**Date**: 2026-03-18
+**Verdict**: Phase 6 APPROVED with 1 code clarity fix
+
+### Review Methodology
+
+Read all 9 new files and 11 modified files listed in the Phase 6 build summary. Cross-referenced every task P6-01 through P6-24 against the plan. Checked for `any` types (zero found). Verified IndexedDB schema consistency, offline queue processing logic, org switch isolation, cache invalidation, and Firestore persistence setup. Confirmed TypeScript compilation passes for both frontend (`pnpm build`) and backend (`cd functions && npm run build`) with zero errors.
+
+### Issues Found and Fixed
+
+1. **CODE CLARITY FIX -- detectConflictReason() missing parentheses for operator precedence**
+   - In `offlineSyncService.ts`, the condition `lower.includes('failed-precondition') || lower.includes('workspace') && lower.includes('archive')` relies on `&&` binding tighter than `||` for correct behavior. While JavaScript evaluates this correctly by precedence rules, the lack of explicit parentheses makes the intent ambiguous to human readers and linters.
+   - Fixed: Added parentheses to make intent explicit: `lower.includes('failed-precondition') || (lower.includes('workspace') && lower.includes('archive'))`
+   - This is a clarity fix, not a behavior change -- the result is identical before and after.
+   - File: `src/services/offlineSyncService.ts`
+
+### What Passed Review (No Issues)
+
+- **P6-01 (idb install)**: `idb@^8.0.3` present in package.json. Build passes.
+- **P6-02 (IndexedDB schema)**: `offlineDb.ts` defines 6 stores with correct key paths and indexes. `inspectionQueue` uses `queueId` keyPath with indexes on `orgId`, `inspectionId`, `queuedAt`. Cache stores use compound `cacheKey` (e.g., `${orgId}_${extinguisherId}`). `cachedInspections` has compound index `by-orgId-workspaceId` using `['orgId', 'workspaceId']` array. All typed interfaces exported with no `any` types. `SyncMeta` store uses `key` keyPath. Singleton pattern with `dbPromise` is correct.
+- **P6-03 (useOnlineStatus)**: Correctly uses `navigator.onLine` for initial state, `window.addEventListener('online'/'offline')` with cleanup. Returns `{ isOnline, wasOffline }`.
+- **P6-04 (OfflineContext)**: Provides `isOnline`, `wasOffline`, `pendingCount`, `isSyncing`, `syncError`, `forceSync`. Uses `useAuth()` for `activeOrgId`. Polls pending count every 5s. Auto-syncs on offline-to-online transition using `prevIsOnlineRef`. Guard in `forceSync` prevents concurrent syncs.
+- **P6-05 (useOffline)**: Throws if used outside `OfflineProvider`. Returns `OfflineContextValue`.
+- **P6-06 (App.tsx)**: `OfflineProvider` correctly nested inside `OrgProvider` and `AuthProvider`.
+- **P6-07 (offlineSyncService)**: `queueInspection()` generates UUID, stores with `syncStatus: 'pending'`. `processQueue()` iterates by `queuedAt` ASC, marks `syncing` before attempt, categorizes errors as conflicts or retryable failures. `clearSyncedItems()` deletes only `synced` records. `clearOrgQueue()` deletes ALL records for the org. All functions use IndexedDB transactions correctly.
+- **P6-08 (saveInspectionOfflineAware)**: Tries online path first. On network error (fetch/network/offline keywords), falls through to queue. On server errors (permission denied, not-found), re-throws. Accepts `extinguisherId` and `workspaceId` params. Returns `{ synced, queueId }`.
+- **P6-09 (offlineCacheService)**: All cache write functions use transactions for batch writes. `clearOrgCache()` iterates all 4 cache stores and deletes by `orgId` index. `getCachedInspectionsForWorkspace()` uses the compound index correctly. `getCacheAge()` and `updateLastSyncTimestamp()` use `syncMeta` store.
+- **P6-10 (WorkspaceDetail cache-on-read)**: Workspace `onSnapshot` caches via `cacheWorkspace()` fire-and-forget. Inspections subscription caches via `cacheInspectionsForWorkspace()` fire-and-forget.
+- **P6-11 (Inventory cache)**: Caches extinguishers on every `subscribeToExtinguishers` callback, fire-and-forget.
+- **P6-12 (Locations cache)**: Caches locations on every `subscribeToLocations` callback, fire-and-forget.
+- **P6-13 (InspectionForm offline-aware)**: Uses `saveInspectionOfflineAware()` with correct params (`inspection.extinguisherId`, `inspection.workspaceId`). Shows "saved locally" message when queued. Falls back to IndexedDB cache on `getInspection()` failure when offline. Shows amber offline banner.
+- **P6-14 (WorkspaceDetail fallback)**: Workspace `onSnapshot` error handler loads from `getCachedWorkspace()` when offline. Separate `useEffect` loads inspections from cache when offline and `inspections.length === 0`. Shows offline banner.
+- **P6-15 (OfflineBanner)**: Three states: offline (amber + WifiOff + pending count), syncing (blue + spinning RefreshCw), pending (amber + "Sync Now" button). Returns null when online with no pending.
+- **P6-16 (SyncStatusIndicator)**: Green/amber/red dot with label. Correct for all three states.
+- **P6-17 (DashboardLayout)**: `<OfflineBanner />` rendered between Topbar and main content `<Outlet />`.
+- **P6-18 (Sidebar)**: `SyncStatusIndicator` in footer. Pending count badge on Sync Queue nav item. `RefreshCw` icon for Sync Queue.
+- **P6-19 (OrgContext org switch)**: Checks `getPendingCount()`. If pending, tries `processQueue()`. Re-checks count. If still pending, throws user-readable error. Clears `clearOrgCache()` and `clearOrgQueue()` before `updateDoc`. Both clear calls wrapped with `.catch(() => undefined)` to prevent orphan errors from blocking the switch.
+- **P6-20 (SyncQueue page)**: Shows all queued items with status badges (pending/syncing/synced/failed/conflict). "Sync Now" disabled when offline or syncing. "Clear Synced" only shown when synced items exist. Conflict reason labels. Empty state message.
+- **P6-21 (routes + sidebar)**: `/dashboard/sync-queue` route added. Sidebar nav item with `RefreshCw` icon positioned between Notifications and Reports.
+- **P6-22 (conflict detection)**: `detectConflictReason()` covers `failed-precondition` (workspace_archived), `not-found` (entity_deleted), `permission-denied` (permission_denied). Network errors fall through as retryable `failed`. `QueuedInspection` type includes optional `conflictReason`. SyncQueue displays conflict reasons in red.
+- **P6-23 (Firestore persistence)**: `initializeFirestore()` with `persistentLocalCache({ tabManager: persistentMultipleTabManager() })` is the correct Firebase v12 API. Emulator connection still uses `connectFirestoreEmulator(db, ...)` which works with `initializeFirestore`.
+- **P6-24 (verification)**: Both `pnpm build` (frontend) and `cd functions && npm run build` (backend) produce zero TypeScript errors. No `any` types found in any Phase 6 files.
+- **No `any` types**: Grep across all new Phase 6 files confirms zero `any` types.
+- **Multi-tenant isolation**: Every IndexedDB record includes `orgId`. All queries filter by `orgId`. `clearOrgCache()` clears all 4 stores by `orgId`. `clearOrgQueue()` clears the inspection queue by `orgId`. Org switch blocks when pending queue exists.
+- **No scope creep**: Everything built matches the plan. No extra features added.
+
+### Minor Observations (Not Bugs)
+
+1. **Chunk size warning**: The frontend build produces an 870KB chunk (up from 776KB in Phase 5). Code-splitting via lazy imports should be addressed in a future phase.
+
+2. **subscribeToInspections lacks error callback**: The `subscribeToInspections()` function in `inspectionService.ts` does not accept an error handler parameter, so WorkspaceDetail cannot catch `onSnapshot` errors for inspections. However, with Firestore persistence enabled (P6-23), `onSnapshot` serves cached data transparently when offline and does not fire errors. The separate `useEffect` fallback in WorkspaceDetail (lines 106-116) is a correct safety net for edge cases.
+
+3. **getCacheAge/updateLastSyncTimestamp exported but not called**: `offlineCacheService.ts` exports `getCacheAge()` and `updateLastSyncTimestamp()` but nothing calls them yet. These are useful infrastructure for future cache staleness detection. Not a bug.
+
+### Phase 7 Handoff Note for plan-agent
+
+Phase 6 is complete and reviewed. All 24 tasks verified. The remaining items on the build order are:
+- **Legal attestation** (terms of service, privacy policy, attestation workflows)
+- **Security hardening** (CSP headers, rate limiting, input sanitization, etc.)
+
+Recommended Phase 7 scope: **Legal attestation + Security hardening**. These are the final items in the build order before the application can be considered feature-complete for v1 launch.

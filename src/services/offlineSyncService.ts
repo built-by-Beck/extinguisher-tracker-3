@@ -110,7 +110,7 @@ export async function processQueue(
 function detectConflictReason(errorMessage: string): string | null {
   const lower = errorMessage.toLowerCase();
 
-  if (lower.includes('failed-precondition') || lower.includes('workspace') && lower.includes('archive')) {
+  if (lower.includes('failed-precondition') || (lower.includes('workspace') && lower.includes('archive'))) {
     return 'workspace_archived';
   }
   if (lower.includes('not-found') || lower.includes('not found')) {
