@@ -20,6 +20,12 @@ Each entry follows this structure:
 
 ## Entries
 
+### 2026-03-20 -- Reliable mobile barcode scanning
+- **Context**: Phase 10v2 replacing ZXing-based scanner with native BarcodeDetector + polyfill
+- **Issue**: Library-managed camera sessions caused wrong facing camera, double streams, and switch errors on mobile.
+- **Resolution**: Manage camera directly with `getUserMedia` (with constraint fallbacks), use `BarcodeDetector` (native or polyfill), poll at 100ms, draw overlay, stop on first hit, and fully stop tracks on teardown or switch.
+- **Rule**: Prefer native `BarcodeDetector` with direct camera management. Always set `playsinline`, retry `video.play()`, require HTTPS on iOS, and provide explicit error states.
+
 ### 2026-03-18 -- detectOverdue missed six-year and hydro queries
 - **Context**: Phase 4 review of the overdue detection scheduled function
 - **Issue**: `detectOverdue.ts` only queried `nextMonthlyInspection` and `nextAnnualInspection` for overdue extinguishers, completely missing `nextSixYearMaintenance` and `nextHydroTest`. This meant extinguishers overdue for six-year maintenance or hydro testing would never get their complianceStatus updated to 'overdue' by the scheduled job.

@@ -1,6 +1,6 @@
 # Plan -- extinguisher-tracker-3
 
-**Current Phase**: 10 -- Replace Barcode Scanner (html5-qrcode -> @zxing/browser)
+**Current Phase**: 10v2 -- Replace Barcode Scanner (@zxing/browser -> native BarcodeDetector API)
 **Last Updated**: 2026-03-20
 **Author**: built_by_Beck
 
@@ -8,51 +8,56 @@
 
 ## Current Objective
 
-Replace the broken barcode scanner implementation that uses `html5-qrcode` with the proven `@zxing/browser` + `BrowserMultiFormatReader` approach from the reference project (`/home/beck/projects/Fire_Extinguisher_Tracker/src/BarcodeScanner.jsx`).
+The Phase 10 build used the WRONG reference scanner. It adapted from `src/BarcodeScanner.jsx` (old ZXing version) instead of the ACTUAL working scanner at `src/components/BarcodeScanner.jsx` which uses the **native BarcodeDetector API** with `@undecaf/barcode-detector-polyfill` as fallback.
 
-The current scanner (`src/components/scanner/BarcodeScannerModal.tsx`) uses `html5-qrcode` which creates its own DOM elements and is not working correctly. The reference project uses a simple `<video>` element with `@zxing/browser`'s `decodeFromVideoDevice()` and is proven to work.
+The current `@zxing/browser` scanner has real-world failures on mobile:
+1. Shows front-facing camera instead of back camera
+2. Camera switch gives "video source" errors
+3. Double camera views appearing
+4. Generally broken camera management
+
+The reference scanner at `/home/beck/projects/Fire_Extinguisher_Tracker/src/components/BarcodeScanner.jsx` is proven to work. It uses a fundamentally different approach:
+- **BarcodeDetector API** (native browser API, backed by Google ML Kit on Android/Chrome) with `@undecaf/barcode-detector-polyfill` fallback
+- **Direct `getUserMedia` camera management** with smart constraint fallbacks (environment 1080p -> user 1080p -> any)
+- **`setInterval(100ms)` polling** via `detector.detect(video)` instead of ZXing's callback-based `decodeFromVideoDevice`
+- **Canvas overlay** for drawing detection boxes on detected barcodes
+- **iOS Safari quirks** handled: playsinline, webkit-playsinline, video.play() retry, black-frame re-init
+- **Camera switching** that actually works: stops current stream, requests opposite facingMode, restarts scanning
 
 ---
 
 ## Diagnosis
 
-### Why the current scanner is broken
+### Why @zxing/browser fails on mobile
 
-The `html5-qrcode` library:
-1. Creates its own internal DOM elements inside `#barcode-scanner-region` — fragile, hard to control
-2. Has complex state management (getState() returns numeric codes 2/3)
-3. Requires a 100ms setTimeout hack to let DOM mount before starting
-4. Stop/start lifecycle is error-prone (the `stopScanner` callback wraps everything in try/catch to swallow errors)
-5. Torch support uses `any` casts and unreliable API
+`@zxing/browser`'s `decodeFromVideoDevice()` manages its own `getUserMedia` call internally. The developer passes `undefined` as deviceId and hopes ZXing picks the right camera. On mobile, this frequently:
+- Selects the front camera instead of back
+- Opens a second video stream when switching cameras
+- Produces "video source" errors when trying to re-acquire the stream
+
+The reference scanner avoids ALL of this by calling `getUserMedia` directly with explicit `facingMode` constraints, giving full control over stream lifecycle.
 
 ### Why the reference scanner works
 
-The reference project (`BarcodeScanner.jsx`) uses `@zxing/browser`:
-1. Uses a standard `<video>` element with a React ref — no DOM generation
-2. `BrowserMultiFormatReader` + `decodeFromVideoDevice(null, videoRef.current, callback)` — simple API
-3. Camera permission requested explicitly via `navigator.mediaDevices.getUserMedia`
-4. Three clear states: loading (permission null), denied (permission false), scanning (permission true)
-5. Cleanup via `reader.reset()` — straightforward
-
-### What needs to change
-
-1. **Dependency swap**: Remove `html5-qrcode`, add `@zxing/browser` + `@zxing/library`
-2. **Rewrite `BarcodeScannerModal.tsx`**: Use `@zxing/browser` with `<video>` element approach
-3. **Preserve interface**: Keep `ScanResult { text, format }`, `BarcodeScannerModalProps { open, onClose, onScan }`, manual entry mode
-4. **No changes needed to consumers**: `ScanSearchBar.tsx`, `WorkspaceDetail.tsx`, `Dashboard.tsx`, `Inventory.tsx` all use the same interface
+1. **Direct stream management**: `navigator.mediaDevices.getUserMedia()` called directly with cascading constraint fallbacks
+2. **BarcodeDetector API**: Native browser API (Chrome/Android) with polyfill fallback -- no heavy ZXing library needed
+3. **Interval-based detection**: `detector.detect(video)` called every 100ms -- simple, reliable, no callback registration complexity
+4. **Explicit stream cleanup**: `stream.getTracks().forEach(track => track.stop())` -- no relying on library internals
+5. **iOS Safari handling**: playsinline attributes, video.play() retry, black-frame detection with auto re-init
+6. **Working camera switch**: Stops old stream completely, requests new stream with opposite facingMode, re-attaches to video element
 
 ---
 
 ## Tasks for This Round
 
-### P10-01: Swap npm dependencies
+### P10v2-01: Swap npm dependencies
 
-- Remove `html5-qrcode` from `package.json`
-- Add `@zxing/browser` and `@zxing/library`
+- Remove `@zxing/browser` and `@zxing/library` from `package.json`
+- Add `@undecaf/barcode-detector-polyfill`
 - Run `pnpm install`
-- Verify no other files import from `html5-qrcode`
+- Verify no other files import from `@zxing/browser` or `@zxing/library`
 
-### P10-02: Rewrite BarcodeScannerModal.tsx with @zxing/browser
+### P10v2-02: Rewrite BarcodeScannerModal.tsx with BarcodeDetector API
 
 **File**: `src/components/scanner/BarcodeScannerModal.tsx`
 
@@ -72,70 +77,129 @@ interface BarcodeScannerModalProps {
 export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeScannerModalProps)
 ```
 
-**Implementation approach (model on reference project):**
+**Implementation approach (model on reference scanner):**
 
-1. **State**: `error`, `manualMode`, `manualValue`, `hasPermission` (null = loading, true = granted, false = denied), `isScanning`
-2. **Refs**: `videoRef` (HTMLVideoElement), `readerRef` (BrowserMultiFormatReader instance)
-3. **Scanner lifecycle**:
-   - `initializeScanner()`:
-     - Request camera permission via `navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })`
-     - On success: set `hasPermission = true`, stop the test stream, create `new BrowserMultiFormatReader()`, call `startScanning(reader)`
-     - On error: set `hasPermission = false`, set appropriate error message
-   - `startScanning(reader)`:
-     - `reader.decodeFromVideoDevice(null, videoRef.current, (result, error) => { ... })`
-     - On result: extract `result.getText()` and `result.getBarcodeFormat()` (from `@zxing/library`), call `onScan({ text, format })`
-     - On error with name !== 'NotFoundException': log (ignore NotFoundException, that's normal per-frame miss)
-   - `stopScanner()`:
-     - If `readerRef.current` exists, call `.reset()`
-     - Set `isScanning = false`
-4. **useEffect**: When `open` changes to true and not in manualMode, call `initializeScanner()`. On cleanup or when `open` becomes false, call `stopScanner()`.
-5. **Important**: Use a `scannedRef` (boolean ref) to prevent multiple rapid-fire scan results. Once a scan is detected, set `scannedRef.current = true` and don't call `onScan` again. Reset it when the scanner starts.
-6. **Remove**: All `html5-qrcode` imports, `SCANNER_REGION_ID`, `SUPPORTED_FORMATS`, `Html5Qrcode` usage, torch logic, camera switching logic (simplify — @zxing picks the best camera automatically via `null` device ID)
+1. **Imports**: `BarcodeDetectorPolyfill` from `@undecaf/barcode-detector-polyfill`. Also `lucide-react` icons: `X`, `Camera`, `CameraOff`, `Keyboard`.
 
-**UI structure (preserve existing Tailwind styling):**
+2. **Type declarations**: The BarcodeDetector API is not in TypeScript's standard lib. Add a local type declaration at the top of the file (or a `.d.ts` file):
+   ```typescript
+   interface DetectedBarcode {
+     rawValue: string;
+     format: string;
+     boundingBox?: DOMRectReadOnly;
+     cornerPoints?: Array<{ x: number; y: number }>;
+   }
 
-- Keep the same modal container (fixed inset-0, bg-black/60, centered card)
-- Keep the same header with title + close button
-- **Camera mode**:
-  - `hasPermission === null`: Show spinner + "Requesting camera permission..."
-  - `hasPermission === false`: Show CameraOff icon + error message + "Try Again" button
-  - `hasPermission === true`: Show `<video ref={videoRef} autoPlay playsInline muted>` with scanning overlay
-- **Scanning overlay**: A red-bordered rectangle centered over the video (like the reference's `w-32 h-32 border-2 border-red-500 rounded-lg animate-pulse`). Adapt to the existing card style (use `border-red-500` to match EX3 branding).
-- **Instruction text**: "Point your camera at a barcode or QR code"
-- **Manual fallback button**: Keep the "Enter Manually" button below the video
-- **Manual mode**: Keep exactly as-is (input + Search button + Camera button to go back)
+   interface BarcodeDetectorInterface {
+     detect(source: HTMLVideoElement): Promise<DetectedBarcode[]>;
+   }
 
-### P10-03: Verify no other imports of html5-qrcode
+   interface BarcodeDetectorConstructor {
+     new (options?: { formats?: string[] }): BarcodeDetectorInterface;
+     getSupportedFormats?(): Promise<string[]>;
+   }
+   ```
+   Access native via `(window as any).BarcodeDetector` with fallback to `BarcodeDetectorPolyfill`.
 
-- Search codebase for any remaining `html5-qrcode` imports
-- If found, update them
-- Should only be in `BarcodeScannerModal.tsx` (already handled by P10-02)
+3. **State**: `error: string | null`, `manualMode: boolean`, `manualValue: string`, `hasPermission: boolean | null` (null = loading, true = granted, false = denied), `isScanning: boolean`
 
-### P10-04: TypeScript build verification
+4. **Refs**: `videoRef` (HTMLVideoElement), `streamRef` (MediaStream), `detectorRef` (BarcodeDetectorInterface), `scanIntervalRef` (ReturnType<typeof setInterval>), `scannedRef` (boolean -- double-fire guard), `canvasRef` (HTMLCanvasElement)
 
-- Run `pnpm build` — fix any TypeScript errors
-- Run `cd functions && npm run build` — should be unaffected (backend doesn't use scanner)
+5. **Helper -- `getWorkingStream()`**: Cascading getUserMedia constraints (from reference):
+   - Try 1: `{ facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }`
+   - Try 2: `{ facingMode: { ideal: 'user' }, width: { ideal: 1920 }, height: { ideal: 1080 } }`
+   - Try 3: `{ video: true }`
+   This ensures we get a camera stream even on devices where environment mode is not available.
+
+6. **`stopScanner()`**: (useCallback, no deps that change)
+   - Clear `scanIntervalRef` interval
+   - Stop all tracks on `streamRef.current`
+   - Set `videoRef.current.srcObject = null`
+   - Set `isScanning = false`
+
+7. **`startContinuousScanning()`**:
+   - Clear any existing interval
+   - `scanIntervalRef.current = setInterval(async () => { ... }, 100)`
+   - Inside interval: check `videoRef.current` exists, `readyState >= 2` (HAVE_CURRENT_DATA)
+   - Call `detectorRef.current.detect(videoRef.current)`
+   - If barcodes found and first has non-empty `rawValue`: set `scannedRef.current = true`, call `stopScanner()`, call `onScan({ text: barcode.rawValue.trim(), format: barcode.format })`
+   - Optionally draw detection boxes on canvas overlay (nice-to-have from reference)
+
+8. **`initializeScanner()`**: (async)
+   - Reset state: `setError(null)`, `setHasPermission(null)`, `scannedRef.current = false`
+   - Create BarcodeDetector: `const BarcodeDetector = (window as any).BarcodeDetector || BarcodeDetectorPolyfill`
+   - Get supported formats, create detector instance with all supported formats (fallback to standard list)
+   - Get camera stream via `getWorkingStream()`
+   - Set `hasPermission = true`, store stream in `streamRef`
+   - Attach stream to video element (with iOS Safari attributes: playsinline, webkit-playsinline)
+   - Wait for `loadedmetadata` event, then `video.play()` with retry for iOS
+   - Wait 500ms for iOS video dimensions to populate
+   - Black-frame detection: if video dimensions are 0, auto re-init once (from reference)
+   - Set `isScanning = true`, call `startContinuousScanning()`
+   - Error handling: map error names to user-friendly messages (NotAllowedError, NotFoundError, NotSupportedError, NotReadableError, SecurityError)
+
+9. **`switchCamera()`**: (from reference)
+   - Read current facingMode from stream track settings
+   - `stopScanner()`
+   - Request new stream with opposite facingMode (environment <-> user)
+   - If that fails, fall back to `getWorkingStream()`
+   - Attach to video, play, start scanning
+   - On error: set error message, call `initializeScanner()` to recover
+
+10. **useEffect**: When `open` changes to true and not in manualMode:
+    - Small delay (100ms setTimeout from reference) to ensure modal DOM is rendered
+    - Call `initializeScanner()`
+    - Cleanup: clear timeout, call `stopScanner()`
+    - When `open` is false: `stopScanner()`
+
+11. **UI structure (preserve existing EX3 Tailwind styling):**
+    - Same modal container (fixed inset-0, bg-black/60, centered card, rounded-xl, shadow-2xl)
+    - Same header with title + close button
+    - **Camera mode**:
+      - `hasPermission === null`: Spinner + "Requesting camera permission..."
+      - `hasPermission === false`: CameraOff icon + error + "Try Again" button
+      - `hasPermission === true`: `<video>` + `<canvas>` overlay + red scanning rectangle + instruction text + "Switch Camera" button + "Cancel" button
+    - **Manual mode**: Keep exactly as current (input + Search + Camera toggle)
+    - **Manual fallback button**: "Enter Manually" below the camera view
+
+12. **Key difference from reference**:
+    - Reference calls `onScan(text)` with just a string. EX3 needs `onScan({ text, format })` with a `ScanResult` object. The `DetectedBarcode.format` field is already a string (e.g., "qr_code", "code_128"), so pass it directly.
+    - Reference uses JSX. EX3 uses TypeScript with strict types -- no `any` except for the `window.BarcodeDetector` check.
+    - EX3 has manual entry mode (reference does not).
+    - EX3 uses the existing card-style modal (reference uses full-screen).
+
+### P10v2-03: Verify no remaining @zxing imports
+
+- Search codebase for any remaining `@zxing/browser` or `@zxing/library` imports
+- If found, update or remove them
+- Should only be in `BarcodeScannerModal.tsx` (already handled by P10v2-02)
+
+### P10v2-04: TypeScript build verification
+
+- Run `pnpm build` -- fix any TypeScript errors
+- The BarcodeDetector types may need attention -- ensure the type declarations compile cleanly
+- Run `cd functions && npm run build` -- should be unaffected (backend doesn't use scanner)
 - Verify the `ScanResult` export and `BarcodeScannerModal` default export work for `ScanSearchBar.tsx`
 
-### P10-05: Verify consumer imports are unchanged
+### P10v2-05: Verify consumer imports are unchanged
 
-- `src/components/scanner/ScanSearchBar.tsx` — imports `BarcodeScannerModal` (default) and `ScanResult` (named type). Must still work.
-- `src/pages/WorkspaceDetail.tsx`, `src/pages/Dashboard.tsx`, `src/pages/Inventory.tsx` — use `ScanSearchBar`. No changes needed (they don't import the scanner directly).
+- `src/components/scanner/ScanSearchBar.tsx` -- imports `BarcodeScannerModal` (default) and `ScanResult` (named type). Must still work.
+- `src/pages/WorkspaceDetail.tsx`, `src/pages/Dashboard.tsx`, `src/pages/Inventory.tsx` -- use `ScanSearchBar`. No changes needed.
 
 ---
 
 ## Task Order
 
-**Round 1 — Dependency swap:**
-1. P10-01: Remove html5-qrcode, add @zxing/browser + @zxing/library, pnpm install
+**Round 1 -- Dependency swap:**
+1. P10v2-01: Remove @zxing/browser + @zxing/library, add @undecaf/barcode-detector-polyfill, pnpm install
 
-**Round 2 — Rewrite scanner:**
-2. P10-02: Rewrite BarcodeScannerModal.tsx with @zxing/browser
+**Round 2 -- Rewrite scanner:**
+2. P10v2-02: Rewrite BarcodeScannerModal.tsx with BarcodeDetector API
 
-**Round 3 — Verification:**
-3. P10-03: Verify no remaining html5-qrcode imports
-4. P10-04: TypeScript build
-5. P10-05: Verify consumer imports
+**Round 3 -- Verification:**
+3. P10v2-03: Verify no remaining @zxing imports
+4. P10v2-04: TypeScript build
+5. P10v2-05: Verify consumer imports
 
 ---
 
@@ -143,96 +207,110 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
 
 | Task | Depends On |
 |------|-----------|
-| P10-01 | None |
-| P10-02 | P10-01 (needs @zxing packages installed) |
-| P10-03 | P10-02 |
-| P10-04 | P10-01, P10-02 |
-| P10-05 | P10-04 |
+| P10v2-01 | None |
+| P10v2-02 | P10v2-01 (needs @undecaf/barcode-detector-polyfill installed) |
+| P10v2-03 | P10v2-02 |
+| P10v2-04 | P10v2-01, P10v2-02 |
+| P10v2-05 | P10v2-04 |
 
 ---
 
 ## Blockers or Risks
 
-1. **@zxing/browser TypeScript types**: `@zxing/browser` and `@zxing/library` are TypeScript-native, so types should be available. The build-agent should verify the import paths. The main classes are `BrowserMultiFormatReader` from `@zxing/browser` and `BarcodeFormat` from `@zxing/library`.
+1. **BarcodeDetector TypeScript types**: The BarcodeDetector API is not in TypeScript's standard lib (`lib.dom.d.ts`). Need local type declarations. The `@undecaf/barcode-detector-polyfill` package may or may not include types. Build-agent should check `node_modules/@undecaf/barcode-detector-polyfill` for `.d.ts` files. If none exist, declare types inline or in a `src/types/barcode-detector.d.ts` file.
 
-2. **`result.getBarcodeFormat()` returns a BarcodeFormat enum, not a string**: The `ScanResult.format` field is a `string`. The build-agent should convert it via `BarcodeFormat[result.getBarcodeFormat()]` or `String(result.getBarcodeFormat())` to get a human-readable string (e.g., "QR_CODE", "CODE_128"). Check the @zxing API.
+2. **Polyfill import pattern**: The reference uses `import { BarcodeDetectorPolyfill } from '@undecaf/barcode-detector-polyfill'`. The build-agent should verify this import works in TypeScript and check if there are type exports from the package.
 
-3. **Scanned ref to prevent double-fires**: The reference project calls `onScan(text)` then `stopScanner()` immediately, but the callback might fire again before `reset()` completes. Use a `scannedRef` boolean (like the current implementation does) to gate the `onScan` call.
+3. **Canvas overlay typing**: The `drawBarcodes` function uses `CanvasRenderingContext2D`. This is well-typed in TypeScript. The `DetectedBarcode` interface needs `boundingBox` and `cornerPoints` typed correctly.
 
-4. **Video element must be in DOM before `decodeFromVideoDevice`**: The video ref must be rendered before calling the decode function. The reference handles this by only calling `startScanning` after permission is granted and the component renders the video element. The build-agent should ensure the video element renders when `hasPermission === true` and scanning starts after that render (use a second `useEffect` or call `startScanning` after setting `hasPermission`).
+4. **iOS Safari video element timing**: The reference handles this with multiple waits (500ms after play, 800ms retry, auto re-init). The build-agent should preserve this timing logic exactly -- do NOT simplify or remove the delays, they exist for real iOS quirks.
 
-5. **Reader cleanup on unmount**: `BrowserMultiFormatReader.reset()` stops all media streams. Must be called on unmount AND when the modal closes. Use `useEffect` cleanup.
+5. **`setInterval` inside component**: The scanning interval must be cleaned up in ALL exit paths: modal close, successful scan, component unmount, switching to manual mode. The `stopScanner` function handles this centrally.
 
-6. **No torch/flash support**: The @zxing/browser library doesn't have a built-in torch API. Remove torch controls. This is acceptable — torch was unreliable in the html5-qrcode implementation anyway.
+6. **`scannedRef` guard**: Essential to prevent double-fire. The `setInterval(100ms)` could detect the same barcode multiple frames in a row before `stopScanner()` clears the interval. The ref gate prevents calling `onScan` more than once.
 
-7. **No camera switching UI**: The reference passes `null` as deviceId to `decodeFromVideoDevice`, which lets the browser pick the best camera (usually back camera due to the `facingMode: 'environment'` hint from the permission request). Remove the camera switch button. This simplifies the UI.
+7. **Stream cleanup**: `streamRef.current.getTracks().forEach(track => track.stop())` must be called on every exit path. Failure to stop tracks leaves the camera LED on.
 
 ---
 
 ## Key Code References
 
-**Reference working scanner** (adapt from this):
+**CORRECT reference scanner** (the one that actually works on mobile):
+- `/home/beck/projects/Fire_Extinguisher_Tracker/src/components/BarcodeScanner.jsx`
+
+**WRONG reference** (do NOT use -- this was the Phase 10 mistake):
 - `/home/beck/projects/Fire_Extinguisher_Tracker/src/BarcodeScanner.jsx`
 
 **Files to modify:**
-- `src/components/scanner/BarcodeScannerModal.tsx` — full rewrite
-- `package.json` — dependency swap
+- `src/components/scanner/BarcodeScannerModal.tsx` -- full rewrite
+- `package.json` -- dependency swap
 
 **Files that must NOT change (verify only):**
-- `src/components/scanner/ScanSearchBar.tsx` — imports `BarcodeScannerModal` default + `ScanResult` type
-- `src/pages/WorkspaceDetail.tsx` — uses `ScanSearchBar`
-- `src/pages/Dashboard.tsx` — uses `ScanSearchBar`
-- `src/pages/Inventory.tsx` — uses `ScanSearchBar`
-
----
-
-## Definition of Done
-
-Phase 10 is complete when ALL of the following are true:
-
-1. **`html5-qrcode` removed** from `package.json` and no imports remain in the codebase
-2. **`@zxing/browser` and `@zxing/library` installed** in `package.json`
-3. **`BarcodeScannerModal.tsx` rewritten** to use `BrowserMultiFormatReader` + `<video>` element
-4. **Same public API preserved**: `ScanResult { text, format }` exported, `BarcodeScannerModalProps` unchanged, default export function signature unchanged
-5. **Three permission states rendered**: loading spinner, denied error with retry, scanning with video + overlay
-6. **Red target rectangle overlay** on the video during scanning
-7. **Manual entry mode preserved** with same UI and behavior
-8. **Scanner stops properly** on close, unmount, and successful scan
-9. **`pnpm build` passes** with no TypeScript errors
-10. **`ScanSearchBar.tsx` works unchanged** — no modifications needed to any consumer
+- `src/components/scanner/ScanSearchBar.tsx` -- imports `BarcodeScannerModal` default + `ScanResult` type
+- `src/pages/WorkspaceDetail.tsx` -- uses `ScanSearchBar`
+- `src/pages/Dashboard.tsx` -- uses `ScanSearchBar`
+- `src/pages/Inventory.tsx` -- uses `ScanSearchBar`
 
 ---
 
 ## Handoff to build-agent
 
-**Start with P10-01** — swap the dependencies. Remove `html5-qrcode`, add `@zxing/browser` and `@zxing/library`, run `pnpm install`.
+**Start with P10v2-01** -- swap the dependencies. Remove `@zxing/browser` and `@zxing/library`, add `@undecaf/barcode-detector-polyfill`, run `pnpm install`.
 
-**Then P10-02** — this is the main work. Rewrite `BarcodeScannerModal.tsx`. Model it on the reference scanner at `/home/beck/projects/Fire_Extinguisher_Tracker/src/BarcodeScanner.jsx` but:
-- Keep TypeScript (not JSX)
+**Then P10v2-02** -- this is the main work. Rewrite `BarcodeScannerModal.tsx`. Model it closely on the reference scanner at `/home/beck/projects/Fire_Extinguisher_Tracker/src/components/BarcodeScanner.jsx` but:
+- Keep TypeScript (not JSX) -- add type declarations for BarcodeDetector API
 - Keep the `ScanResult` interface and `BarcodeScannerModalProps` interface
 - Keep the manual entry mode (the reference doesn't have one)
-- Use the existing Tailwind card styling (rounded-xl, shadow-2xl, etc.)
-- Add the red scanning overlay rectangle
+- Use the existing EX3 Tailwind card styling (rounded-xl, shadow-2xl, etc.)
+- Add the red scanning overlay rectangle (keep current red-500 branding, not green-400 from reference)
 - Add the `scannedRef` guard against double-fires
-- Convert `BarcodeFormat` enum to string for `ScanResult.format`
+- Add camera switching button (reference has it and it works)
+- `DetectedBarcode.format` is already a string -- pass directly to `ScanResult.format`
+- Copy the iOS Safari handling EXACTLY: playsinline attributes, video.play() retry, black-frame auto re-init
+- Copy the cascading `getWorkingStream()` constraint fallbacks EXACTLY
 
-**Then P10-03 through P10-05** — verification. Grep for `html5-qrcode`, run `pnpm build`, confirm consumers compile.
+**Then P10v2-03 through P10v2-05** -- verification. Grep for `@zxing`, run `pnpm build`, confirm consumers compile.
 
 **Key patterns from the reference scanner to copy:**
-1. Request permission first with `getUserMedia({ video: { facingMode: 'environment' } })`
-2. Stop the test stream (`stream.getTracks().forEach(track => track.stop())`)
-3. Create `new BrowserMultiFormatReader()`
-4. Call `reader.decodeFromVideoDevice(null, videoRef.current, callback)`
-5. In callback: `result.getText()` for the decoded text
-6. Cleanup: `reader.reset()`
-
-**Key difference from reference:**
-- Reference calls `onScan(text)` with just a string. EX3 needs `onScan({ text, format })` with a `ScanResult` object. Extract format from `result.getBarcodeFormat()`.
+1. `const BarcodeDetector = window.BarcodeDetector || BarcodeDetectorPolyfill`
+2. `new BarcodeDetector({ formats: [...] })`
+3. `getWorkingStream()` with cascading getUserMedia constraints
+4. Attach stream to video element with iOS attributes
+5. `setInterval(100ms)` calling `detector.detect(video)`
+6. Check `video.readyState >= 2` before detecting
+7. `barcode.rawValue` for the decoded text, `barcode.format` for the format string
+8. `stream.getTracks().forEach(track => track.stop())` for cleanup
+9. iOS black-frame detection and auto re-init
+10. Camera switch via opposite facingMode
 
 **Warnings from lessons-learned:**
-- No `any` types. TypeScript strict mode.
+- No `any` types (except the necessary `(window as any).BarcodeDetector` check). TypeScript strict mode.
 - Always include `built_by_Beck` in commit messages.
 - When a useEffect fetches async data, reset state at the top of the effect.
+- Conditionally-rendered elements need a render flush before ref access (use setTimeout or useEffect).
+- Refs avoid stale closure problems -- use refs for values read from closures.
+
+---
+
+## Definition of Done
+
+Phase 10v2 is complete when ALL of the following are true:
+
+1. **`@zxing/browser` and `@zxing/library` removed** from `package.json` and no imports remain
+2. **`@undecaf/barcode-detector-polyfill` installed** in `package.json`
+3. **`BarcodeScannerModal.tsx` rewritten** to use BarcodeDetector API + `<video>` + `<canvas>` overlay + `setInterval` polling
+4. **Same public API preserved**: `ScanResult { text, format }` exported, `BarcodeScannerModalProps` unchanged, default export function signature unchanged
+5. **Direct camera management**: `getUserMedia` called directly with cascading constraint fallbacks (not delegated to a library)
+6. **Camera switching works**: Button to switch between front/back camera using opposite facingMode
+7. **iOS Safari handling**: playsinline attributes, video.play() retry, black-frame auto re-init
+8. **Three permission states rendered**: loading spinner (null), denied error with retry (false), scanning with video + overlay (true)
+9. **Red scanning overlay** on the video during scanning
+10. **Canvas overlay** for detection box drawing (optional but preferred)
+11. **Manual entry mode preserved** with same UI and behavior
+12. **Scanner stops properly** on close, unmount, successful scan, and mode switch -- camera LED turns off
+13. **`scannedRef` guard** prevents double-fire from interval-based detection
+14. **`pnpm build` passes** with no TypeScript errors
+15. **`ScanSearchBar.tsx` works unchanged** -- no modifications needed to any consumer
 
 ---
 
@@ -264,3 +342,6 @@ Workspaces, Inspections, InspectionForm, WorkspaceDetail.
 
 ### Phase 9 -- Unify Locations & Sections (COMPLETE)
 10 tasks. Unified locations/sections data model. Reviewed and approved.
+
+### Phase 10 -- Replace Scanner with @zxing/browser (WRONG REFERENCE -- REDO)
+5 tasks completed and reviewed, but used wrong reference scanner. @zxing/browser has mobile camera issues (front camera default, video source errors, double views). Superseded by Phase 10v2.

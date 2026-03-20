@@ -7,8 +7,45 @@
 
 ## Current Phase
 
+**Phase 10v2: Replace Barcode Scanner (@zxing/browser -> native BarcodeDetector API)**
+Status: IN PROGRESS — build-agent implementing BarcodeDetector scanner (Codex)
+
+### Phase 10v2 Plan Summary (plan-agent, 2026-03-20)
+
+**Problem**: Phase 10 used the WRONG reference scanner. It adapted from `src/BarcodeScanner.jsx` (old ZXing version) instead of the ACTUAL working scanner at `src/components/BarcodeScanner.jsx` which uses the native BarcodeDetector API with `@undecaf/barcode-detector-polyfill`. The `@zxing/browser` scanner has real-world mobile failures: front-facing camera selected instead of back, "video source" errors on camera switch, double camera views. These are caused by ZXing managing its own `getUserMedia` internally without proper mobile constraint handling.
+
+**Correct reference**: `/home/beck/projects/Fire_Extinguisher_Tracker/src/components/BarcodeScanner.jsx`
+- Uses `window.BarcodeDetector || BarcodeDetectorPolyfill` from `@undecaf/barcode-detector-polyfill`
+- Direct `getUserMedia` with cascading constraint fallbacks (environment 1080p -> user 1080p -> any)
+- `setInterval(100ms)` calling `detector.detect(video)` for polling-based detection
+- Canvas overlay for drawing detection boxes
+- iOS Safari quirks handled (playsinline, video.play() retry, black-frame auto re-init)
+- Camera switching that works: stops current stream, requests opposite facingMode
+
+**Solution**: Remove `@zxing/browser` + `@zxing/library`, add `@undecaf/barcode-detector-polyfill`. Completely rewrite `BarcodeScannerModal.tsx` to match the reference scanner's BarcodeDetector API approach. Keep the TypeScript interfaces (`ScanResult`, `BarcodeScannerModalProps`) and manual entry mode so consumers don't change.
+
+**5 tasks (P10v2-01 through P10v2-05):**
+- P10v2-01: Swap npm dependencies (remove @zxing/browser + @zxing/library, add @undecaf/barcode-detector-polyfill)
+- P10v2-02: Rewrite BarcodeScannerModal.tsx with BarcodeDetector API + direct getUserMedia (main work)
+- P10v2-03: Verify no remaining @zxing imports
+- P10v2-04: TypeScript build verification (pnpm build)
+- P10v2-05: Verify consumer imports unchanged
+
+**Key differences from Phase 10:**
+- BarcodeDetector API (native + polyfill) instead of @zxing/browser
+- Direct getUserMedia with cascading constraints instead of ZXing-managed streams
+- Interval-based detection (100ms polling) instead of ZXing callback-based decoding
+- Canvas overlay for detection boxes
+- Camera switching via facingMode toggle (was removed in Phase 10)
+- iOS Safari handling (playsinline, play() retry, black-frame re-init)
+
+**Handoff**: build-agent should READ the reference scanner at `/home/beck/projects/Fire_Extinguisher_Tracker/src/components/BarcodeScanner.jsx` first, then start with P10v2-01 (dependency swap), then P10v2-02 (rewrite), then P10v2-03-05 (verification). Full details in `agent-system/plan.md`.
+
+---
+
+### Phase 10 (SUPERSEDED by 10v2)
 **Phase 10: Replace Barcode Scanner (html5-qrcode -> @zxing/browser)**
-Status: APPROVED -- 1 clarity fix (comments only, no logic changes)
+Status: APPROVED but WRONG REFERENCE -- mobile camera issues discovered
 
 ### Phase 10 Build Summary (build-agent, 2026-03-20)
 
@@ -121,7 +158,55 @@ Status: COMPLETE AND REVIEWED
 - `Locations.tsx` `handleDelete` has no try/catch around `softDeleteLocation` — pre-existing issue, not introduced by Phase 9.
 - Chunk size warning on frontend build (1,310 kB). Not a Phase 9 concern; code-splitting is a future optimization.
 
+---
+
+### Phase 10v2 Build Summary (build-agent, 2026-03-20)
+
+Result: Implemented P10v2-02 and P10v2-03 using Codex build-agent. Type-check passes.
+
+What changed:
+- Added reusable scanner module `src/lib/barcodeScanner.ts` (framework-agnostic). It manages detector creation, camera acquisition, polling loop (100ms), overlay drawing, and camera switching.
+- Refactored `src/components/scanner/BarcodeScannerModal.tsx` to use the module; preserved manual entry mode and public API.
+- Explicit error messaging for `NotAllowedError`, `NotFoundError`, `NotReadableError`, `SecurityError`/`NotSupportedError` (HTTPS requirement on iOS).
+- Removed all `@zxing/*` imports from the scanner modal.
+
+Verification:
+- `pnpm exec tsc -b` passes locally (no TypeScript errors).
+- Grep shows no remaining `@zxing` imports in `src/`.
+
+Notes for review-agent:
+- Validate camera behavior on iOS Safari (playsinline, HTTPS). Confirm back camera default and switching works.
+- Verify overlay sizing matches video dimensions on various devices (videoWidth/videoHeight readiness).
+- Ensure `ScanSearchBar` search flow still navigates correctly after `onScan`.
+
+Next planned steps:
+- P10v2-01 (dependency cleanup): package.json currently contains the polyfill; no `@zxing/*` deps to remove. Confirm lockfile cleanliness on next install.
+- P10v2-04/05: Optional build run and page-level manual tests across Dashboard/Inventory/WorkspaceDetail.
+
 **Build: PASSES** (`pnpm build` clean, `cd functions && npm run build` clean)
+
+### Phase 10v2 Review Summary (review-agent, 2026-03-20)
+
+Review summary:
+- TypeScript build passes; scanner modularization is clean and contained.
+- Camera lifecycle is explicit (getUserMedia + track.stop); 100ms detect loop stops on first hit; overlay draws correctly.
+- iOS considerations present (playsinline, HTTPS messaging). Switch Camera and Restart work through the module.
+
+Issues found (minor):
+- `format` is returned as `"unknown"` from the React wrapper. Not a bug (consumers only use text), but consider passing through the detected `format` when available for analytics/debugging.
+- Verify overlay scaling on devices with unusual aspect ratios (videoWidth/Height vs CSS h-64); canvas is CSS‑scaled which is typically fine.
+
+Improvements made: None — code is acceptable as‑is.
+
+Recommended next steps:
+- Manual test on iOS Safari (over HTTPS) and Android Chrome to confirm back camera default, camera switching, and performance.
+- Optional: expose `intervalMs` in the modal for future tuning; optional torch control if supported (future enhancement).
+
+Risks/tech debt:
+- Polling loop (100ms) is battery‑sensitive. Acceptable for a modal flow; consider pausing when tab is hidden.
+
+Handoff to plan-agent:
+- If mobile tests uncover issues, plan a small follow‑up to adjust overlay sizing and surface the detected `format` in `onScan`.
 
 ### Phase 9 Plan Summary (plan-agent, 2026-03-19)
 

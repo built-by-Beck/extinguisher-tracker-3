@@ -1,17 +1,14 @@
 /**
  * Camera barcode / QR scanner modal.
- * Uses @zxing/browser BrowserMultiFormatReader for live camera scanning
- * with fallback to manual entry.
- * Plan-gated: requires cameraBarcodeScan or qrScanning feature flag.
+ * Uses a framework-agnostic scanner (BarcodeDetector with polyfill) from src/lib/barcodeScanner.
+ * Includes manual entry mode. Stops on first successful read.
  *
  * Author: built_by_Beck
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
-import type { IScannerControls } from '@zxing/browser';
-import { BarcodeFormat } from '@zxing/library';
 import { X, Camera, CameraOff, Keyboard } from 'lucide-react';
+import createBarcodeScanner, { type Scanner } from '../../lib/barcodeScanner.ts';
 
 export interface ScanResult {
   text: string;
@@ -33,50 +30,14 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
   const [isScanning, setIsScanning] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const controlsRef = useRef<IScannerControls | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const scannerRef = useRef<Scanner | null>(null);
   const scannedRef = useRef(false);
 
-  const stopScanner = () => {
-    if (controlsRef.current) {
-      controlsRef.current.stop();
-      controlsRef.current = null;
-    }
+  function stopScanner() {
+    scannerRef.current?.stop();
     setIsScanning(false);
-  };
-
-  const startScanning = async (reader: BrowserMultiFormatReader) => {
-    if (!videoRef.current) return;
-
-    try {
-      setIsScanning(true);
-      const controls = await reader.decodeFromVideoDevice(
-        undefined,
-        videoRef.current,
-        (result, err) => {
-          if (result) {
-            if (scannedRef.current) return;
-            scannedRef.current = true;
-            const text = result.getText();
-            const format = BarcodeFormat[result.getBarcodeFormat()] ?? 'UNKNOWN';
-            onScan({ text, format });
-            stopScanner();
-          }
-          if (err && err.name !== 'NotFoundException') {
-            console.error('Scanning error:', err);
-          }
-        },
-      );
-      // Assign controls to ref immediately so stopScanner() can clean up.
-      // The callback above fires per-frame AFTER this promise resolves,
-      // so controlsRef.current is guaranteed to be set before any scan result
-      // triggers stopScanner().
-      controlsRef.current = controls;
-    } catch (err) {
-      console.error('Failed to start scanning:', err);
-      setError('Failed to start camera scanning.');
-      setIsScanning(false);
-    }
-  };
+  }
 
   const initializeScanner = async () => {
     setError(null);
@@ -84,35 +45,32 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
     scannedRef.current = false;
 
     try {
-      // Request camera permission to verify access
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+      if (!videoRef.current) throw new Error('Video element is not ready');
+      const scanner = createBarcodeScanner({
+        video: videoRef.current,
+        canvas: canvasRef.current ?? undefined,
+        onScan: (text) => {
+          if (scannedRef.current) return;
+          scannedRef.current = true;
+          onScan({ text: text.trim(), format: 'unknown' });
+          stopScanner();
+        },
       });
-
-      // Permission granted — stop the test stream
-      stream.getTracks().forEach((track) => track.stop());
+      scannerRef.current = scanner;
+      await scanner.init();
+      await scanner.start();
       setHasPermission(true);
-
-      // BrowserMultiFormatReader will open its own stream via decodeFromVideoDevice
-      const reader = new BrowserMultiFormatReader();
-      // The <video> element is conditionally rendered only when hasPermission === true.
-      // setTimeout(0) defers to the next macrotask, giving React time to flush the
-      // setHasPermission(true) state update and render the <video> into the DOM.
-      // Without this, videoRef.current would still be null when startScanning runs.
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      await startScanning(reader);
+      setIsScanning(true);
     } catch (err) {
       console.error('Camera initialization error:', err);
       setHasPermission(false);
-
       if (err instanceof Error) {
-        if (err.name === 'NotAllowedError') {
-          setError('Camera permission denied. Please allow camera access in your browser settings and try again.');
-        } else if (err.name === 'NotFoundError') {
-          setError('No camera found on this device.');
-        } else {
-          setError(`Error accessing camera: ${err.message}`);
-        }
+        const name = (err as { name?: string }).name || 'Error';
+        if (name === 'NotAllowedError') setError('Camera permission denied. Please allow camera access and try again.');
+        else if (name === 'NotFoundError') setError('No camera found on this device.');
+        else if (name === 'NotSupportedError' || name === 'SecurityError') setError('Camera requires HTTPS (iOS Safari). Use a secure origin.');
+        else if (name === 'NotReadableError') setError('Camera is busy. Close other apps and retry.');
+        else setError(`Error accessing camera: ${err.message}`);
       } else {
         setError('An unknown error occurred while accessing the camera.');
       }
@@ -251,6 +209,10 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
                           playsInline
                           muted
                         />
+                        <canvas
+                          ref={canvasRef}
+                          className="pointer-events-none absolute inset-0 h-64 w-full"
+                        />
                         {isScanning && (
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="h-36 w-48 rounded-lg border-2 border-red-500 animate-pulse" />
@@ -261,6 +223,30 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
                       <p className="text-center text-xs text-gray-500">
                         Point your camera at a barcode or QR code
                       </p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await scannerRef.current?.switchCamera();
+                            } catch (e: unknown) {
+                              if (e instanceof Error) setError(e.message);
+                              else setError('Failed to switch camera');
+                            }
+                          }}
+                          className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Switch Camera
+                        </button>
+                        <button
+                          onClick={() => {
+                            stopScanner();
+                            void initializeScanner();
+                          }}
+                          className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Restart
+                        </button>
+                      </div>
                     </>
                   )}
                 </>
