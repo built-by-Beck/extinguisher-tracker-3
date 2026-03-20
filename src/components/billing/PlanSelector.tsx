@@ -44,6 +44,13 @@ export function PlanSelector() {
         <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
+      <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+        <p className="text-sm font-medium text-blue-900">AI assistant access starts on Pro.</p>
+        <p className="mt-1 text-sm text-blue-700">
+          Pro, Elite, and Enterprise plans include AI. Basic does not include AI access.
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {PLANS.filter((p) => p.name !== 'enterprise').map((plan) => {
           const isCurrent = currentPlan === plan.name;
@@ -62,6 +69,13 @@ export function PlanSelector() {
               <p className="mt-1 text-3xl font-bold text-gray-900">
                 ${plan.monthlyPrice}
                 <span className="text-sm font-normal text-gray-500">/mo</span>
+              </p>
+              <p className="mt-2 text-sm text-gray-500">
+                {plan.name === 'basic'
+                  ? 'Core inspection tools without AI access.'
+                  : plan.name === 'pro'
+                    ? 'Includes AI assistant access for your team.'
+                    : 'Advanced operations with everything in Pro, including AI.'}
               </p>
 
               <ul className="mt-4 space-y-2">

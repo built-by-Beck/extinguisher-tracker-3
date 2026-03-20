@@ -243,6 +243,10 @@ export default function OrgSettings() {
       {/* Plan info */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Subscription</h2>
+        <p className="mb-4 text-sm text-gray-500">
+          AI assistant access is included with Pro, Elite, and Enterprise plans. Basic plans do
+          not include AI access.
+        </p>
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -257,6 +261,11 @@ export default function OrgSettings() {
             {org.assetLimit !== null && org.assetLimit !== undefined && (
               <p className="mt-1 text-sm text-gray-500">
                 Asset limit: {org.assetLimit}
+              </p>
+            )}
+            {org.plan === 'basic' && (
+              <p className="mt-2 text-sm text-amber-700">
+                Upgrade to Pro to enable the AI assistant for this organization.
               </p>
             )}
           </div>
