@@ -106,7 +106,6 @@ export default function Locations() {
   const [formName, setFormName] = useState('');
   const [formType, setFormType] = useState('building');
   const [formParent, setFormParent] = useState('');
-  const [formSection, setFormSection] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState('');
@@ -129,7 +128,6 @@ export default function Locations() {
     setFormName('');
     setFormType('building');
     setFormParent('');
-    setFormSection('');
     setFormDescription('');
     setFormError('');
     setShowForm(true);
@@ -140,7 +138,6 @@ export default function Locations() {
     setFormName(loc.name);
     setFormType(loc.locationType);
     setFormParent(loc.parentLocationId ?? '');
-    setFormSection(loc.section ?? '');
     setFormDescription(loc.description ?? '');
     setFormError('');
     setShowForm(true);
@@ -157,11 +154,12 @@ export default function Locations() {
     setFormError('');
 
     try {
+      // Note: location.name IS the section identifier — we no longer expose
+      // the separate "section" freetext field in the form (P9-07).
       const data: Partial<Location> = {
         name: formName.trim(),
         locationType: formType,
         parentLocationId: formParent || null,
-        section: formSection.trim() || null,
         description: formDescription.trim() || null,
       };
 
@@ -299,17 +297,6 @@ export default function Locations() {
                       </option>
                     ))}
                 </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Section</label>
-                <input
-                  type="text"
-                  value={formSection}
-                  onChange={(e) => setFormSection(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                  placeholder="Optional grouping"
-                />
               </div>
 
               <div>

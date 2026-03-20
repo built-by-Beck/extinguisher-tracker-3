@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useOrg } from '../../hooks/useOrg.ts';
+import { useAuth } from '../../hooks/useAuth.ts';
+import {
+  subscribeToLocations,
+  type Location,
+} from '../../services/locationService.ts';
 import type { Extinguisher } from '../../services/extinguisherService.ts';
 
 const CATEGORIES = ['standard', 'spare', 'replaced', 'retired', 'out_of_service'] as const;
@@ -14,8 +18,19 @@ interface ExtinguisherFormProps {
 }
 
 export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }: ExtinguisherFormProps) {
-  const { org } = useOrg();
-  const sections = org?.settings?.sections ?? [];
+  const { userProfile } = useAuth();
+  const orgId = userProfile?.activeOrgId ?? '';
+
+  const [locations, setLocations] = useState<Location[]>([]);
+
+  // Subscribe to locations collection — used to populate the Section/Location dropdown
+  useEffect(() => {
+    if (!orgId) return;
+    setLocations([]);
+    return subscribeToLocations(orgId, (locs) => {
+      setLocations(locs);
+    });
+  }, [orgId]);
 
   const [assetId, setAssetId] = useState(initialData?.assetId ?? '');
   const [serial, setSerial] = useState(initialData?.serial ?? '');
@@ -27,6 +42,7 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
   const [manufactureYear, setManufactureYear] = useState<string>(initialData?.manufactureYear?.toString() ?? '');
   const [expirationYear, setExpirationYear] = useState<string>(initialData?.expirationYear?.toString() ?? '');
   const [section, setSection] = useState(initialData?.section ?? '');
+  const [locationId, setLocationId] = useState(initialData?.locationId ?? '');
   const [vicinity, setVicinity] = useState(initialData?.vicinity ?? '');
   const [parentLocation, setParentLocation] = useState(initialData?.parentLocation ?? '');
   const [barcode, setBarcode] = useState(initialData?.barcode ?? '');
@@ -44,11 +60,31 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
       setManufactureYear(initialData.manufactureYear?.toString() ?? '');
       setExpirationYear(initialData.expirationYear?.toString() ?? '');
       setSection(initialData.section ?? '');
+      setLocationId(initialData.locationId ?? '');
       setVicinity(initialData.vicinity ?? '');
       setParentLocation(initialData.parentLocation ?? '');
       setBarcode(initialData.barcode ?? '');
     }
   }, [initialData]);
+
+  // When a location is selected from the dropdown, set both section (name) and locationId (doc ID)
+  function handleLocationChange(locId: string) {
+    if (locId === '') {
+      setSection('');
+      setLocationId('');
+      return;
+    }
+    if (locId === '__unassigned__') {
+      setSection('');
+      setLocationId('');
+      return;
+    }
+    const loc = locations.find((l) => l.id === locId);
+    if (loc) {
+      setSection(loc.name);
+      setLocationId(loc.id ?? '');
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,6 +111,7 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
         manufactureYear: manufactureYear ? parseInt(manufactureYear, 10) : null,
         expirationYear: expirationYear ? parseInt(expirationYear, 10) : null,
         section: section.trim(),
+        locationId: locationId || null,
         vicinity: vicinity.trim(),
         parentLocation: parentLocation.trim(),
         barcode: barcode.trim() || null,
@@ -250,19 +287,21 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
         <h3 className="mb-4 text-sm font-semibold text-gray-900 uppercase tracking-wide">Location</h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <label htmlFor="section" className="mb-1 block text-sm font-medium text-gray-700">
-              Section
+            <label htmlFor="location" className="mb-1 block text-sm font-medium text-gray-700">
+              Location / Section
             </label>
-            {sections.length > 0 ? (
+            {locations.length > 0 ? (
               <select
-                id="section"
-                value={section}
-                onChange={(e) => setSection(e.target.value)}
+                id="location"
+                value={locationId || ''}
+                onChange={(e) => handleLocationChange(e.target.value)}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               >
-                <option value="">-- Select --</option>
-                {sections.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                <option value="">-- Unassigned --</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id ?? ''}>
+                    {loc.name} ({loc.locationType})
+                  </option>
                 ))}
               </select>
             ) : (

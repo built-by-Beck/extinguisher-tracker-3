@@ -33,6 +33,10 @@ import {
   getCachedInspectionsForWorkspace,
   getCachedWorkspace,
 } from '../services/offlineCacheService.ts';
+import {
+  subscribeToLocations,
+  type Location,
+} from '../services/locationService.ts';
 
 const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; bg: string }> = {
   pass: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
@@ -55,12 +59,12 @@ export default function WorkspaceDetail() {
   const { org } = useOrg();
 
   const orgId = userProfile?.activeOrgId ?? '';
-  const sections = org?.settings?.sections ?? [];
   const featureFlags = org?.featureFlags;
   const { isOnline } = useOffline();
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [report, setReport] = useState<Report | null | undefined>(undefined);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -112,6 +116,15 @@ export default function WorkspaceDetail() {
 
   const isArchived = workspace?.status === 'archived';
 
+  // Subscribe to locations — used to drive location cards (location.name is the section key)
+  useEffect(() => {
+    if (!orgId) return;
+    setLocations([]);
+    return subscribeToLocations(orgId, (locs) => {
+      setLocations(locs);
+    });
+  }, [orgId]);
+
   // When offline and inspections haven't loaded from Firestore, try loading from cache
   useEffect(() => {
     if (!orgId || !workspaceId || isOnline || inspections.length > 0) return;
@@ -134,13 +147,24 @@ export default function WorkspaceDetail() {
       .catch(() => setReport(null));
   }, [isArchived, orgId, workspaceId]);
 
-  // Compute section stats from inspections
+  // Build a lookup map from location name → Location object (for P9-02 badge display)
+  const locationByName = useMemo(() => {
+    const map = new Map<string, Location>();
+    for (const loc of locations) {
+      map.set(loc.name, loc);
+    }
+    return map;
+  }, [locations]);
+
+  // Compute section stats from inspections.
+  // Initialized from location names (the unified source of truth), then enriched
+  // with any insp.section values found on inspections (backward compat).
   const sectionStatsMap = useMemo(() => {
     const map: Record<string, SectionStats> = {};
 
-    // Initialize from org sections
-    for (const section of sections) {
-      map[section] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+    // Initialize from location names (locations collection is source of truth)
+    for (const loc of locations) {
+      map[loc.name] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
     }
 
     // Count inspections per section
@@ -162,18 +186,22 @@ export default function WorkspaceDetail() {
     }
 
     return map;
-  }, [inspections, sections]);
+  }, [inspections, locations]);
 
-  // Get sorted section names (sections with inspections, plus any from org settings)
-  // Inspections without a section are grouped under "Unassigned"
+  // Get sorted section names.
+  // Union of: location names from the locations collection + insp.section values found on
+  // inspections (backward compat for data created before this unification).
+  // Inspections without a section (or whose section matches no location) go under "Unassigned".
   const allSections = useMemo(() => {
     const sectionSet = new Set<string>();
-    for (const section of sections) sectionSet.add(section);
+    // Seed from locations collection (unified source of truth)
+    for (const loc of locations) sectionSet.add(loc.name);
+    // Merge in any insp.section values (handles pre-unification data)
     for (const insp of inspections) {
       sectionSet.add(insp.section || 'Unassigned');
     }
     return Array.from(sectionSet).sort();
-  }, [inspections, sections]);
+  }, [inspections, locations]);
 
   // Extinguisher cards for the selected section
   const sectionInspections = useMemo(() => {
@@ -396,12 +424,13 @@ export default function WorkspaceDetail() {
           {allSections.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
               <MapPin className="mx-auto h-8 w-8 text-gray-300" />
-              <p className="mt-2 text-sm text-gray-500">No locations configured. Add sections in Organization Settings.</p>
+              <p className="mt-2 text-sm text-gray-500">No locations configured. Add locations on the Locations page.</p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {allSections.map((section) => {
                 const stats = sectionStatsMap[section] ?? { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+                const locMeta = locationByName.get(section);
                 const completionColor =
                   stats.percentage === 100
                     ? 'text-green-600'
@@ -422,6 +451,11 @@ export default function WorkspaceDetail() {
                         <MapPin className="h-5 w-5 text-red-500" />
                         <h3 className="font-semibold text-gray-900 group-hover:text-red-600">{section}</h3>
                       </div>
+                      {locMeta && (
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 capitalize">
+                          {locMeta.locationType}
+                        </span>
+                      )}
                     </div>
 
                     <div className="mb-3 flex items-baseline justify-between">

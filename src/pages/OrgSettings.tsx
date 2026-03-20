@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import {
   Settings,
   Save,
-  Plus,
-  X,
   Trash2,
   AlertTriangle,
   Link2,
@@ -13,6 +12,7 @@ import {
   EyeOff,
   Lock,
   Loader2,
+  MapPin,
 } from 'lucide-react';
 import { db } from '../lib/firebase.ts';
 import { useAuth } from '../hooks/useAuth.ts';
@@ -41,6 +41,7 @@ const commonTimezones = [
 ];
 
 export default function OrgSettings() {
+  const navigate = useNavigate();
   const { userProfile } = useAuth();
   const { org, membership, hasRole } = useOrg();
 
@@ -50,8 +51,6 @@ export default function OrgSettings() {
 
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('');
-  const [sections, setSections] = useState<string[]>([]);
-  const [newSection, setNewSection] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -71,7 +70,6 @@ export default function OrgSettings() {
     if (org) {
       setName(org.name);
       setTimezone(org.settings?.timezone ?? 'America/New_York');
-      setSections(org.settings?.sections ?? []);
 
       // Sync guest access state
       if (org.guestAccess?.enabled) {
@@ -88,17 +86,6 @@ export default function OrgSettings() {
       }
     }
   }, [org]);
-
-  function handleAddSection() {
-    const trimmed = newSection.trim();
-    if (!trimmed || sections.includes(trimmed)) return;
-    setSections([...sections, trimmed]);
-    setNewSection('');
-  }
-
-  function handleRemoveSection(index: number) {
-    setSections(sections.filter((_, i) => i !== index));
-  }
 
   async function handleEnableGuestAccess() {
     if (!orgId || !canEdit) return;
@@ -159,7 +146,6 @@ export default function OrgSettings() {
       await updateDoc(orgDocRef, {
         name: name.trim(),
         'settings.timezone': timezone,
-        'settings.sections': sections,
         updatedAt: serverTimestamp(),
       });
       setSaveMessage('Settings saved successfully.');
@@ -234,54 +220,24 @@ export default function OrgSettings() {
         </div>
       </div>
 
-      {/* Sections management */}
+      {/* Locations card — redirects to the unified Locations page */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Sections</h2>
-        <p className="mb-3 text-sm text-gray-500">
-          Define the sections or areas used during inspections.
-        </p>
-
-        <div className="mb-3 flex flex-wrap gap-2">
-          {sections.map((section, index) => (
-            <span
-              key={index}
-              className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
-            >
-              {section}
-              {canEdit && (
-                <button
-                  onClick={() => handleRemoveSection(index)}
-                  className="ml-1 rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </span>
-          ))}
-          {sections.length === 0 && (
-            <p className="text-sm text-gray-400">No sections defined.</p>
-          )}
+        <div className="mb-3 flex items-center gap-2">
+          <MapPin className="h-5 w-5 text-gray-400" />
+          <h2 className="text-lg font-semibold text-gray-900">Locations</h2>
         </div>
-
-        {canEdit && (
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newSection}
-              onChange={(e) => setNewSection(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSection(); } }}
-              placeholder="Add a section..."
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-            />
-            <button
-              onClick={handleAddSection}
-              className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </button>
-          </div>
-        )}
+        <p className="mb-4 text-sm text-gray-500">
+          Manage your buildings, floors, zones, and other areas on the Locations page.
+          Location names are used as section identifiers throughout the app — on workspace
+          inspection cards, extinguisher assignment, and compliance reports.
+        </p>
+        <button
+          onClick={() => navigate('/dashboard/locations')}
+          className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <MapPin className="h-4 w-4" />
+          Go to Locations
+        </button>
       </div>
 
       {/* Plan info */}

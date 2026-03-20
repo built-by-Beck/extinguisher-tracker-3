@@ -86,6 +86,10 @@ export const createWorkspace = onCall(async (request) => {
       extinguisherId: extDoc.id,
       workspaceId: monthYear,
       assetId: extData.assetId ?? '',
+      // section is copied from the extinguisher at workspace creation time.
+      // This drives grouping on WorkspaceDetail location cards.
+      // extinguisher.section is set to the location name when assigned via the
+      // ExtinguisherForm location dropdown (unified with the locations collection).
       section: extData.section ?? '',
       status: 'pending',
       inspectedAt: null,
