@@ -46,7 +46,7 @@ export function GuestLayout() {
             <Eye className="h-4 w-4 text-white" />
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-900">EX3</p>
+            <p className="text-xs font-bold text-gray-900">Extinguisher Tracker 3</p>
             <p className="text-xs text-amber-600 font-medium">Guest Access</p>
           </div>
         </div>

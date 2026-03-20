@@ -101,23 +101,36 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
   },
 };
 
+export type StripePriceIds = {
+  basic: string;
+  pro: string;
+  elite: string;
+};
+
 /**
- * Resolve a Stripe price ID to a plan name.
+ * Resolve a Stripe price ID to a plan name (compare against deployed price IDs).
  */
-export function planFromPriceId(priceId: string): PlanName | null {
-  for (const [name, config] of Object.entries(PLAN_CONFIGS)) {
-    if (config.priceEnvVar && process.env[config.priceEnvVar] === priceId) {
-      return name as PlanName;
-    }
-  }
+export function planFromPriceId(priceId: string, prices: StripePriceIds): PlanName | null {
+  if (priceId && priceId === prices.basic) return 'basic';
+  if (priceId && priceId === prices.pro) return 'pro';
+  if (priceId && priceId === prices.elite) return 'elite';
   return null;
 }
 
 /**
  * Get the Stripe price ID for a plan name.
  */
-export function priceIdForPlan(plan: PlanName): string | null {
+export function priceIdForPlan(plan: PlanName, prices: StripePriceIds): string | null {
   const config = PLAN_CONFIGS[plan];
   if (!config.priceEnvVar) return null;
-  return process.env[config.priceEnvVar] ?? null;
+  switch (plan) {
+    case 'basic':
+      return prices.basic || null;
+    case 'pro':
+      return prices.pro || null;
+    case 'elite':
+      return prices.elite || null;
+    default:
+      return null;
+  }
 }

@@ -61,8 +61,8 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Branding */}
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-red-600">EX3</h1>
-          <p className="mt-1 text-sm text-gray-500">Extinguisher Tracker</p>
+          <h1 className="text-3xl font-bold text-red-600">Extinguisher Tracker 3</h1>
+          <p className="mt-1 text-sm text-gray-500">Created by Beck-Publishing</p>
         </div>
 
         <div className="rounded-lg bg-white p-8 shadow">

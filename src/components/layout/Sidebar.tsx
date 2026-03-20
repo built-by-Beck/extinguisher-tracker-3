@@ -89,7 +89,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         <div className="flex h-16 items-center justify-between border-b border-gray-200 px-4">
           <div className="flex items-center gap-2">
             <Flame className="h-6 w-6 text-red-600" />
-            <span className="text-lg font-bold text-gray-900">EX3</span>
+            <span className="text-lg font-bold text-gray-900">Extinguisher Tracker 3</span>
           </div>
           <button
             onClick={onClose}
@@ -131,7 +131,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         {/* Footer */}
         <div className="border-t border-gray-200 px-4 py-3 space-y-2">
           <SyncStatusIndicator />
-          <p className="text-xs text-gray-400">Extinguisher Tracker v0.1</p>
+          <p className="text-xs text-gray-400">Created by Beck-Publishing</p>
         </div>
       </aside>
     </>

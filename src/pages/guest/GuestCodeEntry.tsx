@@ -67,8 +67,8 @@ export default function GuestCodeEntry() {
           <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-red-600">
             <Flame className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">EX3</h1>
-          <p className="text-sm text-gray-500">Fire Extinguisher Tracker</p>
+          <h1 className="text-2xl font-bold text-gray-900">Extinguisher Tracker 3</h1>
+          <p className="text-sm text-gray-500">Created by Beck-Publishing</p>
         </div>
 
         {/* Code entry card */}

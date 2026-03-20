@@ -53,7 +53,7 @@ export default function AcceptInvite() {
         {/* Brand */}
         <div className="mb-6 flex items-center justify-center gap-2">
           <Flame className="h-7 w-7 text-red-600" />
-          <span className="text-xl font-bold text-gray-900">EX3</span>
+          <span className="text-xl font-bold text-gray-900">Extinguisher Tracker 3</span>
         </div>
 
         {/* Loading auth */}

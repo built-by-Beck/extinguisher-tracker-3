@@ -47,8 +47,8 @@ function connectToEmulators(): void {
   }
 }
 
-// Auto-connect to emulators in development mode
-if (import.meta.env.DEV) {
+// To use Firebase emulators locally, set VITE_USE_EMULATORS=true in your .env
+if (import.meta.env.VITE_USE_EMULATORS === 'true') {
   connectToEmulators();
 }
 

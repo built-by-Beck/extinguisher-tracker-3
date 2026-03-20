@@ -10,13 +10,15 @@
     "preview": "vite preview",
     "emulators": "firebase emulators:start",
     "emulators:export": "firebase emulators:export ./emulator-data",
-    "emulators:import": "firebase emulators:start --import=./emulator-data"
+    "emulators:import": "firebase emulators:start --import=./emulator-data",
+    "secrets:push": "bash scripts/push-function-secrets.sh"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^5.6.1",
     "@stripe/stripe-js": "^8.10.0",
     "@tailwindcss/vite": "^4.2.1",
     "firebase": "^12.10.0",
+    "html5-qrcode": "^2.3.8",
     "idb": "^8.0.3",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",

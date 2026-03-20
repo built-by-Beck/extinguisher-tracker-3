@@ -1,7 +1,8 @@
 import { onCall } from 'firebase-functions/v2/https';
 import { FieldValue } from 'firebase-admin/firestore';
-import Stripe from 'stripe';
 import { adminDb } from '../utils/admin.js';
+import { stripeSecretKey } from '../config/params.js';
+import { getStripe } from '../billing/stripeClient.js';
 import { validateAuth } from '../utils/auth.js';
 import { throwInvalidArgument } from '../utils/errors.js';
 
@@ -35,7 +36,7 @@ function isValidSlug(slug: string): boolean {
 }
 
 export const createOrganization = onCall<CreateOrgInput, Promise<CreateOrgOutput>>(
-  { enforceAppCheck: false },
+  { enforceAppCheck: false, secrets: [stripeSecretKey] },
   async (request) => {
     // 1. Validate authentication
     const { uid, email } = validateAuth(request);
@@ -60,12 +61,7 @@ export const createOrganization = onCall<CreateOrgInput, Promise<CreateOrgOutput
     const orgTimezone = timezone?.trim() || 'America/Chicago';
 
     // 3. Create Stripe customer
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-    if (!stripeSecretKey) {
-      throw new Error('STRIPE_SECRET_KEY is not configured.');
-    }
-
-    const stripe = new Stripe(stripeSecretKey);
+    const stripe = getStripe();
 
     // Generate org doc reference to get the ID before creating the doc
     const orgRef = adminDb.collection('org').doc();
