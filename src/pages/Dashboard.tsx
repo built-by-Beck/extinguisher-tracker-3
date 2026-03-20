@@ -34,6 +34,7 @@ import { ComplianceSummaryCard } from '../components/compliance/ComplianceSummar
 import type { Workspace } from '../services/workspaceService.ts';
 import type { Extinguisher } from '../services/extinguisherService.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
+import { AiAssistantPanel } from '../components/ai/AiAssistantPanel.tsx';
 
 interface StatCardProps {
   label: string;
@@ -329,6 +330,12 @@ export default function Dashboard() {
           </p>
         </div>
       )}
+
+      {/* AI Assistant floating panel */}
+      <AiAssistantPanel
+        extinguishers={allExtinguishers}
+        complianceSummary={complianceCounts}
+      />
     </div>
   );
 }

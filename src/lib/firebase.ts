@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator, type Functions } from 'firebase/functions';
+import { getAI, getGenerativeModel, VertexAIBackend, type GenerativeModel } from 'firebase/ai';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -34,6 +35,10 @@ const db: Firestore = initializeFirestore(app, {
 const storage: FirebaseStorage = getStorage(app);
 const functions: Functions = getFunctions(app);
 
+// Vertex AI (Gemini) — client-side generative AI
+const ai = getAI(app, { backend: new VertexAIBackend() });
+const geminiModel: GenerativeModel = getGenerativeModel(ai, { model: 'gemini-2.5-flash' });
+
 /**
  * Connect to Firebase emulators in development mode.
  * Call this once at app startup when running locally.
@@ -52,4 +57,4 @@ if (import.meta.env.VITE_USE_EMULATORS === 'true') {
   connectToEmulators();
 }
 
-export { app, auth, db, storage, functions, connectToEmulators };
+export { app, auth, db, storage, functions, geminiModel, connectToEmulators };
