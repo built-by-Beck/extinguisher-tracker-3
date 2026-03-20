@@ -1,14 +1,68 @@
 # EX3 Agent System -- Project State
 
-**Last Updated**: 2026-03-19
-**Updated By**: review-agent (Opus 4.6) -- WorkspaceDetail drill-down rewrite REVIEWED
+**Last Updated**: 2026-03-20
+**Updated By**: review-agent (Opus 4.6) -- Phase 9 review APPROVED
 
 ---
 
 ## Current Phase
 
-**WorkspaceDetail Drill-Down Rewrite (Location Cards -> Extinguisher Cards)**
-Status: COMPLETE and REVIEWED
+**Phase 9: Unify Locations & Sections + Fix WorkspaceDetail Location Cards**
+Status: COMPLETE AND REVIEWED
+
+### Phase 9 Review Summary (review-agent, 2026-03-20)
+
+**Result: APPROVED — 0 bugs found. Implementation is clean.**
+
+**Files reviewed:**
+- `src/pages/WorkspaceDetail.tsx` — Subscribes to locations collection via `subscribeToLocations`. `allSections` built from location names UNION inspection section values. `sectionStatsMap` initialized from location names. "Unassigned" handles empty/non-matching sections. Location type badge renders via `locationByName` map. useEffect cleanup correct (returns unsubscribe). State reset at top of locations useEffect (`setLocations([])`). No references to `org.settings.sections` remain.
+- `src/pages/OrgSettings.tsx` — Sections state/UI fully removed. `handleSave` only writes `name`, `settings.timezone`, and `updatedAt`. "Go to Locations" card with `MapPin` icon and navigation to `/dashboard/locations`. No unused imports. Other settings (name, timezone) save correctly.
+- `src/pages/Locations.tsx` — Section freetext field removed from create/edit modal. Form writes `name`, `locationType`, `parentLocationId`, `description`. Comment documents that `location.name` IS the section identifier. Tree view renders correctly.
+- `src/components/extinguisher/ExtinguisherForm.tsx` — Section dropdown populated from locations collection. `handleLocationChange` sets both `section` (name) and `locationId` (doc ID). Fallback to freetext input when no locations exist. Subscribe/unsubscribe in useEffect with state reset.
+- `functions/src/workspaces/createWorkspace.ts` — Comment added documenting that `inspection.section` comes from `extinguisher.section` at workspace creation time. No logic changes needed.
+
+**Observations (no fix needed):**
+- Dead code in `handleLocationChange`: the `__unassigned__` branch (line 77-80) is unreachable because no `<option>` has `value="__unassigned__"`. The empty-string branch on line 72-75 handles the "Unassigned" option correctly. Harmless dead code, can be cleaned up in a future pass.
+- `SectionTabs.tsx` remains orphaned (noted in Phase 8 review). Not a Phase 9 concern.
+- `Locations.tsx` `handleDelete` has no try/catch around `softDeleteLocation` — pre-existing issue, not introduced by Phase 9.
+- Chunk size warning on frontend build (1,310 kB). Not a Phase 9 concern; code-splitting is a future optimization.
+
+**Build: PASSES** (`pnpm build` clean, `cd functions && npm run build` clean)
+
+### Phase 9 Plan Summary (plan-agent, 2026-03-19)
+
+**Problem**: Two disconnected systems for the same concept:
+1. `org.settings.sections` — a simple string array managed in OrgSettings
+2. `org/{orgId}/locations` collection — full CRUD with hierarchy, managed on Locations page
+
+WorkspaceDetail location cards read from `org.settings.sections`. Users who add locations on the Locations page but don't add sections in OrgSettings see "No locations configured" because the sections array is empty. The two systems need to be unified.
+
+**Root cause of "location cards not showing"**: WorkspaceDetail builds `allSections` from `org.settings.sections` + inspection `section` values. If `org.settings.sections` is empty and all inspections have empty `section` fields (because extinguishers were never assigned a section matching the sections array), the only card that appears is "Unassigned". If the user expected their Locations page entries to show as cards, they don't — because they come from a different data source.
+
+**Solution**: Make the `locations` collection the single source of truth. WorkspaceDetail reads location names from the collection. OrgSettings stops managing sections (redirects to Locations page). Extinguisher forms populate `section` from location name dropdown.
+
+**10 tasks (P9-01 through P9-10):**
+- P9-01: WorkspaceDetail subscribes to locations collection for cards (core fix)
+- P9-02: Show location metadata on cards (polish, optional)
+- P9-03: Extinguisher form uses location dropdown for section
+- P9-04: Comment in createWorkspace CF (trivial)
+- P9-05: Replace OrgSettings sections card with link to Locations page
+- P9-06: Remove sections state management from OrgSettings
+- P9-07: Remove "Section" freetext from Location form
+- P9-08: Migration utility for old sections data (optional)
+- P9-09: TypeScript build verification
+- P9-10: E2E testing checklist
+
+**Key files modified:**
+- `src/pages/WorkspaceDetail.tsx` — read from locations collection instead of org.settings.sections
+- `src/pages/OrgSettings.tsx` — remove sections management, add link to Locations
+- `src/pages/Locations.tsx` — remove redundant "Section" field from form
+- Extinguisher create/edit form — section dropdown from locations
+- `src/services/locationService.ts` — already exists, no changes needed
+
+**Build order:** P9-01 first (core fix), then P9-05+P9-06, then P9-03+P9-07, then verification.
+
+### Previous Phase: WorkspaceDetail Drill-Down Rewrite (COMPLETE and REVIEWED)
 
 ### WorkspaceDetail Drill-Down Review Summary (review-agent, 2026-03-19)
 

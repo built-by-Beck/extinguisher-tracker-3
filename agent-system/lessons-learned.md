@@ -97,3 +97,9 @@ Each entry follows this structure:
 - **Issue**: Inspection history was loaded once on mount via useEffect, but after saving (pass/fail) or resetting an inspection, the history list was not refreshed. The user wouldn't see the newly completed/reset inspection in the history section without remounting the page.
 - **Resolution**: Extracted the history fetch into a `refreshHistory()` function and called it after successful save and reset operations.
 - **Rule**: When a page displays data that can be mutated by actions on the same page, always refresh that data after the mutation succeeds. Don't rely on mount-only fetches for data that changes during the page's lifecycle.
+
+### 2026-03-20 -- When unifying two data sources, ensure the dropdown option values match the handler branches
+- **Context**: Phase 9 ExtinguisherForm — location dropdown replaces section freetext
+- **Issue**: `handleLocationChange` had a dead branch for `locId === '__unassigned__'`, but the actual `<option>` uses `value=""` for the unassigned case. The empty-string branch handled it correctly, so the `__unassigned__` branch was unreachable dead code. No runtime bug, but confusing for future readers.
+- **Resolution**: Identified as harmless dead code during review; deferred cleanup. No functional impact.
+- **Rule**: When adding select/dropdown handlers, verify that every `value` attribute on `<option>` elements has a corresponding branch in the change handler, and vice versa. Remove handler branches that don't correspond to any option value.
