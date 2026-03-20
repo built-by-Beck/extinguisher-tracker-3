@@ -1,14 +1,14 @@
 # EX3 Agent System -- Project State
 
 **Last Updated**: 2026-03-20
-**Updated By**: build-agent (Sonnet 4.6) -- Phase 10 complete
+**Updated By**: review-agent (Opus 4.6) -- Phase 10 APPROVED
 
 ---
 
 ## Current Phase
 
 **Phase 10: Replace Barcode Scanner (html5-qrcode -> @zxing/browser)**
-Status: COMPLETE — awaiting review-agent
+Status: APPROVED -- 1 clarity fix (comments only, no logic changes)
 
 ### Phase 10 Build Summary (build-agent, 2026-03-20)
 
@@ -53,6 +53,28 @@ Status: COMPLETE — awaiting review-agent
 1. The `setTimeout(resolve, 0)` microtask defer — is there a cleaner React way (useEffect on `hasPermission`) to ensure the video element is in the DOM before calling `decodeFromVideoDevice`?
 2. The `initializeScanner` function is called in a `useEffect` but is defined inside the component without `useCallback` — the eslint-disable comment suppresses the deps warning. Review whether this is acceptable or if the function should be moved/memoized.
 3. `stopScanner` is not memoized via `useCallback` — it's called in the `useEffect` cleanup, which could have stale closure issues. Verify correctness.
+
+### Phase 10 Review (review-agent, 2026-03-20)
+
+**Result: APPROVED -- 1 clarity fix (comments only)**
+
+**Review of the 3 flagged concerns:**
+
+1. **`setTimeout(resolve, 0)` defer** -- ACCEPTABLE. This is a macrotask defer (not a microtask as labeled in the build notes). It gives React time to flush the `setHasPermission(true)` state update and render the `<video>` element before `decodeFromVideoDevice` needs `videoRef.current`. An alternative would be a separate `useEffect` keyed on `hasPermission`, but that adds complexity for no reliability gain -- `setTimeout(0)` is a well-established pattern for "run after next paint." Improved the comment to explain WHY it's needed (the `<video>` is conditionally rendered and `videoRef.current` would be null without the defer).
+
+2. **`initializeScanner` not in `useCallback`** -- CORRECT as-is. Wrapping in `useCallback([onScan])` would cause the effect to re-trigger every time the parent re-renders with a new `onScan` reference (which happens if the parent doesn't `useCallback` its own handler). The intent is to only re-run when `open` or `manualMode` changes. The `eslint-disable` is appropriate and well-commented.
+
+3. **`stopScanner` stale closure risk** -- NO RISK. `stopScanner` reads `controlsRef.current` (a ref, not state). Refs are mutable objects; the `.current` value is always the latest, regardless of when the closure was created. There is no stale closure issue. Additionally, the `decodeFromVideoDevice` promise resolves (setting `controlsRef.current`) BEFORE any per-frame callbacks fire with scan results, so `stopScanner()` in the callback always has access to the controls.
+
+**Additional findings:**
+- No remaining `html5-qrcode` imports in code (only in agent-system docs, which is expected).
+- `ScanSearchBar.tsx` interface fully compatible -- imports `BarcodeScannerModal` (default) and `ScanResult` (type) unchanged.
+- `pnpm build` and `cd functions && npm run build` both pass clean.
+- Video stream cleanup is correct: `controls.stop()` is called on unmount (useEffect cleanup), on modal close, and on successful scan. The `handleClose` function also resets state.
+- `scannedRef` guard prevents double-fire correctly.
+- The approach matches the reference scanner pattern (getUserMedia -> stop test stream -> BrowserMultiFormatReader -> decodeFromVideoDevice -> controls.stop()) with appropriate TypeScript and UI adaptations.
+
+**Changes made:** Improved comments in `BarcodeScannerModal.tsx` on the `setTimeout(0)` defer (lines 98-101) and the `controlsRef` assignment (lines 69-72). No logic changes.
 
 ---
 

@@ -1,203 +1,141 @@
 # Plan -- extinguisher-tracker-3
 
-**Current Phase**: 9 -- Unify Locations & Sections + Fix WorkspaceDetail Location Cards
-**Last Updated**: 2026-03-19
+**Current Phase**: 10 -- Replace Barcode Scanner (html5-qrcode -> @zxing/browser)
+**Last Updated**: 2026-03-20
 **Author**: built_by_Beck
 
 ---
 
 ## Current Objective
 
-Fix two related issues:
-1. **Location cards not showing in WorkspaceDetail** — the cards render but show "No locations configured" because the data sources are mismatched.
-2. **Locations page and Sections in OrgSettings are disconnected** — two independent systems that should be the same thing.
+Replace the broken barcode scanner implementation that uses `html5-qrcode` with the proven `@zxing/browser` + `BrowserMultiFormatReader` approach from the reference project (`/home/beck/projects/Fire_Extinguisher_Tracker/src/BarcodeScanner.jsx`).
 
-Unify them so there is ONE source of truth for locations/sections, and make WorkspaceDetail location cards work correctly.
+The current scanner (`src/components/scanner/BarcodeScannerModal.tsx`) uses `html5-qrcode` which creates its own DOM elements and is not working correctly. The reference project uses a simple `<video>` element with `@zxing/browser`'s `decodeFromVideoDevice()` and is proven to work.
 
 ---
 
 ## Diagnosis
 
-### Issue 1: Why Location Cards Don't Show in WorkspaceDetail
+### Why the current scanner is broken
 
-**Root cause: The `section` field on extinguishers (and therefore inspections) is empty/mismatched with `org.settings.sections`.**
+The `html5-qrcode` library:
+1. Creates its own internal DOM elements inside `#barcode-scanner-region` — fragile, hard to control
+2. Has complex state management (getState() returns numeric codes 2/3)
+3. Requires a 100ms setTimeout hack to let DOM mount before starting
+4. Stop/start lifecycle is error-prone (the `stopScanner` callback wraps everything in try/catch to swallow errors)
+5. Torch support uses `any` casts and unreliable API
 
-Here's the data flow:
+### Why the reference scanner works
 
-1. **WorkspaceDetail** (line 58) reads `sections` from `org?.settings?.sections ?? []`
-2. **`allSections`** (line 169-176) builds a union of `org.settings.sections` + sections found on inspection docs (`insp.section || 'Unassigned'`)
-3. **`sectionStatsMap`** (line 138-165) counts inspections per section
-4. **Location cards render** (line 392) when `selectedSection === null` — they show `allSections`
+The reference project (`BarcodeScanner.jsx`) uses `@zxing/browser`:
+1. Uses a standard `<video>` element with a React ref — no DOM generation
+2. `BrowserMultiFormatReader` + `decodeFromVideoDevice(null, videoRef.current, callback)` — simple API
+3. Camera permission requested explicitly via `navigator.mediaDevices.getUserMedia`
+4. Three clear states: loading (permission null), denied (permission false), scanning (permission true)
+5. Cleanup via `reader.reset()` — straightforward
 
-The cards WILL render if `allSections` has items. The "No locations configured" empty state shows when `allSections.length === 0`.
+### What needs to change
 
-**This happens when:**
-- `org.settings.sections` is an empty array (user never added sections in OrgSettings)
-- AND every inspection has an empty `insp.section` string (so they all become "Unassigned")
-
-Wait — the review-agent already fixed the "Unassigned" bug (agents-info.md line 17), so inspections with blank sections DO get counted under "Unassigned" and "Unassigned" IS added to `allSections`. So if there are ANY inspections, at least "Unassigned" should appear.
-
-**Possible remaining causes:**
-- If the user DID add locations on the Locations page but NOT sections in OrgSettings, then `org.settings.sections` is empty AND the extinguishers' `section` field is empty (because the Locations page writes to `org/{orgId}/locations` collection, NOT to `org.settings.sections`). All inspections would have `section: ''`, producing one "Unassigned" card.
-- The user may have expected their Locations page entries to show as location cards, but they don't — because WorkspaceDetail reads from `org.settings.sections`, not from the `locations` collection.
-
-**Conclusion for Issue 1:** The location cards DO technically work (the "Unassigned" fix ensures at least one card appears), but they only show org.settings.sections + "Unassigned". The user likely added locations on the Locations page and expected those to appear as location cards in WorkspaceDetail. They don't, because these are two separate systems. This is really Issue 2 manifesting in the UI.
-
-### Issue 2: Two Disconnected Location Systems
-
-**System A: OrgSettings Sections**
-- Stored at: `org/{orgId}.settings.sections` (string array)
-- Managed by: OrgSettings page (add/remove simple strings)
-- Used by: WorkspaceDetail (location cards), Inspection docs (`section` field), ExtinguisherDetail (section display)
-
-**System B: Locations Collection**
-- Stored at: `org/{orgId}/locations` (full documents with hierarchy)
-- Managed by: Locations page (CRUD with tree view, types, parent/child)
-- Used by: Extinguisher docs (`locationId` field), ExtinguisherDetail (location display)
-- Has fields: name, locationType, parentLocationId, section, description, address, gps
-
-These are completely independent. The Locations page has a `section` field on each location doc, but that's a freetext input — it doesn't sync to/from `org.settings.sections`.
-
-**What the user wants:** ONE unified concept. When you add a location, it shows up everywhere — in the Locations page tree view, in OrgSettings, in WorkspaceDetail location cards, and on extinguisher/inspection section fields.
-
----
-
-## Unification Strategy
-
-**Make the `locations` collection the single source of truth.** Remove `org.settings.sections` as a separate concept.
-
-**Why locations collection wins over sections array:**
-- Locations have richer data (hierarchy, types, descriptions, addresses)
-- Locations already have CRUD operations
-- Locations have a proper Firestore collection (not a nested array on the org doc)
-- The sections array is just a flat list of strings — a subset of what locations already provides
-- The Locations page already exists with a proper UI
-
-**Approach:**
-1. WorkspaceDetail location cards should read from the `locations` collection, not `org.settings.sections`
-2. Extinguisher `section` field should be populated from location names (or locationId lookups)
-3. Inspection `section` field (copied from extinguisher at workspace creation) drives the grouping
-4. OrgSettings "Sections" card either gets removed or becomes a read-only view / redirect to Locations page
-5. Migration: existing `org.settings.sections` values should be importable as locations
+1. **Dependency swap**: Remove `html5-qrcode`, add `@zxing/browser` + `@zxing/library`
+2. **Rewrite `BarcodeScannerModal.tsx`**: Use `@zxing/browser` with `<video>` element approach
+3. **Preserve interface**: Keep `ScanResult { text, format }`, `BarcodeScannerModalProps { open, onClose, onScan }`, manual entry mode
+4. **No changes needed to consumers**: `ScanSearchBar.tsx`, `WorkspaceDetail.tsx`, `Dashboard.tsx`, `Inventory.tsx` all use the same interface
 
 ---
 
 ## Tasks for This Round
 
-### Subsystem A: WorkspaceDetail — Use Locations Collection for Cards
+### P10-01: Swap npm dependencies
 
-**P9-01: Subscribe to locations in WorkspaceDetail and use them for location cards**
-- File: `src/pages/WorkspaceDetail.tsx`
-- Import `subscribeToLocations` from `../services/locationService.ts`
-- Add a `useEffect` that subscribes to locations for the org (same pattern as Locations.tsx)
-- Change `allSections` computation:
-  - Start with location names from the locations collection (not `org.settings.sections`)
-  - Still merge in any `insp.section` values found on inspections (for backward compat with existing data)
-  - Still include "Unassigned" for inspections with empty section
-- Change `sectionStatsMap` to initialize from location names instead of `org.settings.sections`
-- This means location cards will show location names from the collection
-- Location cards still group inspections by matching `insp.section` to location names
-- Remove the dependency on `org.settings.sections` (or keep as fallback if locations collection is empty)
+- Remove `html5-qrcode` from `package.json`
+- Add `@zxing/browser` and `@zxing/library`
+- Run `pnpm install`
+- Verify no other files import from `html5-qrcode`
 
-**P9-02: Show location metadata on location cards**
-- File: `src/pages/WorkspaceDetail.tsx`
-- Since we now have full Location objects (not just strings), enhance the cards:
-  - Show location type badge (e.g., "Building", "Floor") in small text
-  - Show description snippet if available
-- Create a `Map<string, Location>` from the locations array for quick lookup by name
-- This is a polish task — can be deferred if time is tight
+### P10-02: Rewrite BarcodeScannerModal.tsx with @zxing/browser
 
-### Subsystem B: Unify the Section Field on Extinguishers
+**File**: `src/components/scanner/BarcodeScannerModal.tsx`
 
-**P9-03: Update extinguisher form to select from locations collection**
-- Files to check: `src/pages/ExtinguisherForm.tsx` or wherever extinguisher create/edit lives
-- The `section` field on extinguishers should be populated from a dropdown of location names (from the locations collection), NOT a freetext input
-- Also consider populating `locationId` with the selected location's doc ID
-- When the user picks a location, set both `section = location.name` and `locationId = location.id`
-- This ensures new extinguishers have section values that match location names
+**Must preserve (public API contract):**
+```typescript
+export interface ScanResult {
+  text: string;
+  format: string;
+}
 
-**P9-04: Update createWorkspace Cloud Function — section field source**
-- File: `functions/src/workspaces/createWorkspace.ts`
-- Currently line 89: `section: extData.section ?? ''`
-- This copies the extinguisher's `section` field to the inspection doc
-- No change needed here IF we fix P9-03 (extinguisher section now matches location names)
-- BUT: if existing extinguishers have empty section fields, their inspections will still be "Unassigned"
-- Add a comment documenting that inspection.section comes from extinguisher.section at workspace creation time
+interface BarcodeScannerModalProps {
+  open: boolean;
+  onClose: () => void;
+  onScan: (result: ScanResult) => void;
+}
 
-### Subsystem C: OrgSettings Sections — Redirect to Locations
+export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeScannerModalProps)
+```
 
-**P9-05: Replace OrgSettings "Sections" card with a link to Locations page**
-- File: `src/pages/OrgSettings.tsx`
-- Remove the sections management UI (the add/remove string chips)
-- Replace with an info card that says "Manage your locations and sections on the Locations page" with a link/button to navigate to `/dashboard/locations`
-- Keep `org.settings.sections` in Firestore for backward compatibility (don't delete the field)
-- Remove `sections` from the `handleSave` update (stop writing to `settings.sections`)
-- Eventually (future cleanup) `org.settings.sections` can be deprecated entirely
+**Implementation approach (model on reference project):**
 
-**P9-06: Remove `sections` state management from OrgSettings**
-- File: `src/pages/OrgSettings.tsx`
-- Remove: `const [sections, setSections]`, `const [newSection, setNewSection]`, `handleAddSection`, `handleRemoveSection`
-- Remove `'settings.sections': sections` from the `handleSave` updateDoc call
-- Clean up unused imports (`Plus`, `X` if only used for sections)
+1. **State**: `error`, `manualMode`, `manualValue`, `hasPermission` (null = loading, true = granted, false = denied), `isScanning`
+2. **Refs**: `videoRef` (HTMLVideoElement), `readerRef` (BrowserMultiFormatReader instance)
+3. **Scanner lifecycle**:
+   - `initializeScanner()`:
+     - Request camera permission via `navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })`
+     - On success: set `hasPermission = true`, stop the test stream, create `new BrowserMultiFormatReader()`, call `startScanning(reader)`
+     - On error: set `hasPermission = false`, set appropriate error message
+   - `startScanning(reader)`:
+     - `reader.decodeFromVideoDevice(null, videoRef.current, (result, error) => { ... })`
+     - On result: extract `result.getText()` and `result.getBarcodeFormat()` (from `@zxing/library`), call `onScan({ text, format })`
+     - On error with name !== 'NotFoundException': log (ignore NotFoundException, that's normal per-frame miss)
+   - `stopScanner()`:
+     - If `readerRef.current` exists, call `.reset()`
+     - Set `isScanning = false`
+4. **useEffect**: When `open` changes to true and not in manualMode, call `initializeScanner()`. On cleanup or when `open` becomes false, call `stopScanner()`.
+5. **Important**: Use a `scannedRef` (boolean ref) to prevent multiple rapid-fire scan results. Once a scan is detected, set `scannedRef.current = true` and don't call `onScan` again. Reset it when the scanner starts.
+6. **Remove**: All `html5-qrcode` imports, `SCANNER_REGION_ID`, `SUPPORTED_FORMATS`, `Html5Qrcode` usage, torch logic, camera switching logic (simplify — @zxing picks the best camera automatically via `null` device ID)
 
-### Subsystem D: Locations Page — Remove Redundant "Section" Field
+**UI structure (preserve existing Tailwind styling):**
 
-**P9-07: Remove the "Section" freetext field from the Location form**
-- File: `src/pages/Locations.tsx`
-- The Location form currently has a "Section" input (line 304-312) — this is confusing because the location IS the section now
-- Remove the "Section" field from the create/edit form
-- The location's `name` IS the section/location identifier
-- Keep `section` on the Location interface for backward compat but don't show it in the form
+- Keep the same modal container (fixed inset-0, bg-black/60, centered card)
+- Keep the same header with title + close button
+- **Camera mode**:
+  - `hasPermission === null`: Show spinner + "Requesting camera permission..."
+  - `hasPermission === false`: Show CameraOff icon + error message + "Try Again" button
+  - `hasPermission === true`: Show `<video ref={videoRef} autoPlay playsInline muted>` with scanning overlay
+- **Scanning overlay**: A red-bordered rectangle centered over the video (like the reference's `w-32 h-32 border-2 border-red-500 rounded-lg animate-pulse`). Adapt to the existing card style (use `border-red-500` to match EX3 branding).
+- **Instruction text**: "Point your camera at a barcode or QR code"
+- **Manual fallback button**: Keep the "Enter Manually" button below the video
+- **Manual mode**: Keep exactly as-is (input + Search button + Camera button to go back)
 
-### Subsystem E: Backward Compatibility — Migration Helper
+### P10-03: Verify no other imports of html5-qrcode
 
-**P9-08: Add a one-time migration utility (optional, low priority)**
-- If an org has values in `org.settings.sections` but no locations in the collection, offer to import them
-- This could be a button on the Locations page: "Import sections from settings"
-- Or it could be automatic: on Locations page load, if `locations.length === 0 && org.settings.sections.length > 0`, show a prompt
-- Each imported section becomes a Location doc with `name = sectionName`, `locationType = 'zone'`, `parentLocationId = null`
-- **This is a nice-to-have. Skip if time is tight.**
+- Search codebase for any remaining `html5-qrcode` imports
+- If found, update them
+- Should only be in `BarcodeScannerModal.tsx` (already handled by P10-02)
 
-### Subsystem F: Verification
+### P10-04: TypeScript build verification
 
-**P9-09: TypeScript build verification**
 - Run `pnpm build` — fix any TypeScript errors
-- Run `cd functions && npm run build` — fix any backend errors
-- Verify no broken imports from removed code
+- Run `cd functions && npm run build` — should be unaffected (backend doesn't use scanner)
+- Verify the `ScanResult` export and `BarcodeScannerModal` default export work for `ScanSearchBar.tsx`
 
-**P9-10: End-to-end flow testing checklist**
-- **Locations page**: Add a location → appears in tree
-- **WorkspaceDetail**: Open workspace → location cards show locations from the collection (not org.settings.sections)
-- **WorkspaceDetail**: Inspections grouped correctly by section (matching location names)
-- **WorkspaceDetail**: "Unassigned" card appears for inspections with empty/non-matching section
-- **WorkspaceDetail**: Click a location card → see extinguisher cards for that section
-- **OrgSettings**: Sections card replaced with "Go to Locations" link
-- **OrgSettings**: Save still works for other fields (name, timezone)
-- **ExtinguisherDetail**: Section/location info still displays correctly
-- **Extinguisher create/edit**: Section dropdown populated from locations collection
-- **Existing data**: Extinguishers with old section values still show under matching or "Unassigned" cards
+### P10-05: Verify consumer imports are unchanged
+
+- `src/components/scanner/ScanSearchBar.tsx` — imports `BarcodeScannerModal` (default) and `ScanResult` (named type). Must still work.
+- `src/pages/WorkspaceDetail.tsx`, `src/pages/Dashboard.tsx`, `src/pages/Inventory.tsx` — use `ScanSearchBar`. No changes needed (they don't import the scanner directly).
 
 ---
 
 ## Task Order
 
-**Round 1 — Core fix (unblocks the visible bug):**
-1. P9-01: WorkspaceDetail reads locations collection for cards
-2. P9-05: OrgSettings sections card → redirect to Locations
-3. P9-06: Remove sections state from OrgSettings
+**Round 1 — Dependency swap:**
+1. P10-01: Remove html5-qrcode, add @zxing/browser + @zxing/library, pnpm install
 
-**Round 2 — Consistency (ensures new data is correct):**
-4. P9-03: Extinguisher form uses location dropdown
-5. P9-07: Remove "Section" field from Location form
+**Round 2 — Rewrite scanner:**
+2. P10-02: Rewrite BarcodeScannerModal.tsx with @zxing/browser
 
-**Round 3 — Polish:**
-6. P9-02: Location metadata on cards (optional)
-7. P9-04: Comment in createWorkspace (trivial)
-8. P9-08: Migration utility (optional)
-
-**Round 4 — Verification:**
-9. P9-09: TypeScript build
-10. P9-10: E2E testing
+**Round 3 — Verification:**
+3. P10-03: Verify no remaining html5-qrcode imports
+4. P10-04: TypeScript build
+5. P10-05: Verify consumer imports
 
 ---
 
@@ -205,81 +143,96 @@ These are completely independent. The Locations page has a `section` field on ea
 
 | Task | Depends On |
 |------|-----------|
-| P9-01 | None |
-| P9-02 | P9-01 |
-| P9-03 | P9-01 (so the dropdown data source is clear) |
-| P9-04 | None |
-| P9-05 | None |
-| P9-06 | P9-05 |
-| P9-07 | None |
-| P9-08 | P9-01, P9-05 |
-| P9-09 | All prior tasks |
-| P9-10 | All prior tasks |
+| P10-01 | None |
+| P10-02 | P10-01 (needs @zxing packages installed) |
+| P10-03 | P10-02 |
+| P10-04 | P10-01, P10-02 |
+| P10-05 | P10-04 |
 
 ---
 
 ## Blockers or Risks
 
-1. **Existing data mismatch**: Extinguishers created before this change have `section` values that may not match location names. These will appear under "Unassigned" or under a card if the name happens to match. This is acceptable — no data migration is required, just a UI that handles both cases.
+1. **@zxing/browser TypeScript types**: `@zxing/browser` and `@zxing/library` are TypeScript-native, so types should be available. The build-agent should verify the import paths. The main classes are `BrowserMultiFormatReader` from `@zxing/browser` and `BarcodeFormat` from `@zxing/library`.
 
-2. **Inspection section is set at workspace creation time**: Changing the extinguisher's section after a workspace is created does NOT retroactively update existing inspection docs. This is by design (inspections are snapshots). Future workspaces will pick up the new section.
+2. **`result.getBarcodeFormat()` returns a BarcodeFormat enum, not a string**: The `ScanResult.format` field is a `string`. The build-agent should convert it via `BarcodeFormat[result.getBarcodeFormat()]` or `String(result.getBarcodeFormat())` to get a human-readable string (e.g., "QR_CODE", "CODE_128"). Check the @zxing API.
 
-3. **Location names are not unique**: The locations collection doesn't enforce unique names. If two locations have the same name, their inspections will be grouped together on the location card. The build-agent should be aware but this is an edge case that can be addressed later.
+3. **Scanned ref to prevent double-fires**: The reference project calls `onScan(text)` then `stopScanner()` immediately, but the callback might fire again before `reset()` completes. Use a `scannedRef` boolean (like the current implementation does) to gate the `onScan` call.
 
-4. **`org.settings.sections` still exists in Firestore**: We stop writing to it but don't delete it. Old data remains. This avoids needing a backend migration. The `OrgSettings` type still has the field. WorkspaceDetail's fallback can optionally read it if no locations exist.
+4. **Video element must be in DOM before `decodeFromVideoDevice`**: The video ref must be rendered before calling the decode function. The reference handles this by only calling `startScanning` after permission is granted and the component renders the video element. The build-agent should ensure the video element renders when `hasPermission === true` and scanning starts after that render (use a second `useEffect` or call `startScanning` after setting `hasPermission`).
 
-5. **The `section` field on the Location interface**: Currently a freetext field. We're removing it from the form (P9-07) but keeping it on the interface. The location's `name` IS now the section identifier. We should NOT use `location.section` for grouping — use `location.name` instead.
+5. **Reader cleanup on unmount**: `BrowserMultiFormatReader.reset()` stops all media streams. Must be called on unmount AND when the modal closes. Use `useEffect` cleanup.
 
-6. **Extinguisher `section` vs `locationId`**: Extinguishers have both `section` (string, used by inspections) and `locationId` (reference to locations collection). The `section` string is what gets copied to inspection docs at workspace creation. The `locationId` is a richer reference. P9-03 should set BOTH when creating/editing extinguishers.
+6. **No torch/flash support**: The @zxing/browser library doesn't have a built-in torch API. Remove torch controls. This is acceptable — torch was unreliable in the html5-qrcode implementation anyway.
+
+7. **No camera switching UI**: The reference passes `null` as deviceId to `decodeFromVideoDevice`, which lets the browser pick the best camera (usually back camera due to the `facingMode: 'environment'` hint from the permission request). Remove the camera switch button. This simplifies the UI.
+
+---
+
+## Key Code References
+
+**Reference working scanner** (adapt from this):
+- `/home/beck/projects/Fire_Extinguisher_Tracker/src/BarcodeScanner.jsx`
+
+**Files to modify:**
+- `src/components/scanner/BarcodeScannerModal.tsx` — full rewrite
+- `package.json` — dependency swap
+
+**Files that must NOT change (verify only):**
+- `src/components/scanner/ScanSearchBar.tsx` — imports `BarcodeScannerModal` default + `ScanResult` type
+- `src/pages/WorkspaceDetail.tsx` — uses `ScanSearchBar`
+- `src/pages/Dashboard.tsx` — uses `ScanSearchBar`
+- `src/pages/Inventory.tsx` — uses `ScanSearchBar`
 
 ---
 
 ## Definition of Done
 
-Phase 9 is complete when ALL of the following are true:
+Phase 10 is complete when ALL of the following are true:
 
-1. **WorkspaceDetail location cards** show locations from the `locations` collection (not `org.settings.sections`)
-2. **WorkspaceDetail location cards** correctly group inspections by matching `insp.section` to location names
-3. **"Unassigned" card** appears for inspections whose section doesn't match any location name
-4. **OrgSettings** no longer has a sections management UI — replaced with link to Locations page
-5. **Extinguisher create/edit** populates `section` from a location name dropdown
-6. **Location form** no longer has a confusing "Section" freetext input
-7. **TypeScript compiles clean** — `pnpm build` and `cd functions && npm run build` pass
-8. **Existing data** is handled gracefully (no crashes, mismatched sections show as Unassigned)
+1. **`html5-qrcode` removed** from `package.json` and no imports remain in the codebase
+2. **`@zxing/browser` and `@zxing/library` installed** in `package.json`
+3. **`BarcodeScannerModal.tsx` rewritten** to use `BrowserMultiFormatReader` + `<video>` element
+4. **Same public API preserved**: `ScanResult { text, format }` exported, `BarcodeScannerModalProps` unchanged, default export function signature unchanged
+5. **Three permission states rendered**: loading spinner, denied error with retry, scanning with video + overlay
+6. **Red target rectangle overlay** on the video during scanning
+7. **Manual entry mode preserved** with same UI and behavior
+8. **Scanner stops properly** on close, unmount, and successful scan
+9. **`pnpm build` passes** with no TypeScript errors
+10. **`ScanSearchBar.tsx` works unchanged** — no modifications needed to any consumer
 
 ---
 
 ## Handoff to build-agent
 
-**Start with P9-01** — this is the highest-impact fix. It makes WorkspaceDetail location cards pull from the locations collection, which immediately fixes the "nothing showing" bug for users who have locations but no org.settings.sections.
+**Start with P10-01** — swap the dependencies. Remove `html5-qrcode`, add `@zxing/browser` and `@zxing/library`, run `pnpm install`.
 
-**Then P9-05 + P9-06** — remove the confusing sections UI from OrgSettings. Replace with a link to Locations.
+**Then P10-02** — this is the main work. Rewrite `BarcodeScannerModal.tsx`. Model it on the reference scanner at `/home/beck/projects/Fire_Extinguisher_Tracker/src/BarcodeScanner.jsx` but:
+- Keep TypeScript (not JSX)
+- Keep the `ScanResult` interface and `BarcodeScannerModalProps` interface
+- Keep the manual entry mode (the reference doesn't have one)
+- Use the existing Tailwind card styling (rounded-xl, shadow-2xl, etc.)
+- Add the red scanning overlay rectangle
+- Add the `scannedRef` guard against double-fires
+- Convert `BarcodeFormat` enum to string for `ScanResult.format`
 
-**Then P9-03 + P9-07** — ensure new data flows correctly (extinguisher section from location dropdown, remove redundant Section field from location form).
+**Then P10-03 through P10-05** — verification. Grep for `html5-qrcode`, run `pnpm build`, confirm consumers compile.
 
-**Key context:**
+**Key patterns from the reference scanner to copy:**
+1. Request permission first with `getUserMedia({ video: { facingMode: 'environment' } })`
+2. Stop the test stream (`stream.getTracks().forEach(track => track.stop())`)
+3. Create `new BrowserMultiFormatReader()`
+4. Call `reader.decodeFromVideoDevice(null, videoRef.current, callback)`
+5. In callback: `result.getText()` for the decoded text
+6. Cleanup: `reader.reset()`
 
-- **`subscribeToLocations(orgId, callback)`** already exists in `src/services/locationService.ts`. It returns active (non-deleted) locations sorted by sortOrder. Use this in WorkspaceDetail.
-
-- **Inspection `section` field** (on the `Inspection` interface) is a string set at workspace creation time by copying `extinguisher.section`. This is the grouping key for location cards. The location cards match `insp.section` to location names.
-
-- **The locations collection has a `name` field** — this is what should be used as the "section" identifier. Do NOT use `location.section` (which is a separate freetext field that's being deprecated).
-
-- **Backward compat**: Some inspections will have section values that don't match any location name (from before unification). These go into "Unassigned". Some inspections will have empty section strings. These also go into "Unassigned".
-
-- **`allSections` computation** should be: `Set(location names from collection) UNION Set(insp.section values from inspections)`. This ensures all inspection data is visible even if a location was deleted.
-
-- **`org.settings.sections`**: Stop reading it in WorkspaceDetail (or use as fallback only if locations collection is empty AND sections array is non-empty). Stop writing it in OrgSettings.
-
-- **Design**: Keep the same Tailwind card style. Location cards already look great. Just change the data source.
+**Key difference from reference:**
+- Reference calls `onScan(text)` with just a string. EX3 needs `onScan({ text, format })` with a `ScanResult` object. Extract format from `result.getBarcodeFormat()`.
 
 **Warnings from lessons-learned:**
-- Never call `DocumentReference.update()` on non-existent doc.
 - No `any` types. TypeScript strict mode.
 - Always include `built_by_Beck` in commit messages.
-- Use explicit parentheses with mixed `&&` / `||`.
 - When a useEffect fetches async data, reset state at the top of the effect.
-- After mutations, refresh derived data lists.
 
 ---
 
@@ -308,3 +261,6 @@ Workspaces, Inspections, InspectionForm, WorkspaceDetail.
 
 ### Phase 8 -- Barcode Scanner & Quick Inspection (COMPLETE)
 20 tasks. WorkspaceDetail drill-down rewrite also done.
+
+### Phase 9 -- Unify Locations & Sections (COMPLETE)
+10 tasks. Unified locations/sections data model. Reviewed and approved.

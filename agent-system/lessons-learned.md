@@ -103,3 +103,15 @@ Each entry follows this structure:
 - **Issue**: `handleLocationChange` had a dead branch for `locId === '__unassigned__'`, but the actual `<option>` uses `value=""` for the unassigned case. The empty-string branch handled it correctly, so the `__unassigned__` branch was unreachable dead code. No runtime bug, but confusing for future readers.
 - **Resolution**: Identified as harmless dead code during review; deferred cleanup. No functional impact.
 - **Rule**: When adding select/dropdown handlers, verify that every `value` attribute on `<option>` elements has a corresponding branch in the change handler, and vice versa. Remove handler branches that don't correspond to any option value.
+
+### 2026-03-20 -- Conditionally-rendered elements need a render flush before ref access
+- **Context**: Phase 10 barcode scanner rewrite — `<video>` element is rendered only when `hasPermission === true`, but `decodeFromVideoDevice` needs `videoRef.current` immediately after setting that state.
+- **Issue**: Calling `setHasPermission(true)` followed immediately by `startScanning(reader)` would find `videoRef.current === null` because React hasn't re-rendered yet. The `<video>` element only mounts when `hasPermission === true`.
+- **Resolution**: Used `await new Promise<void>(resolve => setTimeout(resolve, 0))` to defer `startScanning` to the next macrotask, giving React time to flush the state update and render the `<video>` into the DOM.
+- **Rule**: When a ref-dependent operation (like attaching a video stream) needs a DOM element that is conditionally rendered based on state, defer the operation to the next macrotask with `setTimeout(0)` after the state update. Alternatively, use a separate `useEffect` keyed on the controlling state variable.
+
+### 2026-03-20 -- Refs avoid stale closure problems that state-based patterns have
+- **Context**: Phase 10 — `stopScanner` function reads `controlsRef.current` and is called from both useEffect cleanup and from the `decodeFromVideoDevice` callback closure.
+- **Issue**: Build-agent flagged potential stale closure risk with `stopScanner`. Investigation showed no risk because `controlsRef` is a React ref (mutable `.current`), not state. Refs always reflect the latest value regardless of when the closure that reads them was created.
+- **Resolution**: No code change needed. Added explanatory comment.
+- **Rule**: When a function needs to read a value that changes over time and is called from closures (useEffect cleanup, event callbacks, async callbacks), store that value in a `useRef` rather than state. Refs are immune to stale closure issues because the ref object identity is stable and `.current` is always the latest value.

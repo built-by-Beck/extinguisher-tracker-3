@@ -66,6 +66,10 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
           }
         },
       );
+      // Assign controls to ref immediately so stopScanner() can clean up.
+      // The callback above fires per-frame AFTER this promise resolves,
+      // so controlsRef.current is guaranteed to be set before any scan result
+      // triggers stopScanner().
       controlsRef.current = controls;
     } catch (err) {
       console.error('Failed to start scanning:', err);
@@ -91,8 +95,10 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
 
       // BrowserMultiFormatReader will open its own stream via decodeFromVideoDevice
       const reader = new BrowserMultiFormatReader();
-      // startScanning is called after state update triggers re-render with video element
-      // We defer via a microtask so React renders the <video> before we attach
+      // The <video> element is conditionally rendered only when hasPermission === true.
+      // setTimeout(0) defers to the next macrotask, giving React time to flush the
+      // setHasPermission(true) state update and render the <video> into the DOM.
+      // Without this, videoRef.current would still be null when startScanning runs.
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       await startScanning(reader);
     } catch (err) {
