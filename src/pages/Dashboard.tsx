@@ -158,7 +158,8 @@ export default function Dashboard() {
           <div className="flex-1">
             <p className="text-sm font-medium text-amber-800">No active subscription</p>
             <p className="text-sm text-amber-700">
-              Choose a plan to unlock all features and start managing your extinguishers.
+              Choose a plan to unlock all features and start managing your extinguishers. AI
+              assistant access starts on Pro.
             </p>
           </div>
           <button
@@ -184,6 +185,24 @@ export default function Dashboard() {
             className="rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
           >
             Manage Billing
+          </button>
+        </div>
+      )}
+
+      {org?.plan === 'basic' && (
+        <div className="mb-6 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-blue-600" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-blue-900">AI is included with Pro and above</p>
+            <p className="text-sm text-blue-700">
+              Basic plans do not include AI access. Upgrade your plan to use the AI assistant.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/dashboard/settings')}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Upgrade Plan
           </button>
         </div>
       )}

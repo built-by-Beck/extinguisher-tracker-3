@@ -16,6 +16,8 @@ export interface OrgFeatureFlags {
   tagPrinting: boolean;
   bulkTagPrinting: boolean;
   inspectionRoutes: boolean;
+  /** Pro+: AI compliance assistant powered by Gemini */
+  aiAssistant: boolean;
   /** Elite/Enterprise: Allow anonymous read-only guest access via share link or code */
   guestAccess: boolean;
 }

@@ -25,6 +25,7 @@ export const PLANS: PlanInfo[] = [
       'Compliance reports',
       'Inspection reminders',
       'Section time tracking',
+      'AI assistant not included',
     ],
   },
   {
@@ -34,6 +35,7 @@ export const PLANS: PlanInfo[] = [
     assetLimit: 250,
     features: [
       'Up to 250 extinguishers',
+      'AI assistant included',
       'Camera barcode scanning',
       'QR code scanning',
       'GPS capture',

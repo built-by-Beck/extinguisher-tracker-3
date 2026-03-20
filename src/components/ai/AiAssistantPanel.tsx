@@ -105,7 +105,7 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
               <Bot className="h-5 w-5 text-red-600" />
               <div>
                 <h3 className="text-sm font-semibold text-gray-900">AI Assistant</h3>
-                <p className="text-xs text-gray-500">NFPA 10 Compliance Expert</p>
+                <p className="text-xs text-gray-500">NFPA 10 Compliance Expert • Pro+ feature</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -140,6 +140,9 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
                     Ask me about NFPA 10 compliance, your inventory, or inspection schedules.
+                  </p>
+                  <p className="mt-2 text-[11px] text-gray-400">
+                    Included with Pro, Elite, and Enterprise plans.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -217,7 +220,7 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
               </button>
             </form>
             <p className="mt-1.5 text-center text-[10px] text-gray-400">
-              Powered by Gemini AI &middot; Created by Beck-Publishing
+              AI access is included with Pro, Elite, and Enterprise plans.
             </p>
           </div>
         </div>
