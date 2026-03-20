@@ -1,33 +1,46 @@
 # EX3 Agent System -- Project State
 
 **Last Updated**: 2026-03-19
-**Updated By**: review-agent (Opus 4.6) -- Phase 8 REVIEWED (Barcode Scanner & Quick Inspection)
+**Updated By**: review-agent (Opus 4.6) -- WorkspaceDetail drill-down rewrite REVIEWED
 
 ---
 
 ## Current Phase
 
-**Phase 8 -- Barcode Scanner & Quick Inspection**
-Status: COMPLETE and REVIEWED (20 tasks, P8-01 through P8-20)
+**WorkspaceDetail Drill-Down Rewrite (Location Cards -> Extinguisher Cards)**
+Status: COMPLETE and REVIEWED
 
-### Phase 8 Review Summary (review-agent, 2026-03-19)
+### WorkspaceDetail Drill-Down Review Summary (review-agent, 2026-03-19)
+
+**3 issues found and fixed:**
+
+1. **BUG: "Unassigned" inspections invisible in location cards.** In `sectionStatsMap`, inspections without a section were counted under "Unassigned", but `allSections` only added sections with truthy `insp.section` values. This meant the "Unassigned" location card never appeared, making those inspections unreachable. **Fix**: Changed `allSections` to use `insp.section || 'Unassigned'` so blank-section inspections always get a card.
+
+2. **UX BUG: Subtitle count misleading after filtering.** The subtitle showed `${sectionInspections.length} extinguishers in this location` but `sectionInspections` is post-filter. When status/search filters are active, the count drops but the label still reads "in this location". **Fix**: Changed label to say "matching filters" when any filter is active.
+
+3. **BUG: Potential crash on search with undefined section.** `insp.section.toLowerCase()` in the search filter would throw if `insp.section` is undefined/empty. **Fix**: Added `(insp.section || '')` guard.
+
+**Observations (no fix needed):**
+
+- **Completion percentage formula**: `(passed + failed) / total * 100` — this measures "inspected" percentage (how many have been looked at), not "pass rate". This is correct for a workspace progress view since the goal is to track how many inspections are completed, regardless of outcome.
+- **SectionTabs component is now orphaned**: `src/components/scanner/SectionTabs.tsx` exists but is no longer imported anywhere in `src/`. It can be safely deleted in a cleanup pass.
+- **Routes are correct**: `/dashboard/workspaces/:workspaceId` renders WorkspaceDetail, and extinguisher card clicks navigate to `/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}` which matches the route at line 75 of `routes/index.tsx`.
+- **State management is correct**: `selectedSection` properly controls the two-level view. Going back resets `searchQuery` and `statusFilter`. Back on Level 1 navigates to `/dashboard/workspaces`.
+- **Archived workspaces**: Compliance report section still renders correctly. Location cards are visible for archived workspaces. ScanSearchBar is hidden (guarded by `!isArchived`).
+- **Offline**: Offline banner and cache fallback are preserved and working.
+- **TypeScript**: No `any` types. All types are properly inferred or annotated.
+- **Performance**: `useMemo` is correctly applied to `sectionStatsMap`, `allSections`, and `sectionInspections` with appropriate dependency arrays.
+- **Mobile responsiveness**: Grid uses `sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` for both location cards and extinguisher cards.
+
+**Build: PASSES** (`pnpm build` clean, no TypeScript errors)
+
+### Previous Review: Phase 8 (Barcode Scanner & Quick Inspection)
 
 **2 issues found and fixed:**
 
 1. **BUG: Stale data flash when navigating between extinguishers** -- When navigating from one ExtinguisherDetail to another (e.g., via history links or browser back/forward), the `loadInspection` useEffect did not reset `inspection`, `noActiveWorkspace`, `activeWorkspaceId`, `checklist`, `notes`, or message states at the start. This caused the previous extinguisher's inspection data (checklist, status, notes) to flash briefly until the new async query completed. **Fix**: Added state resets at the top of the loadInspection effect so the UI shows the loading state immediately when params change.
 
 2. **UX BUG: Inspection history not refreshed after save or reset** -- After passing/failing an inspection or resetting one, the inspection history section still showed stale data (missing the newly completed inspection, or still showing a reset one). The history was only loaded on mount. **Fix**: Added `refreshHistory()` helper function and called it after both `handleSave` (on synced success) and `handleReset` (on success).
-
-**No other issues found.** All files reviewed thoroughly:
-
-- **ExtinguisherDetail.tsx**: Correctly handles dual routes (inventory vs workspace context), loads extinguisher + inspection + history, shows NFPA 13-point checklist (interactive when pending, read-only when completed), pass/fail buttons role-gated to owner/admin/inspector, reset button gated to owner/admin, offline-aware save with correct `saveInspectionOfflineAware` signature, QuickFailModal integration, replacement history, back navigation based on context.
-- **ScanSearchBar.tsx**: Text search + camera scan. Camera button correctly gated by `cameraBarcodeScan` or `qrScanning` feature flags via `hasFeature()`. Uses `findExtinguisherByCode` for multi-field search. Proper loading/error states.
-- **SectionTabs.tsx**: Horizontal scrollable tabs with "All Sections" + per-section counts. Gracefully returns null when sections array is empty.
-- **QuickFailModal.tsx**: Required notes (minLength 3), proper validation, saving state, close cleanup.
-- **inspectionService.ts**: Both new functions (`getInspectionForExtinguisherInWorkspace`, `getInspectionHistoryForExtinguisher`) have correct Firestore queries with proper collection paths, field names, and operators.
-- **workspaceService.ts**: `getActiveWorkspaceForCurrentMonth` correctly formats monthYear and checks status === 'active'.
-- **routes/index.tsx**: Both routes registered (`inventory/:extId` and `workspaces/:workspaceId/inspect-ext/:extId`). Old InspectionForm route preserved.
-- **WorkspaceDetail.tsx**: ScanSearchBar + SectionTabs integrated. Rows navigate to `inspect-ext/:extId` (new ExtinguisherDetail). Section counts computed correctly. Existing search/status filters preserved.
 - **Dashboard.tsx**: ScanSearchBar navigates to `/dashboard/inventory/${ext.id}`.
 - **Inventory.tsx**: ScanSearchBar + row navigation changed to `/dashboard/inventory/${ext.id}` (detail, not edit). Edit button still accessible via action column.
 - **firestore.indexes.json**: Two new composite indexes added for the new inspection queries.
