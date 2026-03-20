@@ -14,6 +14,7 @@ import Locations from '../pages/Locations.tsx';
 import Workspaces from '../pages/Workspaces.tsx';
 import WorkspaceDetail from '../pages/WorkspaceDetail.tsx';
 import InspectionForm from '../pages/InspectionForm.tsx';
+import ExtinguisherDetail from '../pages/ExtinguisherDetail.tsx';
 import Notifications from '../pages/Notifications.tsx';
 import SyncQueue from '../pages/SyncQueue.tsx';
 import Reports from '../pages/Reports.tsx';
@@ -65,11 +66,13 @@ export function AppRoutes() {
           <Route path="settings" element={<OrgSettings />} />
           <Route path="inventory" element={<Inventory />} />
           <Route path="inventory/new" element={<ExtinguisherCreate />} />
+          <Route path="inventory/:extId" element={<ExtinguisherDetail />} />
           <Route path="inventory/:extId/edit" element={<ExtinguisherEdit />} />
           <Route path="locations" element={<Locations />} />
           <Route path="workspaces" element={<Workspaces />} />
           <Route path="workspaces/:workspaceId" element={<WorkspaceDetail />} />
           <Route path="workspaces/:workspaceId/inspect/:inspectionId" element={<InspectionForm />} />
+          <Route path="workspaces/:workspaceId/inspect-ext/:extId" element={<ExtinguisherDetail />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="sync-queue" element={<SyncQueue />} />
           <Route path="reports" element={<Reports />} />

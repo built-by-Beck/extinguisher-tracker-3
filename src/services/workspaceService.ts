@@ -3,6 +3,8 @@ import {
   query,
   orderBy,
   onSnapshot,
+  doc,
+  getDoc,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../lib/firebase.ts';
@@ -46,6 +48,21 @@ export function subscribeToWorkspaces(
     })) as Workspace[];
     callback(items);
   });
+}
+
+/**
+ * Get the active workspace for the current month (if one exists).
+ * Workspace IDs are monthYear strings like "2026-03".
+ */
+export async function getActiveWorkspaceForCurrentMonth(orgId: string): Promise<Workspace | null> {
+  const now = new Date();
+  const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const wsRef = doc(db, 'org', orgId, 'workspaces', monthYear);
+  const snap = await getDoc(wsRef);
+  if (!snap.exists()) return null;
+  const ws = { id: snap.id, ...snap.data() } as Workspace;
+  if (ws.status !== 'active') return null;
+  return ws;
 }
 
 /**

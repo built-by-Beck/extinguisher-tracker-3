@@ -10,6 +10,9 @@ import {
   FileText,
   WifiOff,
 } from 'lucide-react';
+import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
+import { SectionTabs } from '../components/scanner/SectionTabs.tsx';
+import type { Extinguisher } from '../services/extinguisherService.ts';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
 import { useAuth } from '../hooks/useAuth.ts';
@@ -44,6 +47,7 @@ export default function WorkspaceDetail() {
 
   const orgId = userProfile?.activeOrgId ?? '';
   const sections = org?.settings?.sections ?? [];
+  const featureFlags = org?.featureFlags;
   const { isOnline } = useOffline();
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -123,6 +127,20 @@ export default function WorkspaceDetail() {
       .then((r) => setReport(r))
       .catch(() => setReport(null));
   }, [isArchived, orgId, workspaceId]);
+
+  // Section counts for SectionTabs
+  const sectionCounts: Record<string, number> = {};
+  for (const insp of inspections) {
+    if (insp.section) {
+      sectionCounts[insp.section] = (sectionCounts[insp.section] ?? 0) + 1;
+    }
+  }
+
+  function handleExtinguisherFound(ext: Extinguisher) {
+    if (ext.id) {
+      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${ext.id}`);
+    }
+  }
 
   // Client-side filtering
   const filtered = inspections.filter((insp) => {
@@ -206,6 +224,18 @@ export default function WorkspaceDetail() {
         </div>
       </div>
 
+      {/* Scan/Search bar — primary extinguisher lookup */}
+      {!isArchived && (
+        <div className="mb-4">
+          <ScanSearchBar
+            orgId={orgId}
+            onExtinguisherFound={handleExtinguisherFound}
+            featureFlags={featureFlags}
+            placeholder="Scan or type barcode, serial, or asset ID..."
+          />
+        </div>
+      )}
+
       {/* Compliance Report section — archived workspaces only */}
       {isArchived && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
@@ -265,6 +295,19 @@ export default function WorkspaceDetail() {
         </div>
       )}
 
+      {/* Section tabs — replaces section dropdown */}
+      {sections.length > 0 && (
+        <div className="mb-4">
+          <SectionTabs
+            sections={sections}
+            selectedSection={sectionFilter}
+            onSectionChange={setSectionFilter}
+            sectionCounts={sectionCounts}
+            totalCount={inspections.length}
+          />
+        </div>
+      )}
+
       {/* Filters */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
@@ -288,19 +331,6 @@ export default function WorkspaceDetail() {
           <option value="pass">Passed</option>
           <option value="fail">Failed</option>
         </select>
-
-        {sections.length > 0 && (
-          <select
-            value={sectionFilter}
-            onChange={(e) => setSectionFilter(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-          >
-            <option value="">All Sections</option>
-            {sections.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        )}
       </div>
 
       {/* Inspection list */}
@@ -329,7 +359,7 @@ export default function WorkspaceDetail() {
                   <tr
                     key={insp.id}
                     className="cursor-pointer hover:bg-gray-50"
-                    onClick={() => insp.id && navigate(`/dashboard/workspaces/${workspaceId}/inspect/${insp.id}`)}
+                    onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)}
                   >
                     <td className="whitespace-nowrap px-4 py-3">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>

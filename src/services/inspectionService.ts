@@ -3,9 +3,11 @@ import {
   query,
   where,
   orderBy,
+  limit,
   onSnapshot,
   doc,
   getDoc,
+  getDocs,
   type QueryConstraint,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -213,6 +215,46 @@ export async function saveInspectionOfflineAware(
   });
 
   return { synced: false, queueId };
+}
+
+/**
+ * Get the inspection for a specific extinguisher in a specific workspace.
+ * Returns the first matching doc (pending, pass, or fail).
+ */
+export async function getInspectionForExtinguisherInWorkspace(
+  orgId: string,
+  extinguisherId: string,
+  workspaceId: string,
+): Promise<Inspection | null> {
+  const q = query(
+    collection(db, 'org', orgId, 'inspections'),
+    where('extinguisherId', '==', extinguisherId),
+    where('workspaceId', '==', workspaceId),
+    limit(1),
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as Inspection;
+}
+
+/**
+ * Get completed inspection history for an extinguisher across all workspaces.
+ * Returns pass/fail inspections ordered by inspectedAt descending.
+ */
+export async function getInspectionHistoryForExtinguisher(
+  orgId: string,
+  extinguisherId: string,
+  limitCount: number = 10,
+): Promise<Inspection[]> {
+  const q = query(
+    collection(db, 'org', orgId, 'inspections'),
+    where('extinguisherId', '==', extinguisherId),
+    where('status', 'in', ['pass', 'fail']),
+    orderBy('inspectedAt', 'desc'),
+    limit(limitCount),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Inspection));
 }
 
 /**

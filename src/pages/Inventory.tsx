@@ -30,6 +30,7 @@ import {
 } from '../services/extinguisherService.ts';
 import { formatDueDate } from '../utils/compliance.ts';
 import { cacheExtinguishersForWorkspace } from '../services/offlineCacheService.ts';
+import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 
 export default function Inventory() {
   const navigate = useNavigate();
@@ -124,6 +125,20 @@ export default function Inventory() {
       {org?.assetLimit && (
         <div className="mb-6">
           <AssetLimitBar currentCount={totalCount} />
+        </div>
+      )}
+
+      {/* Quick find — scan/search by barcode/serial/asset ID */}
+      {orgId && (
+        <div className="mb-4">
+          <ScanSearchBar
+            orgId={orgId}
+            onExtinguisherFound={(ext) => {
+              if (ext.id) navigate(`/dashboard/inventory/${ext.id}`);
+            }}
+            featureFlags={org?.featureFlags}
+            placeholder="Quick find — scan or type barcode, serial, or asset ID..."
+          />
         </div>
       )}
 
@@ -283,7 +298,7 @@ export default function Inventory() {
                 <tr
                   key={ext.id}
                   className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}/edit`)}
+                  onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}`)}
                 >
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
                     {ext.assetId}

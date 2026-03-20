@@ -33,6 +33,7 @@ import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
 import { ComplianceSummaryCard } from '../components/compliance/ComplianceSummaryCard.tsx';
 import type { Workspace } from '../services/workspaceService.ts';
 import type { Extinguisher } from '../services/extinguisherService.ts';
+import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 
 interface StatCardProps {
   label: string;
@@ -183,6 +184,20 @@ export default function Dashboard() {
           >
             Manage Billing
           </button>
+        </div>
+      )}
+
+      {/* Quick scan/search bar */}
+      {orgId && (
+        <div className="mb-8">
+          <ScanSearchBar
+            orgId={orgId}
+            onExtinguisherFound={(ext) => {
+              if (ext.id) navigate(`/dashboard/inventory/${ext.id}`);
+            }}
+            featureFlags={org?.featureFlags}
+            placeholder="Quick find — scan or type barcode, serial, or asset ID..."
+          />
         </div>
       )}
 
