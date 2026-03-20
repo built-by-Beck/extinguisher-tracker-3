@@ -1,438 +1,350 @@
 # Plan -- extinguisher-tracker-3
 
-**Current Phase**: 7 -- Guest Access (Read-Only) — Elite/Enterprise Feature
-**Last Updated**: 2026-03-18
+**Current Phase**: 8 -- Barcode Scanner & Quick Inspection
+**Last Updated**: 2026-03-19
 **Author**: built_by_Beck
 
 ---
 
 ## Current Objective
 
-Build a guest access system that lets owners/admins on Elite ($199) or Enterprise plans generate a share link and short code that allows unauthenticated visitors to view org data read-only. Guests use Firebase anonymous auth, get a temporary `org/{orgId}/members/{anonUid}` doc with `role: 'guest'`, and see a stripped-down read-only UI. A scheduled function cleans up expired guest sessions hourly.
+Build a scan/search + section-based inspection workflow so inspectors can:
+1. Open a workspace → see scan/search bar + section tabs
+2. Find extinguishers by scanning a barcode (camera), typing a barcode/serial/asset ID, or browsing by section
+3. Click an extinguisher → see full details + inspection checklist + pass/fail + inspection history + replacement history all on one page
+4. Complete inspections directly from that detail page
+
+This mirrors the existing working app's UX but with EX3's professional design aesthetic.
 
 ---
 
 ## Project State Summary
 
-**Phases 1-6 Complete:**
-- Phase 1: Foundation -- Firebase wiring, Auth, Org creation, Memberships, Firestore types, Security Rules, Dashboard shell, Protected routing.
+**Phases 1-7 Complete:**
+- Phase 1: Foundation — Firebase wiring, Auth, Org creation, Memberships, Firestore types, Security Rules, Dashboard shell, Protected routing.
 - Phase 2: Stripe billing (checkout, portal, webhook), Inventory CRUD, Locations, Asset tagging, CSV import/export, Dashboard enhancements, Org switching, Asset limit enforcement.
 - Phase 3: Workspaces (create/archive), Inspections (save/reset with NFPA 13-point checklist), InspectionForm page, WorkspaceDetail page.
 - Phase 4: Lifecycle Engine, Notifications (markRead, generateReminders, detectOverdue), Notification UI, Compliance Dashboard.
 - Phase 5: Report generation (PDF/CSV/JSON), Report frontend (Reports page, WorkspaceDetail report section), Audit logs frontend (AuditLogRow, AuditLogs page), Role-based sidebar, Firestore indexes.
-- Phase 6: Offline Sync -- IndexedDB caching, write queue, online/offline detection, sync engine, conflict detection, OfflineBanner, SyncQueue page, org-switch cache isolation, Firestore persistence.
+- Phase 6: Offline Sync — IndexedDB caching, write queue, online/offline detection, sync engine, conflict detection, OfflineBanner, SyncQueue page, org-switch cache isolation, Firestore persistence.
+- Phase 7: Guest Access — Anonymous auth, share links/codes, read-only guest UI, scheduled cleanup, OrgSettings toggle (Elite/Enterprise only).
 
-**What exists now (key files relevant to Phase 7):**
-- `src/types/member.ts`: `OrgRole = 'owner' | 'admin' | 'inspector' | 'viewer'` — needs `'guest'` added
-- `src/types/organization.ts`: `OrgFeatureFlags` has 11 flags — needs `guestAccess` added; `Organization` needs `guestAccess` config field
-- `functions/src/billing/planConfig.ts`: 4 plans with feature flags — needs `guestAccess: false/true`
-- `functions/src/utils/membership.ts`: local `OrgRole` type — needs `'guest'` added
-- `functions/src/index.ts`: 23+ exports — needs 3 new guest function exports
-- `firestore.rules`: `isMember()` helper checks `status == 'active'` — guest docs will pass this check automatically; needs `isGuest()` helper to block guest reads on sensitive subcollections
-- `firestore.indexes.json`: needs collectionGroup index for guest cleanup query
-- `src/routes/index.tsx`: needs guest routes (`/guest/:orgId/:token`, `/guest/code`)
-- `src/pages/OrgSettings.tsx`: needs Guest Access card section between Subscription and Danger Zone
-- Package manager: pnpm
-- Firebase SDK: `firebase@12.10.0` (has `signInAnonymously`)
+**What exists now (key files relevant to Phase 8):**
+- `src/components/scanner/BarcodeScannerModal.tsx`: Full camera barcode scanner modal using html5-qrcode, supports 9 barcode formats, torch toggle, multi-camera switching, manual fallback text entry. Feature-gated behind `cameraBarcodeScan` or `qrScanning`.
+- `src/services/extinguisherService.ts`: Has `findExtinguisherByCode(orgId, code)` — multi-field search (barcode → assetId → serial → qrCodeValue). Also has `getExtinguisher(orgId, extId)` for single doc fetch. Extinguisher interface includes `replacedByExtId`, `replacesExtId`, `replacementHistory`.
+- `src/services/inspectionService.ts`: Has `subscribeToInspections()`, `getInspection()`, `saveInspectionCall()`, `saveInspectionOfflineAware()`, `resetInspectionCall()`, `CHECKLIST_ITEMS`, `EMPTY_CHECKLIST`.
+- `src/services/workspaceService.ts`: Has `subscribeToWorkspaces()`. Workspace ID IS the monthYear string (e.g., "2026-03").
+- `src/pages/WorkspaceDetail.tsx`: Currently shows stats, progress bar, search input (asset ID text filter), status/section dropdowns, and an inspection table. Clicking a row navigates to InspectionForm. **This is where the scan bar and section tabs need to go.**
+- `src/pages/InspectionForm.tsx`: Full 13-item NFPA checklist form with offline-aware save, pass/fail buttons, notes, attestation, reset. **This page's functionality needs to be incorporated into the new ExtinguisherDetail page.**
+- `src/lib/planConfig.ts`: Feature flags including `manualBarcodeEntry` (all plans), `cameraBarcodeScan` (Pro+), `qrScanning` (Pro+).
+- `src/routes/index.tsx`: Routes include `workspaces/:workspaceId` and `workspaces/:workspaceId/inspect/:inspectionId`.
 
 ---
 
 ## Phase History (Reference)
 
 ### Phase 1 -- Foundation (COMPLETE)
-All 28 tasks: Firebase wiring, Auth, Org creation, Memberships, Firestore types, Security Rules, Dashboard shell, Protected routing.
+All 28 tasks.
 
 ### Phase 2 -- Core Operations & Billing (COMPLETE)
-26 tasks: Stripe billing, Inventory CRUD, Locations, Asset tagging, QR generation, CSV import/export, Dashboard enhancements.
+26 tasks.
 
 ### Phase 3 -- Workspaces & Inspections (COMPLETE)
-Workspaces (create/archive), Inspections (save/reset with NFPA 13-point checklist), InspectionForm, WorkspaceDetail.
+Workspaces, Inspections, InspectionForm, WorkspaceDetail.
 
 ### Phase 4 -- Reminders, Compliance Engine, Lifecycle Engine (COMPLETE)
-25 tasks: Lifecycle calc utility, recalculate/batch/replace/retire Cloud Functions, Firestore trigger on creation, scheduled reminder + overdue detection, notification types/service/UI, compliance dashboard/badge/card, inventory compliance columns, extinguisher lifecycle section.
+25 tasks.
 
 ### Phase 5 -- Reports & Audit Logs (COMPLETE)
-14 tasks: pdfmake install, PDF generator, generateReport CF, archiveWorkspace report snapshot, report service/frontend, audit log service/frontend, role-based sidebar, Firestore indexes.
+14 tasks.
 
 ### Phase 6 -- Offline Sync (COMPLETE)
-24 tasks: idb install, IndexedDB schema, online/offline hook, OfflineContext, sync engine, offline-aware inspection save, cache service, cache-on-read hooks, InspectionForm offline-aware, WorkspaceDetail fallback, OfflineBanner, SyncStatusIndicator, org-switch cache isolation, SyncQueue page, conflict detection, Firestore persistence.
+24 tasks.
+
+### Phase 7 -- Guest Access (COMPLETE)
+25 tasks.
 
 ---
 
 ## Tasks for This Round
 
-### Subsystem A: Types, Feature Flags & Backend Plumbing
+### Subsystem A: Service Layer Extensions
 
-**P7-01: Add `'guest'` to OrgRole and extend OrgMember type**
-- Modify `src/types/member.ts`:
-  - Change `OrgRole` from `'owner' | 'admin' | 'inspector' | 'viewer'` to `'owner' | 'admin' | 'inspector' | 'viewer' | 'guest'`
-  - Add optional fields to `OrgMember`: `isGuest?: boolean`, `expiresAt?: Timestamp | null`
-- Modify `functions/src/utils/membership.ts`:
-  - Change local `OrgRole` type to include `'guest'`: `type OrgRole = 'owner' | 'admin' | 'inspector' | 'viewer' | 'guest';`
-  - Note: `validateMembership` will naturally reject guests for privileged operations since `'guest'` will not be in the `requiredRoles` arrays passed by existing Cloud Functions
+**P8-01: Add `getInspectionForExtinguisherInWorkspace` to inspectionService.ts**
+- File: `src/services/inspectionService.ts`
+- Add function: `getInspectionForExtinguisherInWorkspace(orgId: string, extinguisherId: string, workspaceId: string): Promise<Inspection | null>`
+- Query: `org/{orgId}/inspections` where `extinguisherId == extinguisherId` AND `workspaceId == workspaceId`, limit 1
+- Returns the inspection doc (pending, pass, or fail) for this extinguisher in the given workspace
+- Used by ExtinguisherDetail to find the matching inspection when accessed from a workspace context
 
-**P7-02: Create GuestAccessConfig type**
-- Create `src/types/guest.ts`:
-  - Export `GuestAccessConfig` interface:
-    ```
-    {
-      enabled: boolean;
-      token: string;           // raw token for admin display
-      tokenHash: string;       // SHA-256 hex hash for server verification
-      shareCode: string;       // 6-character alphanumeric code
-      expiresAt: Timestamp;    // when guest access expires
-      createdAt: Timestamp;    // when guest access was enabled
-      createdBy: string;       // uid of admin who enabled it
-      maxGuests: number;       // cap (default 100)
-    }
-    ```
-  - Export `GuestActivationResult` interface:
-    ```
-    {
-      orgId: string;
-      orgName: string;
-      memberDocId: string;
-      expiresAt: string;       // ISO string
-    }
-    ```
+**P8-02: Add `getInspectionHistoryForExtinguisher` to inspectionService.ts**
+- File: `src/services/inspectionService.ts`
+- Add function: `getInspectionHistoryForExtinguisher(orgId: string, extinguisherId: string, limitCount?: number): Promise<Inspection[]>`
+- Query: `org/{orgId}/inspections` where `extinguisherId == extinguisherId` AND `status in ['pass', 'fail']`, order by `inspectedAt` desc, limit `limitCount` (default 10)
+- Returns completed inspections across all workspaces for the history section
 
-**P7-03: Add guestAccess to Organization type and OrgFeatureFlags**
-- Modify `src/types/organization.ts`:
-  - Add `guestAccess: boolean;` to `OrgFeatureFlags` interface
-  - Add `guestAccess?: GuestAccessConfig | null;` to `Organization` interface (after `settings`)
-  - Import `GuestAccessConfig` from `./guest.ts`
+**P8-03: Add `getActiveWorkspaceForCurrentMonth` helper to workspaceService.ts**
+- File: `src/services/workspaceService.ts`
+- Add imports: `doc, getDoc` from `firebase/firestore`
+- Add function: `getActiveWorkspaceForCurrentMonth(orgId: string): Promise<Workspace | null>`
+- Compute current monthYear: `const now = new Date(); const monthYear = \`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}\`;`
+- Fetch doc `org/{orgId}/workspaces/{monthYear}` directly
+- If exists and `status === 'active'`, return it; otherwise return null
 
-**P7-04: Add guestAccess feature flag to planConfig.ts**
-- Modify `functions/src/billing/planConfig.ts`:
-  - Add `guestAccess: false` to `basic.featureFlags`
-  - Add `guestAccess: false` to `pro.featureFlags`
-  - Add `guestAccess: true` to `elite.featureFlags`
-  - Add `guestAccess: true` to `enterprise.featureFlags`
+### Subsystem B: Firestore Indexes
 
-### Subsystem B: Cloud Functions (Backend)
+**P8-04: Add Firestore composite indexes for new inspection queries**
+- File: `firestore.indexes.json`
+- Add index for P8-01: collection path `inspections` (under `org/{orgId}`), fields: `extinguisherId` ASC, `workspaceId` ASC
+- Add index for P8-02: collection path `inspections` (under `org/{orgId}`), fields: `extinguisherId` ASC, `status` ASC, `inspectedAt` DESC
+- These indexes prevent runtime errors when the queries first run
 
-**P7-05: Create toggleGuestAccess Cloud Function**
-- Create `functions/src/guest/toggleGuestAccess.ts`:
-  - `onCall` Cloud Function, receives `{ orgId: string; enabled: boolean; expiresAt: string }` (ISO date)
-  - Validate auth: `request.auth` must exist and not be anonymous
-  - Validate membership: `validateMembership(orgId, uid, ['owner', 'admin'])`
-  - Validate plan: read org doc, check `featureFlags.guestAccess === true`. If not, throw `failed-precondition` with "Guest access is only available on Elite and Enterprise plans."
-  - When `enabled === true`:
-    - Generate `token` using `crypto.randomBytes(32).toString('hex')` (64-char hex string)
-    - Generate `tokenHash` using `crypto.createHash('sha256').update(token).digest('hex')`
-    - Generate `shareCode`: 6-character alphanumeric, uppercase, using `crypto.randomBytes(3).toString('hex').toUpperCase()` (yields 6 hex chars)
-    - Validate `expiresAt` is a valid future date, max 365 days out
-    - Write `guestAccess` object to org doc: `{ enabled: true, token, tokenHash, shareCode, expiresAt: Timestamp.fromDate(new Date(expiresAt)), createdAt: FieldValue.serverTimestamp(), createdBy: uid, maxGuests: 100 }`
-    - Write audit log: action `'guest_access_enabled'`, entityType `'organization'`, entityId `orgId`
-    - Return `{ token, shareCode, expiresAt }` so the admin can display it
-  - When `enabled === false`:
-    - Set `guestAccess` field on org doc to `null`
-    - Batch-delete all guest member docs: query `org/{orgId}/members` where `role == 'guest'`, delete in batch
-    - Write audit log: action `'guest_access_disabled'`
-    - Return `{ success: true }`
-  - Import `adminDb` from `../utils/admin.js`, `validateMembership` from `../utils/membership.js`, `writeAuditLog` from `../utils/auditLog.js`
+### Subsystem C: ScanSearchBar Component
 
-**P7-06: Create activateGuestSession Cloud Function**
-- Create `functions/src/guest/activateGuestSession.ts`:
-  - `onCall` Cloud Function, receives `{ orgId: string; token: string }` OR `{ shareCode: string }`
-  - Validate auth: `request.auth` must exist. Verify `request.auth.token.firebase.sign_in_provider === 'anonymous'` (only anonymous users can activate guest sessions)
-  - **Token path** (when `orgId` + `token` provided):
-    - Load org doc, check `guestAccess` exists and `guestAccess.enabled === true`
-    - Compute `crypto.createHash('sha256').update(token).digest('hex')` and compare to `guestAccess.tokenHash`
-    - If mismatch, throw `permission-denied` "Invalid guest access token."
-  - **Share code path** (when `shareCode` provided):
-    - Query all org docs where `guestAccess.shareCode == shareCode` and `guestAccess.enabled == true` -- this requires reading org docs. Since share codes are short, query: `adminDb.collection('org').where('guestAccess.shareCode', '==', shareCode.toUpperCase()).where('guestAccess.enabled', '==', true).limit(1).get()`
-    - If no match, throw `not-found` "Invalid share code."
-    - Set `orgId` from the found org doc
-  - **Common validation** (both paths):
-    - Check `guestAccess.expiresAt` is in the future. If expired, throw `failed-precondition` "Guest access has expired."
-    - Count existing guest members: query `org/{orgId}/members` where `role == 'guest'`, get count. If `>= guestAccess.maxGuests` (default 100), throw `resource-exhausted` "Maximum guest limit reached."
-    - Check if this anonymous UID already has a guest member doc in this org (idempotency). If so, return existing data without creating a new doc.
-  - **Create guest member doc**:
-    - `adminDb.doc(\`org/${orgId}/members/${anonUid}\`).set({ uid: anonUid, email: '', displayName: 'Guest', role: 'guest', status: 'active', isGuest: true, expiresAt: guestAccess.expiresAt, invitedBy: null, joinedAt: FieldValue.serverTimestamp(), createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })`
-  - Return `{ orgId, orgName: orgDoc.data().name, memberDocId: anonUid, expiresAt: guestAccess.expiresAt.toDate().toISOString() }`
+**P8-05: Create ScanSearchBar component**
+- File: `src/components/scanner/ScanSearchBar.tsx`
+- Props:
+  - `orgId: string`
+  - `onExtinguisherFound: (ext: Extinguisher) => void`
+  - `onNotFound?: (code: string) => void`
+  - `featureFlags?: OrgFeatureFlags`
+- Layout: Horizontal bar with:
+  - Search icon + text input (placeholder: "Type barcode, serial, or asset ID...")
+  - "Search" submit button
+  - "Scan" button with Camera icon — **only shown** if `hasFeature(featureFlags, 'cameraBarcodeScan')`
+- On text submit (Enter key or Search button): call `findExtinguisherByCode(orgId, code)`.
+  - Found → call `onExtinguisherFound`
+  - Not found → show inline error "No extinguisher found for [code]", call `onNotFound`
+- On scan button: open `BarcodeScannerModal`. On result, call `findExtinguisherByCode(orgId, result.text)`.
+  - Found → close modal, call `onExtinguisherFound`
+  - Not found → show error in modal context
+- Loading spinner while searching
+- Styling: Red-600 accent for scan button, rounded-lg, professional. Match EX3 design.
 
-**P7-07: Create cleanupExpiredGuests scheduled Cloud Function**
-- Create `functions/src/guest/cleanupExpiredGuests.ts`:
-  - Scheduled function: `onSchedule({ schedule: 'every 1 hours', timeoutSeconds: 120 })`
-  - Query `adminDb.collectionGroup('members').where('role', '==', 'guest').where('expiresAt', '<', Timestamp.now()).get()`
-  - Batch-delete all matched documents (use batched writes, max 500 per batch)
-  - Log count of deleted guest docs: `functions.logger.info(\`Cleaned up ${count} expired guest members\`)`
-  - Also query org docs where `guestAccess.expiresAt < now` and `guestAccess.enabled == true`, and set `guestAccess` to `null` on those orgs (auto-disable expired guest access)
+### Subsystem D: Section Tabs Component
 
-**P7-08: Export guest functions from index.ts**
-- Modify `functions/src/index.ts`:
-  - Add comment section: `// Guest access`
-  - Add: `export { toggleGuestAccess } from './guest/toggleGuestAccess.js';`
-  - Add: `export { activateGuestSession } from './guest/activateGuestSession.js';`
-  - Add: `export { cleanupExpiredGuestsJob } from './guest/cleanupExpiredGuests.js';`
-  - Place after the Reports section, before any closing content
+**P8-06: Create SectionTabs component**
+- File: `src/components/scanner/SectionTabs.tsx`
+- Props:
+  - `sections: string[]` (list of section names from org settings)
+  - `selectedSection: string` (empty string = "All Sections")
+  - `onSectionChange: (section: string) => void`
+  - `sectionCounts?: Record<string, number>` (optional count per section to show in badge)
+- Layout: Horizontal scrollable row of tab buttons (like the user's existing app):
+  - First tab: "All Sections" (with total count)
+  - Remaining tabs: One per section name (with count badge)
+  - Selected tab has active styling (e.g., border-b-2 border-red-600 or bg highlight)
+  - Overflow: horizontal scroll on mobile for many sections
+- Matches the section filter tabs at the top of the user's reference app
 
-### Subsystem C: Security Rules
+### Subsystem E: QuickFailModal
 
-**P7-09: Update Firestore security rules for guest access**
-- Modify `firestore.rules`:
-  - Add `isGuest(orgId)` helper function after `hasRole()`:
-    ```
-    function isGuest(orgId) {
-      return isMember(orgId) && memberData(orgId).role == 'guest';
-    }
-    ```
-  - Modify `match /org/{orgId}/members/{uid}` read rule: change from `allow read: if isMember(orgId);` to `allow read: if isMember(orgId) && !isGuest(orgId);` -- guests should NOT see the member list
-  - Modify `match /org/{orgId}/notifications/{notificationId}` read rule: change from `allow read: if isMember(orgId);` to `allow read: if isMember(orgId) && !isGuest(orgId);` -- guests should NOT see notifications
-  - Modify `match /org/{orgId}/reports/{reportId}` read rule: change from `allow read: if isMember(orgId);` to `allow read: if isMember(orgId) && !isGuest(orgId);` -- guests should NOT see reports
-  - Audit logs are already restricted to `hasRole(orgId, ['owner', 'admin'])` so guests are blocked automatically
-  - Add `'guestAccess'` to the blocked keys list in the org doc update rule (the `affectedKeys().hasAny([...])` array) -- prevents client-side tampering with guest access config
-  - NOTE: Guest reads on extinguishers, locations, workspaces, inspections, inspectionEvents are intentionally allowed (they pass `isMember(orgId)` because the guest has a member doc). This is the desired read-only view behavior.
+**P8-07: Create QuickFailModal component**
+- File: `src/components/scanner/QuickFailModal.tsx`
+- Props: `open: boolean`, `onClose: () => void`, `onSubmit: (notes: string) => void`, `saving: boolean`
+- Content: "Why did this extinguisher fail?" heading, required textarea (minLength 3), Submit ("Mark as Failed") and Cancel buttons
+- Red-themed styling for the fail action
 
-### Subsystem D: Firestore Indexes
+### Subsystem F: ExtinguisherDetail Page (The Big One)
 
-**P7-10: Add Firestore indexes for guest access queries**
-- Modify `firestore.indexes.json`:
-  - Add collectionGroup index for the cleanup query:
-    ```json
-    {
-      "collectionGroup": "members",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "role", "order": "ASCENDING" },
-        { "fieldPath": "expiresAt", "order": "ASCENDING" }
-      ]
-    }
-    ```
-  - This supports the `collectionGroup('members').where('role', '==', 'guest').where('expiresAt', '<', now)` query in `cleanupExpiredGuests.ts`
+This is the core page that combines what InspectionForm currently does with full extinguisher details, inspection history, and replacement history — all on one page.
 
-### Subsystem E: Guest Frontend Service & Context
+**P8-08: Create ExtinguisherDetail page — Asset info + location header**
+- File: `src/pages/ExtinguisherDetail.tsx` (new file)
+- Route: `/dashboard/inventory/:extId` AND `/dashboard/workspaces/:workspaceId/inspect-ext/:extId` (workspace context)
+- Accept optional `workspaceId` from URL params (present when accessed from workspace, absent from inventory)
+- Load extinguisher via `getExtinguisher(orgId, extId)` on mount
+- **Header section** (like reference app "Asset #281796"):
+  - Back button → if workspaceId present, go back to workspace; else go to inventory
+  - Asset ID (large, bold), "Prev/Next" navigation arrows if coming from workspace context (optional, stretch goal)
+  - Serial number, Barcode
+  - Section + Location info with MapPin icon
+- **Identity section**: Manufacturer, Model, Type, Service Class, Size
+- **Dates section**: Manufacture Date, Install Date, In-service Date, Expiration Year
+- **Compliance/Lifecycle section**: Last/Next monthly, annual, six-year, hydro dates. Lifecycle status badge. Overdue flags as warning badges.
+- Handle loading, error, and not-found states
+- "Edit" button for owner/admin → links to `/dashboard/inventory/:extId/edit`
 
-**P7-11: Create guest service (frontend callable wrappers)**
-- Create `src/services/guestService.ts`:
-  - Import `httpsCallable` from `firebase/functions`, `functions` from `../lib/firebase.ts`
-  - Export `toggleGuestAccessCall(orgId: string, enabled: boolean, expiresAt: string): Promise<{ token?: string; shareCode?: string; expiresAt?: string; success?: boolean }>`:
-    - Calls `httpsCallable(functions, 'toggleGuestAccess')({ orgId, enabled, expiresAt })`
-  - Export `activateGuestSessionCall(params: { orgId: string; token: string } | { shareCode: string }): Promise<GuestActivationResult>`:
-    - Calls `httpsCallable(functions, 'activateGuestSession')(params)`
-  - Import `GuestActivationResult` from `../types/guest.ts`
+**P8-09: Add Inspection Checklist + Pass/Fail to ExtinguisherDetail**
+- Within `src/pages/ExtinguisherDetail.tsx`
+- **When accessed from a workspace** (workspaceId present in URL):
+  - Call `getInspectionForExtinguisherInWorkspace(orgId, extId, workspaceId)` to find the inspection doc
+  - If inspection found and `status === 'pending'`:
+    - Show full NFPA 13-point checklist (reuse `CHECKLIST_ITEMS` and `ChecklistRow` pattern from InspectionForm)
+    - Show Notes textarea
+    - Show "Add Photo" button (stretch — photo upload is Pro+)
+    - Show large **FAIL** (red) and **PASS** (green) buttons at bottom (like reference app)
+    - On Pass: call `saveInspectionOfflineAware(...)` with checklist data and notes
+    - On Fail: same as pass but with 'fail' status — notes required for fail (can use inline validation instead of modal for simplicity, or use QuickFailModal if notes are empty)
+    - "Full Inspection" link → navigates to existing `/dashboard/workspaces/{workspaceId}/inspect/{inspectionId}` (the old InspectionForm page, kept as fallback)
+  - If inspection found and `status === 'pass' or 'fail'`:
+    - Show checklist in read-only mode (filled in with saved values)
+    - Show result badge, inspector name/email, date
+    - Show Reset button for owner/admin (calls `resetInspectionCall`)
+    - Notes displayed read-only
+  - If no inspection found: show info message "This extinguisher is not in the current workspace."
+- **When accessed from inventory** (no workspaceId):
+  - Call `getActiveWorkspaceForCurrentMonth(orgId)` to check if there's an active workspace
+  - If active workspace exists: same flow as above (find inspection, show checklist/buttons)
+  - If no active workspace: show info card "No active workspace for [March 2026]. Create one to start inspecting."
+- Only `owner | admin | inspector` can see Pass/Fail buttons. Viewer sees read-only.
 
-**P7-12: Create GuestContext and GuestProvider**
-- Create `src/contexts/GuestContext.tsx`:
-  - Context value interface `GuestContextValue`:
-    - `isGuest: boolean`
-    - `guestOrg: Organization | null` (the org data)
-    - `guestMember: OrgMember | null` (the guest member doc)
-    - `guestOrgId: string | null`
-    - `expiresAt: Date | null`
-    - `loading: boolean`
-    - `error: string | null`
-    - `activateWithToken: (orgId: string, token: string) => Promise<void>`
-    - `activateWithCode: (shareCode: string) => Promise<void>`
-    - `signOut: () => Promise<void>`
-  - `GuestProvider` component:
-    - On `activateWithToken(orgId, token)`:
-      1. Call `signInAnonymously(auth)` from `firebase/auth`
-      2. Call `activateGuestSessionCall({ orgId, token })`
-      3. Store orgId and activation result in state
-      4. Subscribe to org doc `onSnapshot` for real-time org data
-      5. Subscribe to member doc `onSnapshot` for real-time guest member data
-    - On `activateWithCode(shareCode)`:
-      1. Call `signInAnonymously(auth)` from `firebase/auth`
-      2. Call `activateGuestSessionCall({ shareCode })`
-      3. Same subscription setup as token path
-    - On `signOut()`: call `auth.signOut()`, clear all state
-    - Detect guest member expiration: if `expiresAt < now`, show expired state, call `signOut()`
-    - Cleanup: unsubscribe from all listeners on unmount
+**P8-10: Add Inspection History section to ExtinguisherDetail**
+- Within `src/pages/ExtinguisherDetail.tsx` (below checklist/pass-fail section)
+- Call `getInspectionHistoryForExtinguisher(orgId, extId, 10)` on mount
+- Section heading: "Inspection History (N)" with history icon
+- Display list/cards of past inspections:
+  - Workspace month/year label (derived from workspaceId, e.g., "March 2026")
+  - Status badge (pass = green, fail = red)
+  - Inspector name/email
+  - Date inspected
+  - Notes snippet (truncated if long)
+- If no history: "No inspection history available."
+- Each row clickable → navigates to InspectionForm for that inspection
 
-**P7-13: Create useGuest hook**
-- Create `src/hooks/useGuest.ts`:
-  - Export `useGuest()` that reads from `GuestContext`
-  - Throws if used outside `GuestProvider`
-  - Returns `GuestContextValue`
+**P8-11: Add Replacement History section to ExtinguisherDetail**
+- Within `src/pages/ExtinguisherDetail.tsx` (below inspection history)
+- Section heading: "Replacement History (N)" with refresh/replace icon
+- Read from extinguisher's `replacementHistory` array field (already on the Extinguisher interface)
+- Display each replacement entry:
+  - Replaced date
+  - "Replaced" status badge (red/orange)
+  - Old → New extinguisher IDs if available
+  - Replacement reason/notes
+- If no replacement history: "No replacement history."
+- Like reference app's "Replacement History (1)" section at the bottom
 
-### Subsystem F: Guest Routing & Guards
+### Subsystem G: WorkspaceDetail Enhancements
 
-**P7-14: Create GuestRoute guard component**
-- Create `src/components/guards/GuestRoute.tsx`:
-  - Import `useGuest` from `src/hooks/useGuest.ts`
-  - If `loading`: show centered spinner
-  - If `error`: show error message with "Try Again" button
-  - If `!isGuest`: trigger the activation flow (redirect to code entry or show activation UI)
-  - If `isGuest` and valid: render `<Outlet />`
-  - Wrap children in the GuestContext-dependent rendering
+**P8-12: Add ScanSearchBar to WorkspaceDetail page**
+- File: `src/pages/WorkspaceDetail.tsx`
+- Add `ScanSearchBar` component **above the existing filters** (below the header/stats/progress bar)
+- This is the **primary location** for scan/search since inspectors work inside workspaces
+- On extinguisher found: navigate to `/dashboard/workspaces/${workspaceId}/inspect-ext/${ext.id}` (the new detail page with workspace context)
+- Import and use feature flags from `useOrg()`
 
-**P7-15: Create GuestLayout component**
-- Create `src/components/layout/GuestLayout.tsx`:
-  - Import `useGuest` from `src/hooks/useGuest.ts`
-  - Render a simplified layout:
-    - Top banner (yellow/amber): "Viewing [orgName] as Guest — Read Only" with expiration info ("Expires: [date]")
-    - Simplified left sidebar with only: Dashboard, Inventory, Locations, Workspaces nav items (no: Members, Settings, Notifications, Reports, Audit Logs, Sync Queue)
-    - Main content area: `<Outlet />`
-    - No create/edit/delete buttons anywhere
-    - Footer or sidebar footer: "Guest Access" badge
-  - Use Tailwind styling consistent with `DashboardLayout.tsx`
-  - Import nav icons from lucide-react: `LayoutDashboard`, `Package`, `MapPin`, `FolderOpen`
+**P8-13: Replace section dropdown with SectionTabs in WorkspaceDetail**
+- File: `src/pages/WorkspaceDetail.tsx`
+- Replace the existing `<select>` section filter dropdown with the new `SectionTabs` component
+- Compute section counts from inspections array: `const sectionCounts = inspections.reduce(...)` counting how many inspections are in each section
+- Pass `sections`, `selectedSection: sectionFilter`, `onSectionChange: setSectionFilter`, `sectionCounts`
+- Keep the status filter dropdown and search input (the search input provides client-side text filter of the visible list)
+- The SectionTabs go **below** the ScanSearchBar, **above** the status filter + list
 
-**P7-16: Add guest routes to router**
-- Modify `src/routes/index.tsx`:
-  - Import: `GuestCodeEntry` from `../pages/guest/GuestCodeEntry.tsx`
-  - Import: `GuestRoute` from `../components/guards/GuestRoute.tsx`
-  - Import: `GuestLayout` from `../components/layout/GuestLayout.tsx`
-  - Import guest pages: `GuestDashboard`, `GuestInventory`, `GuestLocations`, `GuestWorkspaces`, `GuestWorkspaceDetail`
-  - Add public route: `<Route path="/guest/code" element={<GuestCodeEntry />} />`
-  - Add guest route group:
-    ```tsx
-    <Route path="/guest/:orgId/:token" element={<GuestRoute />}>
-      <Route element={<GuestLayout />}>
-        <Route index element={<GuestDashboard />} />
-        <Route path="inventory" element={<GuestInventory />} />
-        <Route path="locations" element={<GuestLocations />} />
-        <Route path="workspaces" element={<GuestWorkspaces />} />
-        <Route path="workspaces/:workspaceId" element={<GuestWorkspaceDetail />} />
-      </Route>
-    </Route>
-    ```
-  - Wrap the guest route group with `<GuestProvider>` (or have `GuestRoute` handle provider injection)
+**P8-14: Change WorkspaceDetail inspection rows to navigate to ExtinguisherDetail**
+- File: `src/pages/WorkspaceDetail.tsx`
+- Currently: `onClick={() => navigate(\`/dashboard/workspaces/${workspaceId}/inspect/${insp.id}\`)}`
+- Change to: `onClick={() => navigate(\`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}\`))`
+- This sends the user to the new ExtinguisherDetail page (with workspace context) instead of the old InspectionForm
+- The old InspectionForm route is kept as a fallback / direct link from the detail page's "Full Inspection" link
 
-**P7-17: Wire GuestProvider into App**
-- The GuestProvider should NOT wrap the entire app (it is independent from the regular auth flow). Instead, it wraps only guest routes. The `GuestRoute` guard component (P7-14) or the route definition (P7-16) should render `<GuestProvider>` around the guest route subtree.
-- If the implementation is cleaner, `GuestRoute` itself can render `<GuestProvider>` internally and auto-trigger activation based on URL params (`:orgId`, `:token`).
+### Subsystem H: Route Registration
 
-### Subsystem G: Guest UI Pages
+**P8-15: Register new routes**
+- File: `src/routes/index.tsx`
+- Add import: `ExtinguisherDetail` from `../pages/ExtinguisherDetail`
+- Add routes inside the dashboard `<Route>` group:
+  - `<Route path="inventory/:extId" element={<ExtinguisherDetail />} />` — accessed from inventory
+  - `<Route path="workspaces/:workspaceId/inspect-ext/:extId" element={<ExtinguisherDetail />} />` — accessed from workspace (has workspaceId context)
+- Keep existing `workspaces/:workspaceId/inspect/:inspectionId` route (InspectionForm) — it's still used as a direct link
 
-**P7-18: Create GuestCodeEntry page**
-- Create `src/pages/guest/GuestCodeEntry.tsx`:
-  - Public page (no auth required to view the form)
-  - UI: centered card with EX3 branding, title "Enter Guest Access Code"
-  - 6-character input field (uppercase, alphanumeric), auto-capitalize
-  - "View Organization" submit button
-  - On submit:
-    1. Call `signInAnonymously(auth)`
-    2. Call `activateGuestSessionCall({ shareCode })`
-    3. On success: redirect to `/guest/{orgId}/{token}` (use orgId from response, use shareCode as path param or a session marker)
-    4. On error: show error message (invalid code, expired, guest limit reached)
-  - Alternative: since share code activation returns orgId but not the raw token, the redirect could go to `/guest/{orgId}/code-session` and GuestRoute can detect that the session is already activated via the anonymous auth state + member doc listener
-  - Loading state while activating
+### Subsystem I: Dashboard & Inventory Integration
 
-**P7-19: Create GuestDashboard page**
-- Create `src/pages/guest/GuestDashboard.tsx`:
-  - Import `useGuest` from `src/hooks/useGuest.ts`
-  - Read-only dashboard showing org stats:
-    - Total extinguishers count (query `org/{orgId}/extinguishers` where `deletedAt == null`, get count)
-    - Total locations count
-    - Compliance overview: compliant / due-soon / overdue counts (same queries as regular Dashboard but read-only)
-    - Total workspaces count
-  - No action buttons (no "Create Workspace", "Add Extinguisher", etc.)
-  - Title: "[OrgName] — Guest View"
+**P8-16: Add ScanSearchBar to Dashboard page**
+- File: `src/pages/Dashboard.tsx`
+- Add `ScanSearchBar` below the stat cards
+- On extinguisher found: navigate to `/dashboard/inventory/${ext.id}` (detail page without workspace context; it will auto-detect current month workspace)
+- Camera scan button gated by `cameraBarcodeScan` feature flag
 
-**P7-20: Create GuestInventory page**
-- Create `src/pages/guest/GuestInventory.tsx`:
-  - Import `useGuest` from `src/hooks/useGuest.ts`
-  - Read-only extinguisher list, same data as regular Inventory page:
-    - Table with columns: Asset ID, Serial, Category, Location, Section, Compliance Status
-    - Pagination (reuse existing pattern from Inventory.tsx)
-    - Category/Location/Section/Compliance filter dropdowns (read-only filtering)
-  - No "Add Extinguisher", "Import CSV", "Export CSV", edit, or delete buttons
-  - Uses `orgId` from `useGuest()` for Firestore queries
+**P8-17: Add ScanSearchBar to Inventory page**
+- File: `src/pages/Inventory.tsx`
+- Add `ScanSearchBar` above the existing filter row as a "Quick Find" bar
+- On extinguisher found: navigate to `/dashboard/inventory/${ext.id}`
+- Keep existing client-side search filter below (different purpose: exact Firestore lookup vs. substring filter)
 
-**P7-21: Create GuestLocations page**
-- Create `src/pages/guest/GuestLocations.tsx`:
-  - Read-only location hierarchy, same data as regular Locations page
-  - Tree view of locations with names and descriptions
-  - No create/edit/delete actions
-  - Uses `orgId` from `useGuest()` for Firestore queries
+**P8-18: Make inventory table rows navigate to ExtinguisherDetail**
+- File: `src/pages/Inventory.tsx`
+- Change `onClick` on table rows from `/dashboard/inventory/${ext.id}/edit` to `/dashboard/inventory/${ext.id}` (the new detail page)
+- The detail page has an "Edit" button for admin/owner to reach the edit form
+- Makes the detail page the primary destination for all roles
 
-**P7-22: Create GuestWorkspaces page**
-- Create `src/pages/guest/GuestWorkspaces.tsx`:
-  - Read-only workspace list, same data as Workspaces page
-  - Table/cards with: workspace name, status (open/archived), creation date, inspection counts
-  - No "Create Workspace" or "Archive" actions
-  - Click to navigate to GuestWorkspaceDetail
+### Subsystem J: Verification & Polish
 
-**P7-23: Create GuestWorkspaceDetail page**
-- Create `src/pages/guest/GuestWorkspaceDetail.tsx`:
-  - Read-only workspace detail, same data as WorkspaceDetail page
-  - Shows workspace info: name, status, created date, description
-  - Inspection list with columns: Asset ID, Section, Status (pass/fail/pending), Inspector, Date
-  - No "Start Inspection", "Reset", "Generate Report" buttons
-  - Uses `orgId` from `useGuest()` and `workspaceId` from URL params
+**P8-19: TypeScript build verification**
+- Run `pnpm build` — fix any TypeScript errors
+- Run `cd functions && npm run build` — fix any backend errors
+- Verify no circular imports
+- Verify all new imports resolve correctly
 
-### Subsystem H: OrgSettings Guest Access Section
-
-**P7-24: Add Guest Access section to OrgSettings page**
-- Modify `src/pages/OrgSettings.tsx`:
-  - Import: `Link2`, `Copy`, `Key`, `Calendar`, `ToggleLeft`, `ToggleRight` from lucide-react (as needed)
-  - Import: `toggleGuestAccessCall` from `../services/guestService.ts`
-  - Import: `GuestAccessConfig` from `../types/guest.ts`
-  - Add new state variables: `guestEnabled`, `guestExpiresAt`, `guestToken`, `guestShareCode`, `guestToggling`, `guestError`, `guestCopied`
-  - Sync guest state from `org.guestAccess` in the existing `useEffect` that syncs from org context
-  - Add a new card section **between the Subscription card and the Save button**:
-    - **When org has Elite/Enterprise plan (`org.featureFlags?.guestAccess === true`):**
-      - Card title: "Guest Access (Read-Only)"
-      - Description: "Allow external users to view your organization's data without creating an account."
-      - Toggle switch (checkbox styled as toggle): enables/disables guest access
-      - When enabled, show:
-        - Expiration date picker (date input, required)
-        - "Enable Guest Access" button (calls `toggleGuestAccessCall(orgId, true, expiresAt)`)
-        - After enabling, display:
-          - Share Link: `{window.location.origin}/guest/{orgId}/{token}` with Copy button
-          - Share Code: `{shareCode}` (large, monospace) with Copy button
-          - Expiration date display
-          - "Disable Guest Access" button (calls `toggleGuestAccessCall(orgId, false, '')`)
-      - When `org.guestAccess` already exists and is enabled, pre-populate the share link and code from the org doc
-    - **When org does NOT have Elite/Enterprise plan:**
-      - Locked card: "Guest Access (Read-Only)" with lock icon
-      - Text: "Guest Access is available on Elite and Enterprise plans."
-      - "Upgrade" link/button that scrolls to or highlights the plan selector
-    - Only visible to owner/admin (guard with `canEdit` which is already `hasRole(['owner', 'admin'])`)
-
-### Subsystem I: Verification & Cleanup
-
-**P7-25: Verify TypeScript compilation and integration**
-- Run `pnpm build` from project root -- verify zero frontend errors
-- Run `cd functions && npm run build` -- verify zero backend errors
-- Verify all new files compile without `any` types
-- Verify the guest activation flow: GuestCodeEntry -> signInAnonymously -> activateGuestSession CF -> guest member doc created -> GuestContext subscribes to org + member docs -> GuestLayout renders
-- Verify the token activation flow: share link URL -> GuestRoute -> signInAnonymously -> activateGuestSession CF (token path) -> same downstream
-- Verify security rules: guests can read extinguishers, locations, workspaces, inspections; guests CANNOT read members, notifications, reports, audit logs; guests CANNOT write anything
-- Verify cleanup function: cleanupExpiredGuests queries by role + expiresAt using the new collectionGroup index
-- Verify OrgSettings: Guest Access card appears for Elite/Enterprise, locked card for Basic/Pro
+**P8-20: End-to-end flow testing checklist**
+- **Workspace flow (primary)**:
+  - Open workspace → see ScanSearchBar + Section Tabs
+  - Type barcode/serial/asset ID in search → finds extinguisher → navigates to detail page with workspace context
+  - Camera scan barcode → finds extinguisher → navigates to detail page (Pro+ only)
+  - Click section tab → filters inspections to that section
+  - Click extinguisher row → opens ExtinguisherDetail with full info + checklist
+  - Fill checklist → click Pass → inspection saved, UI updates
+  - Fill checklist → click Fail (with notes) → inspection saved
+  - Already-inspected extinguisher → shows read-only checklist + result
+  - Back button returns to workspace
+- **Inventory flow**:
+  - Inventory page has ScanSearchBar
+  - Type/scan → detail page (auto-detects active workspace for quick inspect)
+  - Inventory rows now go to detail page (not edit)
+- **Dashboard flow**:
+  - Dashboard has ScanSearchBar
+  - Type/scan → detail page
+- **Feature gating**:
+  - Basic plan: search bar visible, NO camera scan button
+  - Pro/Elite: search bar + camera scan button
+  - Viewer role: sees details, NO Pass/Fail buttons
+- **Detail page completeness**:
+  - Asset details (ID, serial, barcode, manufacturer, etc.)
+  - Location info
+  - Compliance/lifecycle info
+  - NFPA checklist (interactive when pending, read-only when completed)
+  - Pass/Fail buttons (when pending)
+  - Inspection History (past inspections across workspaces)
+  - Replacement History
+- **Offline**:
+  - Quick inspect uses `saveInspectionOfflineAware` and shows queue message when offline
 
 ---
 
 ## Task Order
 
-1. **P7-01** (add 'guest' to OrgRole + OrgMember) -- no deps, foundational type change
-2. **P7-02** (create GuestAccessConfig type) -- no deps, new file
-3. **P7-03** (add guestAccess to Organization + OrgFeatureFlags) -- depends on P7-02
-4. **P7-04** (add guestAccess to planConfig) -- no deps on frontend types
-5. **P7-05** (toggleGuestAccess CF) -- depends on P7-01, P7-04
-6. **P7-06** (activateGuestSession CF) -- depends on P7-01, P7-04
-7. **P7-07** (cleanupExpiredGuests CF) -- depends on P7-01
-8. **P7-08** (export guest functions) -- depends on P7-05, P7-06, P7-07
-9. **P7-09** (update Firestore security rules) -- depends on P7-01 (needs 'guest' role concept)
-10. **P7-10** (add Firestore indexes) -- no strict deps, but logically after P7-07
-11. **P7-11** (guest service frontend) -- depends on P7-02
-12. **P7-12** (GuestContext + GuestProvider) -- depends on P7-11, P7-01, P7-03
-13. **P7-13** (useGuest hook) -- depends on P7-12
-14. **P7-14** (GuestRoute guard) -- depends on P7-13
-15. **P7-15** (GuestLayout) -- depends on P7-13
-16. **P7-16** (add guest routes to router) -- depends on P7-14, P7-15, P7-18 through P7-23
-17. **P7-17** (wire GuestProvider into guest routes) -- depends on P7-12, P7-16
-18. **P7-18** (GuestCodeEntry page) -- depends on P7-11, P7-13
-19. **P7-19** (GuestDashboard page) -- depends on P7-13
-20. **P7-20** (GuestInventory page) -- depends on P7-13
-21. **P7-21** (GuestLocations page) -- depends on P7-13
-22. **P7-22** (GuestWorkspaces page) -- depends on P7-13
-23. **P7-23** (GuestWorkspaceDetail page) -- depends on P7-13
-24. **P7-24** (OrgSettings Guest Access section) -- depends on P7-03, P7-11
-25. **P7-25** (verification) -- must be last, depends on all prior tasks
+**Round 1 — Independent foundations (can be parallel):**
+1. P8-01: `getInspectionForExtinguisherInWorkspace`
+2. P8-02: `getInspectionHistoryForExtinguisher`
+3. P8-03: `getActiveWorkspaceForCurrentMonth`
+4. P8-04: Firestore indexes
+5. P8-05: ScanSearchBar component
+6. P8-06: SectionTabs component
+7. P8-07: QuickFailModal component
 
-Rationale: Build types first (P7-01 through P7-04) since everything depends on them. Build backend Cloud Functions next (P7-05 through P7-08) since the frontend needs callable endpoints. Update security rules and indexes (P7-09, P7-10) in parallel with backend. Build frontend service and context layer (P7-11 through P7-13). Build route guards and layout (P7-14, P7-15). Build all guest pages (P7-18 through P7-23) which can be done in parallel. Wire routes (P7-16, P7-17). Add OrgSettings section (P7-24). Verify everything compiles (P7-25).
+**Round 2 — ExtinguisherDetail page (depends on Round 1):**
+8. P8-08: ExtinguisherDetail — asset info + location header
+9. P8-09: Inspection checklist + pass/fail (depends on P8-01, P8-07)
+10. P8-10: Inspection history section (depends on P8-02)
+11. P8-11: Replacement history section
 
-**Parallelization opportunities for build-agent:**
-- P7-01, P7-02, P7-04 can all be done in parallel (no interdependencies)
-- P7-05, P7-06, P7-07 can be done in parallel after types are in place
-- P7-09, P7-10 can be done in parallel with backend CFs
-- P7-19, P7-20, P7-21, P7-22, P7-23 can all be done in parallel after P7-13
-- P7-24 can be done in parallel with guest pages
+**Round 3 — Integration (depends on Round 2):**
+12. P8-15: Route registration (depends on P8-08)
+13. P8-12: WorkspaceDetail + ScanSearchBar (depends on P8-05, P8-15)
+14. P8-13: WorkspaceDetail + SectionTabs (depends on P8-06)
+15. P8-14: WorkspaceDetail row navigation change (depends on P8-15)
+16. P8-16: Dashboard + ScanSearchBar (depends on P8-05, P8-15)
+17. P8-17: Inventory + ScanSearchBar (depends on P8-05, P8-15)
+18. P8-18: Inventory row navigation change (depends on P8-15)
+
+**Round 4 — Verification:**
+19. P8-19: TypeScript build verification
+20. P8-20: E2E flow testing
+
+**Parallelization:**
+- Round 1: All 7 tasks can be done in parallel
+- Round 2: P8-08 first, then P8-09/P8-10/P8-11 in parallel (all within same file)
+- Round 3: P8-15 first, then P8-12 through P8-18 in parallel
 
 ---
 
@@ -440,117 +352,111 @@ Rationale: Build types first (P7-01 through P7-04) since everything depends on t
 
 | Task | Depends On |
 |------|-----------|
-| P7-01 | None |
-| P7-02 | None |
-| P7-03 | P7-02 |
-| P7-04 | None |
-| P7-05 | P7-01, P7-04 |
-| P7-06 | P7-01, P7-04 |
-| P7-07 | P7-01 |
-| P7-08 | P7-05, P7-06, P7-07 |
-| P7-09 | P7-01 |
-| P7-10 | None (logically after P7-07) |
-| P7-11 | P7-02 |
-| P7-12 | P7-01, P7-03, P7-11 |
-| P7-13 | P7-12 |
-| P7-14 | P7-13 |
-| P7-15 | P7-13 |
-| P7-16 | P7-14, P7-15, P7-18-P7-23 |
-| P7-17 | P7-12, P7-16 |
-| P7-18 | P7-11, P7-13 |
-| P7-19 | P7-13 |
-| P7-20 | P7-13 |
-| P7-21 | P7-13 |
-| P7-22 | P7-13 |
-| P7-23 | P7-13 |
-| P7-24 | P7-03, P7-11 |
-| P7-25 | All prior tasks |
+| P8-01 | None |
+| P8-02 | None |
+| P8-03 | None |
+| P8-04 | None |
+| P8-05 | None |
+| P8-06 | None |
+| P8-07 | None |
+| P8-08 | P8-01, P8-02, P8-03 (service functions used by the page) |
+| P8-09 | P8-07, P8-08 (QuickFailModal + page exists) |
+| P8-10 | P8-02, P8-08 (history function + page exists) |
+| P8-11 | P8-08 (page exists) |
+| P8-12 | P8-05, P8-15 (ScanSearchBar + route registered) |
+| P8-13 | P8-06 (SectionTabs component) |
+| P8-14 | P8-15 (route registered so navigation target exists) |
+| P8-15 | P8-08 (page exists to register route for) |
+| P8-16 | P8-05, P8-15 (ScanSearchBar + route registered) |
+| P8-17 | P8-05, P8-15 (ScanSearchBar + route registered) |
+| P8-18 | P8-15 (route registered) |
+| P8-19 | All prior tasks |
+| P8-20 | All prior tasks |
 
 ---
 
 ## Blockers or Risks
 
-1. **Firebase Anonymous Auth must be enabled**: The Firebase project must have Anonymous Auth enabled in the Firebase Console (Authentication > Sign-in method > Anonymous). If not enabled, `signInAnonymously()` will throw. The build-agent cannot enable this programmatically -- it must be noted for manual configuration.
+1. **Firestore composite indexes**: The queries in P8-01 and P8-02 need composite indexes. Added proactively in P8-04. If Firestore throws a different index error at runtime, follow the link in the error message.
 
-2. **Share code query requires Firestore index**: The `activateGuestSession` CF queries org-level docs by `guestAccess.shareCode` and `guestAccess.enabled`. Firestore may require a composite index for this. If the query fails at runtime, create the index via the link in the error message or add it to `firestore.indexes.json`. This is an org-level (top-level collection) query, not a subcollection query, so it should work without a composite index if `shareCode` is indexed automatically.
+2. **Workspace ID is monthYear string**: Workspace ID = `"2026-03"`, not a random Firestore doc ID. `getActiveWorkspaceForCurrentMonth` must format this correctly.
 
-3. **Anonymous UID persistence**: Firebase anonymous auth creates a persistent UID per device/browser. If a guest clears browser data or uses incognito, they get a new UID. This means a new guest member doc is created each time. The cleanup function handles expired docs, and the 100-guest cap prevents abuse. Not a problem for v1.
+3. **saveInspectionOfflineAware signature**: Requires `checklistData` (use `EMPTY_CHECKLIST` if quick pass without filling checklist) and `attestation` (can be null). The CF should accept these values. Verify at runtime.
 
-4. **Token exposure in URL**: The share link contains the raw token in the URL path (`/guest/:orgId/:token`). This is acceptable for the intended use case (shared via email/chat to trusted parties). The token is long (64 hex chars) and unguessable. For extra security, the token has an expiration date. A future enhancement could add one-time-use tokens.
+4. **Dual route for ExtinguisherDetail**: The page is accessed from both `/dashboard/inventory/:extId` and `/dashboard/workspaces/:workspaceId/inspect-ext/:extId`. The component reads both params — if `workspaceId` is present, it uses that workspace. If not, it auto-detects via `getActiveWorkspaceForCurrentMonth`.
 
-5. **Guest member doc and existing isMember() rule**: The existing `isMember(orgId)` rule checks `memberExists(orgId) && memberData(orgId).status == 'active'`. Guest member docs will have `status: 'active'`, so they pass this check. This is the intended behavior -- it means guest read access works without rewriting any existing rules. The `isGuest()` helper is only needed to BLOCK guest access on specific subcollections (members, notifications, reports).
+5. **Feature gating is UI-only**: Camera scan button gated by `cameraBarcodeScan` (Pro+). Text search available to all plans. No backend changes needed.
 
-6. **Existing write rules already block guests**: All write rules use `hasRole(orgId, ['owner', 'admin'])` or `hasRole(orgId, ['owner', 'admin', 'inspector'])`. Since `'guest'` is not in any of these role lists, guests cannot write anything. No write rule changes needed.
+6. **InspectionForm.tsx kept as fallback**: The existing InspectionForm page and its route are NOT removed. They serve as a fallback and as the target for "Full Inspection" links from the new detail page. This is a non-breaking enhancement.
 
-7. **GuestContext vs AuthContext/OrgContext isolation**: The guest flow uses a completely separate context (GuestContext) from the regular auth flow (AuthContext + OrgContext). This prevents contamination between guest sessions and regular user sessions. If a logged-in user visits a guest link, the guest route should either prompt them to use their regular access or proceed with guest mode. For v1, guest routes always use anonymous auth regardless of existing auth state.
+7. **Section tabs need section data**: Sections come from `org.settings.sections`. If an org has no sections configured, the SectionTabs component should gracefully hide or show just "All".
 
-8. **collectionGroup('members') index for cleanup**: The cleanup function uses `collectionGroup('members')` which queries across ALL orgs. This is a cross-org query performed by a Cloud Function using the Admin SDK, so it bypasses security rules. This is acceptable because it only reads/deletes guest member docs with expired timestamps.
-
-9. **OrgSettings guest access config visibility**: The `org.guestAccess.token` (raw token) is stored on the org doc. Since guests can read the org doc (via `isMember(orgId)`), a guest could technically read the raw token. This is not a security issue because: (a) the guest already has access via the token, and (b) the token only grants the same level of access the guest already has. If this is a concern in the future, the token could be stored in a separate admin-only subcollection.
+8. **Replacement history data shape**: The `replacementHistory` field on Extinguisher may be undefined/empty for most extinguishers. The replacement history section should handle this gracefully.
 
 ---
 
 ## Definition of Done
 
-Phase 7 is complete when ALL of the following are true:
+Phase 8 is complete when ALL of the following are true:
 
-1. **OrgRole includes 'guest'**: Both frontend (`src/types/member.ts`) and backend (`functions/src/utils/membership.ts`) OrgRole types include `'guest'`.
-2. **OrgMember has guest fields**: `isGuest?: boolean` and `expiresAt?: Timestamp | null` on `OrgMember`.
-3. **GuestAccessConfig type exists**: `src/types/guest.ts` exports `GuestAccessConfig` and `GuestActivationResult`.
-4. **Organization type updated**: `OrgFeatureFlags` has `guestAccess: boolean`, `Organization` has `guestAccess?: GuestAccessConfig | null`.
-5. **planConfig gated**: `guestAccess: false` for basic/pro, `true` for elite/enterprise.
-6. **toggleGuestAccess CF**: Owner/admin can enable (generates token + code) and disable (deletes all guest members) guest access. Validates Elite+ plan.
-7. **activateGuestSession CF**: Anonymous user can activate via token or share code. Creates guest member doc. Enforces expiration and 100-guest cap.
-8. **cleanupExpiredGuests CF**: Hourly scheduled function deletes expired guest member docs and auto-disables expired guest access on org docs.
-9. **Guest functions exported**: All 3 functions exported from `functions/src/index.ts`.
-10. **Security rules updated**: `isGuest()` helper added; guests blocked from members, notifications, reports reads; `guestAccess` added to blocked org update keys.
-11. **Firestore index added**: collectionGroup index on members for `role + expiresAt`.
-12. **Guest service**: `src/services/guestService.ts` wraps toggle and activate callables.
-13. **GuestContext**: Manages anonymous sign-in, activation, org/member subscriptions, expiration detection, sign-out.
-14. **useGuest hook**: Provides access to GuestContext.
-15. **GuestRoute guard**: Triggers activation flow, shows loading/error, renders outlet when active.
-16. **GuestLayout**: Stripped-down layout with read-only banner, simplified sidebar (Dashboard/Inventory/Locations/Workspaces only), expiration info.
-17. **Guest routes**: `/guest/:orgId/:token` (with nested pages), `/guest/code` (code entry).
-18. **GuestCodeEntry page**: Public page to enter 6-char code, activates and redirects.
-19. **GuestDashboard**: Read-only dashboard stats.
-20. **GuestInventory**: Read-only extinguisher list with filters.
-21. **GuestLocations**: Read-only location hierarchy.
-22. **GuestWorkspaces**: Read-only workspace list.
-23. **GuestWorkspaceDetail**: Read-only workspace + inspection list.
-24. **OrgSettings Guest Access section**: Toggle, date picker, share link/code display, copy buttons for Elite+; locked card for lower plans.
-25. **TypeScript compiles clean**: Both `pnpm build` and `cd functions && npm run build` pass with zero errors.
-26. **No `any` types**: All new code uses proper TypeScript types.
+1. **Service functions**: `getInspectionForExtinguisherInWorkspace`, `getInspectionHistoryForExtinguisher`, `getActiveWorkspaceForCurrentMonth` all exist and work.
+2. **Firestore indexes** added for the two inspection queries.
+3. **ScanSearchBar** component works: text input + camera scan (camera gated by feature flag). Searches barcode, asset ID, and serial number.
+4. **SectionTabs** component shows section filter tabs with counts.
+5. **QuickFailModal** captures required fail notes.
+6. **ExtinguisherDetail page** shows:
+   - Full asset details (ID, serial, barcode, manufacturer, location, dates, compliance)
+   - NFPA 13-point inspection checklist (interactive when pending, read-only when completed)
+   - Pass/Fail buttons (for pending inspections, role-gated)
+   - Inspection History across all workspaces
+   - Replacement History
+7. **WorkspaceDetail** has ScanSearchBar (primary location), SectionTabs, and rows navigate to ExtinguisherDetail.
+8. **Dashboard** has ScanSearchBar.
+9. **Inventory** has ScanSearchBar and rows navigate to ExtinguisherDetail (not edit).
+10. **Routes registered** for both inventory and workspace access paths.
+11. **Offline-aware** — saves use `saveInspectionOfflineAware`.
+12. **Viewer role** sees details but NOT Pass/Fail buttons.
+13. **Basic plan** sees search bar but NOT camera scan button.
+14. **TypeScript compiles clean** — `pnpm build` and `cd functions && npm run build` pass.
 
 ---
 
 ## Handoff to build-agent
 
-**Start with P7-01, P7-02, and P7-04 in parallel.** These are independent type/config changes that unblock everything else.
+**Start with Round 1 tasks (P8-01 through P8-07) in parallel.** These are all independent: 3 service functions, Firestore indexes, and 3 UI components.
+
+**Then build P8-08** (the core ExtinguisherDetail page). This is the biggest task. After the page shell is up, add P8-09, P8-10, P8-11 (checklist, history, replacement history) — these are all sections within the same file.
+
+**Then P8-15** (route registration), followed by all the integration tasks (P8-12 through P8-18) which can be parallelized.
 
 **Key context:**
 
-- **Anonymous auth**: Use `signInAnonymously(auth)` from `firebase/auth`. Returns a `UserCredential` with a real UID. Firebase project must have Anonymous Auth enabled in the console.
+- **WorkspaceDetail is the PRIMARY scan/search location.** This is where inspectors spend their time. Dashboard and Inventory also get the scan bar, but the workspace is the home base.
 
-- **Token generation**: Use Node.js `crypto` module (available in Cloud Functions): `crypto.randomBytes(32).toString('hex')` for the 64-char token, `crypto.createHash('sha256').update(token).digest('hex')` for the hash, `crypto.randomBytes(3).toString('hex').toUpperCase()` for the 6-char share code.
+- **Reference app UX flow**: Open workspace → section tabs at top → scan/search bar → extinguisher cards listed by section → click card → full detail + checklist + pass/fail + history on ONE page.
 
-- **Existing isMember() is the key insight**: Guest member docs with `status: 'active'` and `role: 'guest'` automatically pass the existing `isMember(orgId)` check in Firestore rules. This means ALL existing read rules work for guests without modification. The only changes needed are BLOCKING guest reads on sensitive collections (members, notifications, reports) via the new `isGuest()` helper.
+- **Existing BarcodeScannerModal**: Already works, just import and use it. No changes needed.
 
-- **Existing write rules already block guests**: Every write rule uses `hasRole(orgId, ['owner', 'admin'])` or includes `'inspector'`. None include `'guest'`. So guests cannot write anything. No write rule changes needed.
+- **`findExtinguisherByCode(orgId, code)`**: Already searches barcode → assetId → serial → qrCodeValue. This covers all the search-by fields the user wants.
 
-- **validateMembership blocks guests from privileged CFs**: All existing Cloud Functions call `validateMembership(orgId, uid, ['owner', 'admin'])` or similar. Since `'guest'` is never in the required roles arrays, guests are automatically blocked from all existing Cloud Functions. No CF changes needed except the 3 new guest functions.
+- **Workspace ID = monthYear string**: e.g., `"2026-03"`. Use `getActiveWorkspaceForCurrentMonth` or read from URL params.
 
-- **Guest pages are read-only clones**: The guest pages (Dashboard, Inventory, Locations, Workspaces, WorkspaceDetail) are simplified read-only versions of existing pages. They use the same Firestore queries but omit all create/edit/delete UI. Use `orgId` from `useGuest()` instead of `useOrg()`. Do NOT reuse the existing page components directly (they have edit controls and depend on OrgContext which is not available in guest routes).
+- **Inspection docs are pre-seeded**: When a workspace is created, every active extinguisher gets an inspection doc. So `getInspectionForExtinguisherInWorkspace` should always find a doc.
 
-- **OrgSettings placement**: The Guest Access card goes between the Subscription card and the Save button. Check `src/pages/OrgSettings.tsx` for the exact JSX insertion point.
+- **Two access paths for ExtinguisherDetail**:
+  1. From workspace: `/dashboard/workspaces/:workspaceId/inspect-ext/:extId` (workspaceId in URL)
+  2. From inventory/dashboard: `/dashboard/inventory/:extId` (auto-detect workspace)
 
-- **Share link format**: `${window.location.origin}/guest/${orgId}/${token}` -- the token is the raw 64-char hex token, not the hash.
+- **saveInspectionOfflineAware**: `saveInspectionOfflineAware(orgId, inspectionId, extinguisherId, workspaceId, { status, checklistData, notes, attestation }, isOnline)`. Use `EMPTY_CHECKLIST` for quick pass. Attestation can be null.
 
-- **Package manager is pnpm**: Use `pnpm` for any installs. No new dependencies needed for Phase 7 (crypto is built into Node.js, signInAnonymously is in the existing firebase SDK).
+- **Old InspectionForm page is kept**: Don't remove it. It's a fallback and link target.
+
+- **Design**: Tailwind CSS, red-600 primary accent, white cards with rounded-lg shadow-sm borders, professional look.
 
 **Warnings from lessons-learned:**
-- When the backend creates or modifies a document shape, always update the corresponding frontend TypeScript interface to match EXACTLY. (Relevant: guest member docs have `isGuest` and `expiresAt` fields not on the standard OrgMember -- P7-01 adds these.)
-- Never call `DocumentReference.update()` without first confirming the document exists. (Relevant: toggleGuestAccess disabling should batch-delete guest docs, not update them.)
-- Do NOT use `any` types. TypeScript strict mode is enforced.
+- Never call `DocumentReference.update()` on non-existent doc.
+- No `any` types. TypeScript strict mode.
 - Always include `built_by_Beck` in commit messages.
-- Always check installed package version against docs before writing code against it.
-- Always use explicit parentheses when mixing `||` and `&&` in boolean expressions.
+- Use explicit parentheses with mixed `&&` / `||`.
+- Firestore batch limit is 500 operations.
+- Frontend/backend type divergence — keep types in sync.

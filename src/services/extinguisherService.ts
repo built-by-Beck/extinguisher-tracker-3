@@ -221,6 +221,34 @@ export async function getExtinguisher(orgId: string, extId: string): Promise<Ext
   return { id: snap.id, ...snap.data() } as Extinguisher;
 }
 
+/**
+ * Look up an extinguisher by barcode, asset ID, serial, or QR value.
+ * Searches active (non-deleted) extinguishers within the org.
+ */
+export async function findExtinguisherByCode(
+  orgId: string,
+  code: string,
+): Promise<Extinguisher | null> {
+  const colRef = collection(db, 'org', orgId, 'extinguishers');
+
+  // Search fields in priority order
+  const fields = ['barcode', 'assetId', 'serial', 'qrCodeValue'] as const;
+
+  for (const field of fields) {
+    const q = query(
+      colRef,
+      where('deletedAt', '==', null),
+      where(field, '==', code),
+      limit(1),
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return { id: snap.docs[0].id, ...snap.docs[0].data() } as Extinguisher;
+    }
+  }
+  return null;
+}
+
 export interface ExtinguisherListOptions {
   category?: string;
   section?: string;

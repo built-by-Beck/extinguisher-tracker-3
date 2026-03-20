@@ -184,6 +184,15 @@ export default function ExtinguisherDetail() {
   useEffect(() => {
     if (!orgId || !extId) return;
 
+    // Reset state when params change to avoid stale data flash
+    setInspection(undefined);
+    setNoActiveWorkspace(false);
+    setActiveWorkspaceId(null);
+    setChecklist({ ...EMPTY_CHECKLIST });
+    setNotes('');
+    setActionError('');
+    setSuccessMsg('');
+
     async function loadInspection() {
       if (workspaceId) {
         // Workspace context from URL
@@ -221,6 +230,13 @@ export default function ExtinguisherDetail() {
       .finally(() => setHistoryLoading(false));
   }, [orgId, extId]);
 
+  function refreshHistory() {
+    if (!orgId || !extId) return;
+    getInspectionHistoryForExtinguisher(orgId, extId, 10)
+      .then(setHistory)
+      .catch(() => setHistory([]));
+  }
+
   function updateChecklist(key: keyof ChecklistData, value: CheckValue) {
     setChecklist((prev) => ({ ...prev, [key]: value }));
   }
@@ -254,11 +270,12 @@ export default function ExtinguisherDetail() {
 
       if (result.synced) {
         setSuccessMsg(`Inspection marked as ${status}.`);
-        // Reload inspection
+        // Reload inspection and history
         const updated = await getInspectionForExtinguisherInWorkspace(orgId, extId, activeWorkspaceId);
         setInspection(updated);
         if (updated?.checklistData) setChecklist(updated.checklistData);
         if (updated?.notes) setNotes(updated.notes);
+        refreshHistory();
       } else {
         setSuccessMsg("Inspection saved locally. It will sync when you're back online.");
       }
@@ -304,6 +321,7 @@ export default function ExtinguisherDetail() {
         const updated = await getInspectionForExtinguisherInWorkspace(orgId, extId, activeWorkspaceId);
         setInspection(updated);
       }
+      refreshHistory();
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : 'Failed to reset inspection.');
     } finally {

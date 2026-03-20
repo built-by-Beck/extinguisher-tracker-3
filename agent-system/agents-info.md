@@ -1,14 +1,63 @@
 # EX3 Agent System -- Project State
 
-**Last Updated**: 2026-03-18
-**Updated By**: review-agent (Opus 4.6) -- Phase 7 REVIEWED (Guest Access, 25 tasks, 5 fixes applied)
+**Last Updated**: 2026-03-19
+**Updated By**: review-agent (Opus 4.6) -- Phase 8 REVIEWED (Barcode Scanner & Quick Inspection)
 
 ---
 
 ## Current Phase
 
-**Phase 7 -- Guest Access (Read-Only) — Elite/Enterprise Feature**
-Status: COMPLETE and REVIEWED (25 tasks, P7-01 through P7-25)
+**Phase 8 -- Barcode Scanner & Quick Inspection**
+Status: COMPLETE and REVIEWED (20 tasks, P8-01 through P8-20)
+
+### Phase 8 Review Summary (review-agent, 2026-03-19)
+
+**2 issues found and fixed:**
+
+1. **BUG: Stale data flash when navigating between extinguishers** -- When navigating from one ExtinguisherDetail to another (e.g., via history links or browser back/forward), the `loadInspection` useEffect did not reset `inspection`, `noActiveWorkspace`, `activeWorkspaceId`, `checklist`, `notes`, or message states at the start. This caused the previous extinguisher's inspection data (checklist, status, notes) to flash briefly until the new async query completed. **Fix**: Added state resets at the top of the loadInspection effect so the UI shows the loading state immediately when params change.
+
+2. **UX BUG: Inspection history not refreshed after save or reset** -- After passing/failing an inspection or resetting one, the inspection history section still showed stale data (missing the newly completed inspection, or still showing a reset one). The history was only loaded on mount. **Fix**: Added `refreshHistory()` helper function and called it after both `handleSave` (on synced success) and `handleReset` (on success).
+
+**No other issues found.** All files reviewed thoroughly:
+
+- **ExtinguisherDetail.tsx**: Correctly handles dual routes (inventory vs workspace context), loads extinguisher + inspection + history, shows NFPA 13-point checklist (interactive when pending, read-only when completed), pass/fail buttons role-gated to owner/admin/inspector, reset button gated to owner/admin, offline-aware save with correct `saveInspectionOfflineAware` signature, QuickFailModal integration, replacement history, back navigation based on context.
+- **ScanSearchBar.tsx**: Text search + camera scan. Camera button correctly gated by `cameraBarcodeScan` or `qrScanning` feature flags via `hasFeature()`. Uses `findExtinguisherByCode` for multi-field search. Proper loading/error states.
+- **SectionTabs.tsx**: Horizontal scrollable tabs with "All Sections" + per-section counts. Gracefully returns null when sections array is empty.
+- **QuickFailModal.tsx**: Required notes (minLength 3), proper validation, saving state, close cleanup.
+- **inspectionService.ts**: Both new functions (`getInspectionForExtinguisherInWorkspace`, `getInspectionHistoryForExtinguisher`) have correct Firestore queries with proper collection paths, field names, and operators.
+- **workspaceService.ts**: `getActiveWorkspaceForCurrentMonth` correctly formats monthYear and checks status === 'active'.
+- **routes/index.tsx**: Both routes registered (`inventory/:extId` and `workspaces/:workspaceId/inspect-ext/:extId`). Old InspectionForm route preserved.
+- **WorkspaceDetail.tsx**: ScanSearchBar + SectionTabs integrated. Rows navigate to `inspect-ext/:extId` (new ExtinguisherDetail). Section counts computed correctly. Existing search/status filters preserved.
+- **Dashboard.tsx**: ScanSearchBar navigates to `/dashboard/inventory/${ext.id}`.
+- **Inventory.tsx**: ScanSearchBar + row navigation changed to `/dashboard/inventory/${ext.id}` (detail, not edit). Edit button still accessible via action column.
+- **firestore.indexes.json**: Two new composite indexes added for the new inspection queries.
+
+**Both builds pass clean:**
+- `pnpm build` -- zero TypeScript errors, zero warnings (other than chunk size)
+- `cd functions && npm run build` -- zero errors
+
+### Phase 8 Plan Summary (plan-agent, 2026-03-19, revised)
+
+**Objective**: Build scan/search + section-based inspection workflow. Inspectors open a workspace → see scan/search bar + section tabs → find extinguishers by scan/type/section → see full details + checklist + pass/fail + history on one page.
+
+**Primary UX location**: WorkspaceDetail page (where inspectors do their work). Dashboard and Inventory also get scan bar.
+
+**Key new files**:
+- `src/pages/ExtinguisherDetail.tsx` — Full detail page with checklist + pass/fail + inspection history + replacement history
+- `src/components/scanner/ScanSearchBar.tsx` — Reusable scan/search bar (text input + camera scan button)
+- `src/components/scanner/SectionTabs.tsx` — Section filter tabs with counts (like reference app)
+- `src/components/scanner/QuickFailModal.tsx` — Fail notes capture modal
+
+**Key modifications**:
+- `src/services/inspectionService.ts` — Two new query functions
+- `src/services/workspaceService.ts` — Active workspace helper
+- `src/routes/index.tsx` — Two new routes (inventory + workspace context paths)
+- `src/pages/WorkspaceDetail.tsx` — Add ScanSearchBar + SectionTabs + change row navigation (PRIMARY integration)
+- `src/pages/Dashboard.tsx` — Add ScanSearchBar
+- `src/pages/Inventory.tsx` — Add ScanSearchBar + change row navigation
+- `firestore.indexes.json` — Two new composite indexes
+
+**Previous Phase**: Phase 7 -- Guest Access (Read-Only) — COMPLETE and REVIEWED
 
 ### Phase 7 Review Summary (review-agent, 2026-03-18)
 
