@@ -1,14 +1,17 @@
 /**
  * Camera barcode / QR scanner modal.
- * Uses html5-qrcode for live camera scanning with fallback to manual entry.
+ * Uses @zxing/browser BrowserMultiFormatReader for live camera scanning
+ * with fallback to manual entry.
  * Plan-gated: requires cameraBarcodeScan or qrScanning feature flag.
  *
  * Author: built_by_Beck
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { X, Camera, CameraOff, Keyboard, SwitchCamera, Zap, ZapOff } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { BrowserMultiFormatReader } from '@zxing/browser';
+import type { IScannerControls } from '@zxing/browser';
+import { BarcodeFormat } from '@zxing/library';
+import { X, Camera, CameraOff, Keyboard } from 'lucide-react';
 
 export interface ScanResult {
   text: string;
@@ -21,136 +24,109 @@ interface BarcodeScannerModalProps {
   onScan: (result: ScanResult) => void;
 }
 
-const SCANNER_REGION_ID = 'barcode-scanner-region';
-
-const SUPPORTED_FORMATS = [
-  Html5QrcodeSupportedFormats.QR_CODE,
-  Html5QrcodeSupportedFormats.CODE_128,
-  Html5QrcodeSupportedFormats.CODE_39,
-  Html5QrcodeSupportedFormats.EAN_13,
-  Html5QrcodeSupportedFormats.EAN_8,
-  Html5QrcodeSupportedFormats.UPC_A,
-  Html5QrcodeSupportedFormats.UPC_E,
-  Html5QrcodeSupportedFormats.ITF,
-  Html5QrcodeSupportedFormats.CODE_93,
-];
-
 export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeScannerModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [manualMode, setManualMode] = useState(false);
   const [manualValue, setManualValue] = useState('');
-  const [torchOn, setTorchOn] = useState(false);
-  const [hasTorch, setHasTorch] = useState(false);
-  const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([]);
-  const [activeCameraIdx, setActiveCameraIdx] = useState(0);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  // null = loading/requesting, true = granted, false = denied
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
   const scannedRef = useRef(false);
 
-  const stopScanner = useCallback(async () => {
-    if (scannerRef.current) {
-      try {
-        const state = scannerRef.current.getState();
-        // state 2 = SCANNING, state 3 = PAUSED
-        if (state === 2 || state === 3) {
-          await scannerRef.current.stop();
-        }
-      } catch {
-        // ignore stop errors
-      }
-      scannerRef.current = null;
+  const stopScanner = () => {
+    if (controlsRef.current) {
+      controlsRef.current.stop();
+      controlsRef.current = null;
     }
-  }, []);
+    setIsScanning(false);
+  };
 
-  const startScanner = useCallback(async (cameraId?: string) => {
-    await stopScanner();
+  const startScanning = async (reader: BrowserMultiFormatReader) => {
+    if (!videoRef.current) return;
+
+    try {
+      setIsScanning(true);
+      const controls = await reader.decodeFromVideoDevice(
+        undefined,
+        videoRef.current,
+        (result, err) => {
+          if (result) {
+            if (scannedRef.current) return;
+            scannedRef.current = true;
+            const text = result.getText();
+            const format = BarcodeFormat[result.getBarcodeFormat()] ?? 'UNKNOWN';
+            onScan({ text, format });
+            stopScanner();
+          }
+          if (err && err.name !== 'NotFoundException') {
+            console.error('Scanning error:', err);
+          }
+        },
+      );
+      controlsRef.current = controls;
+    } catch (err) {
+      console.error('Failed to start scanning:', err);
+      setError('Failed to start camera scanning.');
+      setIsScanning(false);
+    }
+  };
+
+  const initializeScanner = async () => {
     setError(null);
+    setHasPermission(null);
     scannedRef.current = false;
 
     try {
-      const devices = await Html5Qrcode.getCameras();
-      if (devices.length === 0) {
-        setError('No cameras found. Please check permissions.');
-        return;
-      }
-      setCameras(devices);
-
-      const scanner = new Html5Qrcode(SCANNER_REGION_ID, {
-        formatsToSupport: SUPPORTED_FORMATS,
-        verbose: false,
+      // Request camera permission to verify access
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
       });
-      scannerRef.current = scanner;
 
-      const selectedCamera = cameraId ?? devices[activeCameraIdx]?.id ?? devices[0].id;
+      // Permission granted — stop the test stream
+      stream.getTracks().forEach((track) => track.stop());
+      setHasPermission(true);
 
-      await scanner.start(
-        selectedCamera,
-        {
-          fps: 10,
-          qrbox: { width: 280, height: 160 },
-          aspectRatio: 1.0,
-        },
-        (decodedText, result) => {
-          if (scannedRef.current) return;
-          scannedRef.current = true;
-          const format = result.result.format?.formatName ?? 'UNKNOWN';
-          onScan({ text: decodedText, format });
-        },
-        () => {
-          // scan failure per frame — ignore
-        },
-      );
-
-      // Check torch support
-      try {
-        const settings = scanner.getRunningTrackSettings();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setHasTorch(!!(settings as any)?.torch !== undefined);
-      } catch {
-        setHasTorch(false);
-      }
+      // BrowserMultiFormatReader will open its own stream via decodeFromVideoDevice
+      const reader = new BrowserMultiFormatReader();
+      // startScanning is called after state update triggers re-render with video element
+      // We defer via a microtask so React renders the <video> before we attach
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      await startScanning(reader);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (message.includes('Permission') || message.includes('NotAllowed')) {
-        setError('Camera permission denied. Please allow camera access in your browser settings and try again.');
+      console.error('Camera initialization error:', err);
+      setHasPermission(false);
+
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          setError('Camera permission denied. Please allow camera access in your browser settings and try again.');
+        } else if (err.name === 'NotFoundError') {
+          setError('No camera found on this device.');
+        } else {
+          setError(`Error accessing camera: ${err.message}`);
+        }
       } else {
-        setError(`Could not start camera: ${message}`);
+        setError('An unknown error occurred while accessing the camera.');
       }
     }
-  }, [activeCameraIdx, onScan, stopScanner]);
+  };
 
-  // Start/stop scanner when modal opens/closes
+  // Start/stop scanner when modal opens/closes or manual mode changes
   useEffect(() => {
     if (open && !manualMode) {
-      // Small delay to let DOM mount
-      const timer = setTimeout(() => { void startScanner(); }, 100);
-      return () => {
-        clearTimeout(timer);
-        void stopScanner();
-      };
+      void initializeScanner();
     } else {
-      void stopScanner();
+      stopScanner();
     }
-    return () => { void stopScanner(); };
-  }, [open, manualMode, startScanner, stopScanner]);
 
-  function handleSwitchCamera() {
-    const nextIdx = (activeCameraIdx + 1) % cameras.length;
-    setActiveCameraIdx(nextIdx);
-    void startScanner(cameras[nextIdx].id);
-  }
-
-  async function handleToggleTorch() {
-    if (!scannerRef.current) return;
-    try {
-      await scannerRef.current.applyVideoConstraints({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        advanced: [{ torch: !torchOn } as any],
-      } as MediaTrackConstraints);
-      setTorchOn(!torchOn);
-    } catch {
-      // torch not supported
-    }
-  }
+    return () => {
+      stopScanner();
+    };
+    // initializeScanner is intentionally excluded — we only want to re-run when open/manualMode changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, manualMode]);
 
   function handleManualSubmit() {
     const trimmed = manualValue.trim();
@@ -162,7 +138,7 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
     setManualMode(false);
     setManualValue('');
     setError(null);
-    setTorchOn(false);
+    setHasPermission(null);
     onClose();
   }
 
@@ -222,49 +198,65 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
           ) : (
             /* Camera scanner mode */
             <div className="space-y-3">
-              {error ? (
+              {/* Loading — requesting permission */}
+              {hasPermission === null && !error && (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <div className="mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-red-600" />
+                  <p className="text-sm text-gray-500">Requesting camera permission...</p>
+                </div>
+              )}
+
+              {/* Permission denied */}
+              {hasPermission === false && (
                 <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
                   <CameraOff className="mx-auto mb-2 h-8 w-8 text-red-400" />
                   <p className="text-sm text-red-700">{error}</p>
                   <button
-                    onClick={() => void startScanner()}
+                    onClick={() => void initializeScanner()}
                     className="mt-3 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
                   >
-                    Retry
+                    Try Again
                   </button>
                 </div>
-              ) : (
+              )}
+
+              {/* Permission granted — show video */}
+              {hasPermission === true && (
                 <>
-                  {/* Scanner viewport */}
-                  <div className="relative overflow-hidden rounded-lg bg-black">
-                    <div id={SCANNER_REGION_ID} className="w-full" />
-                  </div>
-
-                  <p className="text-center text-xs text-gray-500">
-                    Point your camera at a barcode or QR code
-                  </p>
-
-                  {/* Camera controls */}
-                  <div className="flex justify-center gap-3">
-                    {cameras.length > 1 && (
+                  {error ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
+                      <CameraOff className="mx-auto mb-2 h-8 w-8 text-red-400" />
+                      <p className="text-sm text-red-700">{error}</p>
                       <button
-                        onClick={handleSwitchCamera}
-                        className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        onClick={() => void initializeScanner()}
+                        className="mt-3 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
                       >
-                        <SwitchCamera className="h-4 w-4" />
-                        Switch
+                        Try Again
                       </button>
-                    )}
-                    {hasTorch && (
-                      <button
-                        onClick={() => { void handleToggleTorch(); }}
-                        className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        {torchOn ? <ZapOff className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-                        {torchOn ? 'Flash Off' : 'Flash On'}
-                      </button>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Scanner viewport */}
+                      <div className="relative overflow-hidden rounded-lg bg-black">
+                        <video
+                          ref={videoRef}
+                          className="h-64 w-full rounded-lg object-cover"
+                          autoPlay
+                          playsInline
+                          muted
+                        />
+                        {isScanning && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="h-36 w-48 rounded-lg border-2 border-red-500 animate-pulse" />
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-center text-xs text-gray-500">
+                        Point your camera at a barcode or QR code
+                      </p>
+                    </>
+                  )}
                 </>
               )}
 

@@ -1,13 +1,85 @@
 # EX3 Agent System -- Project State
 
 **Last Updated**: 2026-03-20
-**Updated By**: review-agent (Opus 4.6) -- Phase 9 review APPROVED
+**Updated By**: build-agent (Sonnet 4.6) -- Phase 10 complete
 
 ---
 
 ## Current Phase
 
-**Phase 9: Unify Locations & Sections + Fix WorkspaceDetail Location Cards**
+**Phase 10: Replace Barcode Scanner (html5-qrcode -> @zxing/browser)**
+Status: COMPLETE — awaiting review-agent
+
+### Phase 10 Build Summary (build-agent, 2026-03-20)
+
+**Result: All 5 tasks complete. `pnpm build` and `cd functions && npm run build` both pass clean.**
+
+**What was done:**
+
+**P10-01 (Dependency swap):** Removed `html5-qrcode` from `package.json`, added `@zxing/browser 0.1.5` and `@zxing/library 0.21.3`. Ran `pnpm install` successfully.
+
+**P10-02 (Rewrite BarcodeScannerModal.tsx):** Full rewrite using `BrowserMultiFormatReader` + `<video>` element:
+- Camera permission requested via `navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })`
+- Test stream stopped; then `new BrowserMultiFormatReader()` created and `decodeFromVideoDevice(undefined, videoRef.current, callback)` called
+- `decodeFromVideoDevice` returns `Promise<IScannerControls>` — stored in `controlsRef`, cleanup via `controls.stop()` (NOT `.reset()` — that's old API)
+- `scannedRef` guards against double-fires
+- Three permission states rendered: loading spinner (null), denied error + Try Again (false), video + red overlay (true)
+- Manual entry mode preserved exactly
+- Removed: `html5-qrcode` imports, `SCANNER_REGION_ID`, `SUPPORTED_FORMATS`, torch logic, camera switching, `SwitchCamera`/`Zap`/`ZapOff` lucide imports
+- `BarcodeFormat[result.getBarcodeFormat()]` converts enum to string for `ScanResult.format`
+- Used `import type { IScannerControls }` to satisfy `verbatimModuleSyntax`
+
+**P10-03 (No remaining html5-qrcode imports):** Grepped codebase — only found in `agent-system/` documentation files. No code imports remain.
+
+**P10-04 (TypeScript build):** `pnpm build` passes. Functions build passes. Chunk size warning is pre-existing (1,376 kB), not introduced here.
+
+**P10-05 (Consumer imports unchanged):** `ScanSearchBar.tsx` imports `BarcodeScannerModal` (default) and `type ScanResult` (named) — both preserved exactly. No changes needed to `WorkspaceDetail.tsx`, `Dashboard.tsx`, or `Inventory.tsx`.
+
+**Key API discovery for review-agent:**
+- `@zxing/browser` v0.1.5: `decodeFromVideoDevice` returns `Promise<IScannerControls>` not `void`. Cleanup is `controls.stop()`, not `reader.reset()`. The reference project used an older API version that had `reset()` on the reader — that's NOT available in v0.1.5.
+- Microtask defer (`await new Promise(resolve => setTimeout(resolve, 0))`) used after setting `hasPermission = true` to ensure React re-renders the `<video>` element into the DOM before `decodeFromVideoDevice` is called.
+
+**Files changed:**
+- `package.json` — dependency swap
+- `src/components/scanner/BarcodeScannerModal.tsx` — full rewrite
+
+**Files NOT changed (verified):**
+- `src/components/scanner/ScanSearchBar.tsx`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/pages/Dashboard.tsx`
+- `src/pages/Inventory.tsx`
+
+**Handoff to review-agent:** Review `BarcodeScannerModal.tsx` for correctness. Pay special attention to:
+1. The `setTimeout(resolve, 0)` microtask defer — is there a cleaner React way (useEffect on `hasPermission`) to ensure the video element is in the DOM before calling `decodeFromVideoDevice`?
+2. The `initializeScanner` function is called in a `useEffect` but is defined inside the component without `useCallback` — the eslint-disable comment suppresses the deps warning. Review whether this is acceptable or if the function should be moved/memoized.
+3. `stopScanner` is not memoized via `useCallback` — it's called in the `useEffect` cleanup, which could have stale closure issues. Verify correctness.
+
+---
+
+### Phase 10 Plan Summary (plan-agent, 2026-03-20)
+
+**Problem**: The barcode scanner (`src/components/scanner/BarcodeScannerModal.tsx`) uses `html5-qrcode` which creates its own DOM elements and is not working correctly. A proven scanner exists in the reference project (`/home/beck/projects/Fire_Extinguisher_Tracker/src/BarcodeScanner.jsx`) using `@zxing/browser` + `BrowserMultiFormatReader` with a simple `<video>` element approach.
+
+**Solution**: Swap `html5-qrcode` for `@zxing/browser` + `@zxing/library`. Rewrite `BarcodeScannerModal.tsx` to use `BrowserMultiFormatReader` + `decodeFromVideoDevice()` with a real `<video>` element. Preserve the existing TypeScript interface (`ScanResult`, `BarcodeScannerModalProps`) and manual entry mode so no consumer files need changes.
+
+**5 tasks (P10-01 through P10-05):**
+- P10-01: Swap npm dependencies (remove html5-qrcode, add @zxing/browser + @zxing/library)
+- P10-02: Rewrite BarcodeScannerModal.tsx with @zxing/browser (main work)
+- P10-03: Verify no remaining html5-qrcode imports
+- P10-04: TypeScript build verification (pnpm build)
+- P10-05: Verify consumer imports unchanged (ScanSearchBar, etc.)
+
+**Key constraints:**
+- Public API must not change: `ScanResult { text, format }`, `BarcodeScannerModalProps { open, onClose, onScan }`, default export
+- Manual entry mode preserved as-is
+- Three permission states: loading, denied, scanning with red overlay
+- `ScanSearchBar.tsx` and all pages that use it must remain untouched
+
+**Handoff**: build-agent should start with P10-01 (dependency swap), then P10-02 (rewrite), then P10-03-05 (verification). Full details in `agent-system/plan.md`.
+
+---
+
+### Phase 9: Unify Locations & Sections + Fix WorkspaceDetail Location Cards
 Status: COMPLETE AND REVIEWED
 
 ### Phase 9 Review Summary (review-agent, 2026-03-20)
