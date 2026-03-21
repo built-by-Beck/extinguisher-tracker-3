@@ -37,7 +37,7 @@ import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 
 export default function Inventory() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, userProfile } = useAuth();
   const { org, hasRole } = useOrg();
 
@@ -62,6 +62,24 @@ export default function Inventory() {
   const sections = org?.settings?.sections ?? [];
   const flags = org?.featureFlags as Record<string, boolean> | null | undefined;
   const canScan = hasFeature(flags, 'cameraBarcodeScan', org?.plan) || hasFeature(flags, 'qrScanning', org?.plan);
+
+  useEffect(() => {
+    const scanAddCode = searchParams.get('scanAdd');
+    if (!scanAddCode) return;
+
+    if (canEdit && canScan) {
+      setScanAddError('');
+      setScanAddTarget({
+        code: scanAddCode,
+        format: searchParams.get('scanFormat'),
+      });
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('scanAdd');
+    next.delete('scanFormat');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, canEdit, canScan]);
 
   // Subscribe to extinguishers — cache on read
   useEffect(() => {

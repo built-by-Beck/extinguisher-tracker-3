@@ -56,10 +56,11 @@ export default function WorkspaceDetail() {
   const navigate = useNavigate();
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const { userProfile } = useAuth();
-  const { org } = useOrg();
+  const { org, hasRole } = useOrg();
 
   const orgId = userProfile?.activeOrgId ?? '';
   const featureFlags = org?.featureFlags;
+  const canEdit = hasRole(['owner', 'admin']);
   const { isOnline } = useOffline();
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -226,6 +227,25 @@ export default function WorkspaceDetail() {
     }
   }
 
+  function handleScanNotFound({
+    code,
+    source,
+    format,
+  }: {
+    code: string;
+    source: 'search' | 'scan';
+    format?: string | null;
+  }) {
+    if (source !== 'scan' || !canEdit) return;
+
+    const params = new URLSearchParams({
+      scanAdd: code,
+    });
+    if (format) params.set('scanFormat', format);
+
+    navigate(`/dashboard/inventory?${params.toString()}`);
+  }
+
   if (!workspace) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -351,6 +371,7 @@ export default function WorkspaceDetail() {
           <ScanSearchBar
             orgId={orgId}
             onExtinguisherFound={handleExtinguisherFound}
+            onNotFound={handleScanNotFound}
             featureFlags={featureFlags}
             plan={org?.plan}
             placeholder="Scan or type barcode, serial, or asset ID..."

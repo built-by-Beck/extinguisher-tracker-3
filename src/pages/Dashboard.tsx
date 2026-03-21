@@ -218,6 +218,14 @@ export default function Dashboard() {
             onExtinguisherFound={(ext) => {
               if (ext.id) navigate(`/dashboard/inventory/${ext.id}`);
             }}
+            onNotFound={({ code, source, format }) => {
+              if (source !== 'scan' || !isAdminOrOwner) return;
+              const params = new URLSearchParams({
+                scanAdd: code,
+              });
+              if (format) params.set('scanFormat', format);
+              navigate(`/dashboard/inventory?${params.toString()}`);
+            }}
             featureFlags={org?.featureFlags}
             plan={org?.plan}
             placeholder="Quick find — scan or type barcode, serial, or asset ID..."
