@@ -35,6 +35,7 @@ import type { Workspace } from '../services/workspaceService.ts';
 import type { Extinguisher } from '../services/extinguisherService.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 import { AiAssistantPanel } from '../components/ai/AiAssistantPanel.tsx';
+import { AiUpgradeCard } from '../components/ai/AiUpgradeCard.tsx';
 
 interface StatCardProps {
   label: string;
@@ -68,6 +69,8 @@ export default function Dashboard() {
   const isAdminOrOwner = hasRole(['owner', 'admin']);
   const hasPlan = !!org?.plan;
   const subActive = org?.subscriptionStatus === 'active' || org?.subscriptionStatus === 'trialing';
+  const hasAi = org?.featureFlags?.aiAssistant === true
+    || org?.plan === 'pro' || org?.plan === 'elite' || org?.plan === 'enterprise';
 
   const [extCount, setExtCount] = useState(0);
   const [memberCount, setMemberCount] = useState(0);
@@ -339,6 +342,13 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* AI upsell for Basic users without AI access */}
+      {hasPlan && !hasAi && (
+        <div className="mb-8">
+          <AiUpgradeCard />
+        </div>
+      )}
+
       {/* Admin section */}
       {isAdminOrOwner && (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -350,11 +360,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* AI Assistant floating panel */}
-      <AiAssistantPanel
-        extinguishers={allExtinguishers}
-        complianceSummary={complianceCounts}
-      />
+      {/* AI Assistant floating panel — Pro+ only */}
+      {hasAi && (
+        <AiAssistantPanel
+          extinguishers={allExtinguishers}
+          complianceSummary={complianceCounts}
+        />
+      )}
     </div>
   );
 }

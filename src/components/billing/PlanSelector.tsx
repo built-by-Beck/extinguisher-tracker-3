@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, Sparkles, X as XIcon } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
 import { PLANS, type PlanName } from '../../lib/planConfig.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
@@ -44,11 +44,28 @@ export function PlanSelector() {
         <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
-      <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-        <p className="text-sm font-medium text-blue-900">AI assistant access starts on Pro.</p>
-        <p className="mt-1 text-sm text-blue-700">
-          Pro, Elite, and Enterprise plans include AI. Basic does not include AI access.
+      {/* AI feature showcase */}
+      <div className="mb-6 rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-red-50 p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-purple-600" />
+          <h3 className="text-sm font-bold text-gray-900">AI Compliance Assistant — included with Pro+</h3>
+        </div>
+        <p className="mb-3 text-sm text-gray-600">
+          Get instant NFPA 10 answers, real-time inventory analysis, and smart maintenance recommendations — powered by Gemini AI.
         </p>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {[
+            '"Which extinguishers are overdue?"',
+            '"Explain the 6-year maintenance rule"',
+            '"Summarize my compliance status"',
+            '"What does NFPA 10 require monthly?"',
+          ].map((q) => (
+            <div key={q} className="flex items-center gap-2 rounded-md bg-white/70 px-3 py-1.5 text-xs text-gray-700">
+              <Sparkles className="h-3 w-3 shrink-0 text-purple-500" />
+              {q}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -79,12 +96,25 @@ export function PlanSelector() {
               </p>
 
               <ul className="mt-4 space-y-2">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 text-sm text-gray-600">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
-                    {feature}
-                  </li>
-                ))}
+                {plan.features.map((feature) => {
+                  const isAiFeature = feature.toLowerCase().includes('ai');
+                  const isExcluded = feature.toLowerCase().includes('not included');
+                  return (
+                    <li key={feature} className={`flex items-start gap-2 text-sm ${isExcluded ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {isExcluded ? (
+                        <XIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-300" />
+                      ) : (
+                        <Check className={`mt-0.5 h-4 w-4 shrink-0 ${isAiFeature ? 'text-purple-500' : 'text-green-500'}`} />
+                      )}
+                      <span className={isAiFeature && !isExcluded ? 'font-medium text-purple-700' : ''}>
+                        {feature}
+                        {isAiFeature && !isExcluded && (
+                          <Sparkles className="ml-1 inline h-3 w-3 text-purple-500" />
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
 
               <button
