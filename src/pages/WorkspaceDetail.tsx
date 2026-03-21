@@ -119,7 +119,6 @@ export default function WorkspaceDetail() {
   // Subscribe to locations — used to drive location cards (location.name is the section key)
   useEffect(() => {
     if (!orgId) return;
-    setLocations([]);
     return subscribeToLocations(orgId, (locs) => {
       setLocations(locs);
     });
@@ -141,7 +140,6 @@ export default function WorkspaceDetail() {
   // Load report doc when workspace is archived
   useEffect(() => {
     if (!isArchived || !orgId || !workspaceId) return;
-    setReport(undefined);
     getReport(orgId, workspaceId)
       .then((r) => setReport(r))
       .catch(() => setReport(null));
@@ -348,12 +346,13 @@ export default function WorkspaceDetail() {
       </div>
 
       {/* Scan/Search bar — primary extinguisher lookup */}
-      {!isArchived && (
+      {!isArchived && orgId && (
         <div className="mb-6">
           <ScanSearchBar
             orgId={orgId}
             onExtinguisherFound={handleExtinguisherFound}
             featureFlags={featureFlags}
+            plan={org?.plan}
             placeholder="Scan or type barcode, serial, or asset ID..."
           />
         </div>

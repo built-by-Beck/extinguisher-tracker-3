@@ -42,18 +42,24 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
   const initializeScanner = async () => {
     setError(null);
     setHasPermission(null);
+    setIsScanning(false);
     scannedRef.current = false;
 
     try {
+      await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)));
       if (!videoRef.current) throw new Error('Video element is not ready');
       const scanner = createBarcodeScanner({
         video: videoRef.current,
         canvas: canvasRef.current ?? undefined,
-        onScan: (text) => {
+        onScan: (text, code) => {
           if (scannedRef.current) return;
           scannedRef.current = true;
-          onScan({ text: text.trim(), format: 'unknown' });
+          onScan({ text: text.trim(), format: code?.format ?? 'unknown' });
           stopScanner();
+        },
+        onError: (scanError) => {
+          setIsScanning(false);
+          setError(scanError.message);
         },
       });
       scannerRef.current = scanner;
@@ -162,94 +168,85 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
           ) : (
             /* Camera scanner mode */
             <div className="space-y-3">
-              {/* Loading — requesting permission */}
-              {hasPermission === null && !error && (
-                <div className="flex flex-col items-center justify-center py-10">
-                  <div className="mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-red-600" />
-                  <p className="text-sm text-gray-500">Requesting camera permission...</p>
-                </div>
+              <div className="relative overflow-hidden rounded-lg bg-black">
+                <video
+                  ref={videoRef}
+                  className="h-64 w-full rounded-lg object-cover"
+                  autoPlay
+                  playsInline
+                  muted
+                />
+                <canvas
+                  ref={canvasRef}
+                  className="pointer-events-none absolute inset-0 h-64 w-full"
+                />
+
+                {hasPermission === null && !error && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 text-white">
+                    <div className="mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-red-500" />
+                    <p className="text-sm">Requesting camera permission...</p>
+                  </div>
+                )}
+
+                {hasPermission === false && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 px-6 text-center">
+                    <CameraOff className="mb-2 h-8 w-8 text-red-400" />
+                    <p className="text-sm text-red-200">{error}</p>
+                  </div>
+                )}
+
+                {hasPermission === true && error && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 px-6 text-center">
+                    <CameraOff className="mb-2 h-8 w-8 text-red-400" />
+                    <p className="text-sm text-red-200">{error}</p>
+                  </div>
+                )}
+
+                {isScanning && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="h-36 w-48 animate-pulse rounded-lg border-2 border-red-500" />
+                  </div>
+                )}
+              </div>
+
+              <p className="text-center text-xs text-gray-500">
+                Point your camera at a barcode or QR code
+              </p>
+
+              {(hasPermission === false || (hasPermission === true && error)) && (
+                <button
+                  onClick={() => void initializeScanner()}
+                  className="w-full rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                >
+                  Try Again
+                </button>
               )}
 
-              {/* Permission denied */}
-              {hasPermission === false && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
-                  <CameraOff className="mx-auto mb-2 h-8 w-8 text-red-400" />
-                  <p className="text-sm text-red-700">{error}</p>
+              {hasPermission === true && !error && (
+                <div className="mt-2 flex items-center justify-between">
                   <button
-                    onClick={() => void initializeScanner()}
-                    className="mt-3 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                    onClick={async () => {
+                      try {
+                        await scannerRef.current?.switchCamera();
+                      } catch (e: unknown) {
+                        if (e instanceof Error) setError(e.message);
+                        else setError('Failed to switch camera');
+                      }
+                    }}
+                    className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    Try Again
+                    Switch Camera
+                  </button>
+                  <button
+                    onClick={() => {
+                      stopScanner();
+                      void initializeScanner();
+                    }}
+                    className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Restart
                   </button>
                 </div>
-              )}
-
-              {/* Permission granted — show video */}
-              {hasPermission === true && (
-                <>
-                  {error ? (
-                    <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
-                      <CameraOff className="mx-auto mb-2 h-8 w-8 text-red-400" />
-                      <p className="text-sm text-red-700">{error}</p>
-                      <button
-                        onClick={() => void initializeScanner()}
-                        className="mt-3 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-                      >
-                        Try Again
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Scanner viewport */}
-                      <div className="relative overflow-hidden rounded-lg bg-black">
-                        <video
-                          ref={videoRef}
-                          className="h-64 w-full rounded-lg object-cover"
-                          autoPlay
-                          playsInline
-                          muted
-                        />
-                        <canvas
-                          ref={canvasRef}
-                          className="pointer-events-none absolute inset-0 h-64 w-full"
-                        />
-                        {isScanning && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="h-36 w-48 rounded-lg border-2 border-red-500 animate-pulse" />
-                          </div>
-                        )}
-                      </div>
-
-                      <p className="text-center text-xs text-gray-500">
-                        Point your camera at a barcode or QR code
-                      </p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <button
-                          onClick={async () => {
-                            try {
-                              await scannerRef.current?.switchCamera();
-                            } catch (e: unknown) {
-                              if (e instanceof Error) setError(e.message);
-                              else setError('Failed to switch camera');
-                            }
-                          }}
-                          className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          Switch Camera
-                        </button>
-                        <button
-                          onClick={() => {
-                            stopScanner();
-                            void initializeScanner();
-                          }}
-                          className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          Restart
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </>
               )}
 
               {/* Manual fallback */}

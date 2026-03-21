@@ -91,6 +91,20 @@ function extinguishersRef(orgId: string) {
   return collection(db, 'org', orgId, 'extinguishers');
 }
 
+function sanitizeScannedCodeForAssetId(code: string): string {
+  const sanitized = code
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (sanitized) {
+    return sanitized.slice(0, 24);
+  }
+
+  return `ITEM-${Date.now().toString(36).toUpperCase()}`;
+}
+
 /**
  * Get total count of active (non-deleted) extinguishers.
  */
@@ -115,6 +129,22 @@ export async function isAssetIdTaken(orgId: string, assetId: string, excludeId?:
     return snap.docs.some((d) => d.id !== excludeId);
   }
   return !snap.empty;
+}
+
+/**
+ * Generate a unique asset ID for extinguisher records created directly from a scan.
+ */
+export async function generateScannedAssetId(orgId: string, code: string): Promise<string> {
+  const base = `SCAN-${sanitizeScannedCodeForAssetId(code)}`;
+  let candidate = base;
+  let suffix = 2;
+
+  while (await isAssetIdTaken(orgId, candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+
+  return candidate;
 }
 
 /**

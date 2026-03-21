@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
+import { hasFeature } from '../lib/planConfig.ts';
 import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
 import { DeleteConfirmModal } from '../components/extinguisher/DeleteConfirmModal.tsx';
 import { ImportExportBar } from '../components/extinguisher/ImportExportBar.tsx';
@@ -26,6 +27,8 @@ import {
   subscribeToExtinguishers,
   softDeleteExtinguisher,
   getActiveExtinguisherCount,
+  createExtinguisher,
+  generateScannedAssetId,
   type Extinguisher,
 } from '../services/extinguisherService.ts';
 import { formatDueDate } from '../utils/compliance.ts';
@@ -52,8 +55,13 @@ export default function Inventory() {
     searchParams.get('compliance') ?? '',
   );
   const [deleteTarget, setDeleteTarget] = useState<Extinguisher | null>(null);
+  const [scanAddTarget, setScanAddTarget] = useState<{ code: string; format: string | null } | null>(null);
+  const [scanAddLoading, setScanAddLoading] = useState(false);
+  const [scanAddError, setScanAddError] = useState('');
 
   const sections = org?.settings?.sections ?? [];
+  const flags = org?.featureFlags as Record<string, boolean> | null | undefined;
+  const canScan = hasFeature(flags, 'cameraBarcodeScan', org?.plan) || hasFeature(flags, 'qrScanning', org?.plan);
 
   // Subscribe to extinguishers — cache on read
   useEffect(() => {
@@ -100,6 +108,40 @@ export default function Inventory() {
     setDeleteTarget(null);
   }
 
+  async function handleConfirmScannedAdd() {
+    if (!scanAddTarget || !orgId || !user) return;
+    setScanAddLoading(true);
+    setScanAddError('');
+
+    try {
+      if (org?.assetLimit) {
+        const count = await getActiveExtinguisherCount(orgId);
+        if (count >= org.assetLimit) {
+          throw new Error(`Asset limit reached (${org.assetLimit}). Upgrade your plan to add more extinguishers.`);
+        }
+      }
+
+      const assetId = await generateScannedAssetId(orgId, scanAddTarget.code);
+      const extId = await createExtinguisher(orgId, user.uid, {
+        assetId,
+        serial: '',
+        barcode: scanAddTarget.code,
+        barcodeFormat: scanAddTarget.format,
+        section: '',
+        locationId: null,
+        vicinity: '',
+        parentLocation: '',
+      });
+
+      setScanAddTarget(null);
+      navigate(`/dashboard/inventory/${extId}/edit`);
+    } catch (err) {
+      setScanAddError(err instanceof Error ? err.message : 'Failed to add scanned extinguisher.');
+    } finally {
+      setScanAddLoading(false);
+    }
+  }
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -136,7 +178,16 @@ export default function Inventory() {
             onExtinguisherFound={(ext) => {
               if (ext.id) navigate(`/dashboard/inventory/${ext.id}`);
             }}
+            onNotFound={({ code, source, format }) => {
+              if (source !== 'scan' || !canEdit || !canScan) {
+                return;
+              }
+
+              setScanAddError('');
+              setScanAddTarget({ code, format: format ?? null });
+            }}
             featureFlags={org?.featureFlags}
+            plan={org?.plan}
             placeholder="Quick find — scan or type barcode, serial, or asset ID..."
           />
         </div>
@@ -327,7 +378,9 @@ export default function Inventory() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            ext.id && navigate(`/dashboard/inventory/${ext.id}/edit`);
+                            if (ext.id) {
+                              navigate(`/dashboard/inventory/${ext.id}/edit`);
+                            }
                           }}
                           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                           title="Edit"
@@ -363,6 +416,54 @@ export default function Inventory() {
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
         />
+      )}
+
+      {scanAddTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+            <div className="border-b border-gray-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">Add scanned extinguisher?</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                No extinguisher was found for this scanned barcode.
+              </p>
+            </div>
+
+            <div className="space-y-4 px-5 py-4">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Scanned code</p>
+                <p className="mt-1 break-all font-mono text-sm text-gray-900">{scanAddTarget.code}</p>
+              </div>
+
+              <p className="text-sm text-gray-600">
+                If this barcode is attached to a fire extinguisher, add it to inventory now. It will be created as unassigned so you can finish the details after.
+              </p>
+
+              {scanAddError && (
+                <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{scanAddError}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-5 py-4">
+              <button
+                onClick={() => {
+                  if (scanAddLoading) return;
+                  setScanAddError('');
+                  setScanAddTarget(null);
+                }}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void handleConfirmScannedAdd()}
+                disabled={scanAddLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {scanAddLoading ? 'Adding...' : 'Add and Edit'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

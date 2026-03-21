@@ -24,6 +24,7 @@ export interface ScannerOptions {
   video: HTMLVideoElement;
   canvas?: HTMLCanvasElement | null;
   onScan: (text: string, code?: DetectedBarcode) => void;
+  onError?: (error: Error) => void;
   intervalMs?: number;
   formats?: BarcodeFormat[];
   preferFacingMode?: FacingMode;
@@ -36,11 +37,16 @@ export interface Scanner {
   switchCamera(): Promise<void>;
 }
 
+interface StreamRequestOptions {
+  allowOppositeFallback?: boolean;
+}
+
 export function createBarcodeScanner(opts: ScannerOptions): Scanner {
   const {
     video,
     canvas = null,
     onScan,
+    onError,
     intervalMs = 100,
     formats,
     preferFacingMode = 'environment',
@@ -54,7 +60,25 @@ export function createBarcodeScanner(opts: ScannerOptions): Scanner {
   let stream: MediaStream | null = null;
   let timer: number | null = null;
   let scanning = false;
+  let detectionInFlight = false;
   let lastFacingMode: FacingMode = preferFacingMode;
+
+  const normalizeError = (err: unknown): Error => {
+    if (err instanceof Error) return err;
+    return new Error(typeof err === 'string' ? err : 'Barcode scanning failed.');
+  };
+
+  const shouldSurfaceDetectError = (err: unknown): boolean => {
+    const message = normalizeError(err).message.toLowerCase();
+    return (
+      message.includes('wasm')
+      || message.includes('import')
+      || message.includes('fetch')
+      || message.includes('network')
+      || message.includes('module')
+      || message.includes('barcode')
+    );
+  };
 
   const clearTimer = () => {
     if (timer) {
@@ -75,12 +99,25 @@ export function createBarcodeScanner(opts: ScannerOptions): Scanner {
     } catch { void 0; }
   };
 
-  const getWorkingStream = async (desired: FacingMode) => {
+  const getWorkingStream = async (
+    desired: FacingMode,
+    options: StreamRequestOptions = {},
+  ) => {
+    const { allowOppositeFallback = true } = options;
+    const opposite: FacingMode = desired === 'environment' ? 'user' : 'environment';
     const tries: MediaStreamConstraints[] = [
+      { video: { facingMode: { exact: desired }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
       { video: { facingMode: { ideal: desired }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
-      { video: { facingMode: { ideal: desired === 'environment' ? 'user' : 'environment' } }, audio: false },
-      { video: true, audio: false },
     ];
+
+    if (allowOppositeFallback) {
+      tries.push(
+        { video: { facingMode: { exact: opposite } }, audio: false },
+        { video: { facingMode: { ideal: opposite } }, audio: false },
+        { video: true, audio: false },
+      );
+    }
+
     let lastErr: unknown = null;
     for (const c of tries) {
       try {
@@ -164,7 +201,8 @@ export function createBarcodeScanner(opts: ScannerOptions): Scanner {
     clearTimer();
     scanning = true;
     timer = window.setInterval(async () => {
-      if (!scanning || !detector || video.readyState < 2) return;
+      if (!scanning || !detector || video.readyState < 2 || detectionInFlight) return;
+      detectionInFlight = true;
       try {
         const codes = await detector!.detect(video);
         if (codes?.length) {
@@ -180,8 +218,13 @@ export function createBarcodeScanner(opts: ScannerOptions): Scanner {
           const ctx = canvas.getContext('2d');
           ctx?.clearRect(0, 0, canvas.width, canvas.height);
         }
-      } catch {
-        // ignore frequent no-result errors
+      } catch (err) {
+        if (shouldSurfaceDetectError(err)) {
+          api.stop();
+          onError?.(normalizeError(err));
+        }
+      } finally {
+        detectionInFlight = false;
       }
     }, intervalMs);
   };
@@ -191,7 +234,9 @@ export function createBarcodeScanner(opts: ScannerOptions): Scanner {
     async start() {
       await ensureDetector();
       stopTracks();
-      stream = await getWorkingStream(lastFacingMode);
+      stream = await getWorkingStream(lastFacingMode, {
+        allowOppositeFallback: false,
+      });
       const track = stream.getVideoTracks()[0];
       const facing = (track.getSettings?.().facingMode as FacingMode | undefined);
       if (facing) lastFacingMode = facing;
@@ -200,6 +245,7 @@ export function createBarcodeScanner(opts: ScannerOptions): Scanner {
     },
     stop() {
       scanning = false;
+      detectionInFlight = false;
       clearTimer();
       stopTracks();
       if (canvas) {
@@ -209,6 +255,7 @@ export function createBarcodeScanner(opts: ScannerOptions): Scanner {
     },
     async switchCamera() {
       scanning = false;
+      detectionInFlight = false;
       clearTimer();
       stopTracks();
       const desired: FacingMode = lastFacingMode === 'environment' ? 'user' : 'environment';

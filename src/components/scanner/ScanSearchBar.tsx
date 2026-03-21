@@ -14,11 +14,18 @@ import { findExtinguisherByCode, type Extinguisher } from '../../services/exting
 import BarcodeScannerModal from './BarcodeScannerModal.tsx';
 import type { ScanResult } from './BarcodeScannerModal.tsx';
 
+export interface ScanSearchNotFoundEvent {
+  code: string;
+  source: 'search' | 'scan';
+  format?: string | null;
+}
+
 interface ScanSearchBarProps {
   orgId: string;
   onExtinguisherFound: (ext: Extinguisher) => void;
-  onNotFound?: (code: string) => void;
+  onNotFound?: (event: ScanSearchNotFoundEvent) => void;
   featureFlags?: OrgFeatureFlags | null;
+  plan?: string | null;
   placeholder?: string;
 }
 
@@ -27,6 +34,7 @@ export function ScanSearchBar({
   onExtinguisherFound,
   onNotFound,
   featureFlags,
+  plan,
   placeholder = 'Type barcode, serial, or asset ID...',
 }: ScanSearchBarProps) {
   const [inputValue, setInputValue] = useState('');
@@ -36,7 +44,7 @@ export function ScanSearchBar({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const flags = featureFlags as Record<string, boolean> | null | undefined;
-  const canScan = hasFeature(flags, 'cameraBarcodeScan') || hasFeature(flags, 'qrScanning');
+  const canScan = hasFeature(flags, 'cameraBarcodeScan', plan) || hasFeature(flags, 'qrScanning', plan);
 
   async function handleSearch(code: string) {
     const trimmed = code.trim();
@@ -52,7 +60,7 @@ export function ScanSearchBar({
         onExtinguisherFound(ext);
       } else {
         setError(`No extinguisher found for "${trimmed}"`);
-        onNotFound?.(trimmed);
+        onNotFound?.({ code: trimmed, source: 'search', format: null });
       }
     } catch {
       setError('Search failed. Please try again.');
@@ -79,7 +87,7 @@ export function ScanSearchBar({
         onExtinguisherFound(ext);
       } else {
         setError(`No extinguisher found for "${result.text}"`);
-        onNotFound?.(result.text);
+        onNotFound?.({ code: result.text, source: 'scan', format: result.format });
       }
     } catch {
       setError('Scan lookup failed. Please try again.');

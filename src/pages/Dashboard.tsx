@@ -219,6 +219,7 @@ export default function Dashboard() {
               if (ext.id) navigate(`/dashboard/inventory/${ext.id}`);
             }}
             featureFlags={org?.featureFlags}
+            plan={org?.plan}
             placeholder="Quick find — scan or type barcode, serial, or asset ID..."
           />
         </div>
