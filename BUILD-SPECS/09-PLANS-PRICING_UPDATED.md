@@ -23,6 +23,7 @@ Designed for:
 - restaurants
 - retail stores
 - small facilities
+- teams replacing paper logs with easier inspections and reminders
 
 Limit:
 
@@ -40,6 +41,7 @@ Features:
 - compliance reports
 - CSV / Excel / JSON export
 - manual barcode entry
+- helps small teams stay on schedule and reduce paperwork
 
 Optional Add-On:
 
@@ -79,6 +81,7 @@ Features:
 - advanced reporting
 - section progress tracking
 - replacement tracking
+- AI assistant
 
 ---
 
@@ -105,7 +108,7 @@ Additional extinguishers:
 
 Features:
 
-- all Pro features
+- all Pro features, including the AI assistant
 - route optimization
 - advanced analytics
 - priority support
@@ -127,6 +130,7 @@ Includes:
 - advanced integrations
 - custom compliance workflows
 - SLA support
+- AI assistant
 
 Contact:
 

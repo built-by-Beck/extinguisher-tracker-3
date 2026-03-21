@@ -44,18 +44,18 @@ export function AiUpgradeCard() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-gray-900">AI Compliance Assistant</h2>
-            <p className="text-sm text-gray-500">Powered by Gemini AI</p>
+            <p className="text-sm text-gray-500">Built for faster inspections, fewer paper logs, and easier compliance</p>
           </div>
         </div>
         <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
-          Pro+
+          Pro, Elite, Enterprise
         </span>
       </div>
 
       {/* Pitch */}
       <p className="mb-5 text-sm text-gray-600">
-        Stop digging through manuals and spreadsheets. Our AI assistant knows NFPA 10 inside and out,
-        understands your inventory in real time, and gives you instant answers — right from your dashboard.
+        Move off paper logs and get instant answers from your dashboard. The AI assistant helps
+        your team stay on schedule, cut paperwork, and keep compliance visible in real time.
       </p>
 
       {/* Example questions grid */}
@@ -100,6 +100,11 @@ export function AiUpgradeCard() {
           </li>
         </ul>
       </div>
+
+      <p className="mb-4 text-xs text-gray-500">
+        How to use AI: open the assistant from any dashboard page, then ask about overdue
+        inspections, maintenance dates, or a compliance summary.
+      </p>
 
       {/* CTA */}
       <button

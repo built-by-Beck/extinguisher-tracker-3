@@ -34,7 +34,6 @@ import { ComplianceSummaryCard } from '../components/compliance/ComplianceSummar
 import type { Workspace } from '../services/workspaceService.ts';
 import type { Extinguisher } from '../services/extinguisherService.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
-import { AiAssistantPanel } from '../components/ai/AiAssistantPanel.tsx';
 import { AiUpgradeCard } from '../components/ai/AiUpgradeCard.tsx';
 
 interface StatCardProps {
@@ -69,8 +68,8 @@ export default function Dashboard() {
   const isAdminOrOwner = hasRole(['owner', 'admin']);
   const hasPlan = !!org?.plan;
   const subActive = org?.subscriptionStatus === 'active' || org?.subscriptionStatus === 'trialing';
-  const hasAi = org?.featureFlags?.aiAssistant === true
-    || org?.plan === 'pro' || org?.plan === 'elite' || org?.plan === 'enterprise';
+  const hasAiAccess =
+    org?.plan === 'pro' || org?.plan === 'elite' || org?.plan === 'enterprise';
 
   const [extCount, setExtCount] = useState(0);
   const [memberCount, setMemberCount] = useState(0);
@@ -196,9 +195,12 @@ export default function Dashboard() {
         <div className="mb-6 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
           <AlertTriangle className="h-5 w-5 shrink-0 text-blue-600" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-blue-900">AI is included with Pro and above</p>
+            <p className="text-sm font-medium text-blue-900">
+              AI is included with Pro, Elite, and Enterprise
+            </p>
             <p className="text-sm text-blue-700">
-              Basic plans do not include AI access. Upgrade your plan to use the AI assistant.
+              Basic plans do not include AI access. Upgrade to Pro, Elite, or Enterprise to use
+              the AI assistant.
             </p>
           </div>
           <button
@@ -352,7 +354,7 @@ export default function Dashboard() {
       </div>
 
       {/* AI upsell for Basic users without AI access */}
-      {hasPlan && !hasAi && (
+      {hasPlan && !hasAiAccess && (
         <div className="mb-8">
           <AiUpgradeCard />
         </div>
@@ -367,14 +369,6 @@ export default function Dashboard() {
             inventory, locations, and settings.
           </p>
         </div>
-      )}
-
-      {/* AI Assistant floating panel — Pro+ only */}
-      {hasAi && (
-        <AiAssistantPanel
-          extinguishers={allExtinguishers}
-          complianceSummary={complianceCounts}
-        />
       )}
     </div>
   );

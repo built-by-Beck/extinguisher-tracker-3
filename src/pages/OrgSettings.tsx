@@ -244,8 +244,13 @@ export default function OrgSettings() {
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Subscription</h2>
         <p className="mb-4 text-sm text-gray-500">
-          AI assistant access is included with Pro, Elite, and Enterprise plans. Basic plans do
-          not include AI access.
+          Basic is a simple fit for small businesses that want to replace paper logs, reduce
+          paperwork, and stay on schedule. AI assistant access is included with Pro, Elite, and
+          Enterprise plans.
+        </p>
+        <p className="mb-4 text-sm text-gray-500">
+          How to use AI: open the dashboard assistant and ask about overdue inspections,
+          maintenance dates, or a compliance summary.
         </p>
         <div className="flex items-center justify-between">
           <div>
@@ -265,7 +270,7 @@ export default function OrgSettings() {
             )}
             {org.plan === 'basic' && (
               <p className="mt-2 text-sm text-amber-700">
-                Upgrade to Pro to enable the AI assistant for this organization.
+                Upgrade to Pro for barcode scanning, GPS capture, inspection photos, and AI.
               </p>
             )}
           </div>

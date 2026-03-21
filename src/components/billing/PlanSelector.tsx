@@ -48,10 +48,13 @@ export function PlanSelector() {
       <div className="mb-6 rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-red-50 p-5">
         <div className="mb-3 flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-purple-600" />
-          <h3 className="text-sm font-bold text-gray-900">AI Compliance Assistant — included with Pro+</h3>
+          <h3 className="text-sm font-bold text-gray-900">
+            AI Compliance Assistant - included with Pro, Elite, and Enterprise
+          </h3>
         </div>
         <p className="mb-3 text-sm text-gray-600">
-          Get instant NFPA 10 answers, real-time inventory analysis, and smart maintenance recommendations — powered by Gemini AI.
+          How to use AI: open the dashboard assistant and ask about overdue inspections, due
+          dates, or a quick compliance summary. It works in Pro, Elite, and Enterprise plans.
         </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {[
@@ -89,10 +92,10 @@ export function PlanSelector() {
               </p>
               <p className="mt-2 text-sm text-gray-500">
                 {plan.name === 'basic'
-                  ? 'Core inspection tools without AI access.'
+                  ? 'Best for small businesses replacing paper logs with easier inspections, reminders, and compliance reports.'
                   : plan.name === 'pro'
-                    ? 'Includes AI assistant access for your team.'
-                    : 'Advanced operations with everything in Pro, including AI.'}
+                    ? 'Adds camera barcode scanning, GPS capture, inspection photos, and the AI assistant.'
+                    : 'Everything in Pro, plus higher scale, advanced reporting, and priority support.'}
               </p>
 
               <ul className="mt-4 space-y-2">
@@ -146,9 +149,9 @@ export function PlanSelector() {
         <p className="text-sm text-gray-600">
           Need more than 500 extinguishers?{' '}
           <span className="font-semibold text-gray-900">Enterprise</span> plans with unlimited
-          assets and custom pricing are available.
+          assets, AI access, and custom pricing are available.
         </p>
-        <p className="mt-1 text-sm text-gray-500">Contact us at support@ex3app.com</p>
+        <p className="mt-1 text-sm text-gray-500">Contact us at help@beck-publishing.com</p>
       </div>
     </div>
   );

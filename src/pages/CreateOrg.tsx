@@ -126,7 +126,9 @@ export default function CreateOrg() {
         <div className="rounded-lg bg-white p-8 shadow">
           <h2 className="mb-2 text-2xl font-bold text-gray-900">Create Organization</h2>
           <p className="mb-6 text-sm text-gray-500">
-            Set up your organization to start tracking extinguishers.
+            Set up your organization to start tracking extinguishers. Basic is a good fit for
+            small businesses that want easier inspections, less paperwork, and a clearer path to
+            staying compliant. Pro adds barcode scanning, GPS, inspection photos, and AI.
           </p>
 
           {error && (

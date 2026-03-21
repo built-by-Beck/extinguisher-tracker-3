@@ -554,7 +554,7 @@ Sections may have time tracking totals for inspection work.
 Available on:
 
 - **Basic** and above if enabled
-- may be emphasized on **Pro**+
+- may be emphasized on **Pro**, **Elite**, and **Enterprise**
 
 #### Behavior
 
@@ -864,6 +864,7 @@ Includes:
 - lifecycle visibility
 - 50 extinguishers included
 - +$10/month per additional 50 extinguishers
+- best for small businesses that want to replace paper logs and reduce paperwork
 
 Does not include:
 
@@ -872,6 +873,7 @@ Does not include:
 - GPS
 - photo inspection workflows
 - advanced field workflows reserved for higher plans
+- AI assistant
 
 #### Pro
 
@@ -887,12 +889,13 @@ Includes:
 - audit logs
 - 250 extinguishers included
 - +$10/month per additional 50 extinguishers
+- AI assistant
 
 #### Elite
 
 Includes:
 
-- everything in **Pro**
+- everything in **Pro**, including the AI assistant
 - advanced reporting
 - higher scale
 - 500 extinguishers included
@@ -906,6 +909,7 @@ Includes:
 - custom pricing
 - contact-sales / admin-managed setup
 - future custom onboarding/integration readiness
+- AI assistant
 
 #### Acceptance Criteria
 

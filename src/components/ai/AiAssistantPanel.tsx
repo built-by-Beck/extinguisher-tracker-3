@@ -8,9 +8,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, Loader2, Sparkles, Trash2 } from 'lucide-react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { askAssistant, type AiMessage } from '../../services/aiService.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
+import { db } from '../../lib/firebase.ts';
 import type { Extinguisher } from '../../services/extinguisherService.ts';
 
 interface AiAssistantPanelProps {
@@ -26,18 +28,62 @@ const SUGGESTED_PROMPTS = [
   'Which extinguishers need hydrostatic testing?',
 ];
 
+function buildComplianceSummary(extinguishers: Extinguisher[]): Record<string, number> {
+  const activeExts = extinguishers.filter((e) => e.lifecycleStatus === 'active');
+  const summary: Record<string, number> = {
+    total: activeExts.length,
+    compliant: 0,
+    monthly_due: 0,
+    annual_due: 0,
+    six_year_due: 0,
+    hydro_due: 0,
+    overdue: 0,
+    missing_data: 0,
+  };
+
+  for (const ext of activeExts) {
+    const status = ext.complianceStatus ?? 'missing_data';
+    if (status in summary) {
+      summary[status]++;
+    }
+  }
+
+  return summary;
+}
+
 export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssistantPanelProps) {
   const { org } = useOrg();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
+  const orgId = userProfile?.activeOrgId ?? '';
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [orgExtinguishers, setOrgExtinguishers] = useState<Extinguisher[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // When mounted globally from layout, load org inventory context automatically.
+  useEffect(() => {
+    if (extinguishers || !orgId) return;
+
+    const q = query(
+      collection(db, 'org', orgId, 'extinguishers'),
+      where('deletedAt', '==', null),
+    );
+
+    return onSnapshot(q, (snap) => {
+      const exts = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Extinguisher));
+      setOrgExtinguishers(exts);
+    });
+  }, [extinguishers, orgId]);
+
+  const resolvedExtinguishers = extinguishers ?? orgExtinguishers;
+  const resolvedComplianceSummary =
+    complianceSummary ?? buildComplianceSummary(resolvedExtinguishers);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -66,8 +112,8 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
     try {
       const response = await askAssistant(updatedMessages, {
         orgName: org?.name,
-        extinguishers,
-        complianceSummary,
+        extinguishers: resolvedExtinguishers,
+        complianceSummary: resolvedComplianceSummary,
       });
       setMessages([...updatedMessages, { role: 'assistant', content: response }]);
     } catch (err) {
@@ -105,7 +151,9 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
               <Bot className="h-5 w-5 text-red-600" />
               <div>
                 <h3 className="text-sm font-semibold text-gray-900">AI Assistant</h3>
-                <p className="text-xs text-gray-500">NFPA 10 Compliance Expert • Pro+ feature</p>
+                <p className="text-xs text-gray-500">
+                  NFPA 10 compliance help for Pro, Elite, and Enterprise
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -142,7 +190,8 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                     Ask me about NFPA 10 compliance, your inventory, or inspection schedules.
                   </p>
                   <p className="mt-2 text-[11px] text-gray-400">
-                    Included with Pro, Elite, and Enterprise plans.
+                    How to use AI: ask about overdue inspections, maintenance dates, or a quick
+                    compliance summary.
                   </p>
                 </div>
                 <div className="space-y-2">

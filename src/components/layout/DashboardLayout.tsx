@@ -3,9 +3,14 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar.tsx';
 import { Topbar } from './Topbar.tsx';
 import { OfflineBanner } from '../offline/OfflineBanner.tsx';
+import { AiAssistantPanel } from '../ai/AiAssistantPanel.tsx';
+import { useOrg } from '../../hooks/useOrg.ts';
 
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { org } = useOrg();
+  const hasAiAccess =
+    org?.plan === 'pro' || org?.plan === 'elite' || org?.plan === 'enterprise';
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -24,6 +29,9 @@ export function DashboardLayout() {
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
+
+        {/* Global AI assistant for Pro, Elite, and Enterprise */}
+        {hasAiAccess && <AiAssistantPanel />}
       </div>
     </div>
   );
