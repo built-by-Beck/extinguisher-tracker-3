@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { Check, Loader2, Sparkles, X as XIcon } from 'lucide-react';
+import { Check, Loader2, Sparkles, Tag, X as XIcon } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
 import { PLANS, type PlanName } from '../../lib/planConfig.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
@@ -43,6 +43,20 @@ export function PlanSelector() {
       {error && (
         <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
+
+      <div className="mb-6 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+        <Tag className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden />
+        <div className="text-sm text-amber-950">
+          <p className="font-semibold">Launch pricing: 50% off your first year</p>
+          <p className="mt-1 text-amber-950/90">
+            After you choose a plan, enter your promotion code on the Stripe checkout page:{' '}
+            <code className="rounded bg-white/80 px-1">EX3BASIC50</code>,{' '}
+            <code className="rounded bg-white/80 px-1">EX3PRO50</code>, or{' '}
+            <code className="rounded bg-white/80 px-1">EX3ELITE50</code> for the plan you are buying. Each code
+            applies 50% off for the first 12 billing months.
+          </p>
+        </div>
+      </div>
 
       {/* AI feature showcase */}
       <div className="mb-6 rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-red-50 p-5">
