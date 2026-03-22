@@ -35,3 +35,47 @@
 - Never commit secrets. Put Stripe secrets in `functions/.env.secret` (see `functions/.env.secret.example`) and run `pnpm secrets:push`.
 - Use root `.env.example` and `functions/.env.example` as references for local envs. Keep `.env*` out of version control.
 - Before deploying functions, ensure they build locally: `npm --prefix functions run build`.
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+| Service | Command | Port | Notes |
+|---|---|---|---|
+| Vite dev server (frontend) | `pnpm dev` | 5173 | Hot-reloading React SPA |
+| Firebase emulators (Auth, Firestore, Functions, Storage, UI) | `pnpm emulators` | 9099, 8080, 5001, 9199, 4000 | Must build functions first |
+
+### Startup sequence
+
+1. Build Cloud Functions before starting emulators: `npm --prefix functions run build`
+2. Start emulators in one terminal: `pnpm emulators`
+3. Start frontend in another terminal: `pnpm dev`
+
+### Emulator secrets for Cloud Functions
+
+The Firebase Functions emulator uses `defineSecret()` for Stripe keys. For local development, provide these in `functions/.secret.local` (not `.env.secret`):
+
+```
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+Without a real Stripe test key, any Cloud Function that touches Stripe (e.g., `createOrganization`) will fail with `StripeAuthenticationError`. Auth, Firestore, and Storage operations work fine with placeholder keys.
+
+### Environment files needed
+
+- Root `.env` — copy from `.env.example`, set `VITE_USE_EMULATORS=true` for local dev.
+- `functions/.env` — copy from `functions/.env.example` (Stripe price IDs).
+- `functions/.secret.local` — Stripe secret + webhook secret for emulator use.
+
+### Known lint issues
+
+`pnpm lint` reports 14 pre-existing errors (mostly `react-hooks/set-state-in-effect` and `react-refresh/only-export-components`). These are in the existing codebase and do not block the build or runtime.
+
+### Port conflicts on emulator restart
+
+When restarting emulators, child processes (Java for Firestore, etc.) may hold ports. Kill them by port before restarting:
+
+```bash
+lsof -ti :9099 -ti :8080 -ti :5001 -ti :9199 -ti :4000 | sort -u | xargs -r kill -9
+```
