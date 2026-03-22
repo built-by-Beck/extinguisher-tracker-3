@@ -1,10 +1,11 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
+import MarketingHomePage from '../../pages/marketing/MarketingHomePage.tsx';
 
 /**
- * Handles the root `/` route redirect based on auth and org state.
- * - Not authenticated -> /login
+ * Handles the root `/` route based on auth and org state.
+ * - Not authenticated -> public marketing home
  * - Authenticated with org -> /dashboard
  * - Authenticated without org -> /create-org
  */
@@ -25,7 +26,7 @@ export function RootRedirect() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <MarketingHomePage />;
   }
 
   if (orgLoading) {

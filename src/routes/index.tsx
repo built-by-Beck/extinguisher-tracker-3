@@ -30,6 +30,9 @@ import GuestInventory from '../pages/guest/GuestInventory.tsx';
 import GuestLocations from '../pages/guest/GuestLocations.tsx';
 import GuestWorkspaces from '../pages/guest/GuestWorkspaces.tsx';
 import GuestWorkspaceDetail from '../pages/guest/GuestWorkspaceDetail.tsx';
+import MarketingFeaturesPage from '../pages/marketing/MarketingFeaturesPage.tsx';
+import MarketingPricingPage from '../pages/marketing/MarketingPricingPage.tsx';
+import MarketingHowItWorksPage from '../pages/marketing/MarketingHowItWorksPage.tsx';
 
 export function AppRoutes() {
   return (
@@ -38,6 +41,9 @@ export function AppRoutes() {
       <Route path="/" element={<RootRedirect />} />
 
       {/* Public routes */}
+      <Route path="/features" element={<MarketingFeaturesPage />} />
+      <Route path="/pricing" element={<MarketingPricingPage />} />
+      <Route path="/how-it-works" element={<MarketingHowItWorksPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />

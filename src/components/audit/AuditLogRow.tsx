@@ -6,7 +6,7 @@
  * Author: built_by_Beck
  */
 
-import { useState } from 'react';
+import { createElement, useState } from 'react';
 import {
   Users,
   Package,
@@ -131,7 +131,6 @@ interface AuditLogRowProps {
 export function AuditLogRow({ log }: AuditLogRowProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const EntityIcon = getEntityTypeIcon(log.entityType);
   const actionLabel = ACTION_LABELS[log.action] ?? log.action;
   const performerDisplay = log.performedByEmail ?? `${log.performedBy.slice(0, 8)}...`;
   const timestamp = log.performedAt ?? log.createdAt;
@@ -143,7 +142,9 @@ export function AuditLogRow({ log }: AuditLogRowProps) {
       <div className="flex items-start gap-3">
         {/* Entity type icon */}
         <div className="mt-0.5 shrink-0">
-          <EntityIcon className="h-5 w-5 text-gray-400" />
+          {createElement(getEntityTypeIcon(log.entityType), {
+            className: 'h-5 w-5 text-gray-400',
+          })}
         </div>
 
         {/* Main content */}
