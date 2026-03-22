@@ -7,6 +7,18 @@ export const CONTACT_SALES_EMAIL = 'sales@example.com';
 
 export const CONTACT_SALES_MAILTO = `mailto:${CONTACT_SALES_EMAIL}?subject=Extinguisher%20Tracker%20Enterprise`;
 
+/** Shown on the public pricing page — codes must exist as Stripe Promotion codes linked to launch coupons. */
+export const MARKETING_LAUNCH_OFFER = {
+  headline: 'Launch offer: 50% off your first year',
+  body:
+    'For a limited time, new Basic, Pro, and Elite subscriptions are eligible for 50% off for the first 12 billing months. Enter the promotion code that matches your plan on the Stripe checkout page (promo field).',
+  codes: [
+    { plan: 'Basic', code: 'EX3BASIC50' },
+    { plan: 'Pro', code: 'EX3PRO50' },
+    { plan: 'Elite', code: 'EX3ELITE50' },
+  ] as const,
+};
+
 export type MarketingPlanId = 'basic' | 'pro' | 'elite' | 'enterprise';
 
 export type MarketingPlanCard = {
@@ -100,5 +112,9 @@ export const marketingFaq: MarketingFaqItem[] = [
   {
     q: 'What about Enterprise pricing?',
     a: 'Enterprise is tailored to contract terms, seat counts, and rollout needs. Use Contact sales and we will align with your procurement process.',
+  },
+  {
+    q: 'How does the launch / first-year discount work?',
+    a: 'When you subscribe to Basic, Pro, or Elite, enter the matching promotion code on the Stripe checkout page. The discount applies to the first 12 subscription invoices (your first year on a monthly plan). Codes and eligibility can change; if a code does not apply, contact support.',
   },
 ];
