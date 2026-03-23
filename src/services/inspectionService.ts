@@ -110,6 +110,7 @@ export interface Inspection {
   assetId: string;
   parentLocation?: string;
   section: string;
+  serial?: string;
   status: string; // pending, pass, fail
   inspectedAt: unknown | null;
   inspectedBy: string | null;

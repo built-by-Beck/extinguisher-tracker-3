@@ -33,6 +33,7 @@ export interface OrgContextValue {
   orgLoading: boolean;
   switchOrg: (orgId: string) => Promise<void>;
   userOrgs: UserOrgEntry[];
+  userOrgsLoading: boolean;
   hasRole: (roles: OrgRole[]) => boolean;
 }
 
@@ -49,6 +50,7 @@ export function OrgProvider({ children }: OrgProviderProps) {
   const [membership, setMembership] = useState<OrgMember | null>(null);
   const [orgLoading, setOrgLoading] = useState(true);
   const [userOrgs, setUserOrgs] = useState<UserOrgEntry[]>([]);
+  const [userOrgsLoading, setUserOrgsLoading] = useState(true);
 
   // Track active org ID from user profile
   const activeOrgId = userProfile?.activeOrgId ?? null;
@@ -61,9 +63,11 @@ export function OrgProvider({ children }: OrgProviderProps) {
   useEffect(() => {
     if (authLoading || !user) {
       setUserOrgs([]);
+      setUserOrgsLoading(false);
       return;
     }
 
+    setUserOrgsLoading(true);
     const membersQuery = query(
       collectionGroup(db, 'members'),
       where('uid', '==', user.uid),
@@ -83,10 +87,12 @@ export function OrgProvider({ children }: OrgProviderProps) {
           }
         });
         setUserOrgs(orgs);
+        setUserOrgsLoading(false);
       },
       (err) => {
         console.error('[OrgContext] Failed to query user org memberships:', err);
         setUserOrgs([]);
+        setUserOrgsLoading(false);
       },
     );
 
@@ -96,7 +102,7 @@ export function OrgProvider({ children }: OrgProviderProps) {
   // Auto-select first available org when activeOrgId is missing but user has memberships
   const autoSelectingRef = useRef(false);
   useEffect(() => {
-    if (authLoading || !user || activeOrgId || userOrgs.length === 0 || autoSelectingRef.current) {
+    if (authLoading || !user || activeOrgId || userOrgsLoading || userOrgs.length === 0 || autoSelectingRef.current) {
       return;
     }
     // User is authenticated with org memberships but no activeOrgId — auto-select
@@ -113,7 +119,7 @@ export function OrgProvider({ children }: OrgProviderProps) {
       .finally(() => {
         autoSelectingRef.current = false;
       });
-  }, [authLoading, user, activeOrgId, userOrgs]);
+  }, [authLoading, user, activeOrgId, userOrgsLoading, userOrgs]);
 
   // Listen to active org document and membership document
   useEffect(() => {
@@ -127,7 +133,7 @@ export function OrgProvider({ children }: OrgProviderProps) {
       unsubMemberRef.current = null;
     }
 
-    if (authLoading) {
+    if (authLoading || userOrgsLoading) {
       return;
     }
 
@@ -205,7 +211,7 @@ export function OrgProvider({ children }: OrgProviderProps) {
         unsubMemberRef.current = null;
       }
     };
-  }, [authLoading, user, activeOrgId, userOrgs.length]);
+  }, [authLoading, user, activeOrgId, userOrgsLoading, userOrgs.length]);
 
   const switchOrg = useCallback(
     async (orgId: string): Promise<void> => {
@@ -261,6 +267,7 @@ export function OrgProvider({ children }: OrgProviderProps) {
     orgLoading,
     switchOrg,
     userOrgs,
+    userOrgsLoading,
     hasRole,
   };
 

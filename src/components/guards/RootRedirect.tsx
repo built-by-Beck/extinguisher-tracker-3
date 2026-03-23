@@ -11,10 +11,10 @@ import MarketingHomePage from '../../pages/marketing/MarketingHomePage.tsx';
  */
 export function RootRedirect() {
   const { user, loading: authLoading } = useAuth();
-  const { org, orgLoading, userOrgs } = useOrg();
+  const { org, orgLoading, userOrgs, userOrgsLoading } = useOrg();
 
   // Show loading while auth state resolves
-  if (authLoading) {
+  if (authLoading || userOrgsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
