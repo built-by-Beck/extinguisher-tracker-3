@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Check, Tag } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import {
   CONTACT_SALES_MAILTO,
-  MARKETING_LAUNCH_OFFER,
   marketingFaq,
   marketingPlans,
 } from './marketingPricingCopy.ts';
@@ -25,23 +24,6 @@ export default function MarketingPricingPage() {
               <strong>Enterprise</strong>. Dollar amounts on this page are for orientation only; subscription and
               entitlements are enforced in the product billing experience.
             </p>
-            <div className="mt-8 max-w-3xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 sm:px-5">
-              <div className="flex gap-3">
-                <Tag className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden />
-                <div>
-                  <p className="font-semibold text-amber-950">{MARKETING_LAUNCH_OFFER.headline}</p>
-                  <p className="mt-1 text-sm text-amber-950/90">{MARKETING_LAUNCH_OFFER.body}</p>
-                  <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-amber-950">
-                    {MARKETING_LAUNCH_OFFER.codes.map(({ plan, code }) => (
-                      <li key={code}>
-                        <span className="text-amber-800/80">{plan}:</span>{' '}
-                        <code className="rounded bg-white/80 px-1.5 py-0.5 text-amber-950">{code}</code>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
