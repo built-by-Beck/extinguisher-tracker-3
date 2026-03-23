@@ -1,4 +1,4 @@
-import { writeBatch, doc, collection, getDocs, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
+import { writeBatch, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
 import { type Extinguisher } from './extinguisherService.ts';
 

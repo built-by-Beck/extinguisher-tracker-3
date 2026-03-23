@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Building2, ClipboardList, FileText, LineChart, UserPlus } from 'lucide-react';
+import { Building2, ClipboardList, FileText, LineChart, UserPlus, Bot } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { marketingSeo } from './marketingSeo.ts';
@@ -34,6 +34,12 @@ const steps = [
     title: 'Generate reports and keep durable history',
     body: 'Export or summarize when leadership, partners, or internal QA needs evidence—without rebuilding spreadsheets from scratch.',
     icon: FileText,
+  },
+  {
+    step: 6,
+    title: 'Optimize and Scale with AI',
+    body: 'Use our AI Maintenance Assistant for NFPA 10 guidance and the Placement Calculator to ensure your facility has perfect coverage as you grow.',
+    icon: Bot,
   },
 ] as const;
 

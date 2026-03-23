@@ -10,6 +10,9 @@ import {
   MapPinned,
   MonitorSmartphone,
   TriangleAlert,
+  Bot,
+  Calculator,
+  DatabaseZap,
 } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
@@ -84,6 +87,27 @@ export default function MarketingFeaturesPage() {
         </div>
 
         <div className="mx-auto max-w-6xl space-y-8 px-4 py-14 sm:px-6 sm:py-16">
+          <FeatureBlock
+            icon={Bot}
+            title="AI Maintenance Assistant"
+            what="A built-in AI assistant trained on NFPA 10 standards to answer your team's maintenance and compliance questions."
+            why="Reference materials are hard to carry and search; getting instant answers improves accuracy on the floor."
+            outcome="Faster decision making, better adherence to standards, and a training tool for new inspectors."
+          />
+          <FeatureBlock
+            icon={Calculator}
+            title="Compliance Placement Calculator"
+            what="An interactive tool to determine required extinguisher quantities and types based on hazard class and floor area."
+            why="Manual placement calculations are prone to error and time-consuming during site setup."
+            outcome="Confident facility planning, guaranteed compliance with NFPA 10 coverage rules, and optimized asset spend."
+          />
+          <FeatureBlock
+            icon={DatabaseZap}
+            title="Data Quality and Backup"
+            what="Tools to detect and merge duplicate records and restore full organization data from JSON backup files."
+            why="Data entry errors and system migrations shouldn't compromise your inspection history."
+            outcome="A clean, trusted inventory and peace of mind knowing your safety data is portable and recoverable."
+          />
           <FeatureBlock
             icon={Database}
             title="Extinguisher inventory management"

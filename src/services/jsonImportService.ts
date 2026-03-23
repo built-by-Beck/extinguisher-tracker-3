@@ -1,6 +1,5 @@
-import { writeBatch, doc, collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
+import { writeBatch, doc, collection, getDocs, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
-import { type Extinguisher } from './extinguisherService.ts';
 
 /** Shape of a single extinguisher in a JSON backup file */
 export interface BackupExtinguisher {
@@ -160,8 +159,6 @@ export function mapToExtinguisher(
     deletionReason: null,
   };
 }
-
-import { Timestamp } from 'firebase/firestore';
 
 /**
  * Import a validated list of extinguishers into Firestore.

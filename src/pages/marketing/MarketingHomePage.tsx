@@ -11,6 +11,9 @@ import {
   School,
   ShieldCheck,
   Wrench,
+  Bot,
+  Calculator,
+  DatabaseZap,
 } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
@@ -120,6 +123,21 @@ export default function MarketingHomePage() {
                 title: 'Compliance visibility',
                 body: 'See status and history so open issues are visible before they become incidents.',
                 icon: ShieldCheck,
+              },
+              {
+                title: 'AI-Powered Assistant',
+                body: 'Get instant answers to NFPA 10 compliance and maintenance questions from our built-in assistant.',
+                icon: Bot,
+              },
+              {
+                title: 'Placement Calculator',
+                body: 'Ensure you have the right coverage with our NFPA 10 compliant placement and quantity calculator.',
+                icon: Calculator,
+              },
+              {
+                title: 'Data Quality Tools',
+                body: 'Keep your inventory clean with automatic duplicate detection and robust backup restoration.',
+                icon: DatabaseZap,
               },
             ].map(({ title, body, icon: Icon }) => (
               <div key={title} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

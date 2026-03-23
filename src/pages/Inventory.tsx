@@ -5,7 +5,7 @@
  * Author: built_by_Beck
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus,
@@ -17,7 +17,6 @@ import {
   AlertTriangle,
   Printer,
   Copy,
-  FileJson,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -25,8 +24,8 @@ import { hasFeature } from '../lib/planConfig.ts';
 import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
 import { DeleteConfirmModal } from '../components/extinguisher/DeleteConfirmModal.tsx';
 import { ImportExportBar } from '../components/extinguisher/ImportExportBar.tsx';
-import { DuplicateDetectionModal } from '../components/extinguisher/DuplicateDetectionModal.tsx';
-import { JsonImportModal } from '../components/extinguisher/JsonImportModal.tsx';
+import { DuplicateScanModal } from '../components/extinguisher/DuplicateScanModal.tsx';
+import { DataImportModal } from '../components/extinguisher/DataImportModal.tsx';
 import { ComplianceStatusBadge } from '../components/compliance/ComplianceStatusBadge.tsx';
 import {
   subscribeToExtinguishers,
@@ -34,8 +33,14 @@ import {
   getActiveExtinguisherCount,
   createExtinguisher,
   generateScannedAssetId,
+  getAllActiveExtinguishers,
   type Extinguisher,
 } from '../services/extinguisherService.ts';
+import {
+  findDuplicates,
+  batchMergeDuplicates,
+  type DuplicateGroup,
+} from '../services/duplicateService.ts';
 import { formatDueDate } from '../utils/compliance.ts';
 import { cacheExtinguishersForWorkspace } from '../services/offlineCacheService.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';

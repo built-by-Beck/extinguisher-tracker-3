@@ -44,6 +44,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     bullets: [
       'Core inventory and location structure',
       'Inspection workflows for your team',
+      'Placement & compliance calculator',
       'Standard reporting and history',
     ],
     ctaLabel: 'Get started',
@@ -57,6 +58,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     blurb: 'Growing organizations that need more throughput and operational visibility.',
     bullets: [
       'Everything in Basic',
+      'AI Maintenance Assistant',
       'Deeper workflows for larger footprints',
       'Stronger reporting and team coordination',
     ],
@@ -72,8 +74,9 @@ export const marketingPlans: MarketingPlanCard[] = [
     blurb: 'Multi-site and high-accountability programs that live in audits and inspections.',
     bullets: [
       'Everything in Pro',
-      'Scaled operations across buildings and regions',
-      'Priority-style positioning for demanding programs',
+      'Advanced data quality & restore tools',
+      'Scaled operations across buildings',
+      'Priority-style positioning',
     ],
     ctaLabel: 'Get started',
     ctaHref: 'signup',
@@ -85,9 +88,10 @@ export const marketingPlans: MarketingPlanCard[] = [
     priceDetail: 'volume, security, and procurement',
     blurb: 'Dedicated onboarding, custom terms, and alignment with your IT and safety programs.',
     bullets: [
+      'Full feature set with AI & Analytics',
       'Custom contract and billing alignment',
       'Rollout support for large portfolios',
-      'Talk with us about security and compliance expectations',
+      'Enhanced security and data recovery',
     ],
     ctaLabel: 'Contact sales',
     ctaHref: 'mailto',
