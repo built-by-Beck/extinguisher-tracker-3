@@ -69,11 +69,11 @@ export default function Dashboard() {
   const isAdminOrOwner = hasRole(['owner', 'admin']);
   const hasPlan = !!org?.plan;
   const subActive = org?.subscriptionStatus === 'active' || org?.subscriptionStatus === 'trialing';
-  const hasAiAccess = hasFeature(
-    org?.featureFlags as Record<string, boolean> | null | undefined,
+  const hasAiAccess = org?.featureFlags ? hasFeature(
+    org.featureFlags as unknown as Record<string, boolean>,
     'aiAssistant',
-    org?.plan
-  );
+    org.plan
+  ) : false;
 
   const [extCount, setExtCount] = useState(0);
   const [memberCount, setMemberCount] = useState(0);

@@ -10,11 +10,11 @@ import { hasFeature } from '../../lib/planConfig.ts';
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { org } = useOrg();
-  const hasAiAccess = hasFeature(
-    org?.featureFlags as Record<string, boolean> | null | undefined,
+  const hasAiAccess = org?.featureFlags ? hasFeature(
+    org.featureFlags as unknown as Record<string, boolean>,
     'aiAssistant',
-    org?.plan
-  );
+    org.plan
+  ) : false;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">

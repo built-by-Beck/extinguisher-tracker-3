@@ -5,7 +5,7 @@
  * Author: built_by_Beck
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus,
@@ -128,22 +128,24 @@ export default function Inventory() {
   }, [orgId, items]);
 
   // Client-side filtering
-  const filtered = items.filter((ext) => {
-    if (categoryFilter && ext.category !== categoryFilter) return false;
-    if (sectionFilter && ext.section !== sectionFilter) return false;
-    if (complianceFilter && ext.complianceStatus !== complianceFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        ext.assetId.toLowerCase().includes(q) ||
-        ext.serial.toLowerCase().includes(q) ||
-        (ext.barcode?.toLowerCase().includes(q) ?? false) ||
-        ext.section.toLowerCase().includes(q) ||
-        (ext.manufacturer?.toLowerCase().includes(q) ?? false)
-      );
-    }
-    return true;
-  });
+  const filtered = useMemo(() => {
+    return items.filter((ext) => {
+      if (categoryFilter && ext.category !== categoryFilter) return false;
+      if (sectionFilter && (ext.section || '') !== sectionFilter) return false;
+      if (complianceFilter && ext.complianceStatus !== complianceFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        return (
+          ext.assetId.toLowerCase().includes(q) ||
+          ext.serial.toLowerCase().includes(q) ||
+          (ext.barcode?.toLowerCase().includes(q) ?? false) ||
+          (ext.section || '').toLowerCase().includes(q) ||
+          (ext.manufacturer?.toLowerCase().includes(q) ?? false)
+        );
+      }
+      return true;
+    });
+  }, [items, categoryFilter, sectionFilter, complianceFilter, searchQuery]);
 
   async function handleDelete(reason: string) {
     if (!deleteTarget?.id || !orgId || !user) return;
@@ -434,7 +436,7 @@ export default function Inventory() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((ext) => (
+              {filtered.map((ext: Extinguisher) => (
                 <tr
                   key={ext.id}
                   className="hover:bg-gray-50 cursor-pointer"
@@ -453,7 +455,7 @@ export default function Inventory() {
                     {ext.section || '--'}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                    {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                    {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />

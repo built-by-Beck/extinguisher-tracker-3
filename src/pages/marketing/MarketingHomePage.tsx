@@ -14,6 +14,7 @@ import {
   Bot,
   Calculator,
   DatabaseZap,
+  Barcode,
 } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
@@ -45,11 +46,11 @@ export default function MarketingHomePage() {
         <Section className="py-14 sm:py-20">
           <div className="max-w-3xl">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-              Fire extinguisher inspections, organized for real facilities work
+              Fire extinguisher software built for real maintenance teams
             </h1>
             <p className="mt-5 text-lg text-gray-600 sm:text-xl">
-              Extinguisher Tracker helps your team keep inventory accurate, run inspections consistently, and
-              maintain the records safety and maintenance programs depend on—not another generic checklist app.
+              Extinguisher Tracker helps your team keep inventory accurate, run inspections faster with barcode scanning, and
+              keep the records you need for safety and compliance—without the mess of spreadsheets.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
@@ -76,19 +77,18 @@ export default function MarketingHomePage() {
 
         <div className="border-y border-gray-200 bg-white">
           <Section>
-            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">The operational problem</h2>
+            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">The problem with paper and spreadsheets</h2>
             <p className="mt-4 max-w-3xl text-gray-600">
-              Extinguisher programs generate a steady stream of dates, locations, pass/fail outcomes, and follow-up
-              work. When that information lives in disconnected spreadsheets, paper routes, and inbox threads, it is
-              easy to miss a unit, lose history under staff turnover, or scramble when someone asks for proof of
-              inspection.
+              Extinguisher programs create a lot of data: dates, locations, and pass/fail results. When this lives in paper binders or 
+              disconnected spreadsheets, it is easy to miss a unit, lose history when staff changes, or scramble when 
+              an inspector asks for proof.
             </p>
             <ul className="mt-8 grid gap-4 sm:grid-cols-2">
               {[
                 'Hard to see what is due, what failed, and what is still open',
-                'Inventory drift: tags, locations, and replacements get out of sync',
-                'Weak audit trail when leadership or an AHJ asks for documentation',
-                'Field teams need a workflow that works on phones, not only desktops',
+                'Lost data: tags, locations, and units get out of sync',
+                'Weak audit trail when fire marshals or inspectors ask for records',
+                'Crews need a workflow that works on phones, not just clipboards',
               ].map((item) => (
                 <li key={item} className="flex gap-3 rounded-lg border border-gray-100 bg-gray-50 p-4">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden />
@@ -102,41 +102,44 @@ export default function MarketingHomePage() {
         <Section>
           <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">What Extinguisher Tracker does</h2>
           <p className="mt-4 max-w-3xl text-gray-600">
-            It is built as an operational system: structured inventory, inspection workflows tied to your
-            organization, compliance-oriented status, and reporting you can use for internal QA and external
-            questions. The goal is fewer surprises during survey season and cleaner handoffs between shifts and
-            vendors.
+            We built a system that matches how you work: easy inventory, fast phone-based inspections, and clear reporting 
+            for fire marshals and safety leads. No more surprises during survey season.
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
-                title: 'Structured inventory',
-                body: 'Track extinguishers with locations and context so the field team always knows what to inspect.',
-                icon: MapPin,
+                title: 'Barcode & QR Scanning',
+                body: 'Use your phone camera to scan assets instantly. Finish your routes in half the time compared to paper.',
+                icon: Barcode,
               },
               {
-                title: 'Inspection workflow',
-                body: 'Run inspections in a repeatable sequence with clear outcomes and next steps.',
-                icon: ClipboardList,
-              },
-              {
-                title: 'Compliance visibility',
-                body: 'See status and history so open issues are visible before they become incidents.',
-                icon: ShieldCheck,
-              },
-              {
-                title: 'AI-Powered Assistant',
-                body: 'Get instant answers to NFPA 10 compliance and maintenance questions from our built-in assistant.',
+                title: 'AI Maintenance Helper',
+                body: 'Get instant answers to NFPA 10 rules and maintenance questions from our built-in assistant.',
                 icon: Bot,
               },
               {
                 title: 'Placement Calculator',
-                body: 'Ensure you have the right coverage with our NFPA 10 compliant placement and quantity calculator.',
+                body: 'Not sure how many units you need? Use our calculator to ensure your facility meets coverage rules.',
                 icon: Calculator,
               },
               {
-                title: 'Data Quality Tools',
-                body: 'Keep your inventory clean with automatic duplicate detection and robust backup restoration.',
+                title: 'Simple Inventory',
+                body: 'Track every extinguisher with its exact location so your team always knows where to go.',
+                icon: MapPin,
+              },
+              {
+                title: 'Inspection Workflow',
+                body: 'Standardized checks ensure every unit is inspected the right way, every single time.',
+                icon: ClipboardList,
+              },
+              {
+                title: 'Compliance at a Glance',
+                body: 'See exactly what is due or overdue on one dashboard. Know your status before an audit happens.',
+                icon: ShieldCheck,
+              },
+              {
+                title: 'Data Cleanup Tools',
+                body: 'Keep your records clean with automatic duplicate detection and easy backup restoration.',
                 icon: DatabaseZap,
               },
             ].map(({ title, body, icon: Icon }) => (
@@ -184,11 +187,11 @@ export default function MarketingHomePage() {
         </div>
 
         <Section>
-          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Built from field reality</h2>
+          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Built for the real world</h2>
           <p className="mt-4 max-w-3xl text-gray-600">
-            This product exists because inspection programs are messy in practice: turnover, split responsibilities,
-            partial routes, and last-minute requests for reports. The workflows prioritize what crews need on the floor—
-            fast lookup, clear status, and a durable record—not buzzwords or feature sprawl for its own sake.
+            This product exists because inspection programs are messy: people leave, locations change, and 
+            inspectors show up unannounced. We focus on what crews need on the floor—fast lookup, 
+            clear status, and a durable record—not fancy buzzwords.
           </p>
         </Section>
 
@@ -214,8 +217,8 @@ export default function MarketingHomePage() {
                   <p className="mt-2 text-xl font-bold text-gray-900">{name}</p>
                   <p className="mt-2 text-sm text-gray-600">
                     {name === 'Enterprise'
-                      ? 'Custom rollout and contract terms.'
-                      : 'Full product access scoped to plan limits in billing.'}
+                      ? 'Custom setup and contract terms.'
+                      : 'Simple access based on your team size and units.'}
                   </p>
                 </div>
               ))}
