@@ -114,3 +114,18 @@ export async function archiveWorkspaceCall(
   const result = await fn({ orgId, workspaceId, sectionTimes: sectionTimes ?? null });
   return result.data;
 }
+
+/**
+ * Delete a workspace via Cloud Function.
+ */
+export async function deleteWorkspaceCall(
+  orgId: string,
+  workspaceId: string,
+): Promise<{ success: boolean; workspaceId: string }> {
+  const fn = httpsCallable<
+    { orgId: string; workspaceId: string },
+    { success: boolean; workspaceId: string }
+  >(functions, 'deleteWorkspace');
+  const result = await fn({ orgId, workspaceId });
+  return result.data;
+}

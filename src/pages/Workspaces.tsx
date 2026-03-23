@@ -9,6 +9,7 @@ import {
   Clock,
   Loader2,
   Lock,
+  Trash2,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -16,6 +17,7 @@ import {
   subscribeToWorkspaces,
   createWorkspaceCall,
   archiveWorkspaceCall,
+  deleteWorkspaceCall,
   type Workspace,
 } from '../services/workspaceService.ts';
 import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
@@ -39,6 +41,8 @@ export default function Workspaces() {
   const [creating, setCreating] = useState(false);
   const [archiving, setArchiving] = useState<string | null>(null);
   const [archiveTargetId, setArchiveTargetId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newMonthYear, setNewMonthYear] = useState(getNextMonthYear());
@@ -67,6 +71,27 @@ export default function Workspaces() {
     if (!orgId) return;
     setArchiveTargetId(workspaceId);
   }
+
+  function requestDelete(workspaceId: string) {
+    if (!orgId) return;
+    setDeleteTargetId(workspaceId);
+  }
+
+  const executeDelete = useCallback(async () => {
+    if (!orgId || !deleteTargetId) return;
+    const targetId = deleteTargetId;
+    setDeleteTargetId(null);
+    setDeleting(targetId);
+    setError('');
+
+    try {
+      await deleteWorkspaceCall(orgId, targetId);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete workspace.');
+    } finally {
+      setDeleting(null);
+    }
+  }, [orgId, deleteTargetId]);
 
   const executeArchive = useCallback(async () => {
     if (!orgId || !archiveTargetId) return;
@@ -189,20 +214,34 @@ export default function Workspaces() {
                   {ws.stats.total} total extinguishers
                 </p>
 
-                {/* Archive button */}
+                {/* Actions */}
                 {canManage && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); requestArchive(ws.id); }}
-                    disabled={archiving === ws.id}
-                    className="mt-3 flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600"
-                  >
-                    {archiving === ws.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Archive className="h-3.5 w-3.5" />
-                    )}
-                    Archive
-                  </button>
+                  <div className="mt-3 flex items-center justify-between">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); requestArchive(ws.id); }}
+                      disabled={archiving === ws.id || deleting === ws.id}
+                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                    >
+                      {archiving === ws.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Archive className="h-3.5 w-3.5" />
+                      )}
+                      Archive
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); requestDelete(ws.id); }}
+                      disabled={archiving === ws.id || deleting === ws.id}
+                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-600 disabled:opacity-50"
+                    >
+                      {deleting === ws.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-red-600" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                      Delete
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -270,6 +309,22 @@ export default function Workspaces() {
                     </div>
                   </div>
                 </div>
+                {canManage && (
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); requestDelete(ws.id); }}
+                      disabled={deleting === ws.id}
+                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-600 disabled:opacity-50"
+                    >
+                      {deleting === ws.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-red-600" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -323,6 +378,16 @@ export default function Workspaces() {
         variant="warning"
         onConfirm={executeArchive}
         onCancel={() => setArchiveTargetId(null)}
+      />
+
+      <ConfirmModal
+        open={deleteTargetId !== null}
+        title="Delete Workspace"
+        message="Permanently delete this workspace and all of its inspection records? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteTargetId(null)}
       />
     </div>
   );

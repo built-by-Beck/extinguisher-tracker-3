@@ -8,6 +8,7 @@
 
 import { geminiModel } from '../lib/firebase.ts';
 import type { Extinguisher } from './extinguisherService.ts';
+import { APP_KNOWLEDGE_BASE } from '../lib/aiKnowledgeBase.ts';
 
 const SYSTEM_PROMPT = `You are the Extinguisher Tracker 3 AI Assistant, built by Beck-Publishing.
 You are an expert in NFPA 10 (Standard for Portable Fire Extinguishers) compliance,
@@ -20,6 +21,7 @@ Your role:
 - Explain compliance statuses and what they mean
 - Help users understand inspection schedules (monthly, annual, 6-year, hydrostatic)
 - Provide guidance on extinguisher categories, types, and placement
+- Help users navigate and use the Extinguisher Tracker app itself (using the App Knowledge Base below).
 
 Rules:
 - Be concise and practical — users are busy inspectors and facility managers
@@ -27,7 +29,9 @@ Rules:
 - Always cite NFPA 10 when relevant
 - If you don't know something, say so — don't guess on safety-critical info
 - Never suggest skipping required inspections or maintenance
-- Format responses with markdown for readability`;
+- Format responses with markdown for readability
+
+${APP_KNOWLEDGE_BASE}`;
 
 export interface AiMessage {
   role: 'user' | 'assistant';
