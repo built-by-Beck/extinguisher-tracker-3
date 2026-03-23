@@ -36,7 +36,12 @@ function ReadOnlyTreeNode({ node, depth }: { node: LocationTreeNode; depth: numb
         )}
 
         <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
-        <span className="flex-1 text-sm font-medium text-gray-900">{node.name}</span>
+        <div className="flex flex-1 items-center gap-2">
+          <span className="text-sm font-medium text-gray-900">{node.name}</span>
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-gray-500 uppercase">
+            Level {depth + 1}
+          </span>
+        </div>
         <span className="text-xs text-gray-400">{node.locationType}</span>
         {node.description && (
           <span className="max-w-xs truncate text-xs text-gray-400">{node.description}</span>

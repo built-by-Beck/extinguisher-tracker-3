@@ -7,11 +7,11 @@
  */
 
 import { useState, useEffect } from 'react';
-import { FileText, Loader2 } from 'lucide-react';
+import { FileText, Loader2, Download } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
-import { subscribeToReports } from '../services/reportService.ts';
+import { subscribeToReports, generateReportDownload } from '../services/reportService.ts';
 import { ReportDownloadButton } from '../components/reports/ReportDownloadButton.tsx';
-import type { Report } from '../types/report.ts';
+import type { Report, ReportFormat } from '../types/report.ts';
 
 function formatTimestamp(timestamp: unknown): string {
   if (!timestamp) return '--';
@@ -48,15 +48,37 @@ export default function Reports() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [genWorkspaceId, setGenWorkspaceId] = useState('');
+  const [genFormat, setGenFormat] = useState<ReportFormat>('pdf');
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState('');
+
   useEffect(() => {
     if (!orgId) return;
     setLoading(true);
     const unsub = subscribeToReports(orgId, (data) => {
       setReports(data);
+      if (data.length > 0 && !genWorkspaceId) {
+        setGenWorkspaceId(data[0].workspaceId);
+      }
       setLoading(false);
     });
     return () => unsub();
-  }, [orgId]);
+  }, [orgId, genWorkspaceId]);
+
+  async function handleGenerate() {
+    if (!orgId || !genWorkspaceId) return;
+    setGenerating(true);
+    setGenError('');
+    try {
+      const { downloadUrl } = await generateReportDownload(orgId, genWorkspaceId, genFormat);
+      window.open(downloadUrl, '_blank');
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : 'Failed to generate report.');
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   return (
     <div className="p-6">
@@ -67,6 +89,56 @@ export default function Reports() {
           Download inspection reports for archived workspaces. Reports are generated on demand.
         </p>
       </div>
+
+      {/* Generate Report Card */}
+      {!loading && reports.length > 0 && (
+        <div className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-4 text-base font-semibold text-gray-900">Generate Report</h2>
+          {genError && (
+            <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+              {genError}
+            </div>
+          )}
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Select Workspace</label>
+              <select
+                value={genWorkspaceId}
+                onChange={(e) => setGenWorkspaceId(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm"
+                disabled={generating}
+              >
+                {reports.map((r) => (
+                  <option key={r.workspaceId} value={r.workspaceId}>
+                    {r.label} ({r.monthYear})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="w-32">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Format</label>
+              <select
+                value={genFormat}
+                onChange={(e) => setGenFormat(e.target.value as ReportFormat)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm"
+                disabled={generating}
+              >
+                <option value="pdf">PDF</option>
+                <option value="csv">CSV</option>
+                <option value="json">JSON</option>
+              </select>
+            </div>
+            <button
+              onClick={handleGenerate}
+              disabled={generating || !genWorkspaceId}
+              className="flex h-[38px] items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+            >
+              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Generate
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Loading skeleton */}
       {loading && (

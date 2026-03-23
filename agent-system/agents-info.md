@@ -1,14 +1,49 @@
 # EX3 Agent System -- Project State
 
-**Last Updated**: 2026-03-22
-**Updated By**: review-agent (Opus 4.6) -- Phase 12 REVIEW COMPLETE
+**Last Updated**: 2026-03-23
+**Updated By**: plan-agent (Opus 4.6) -- Phase 14 PLANNED
 
 ---
 
 ## Current Phase
 
+**Phase 14: Import UX Polish, Reports Generate Button, Data Organizer, Export Backup**
+Status: PLANNED -- ready for build-agent
+
+### Phase 14 Plan Summary (plan-agent, 2026-03-23)
+
+**8 tasks planned (P14-01 through P14-08):**
+
+1. **P14-01**: Rename "Import File" button to "Import" in ImportExportBar.tsx
+2. **P14-02**: Make `serial` optional in ColumnMapperModal, promote location fields higher in TARGET_FIELDS
+3. **P14-03**: Make `serial` optional in backend importCSV Cloud Function (only `assetId` required)
+4. **P14-04**: Add "Generate Report" button/section to Reports page (workspace selector + format + generate)
+5. **P14-05**: Create new Data Organizer page (`/dashboard/data-organizer`) — editable table of incomplete extinguishers, bulk location assign, inline field editing, issue detection
+6. **P14-06**: Add `updateExtinguisher` and `batchUpdateExtinguishers` to extinguisherService.ts (needed by P14-05)
+7. **P14-07**: Add "Export Backup" button for JSON backup export (client-side, Blob download)
+8. **P14-08**: Build verification (pnpm build, functions build, pnpm lint)
+
+**Build order**: P14-01 → P14-02 → P14-03 → P14-04 → P14-07 → P14-06 → P14-05 → P14-08
+
+**Key decisions:**
+- Serial is now optional everywhere (mapper, backend, column order)
+- Data Organizer is owner/admin only, uses `subscribeToExtinguishers({ noLimit: true })`
+- JSON export uses client-side Blob download (no Cloud Function needed)
+- Generate Report reuses existing `generateReportDownload` service + `generateReport` Cloud Function
+
+### Handoff to build-agent
+
+Read `agent-system/plan.md` for full task specifications. Key dependencies:
+- P14-06 must be done before P14-05 (Data Organizer needs update functions)
+- P14-08 is last (build verification)
+- All other tasks are independent
+
+---
+
+## Previous Phase
+
 **Phase 12: Section Timer + Section Notes (Workspace Enhancement)**
-Status: REVIEW COMPLETE -- ready for plan-agent
+Status: REVIEW COMPLETE
 
 ### Phase 12 Review Summary (review-agent, 2026-03-22)
 

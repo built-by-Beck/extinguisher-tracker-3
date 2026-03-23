@@ -36,10 +36,29 @@ export const TARGET_FIELDS: TargetField[] = [
   {
     key: 'serial',
     label: 'Serial Number',
-    required: true,
+    required: false,
     aliases: [
       'serial', 'serial number', 'serial_number', 'serialnumber', 'serial no',
       'serial_no', 'serialno', 'sn', 's/n', 'ser', 'ser no', 'ser_no',
+    ],
+  },
+  {
+    key: 'parentLocation',
+    label: 'Building / Location',
+    required: false,
+    aliases: [
+      'building', 'location', 'parent location', 'parent_location', 'parentlocation',
+      'facility', 'site', 'building name', 'building_name', 'campus',
+      'property', 'address',
+    ],
+  },
+  {
+    key: 'locationId',
+    label: 'Location ID',
+    required: false,
+    aliases: [
+      'location id', 'location_id', 'locationid', 'loc id', 'loc_id', 'locid',
+      'room', 'room number', 'room_number', 'roomnumber', 'room id', 'room_id',
     ],
   },
   {
@@ -115,25 +134,6 @@ export const TARGET_FIELDS: TargetField[] = [
       'vicinity', 'nearby', 'near', 'description', 'placement', 'position',
       'spot', 'detail', 'notes', 'location detail', 'location_detail',
       'location description', 'location_description',
-    ],
-  },
-  {
-    key: 'parentLocation',
-    label: 'Building / Location',
-    required: false,
-    aliases: [
-      'building', 'location', 'parent location', 'parent_location', 'parentlocation',
-      'facility', 'site', 'building name', 'building_name', 'campus',
-      'property', 'address',
-    ],
-  },
-  {
-    key: 'locationId',
-    label: 'Location ID',
-    required: false,
-    aliases: [
-      'location id', 'location_id', 'locationid', 'loc id', 'loc_id', 'locid',
-      'room', 'room number', 'room_number', 'roomnumber', 'room id', 'room_id',
     ],
   },
   {

@@ -31,7 +31,7 @@ export function findDuplicates(extinguishers: Extinguisher[]): DuplicateGroup[] 
 
   const duplicateGroups: DuplicateGroup[] = [];
 
-  Object.entries(groups).forEach(([_, items]) => {
+  Object.entries(groups).forEach(([, items]) => {
     if (items.length > 1) {
       // Find the best candidate to keep
       const keep = items.reduce((best, current) => pickPreferred(best, current));
@@ -66,8 +66,8 @@ export function pickPreferred(a: Extinguisher, b: Extinguisher): Extinguisher {
 
   // 2. Both same inspection status — check inspection dates
   if (aInspected && bInspected) {
-    const aTime = (a.lastMonthlyInspection as any)?.seconds || 0;
-    const bTime = (b.lastMonthlyInspection as any)?.seconds || 0;
+    const aTime = (a.lastMonthlyInspection as { seconds?: number })?.seconds || 0;
+    const bTime = (b.lastMonthlyInspection as { seconds?: number })?.seconds || 0;
     if (aTime !== bTime) return aTime > bTime ? a : b;
   }
 
@@ -76,8 +76,8 @@ export function pickPreferred(a: Extinguisher, b: Extinguisher): Extinguisher {
   if (b.category === 'standard' && a.category !== 'standard') return b;
 
   // 4. Finally, prefer the one created most recently
-  const aCreated = (a.createdAt as any)?.seconds || 0;
-  const bCreated = (b.createdAt as any)?.seconds || 0;
+  const aCreated = (a.createdAt as { seconds?: number })?.seconds || 0;
+  const bCreated = (b.createdAt as { seconds?: number })?.seconds || 0;
   return aCreated >= bCreated ? a : b;
 }
 
@@ -129,9 +129,9 @@ export function mergeExtinguisherData(
   ] as const;
 
   dateFields.forEach((field) => {
-    let best = keep[field] as any;
+    let best = keep[field] as { seconds: number } | null | undefined;
     remove.forEach((r) => {
-      const other = r[field] as any;
+      const other = r[field] as { seconds: number } | null | undefined;
       if (!best || (other && other.seconds > best.seconds)) {
         best = other;
       }

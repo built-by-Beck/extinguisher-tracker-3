@@ -44,6 +44,7 @@ import {
 import { formatDueDate } from '../utils/compliance.ts';
 import { cacheExtinguishersForWorkspace } from '../services/offlineCacheService.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
+import { LocationSelector } from '../components/locations/LocationSelector.tsx';
 
 export default function Inventory() {
   const navigate = useNavigate();
@@ -64,7 +65,7 @@ export default function Inventory() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState<string | null>(null);
   // Initialize compliance filter from URL param (from dashboard card clicks)
   const [complianceFilter, setComplianceFilter] = useState(
     searchParams.get('compliance') ?? '',
@@ -84,7 +85,6 @@ export default function Inventory() {
   const [scanAddLoading, setScanAddLoading] = useState(false);
   const [scanAddError, setScanAddError] = useState('');
 
-  const sections = org?.settings?.sections ?? [];
   const flags = org?.featureFlags as Record<string, boolean> | null | undefined;
   const canScan = hasFeature(flags, 'cameraBarcodeScan', org?.plan) || hasFeature(flags, 'qrScanning', org?.plan);
 
@@ -131,7 +131,10 @@ export default function Inventory() {
   const filtered = useMemo(() => {
     return items.filter((ext) => {
       if (categoryFilter && ext.category !== categoryFilter) return false;
-      if (sectionFilter && (ext.section || '') !== sectionFilter) return false;
+      if (locationFilter) {
+        // Match either by formal locationId or if the legacy string fields match
+        if (ext.locationId !== locationFilter) return false;
+      }
       if (complianceFilter && ext.complianceStatus !== complianceFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -140,12 +143,13 @@ export default function Inventory() {
           ext.serial.toLowerCase().includes(q) ||
           (ext.barcode?.toLowerCase().includes(q) ?? false) ||
           (ext.section || '').toLowerCase().includes(q) ||
+          (ext.parentLocation || '').toLowerCase().includes(q) ||
           (ext.manufacturer?.toLowerCase().includes(q) ?? false)
         );
       }
       return true;
     });
-  }, [items, categoryFilter, sectionFilter, complianceFilter, searchQuery]);
+  }, [items, categoryFilter, locationFilter, complianceFilter, searchQuery]);
 
   async function handleDelete(reason: string) {
     if (!deleteTarget?.id || !orgId || !user) return;
@@ -348,19 +352,13 @@ export default function Inventory() {
           Overdue
         </button>
 
-        {/* Section filter */}
-        {sections.length > 0 && (
-          <select
-            value={sectionFilter}
-            onChange={(e) => setSectionFilter(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-          >
-            <option value="">All Sections</option>
-            {sections.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        )}
+        {/* Location filter */}
+        <div className="w-48">
+          <LocationSelector
+            value={locationFilter}
+            onChange={setLocationFilter}
+          />
+        </div>
 
         {/* Show deleted toggle */}
         {canEdit && (

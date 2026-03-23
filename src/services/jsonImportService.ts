@@ -67,7 +67,7 @@ export function parseAndValidateBackup(jsonText: string): ValidationResult {
 
   try {
     const json = JSON.parse(jsonText);
-    let rawList: any[] = [];
+    let rawList: BackupExtinguisher[] = [];
 
     if (Array.isArray(json)) {
       rawList = json;
@@ -93,7 +93,7 @@ export function parseAndValidateBackup(jsonText: string): ValidationResult {
     } else {
       result.valid = true;
     }
-  } catch (err) {
+  } catch {
     result.errors.push('Invalid JSON file format.');
   }
 

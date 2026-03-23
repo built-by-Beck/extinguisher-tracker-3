@@ -3,6 +3,7 @@ import {
   doc,
   addDoc,
   updateDoc,
+  writeBatch,
   query,
   where,
   orderBy,
@@ -386,4 +387,27 @@ export function subscribeToExtinguishers(
     })) as Extinguisher[];
     callback(items);
   });
+}
+
+/**
+ * Batch update multiple extinguishers with partial data.
+ * Chunks to 499 operations per batch.
+ */
+export async function batchUpdateExtinguishers(
+  orgId: string,
+  updates: Array<{ extId: string; data: Partial<Extinguisher> }>,
+): Promise<void> {
+  const chunkSize = 499;
+  for (let i = 0; i < updates.length; i += chunkSize) {
+    const chunk = updates.slice(i, i + chunkSize);
+    const batch = writeBatch(db);
+    for (const update of chunk) {
+      const ref = doc(db, 'org', orgId, 'extinguishers', update.extId);
+      batch.update(ref, {
+        ...update.data,
+        updatedAt: serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
 }

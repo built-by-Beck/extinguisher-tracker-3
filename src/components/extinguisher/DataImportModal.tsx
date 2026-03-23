@@ -49,7 +49,7 @@ export function DataImportModal({
       } else {
         setParseError(result.errors.join(' '));
       }
-    } catch (err) {
+    } catch {
       setParseError('Failed to read file.');
     }
   };
@@ -61,7 +61,7 @@ export function DataImportModal({
       const result = await importExtinguishers(orgId, uid, validation.extinguishers, assetLimit);
       setImportResult(result);
       setStep('result');
-    } catch (err) {
+    } catch {
       setParseError('Import failed.');
     } finally {
       setImporting(false);
