@@ -12,9 +12,6 @@ interface ImportExportBarProps {
   plan?: string | null;
 }
 
-/** The column names the backend expects */
-const EXPECTED_COLUMNS = new Set(TARGET_FIELDS.map((f) => f.key));
-
 /**
  * Convert parsed rows (array of objects) to a CSV string.
  */
