@@ -20,6 +20,7 @@ import {
   FileText,
   ScrollText,
   RefreshCw,
+  Calculator,
 } from 'lucide-react';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useOffline } from '../../hooks/useOffline.ts';
@@ -43,6 +44,7 @@ const navItems: NavItem[] = [
   { to: '/dashboard/notifications', label: 'Notifications', icon: Bell, end: false },
   { to: '/dashboard/sync-queue', label: 'Sync Queue', icon: RefreshCw, end: false },
   { to: '/dashboard/reports', label: 'Reports', icon: FileText, end: false },
+  { to: '/dashboard/calculator', label: 'Calculator', icon: Calculator, end: false },
   {
     to: '/dashboard/audit-logs',
     label: 'Audit Logs',

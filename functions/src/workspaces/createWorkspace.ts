@@ -120,6 +120,26 @@ export const createWorkspace = onCall(async (request) => {
     await batch.commit();
   }
 
+  // Clear non-carry-forward section notes (notes where saveForNextMonth is false)
+  const clearNotesSnap = await adminDb.collection(`org/${orgId}/sectionNotes`)
+    .where('saveForNextMonth', '==', false)
+    .get();
+
+  if (!clearNotesSnap.empty) {
+    let notesBatch = adminDb.batch();
+    let notesCount = 0;
+    for (const noteDoc of clearNotesSnap.docs) {
+      notesBatch.update(noteDoc.ref, { notes: '' });
+      notesCount++;
+      if (notesCount >= 499) {
+        await notesBatch.commit();
+        notesBatch = adminDb.batch();
+        notesCount = 0;
+      }
+    }
+    if (notesCount > 0) await notesBatch.commit();
+  }
+
   await writeAuditLog(orgId, {
     action: 'workspace.created',
     performedBy: uid,

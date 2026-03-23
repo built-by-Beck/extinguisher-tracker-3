@@ -24,4 +24,22 @@ export const marketingSeo = {
       'From organization setup to inspections, issue tracking, and reports: a straightforward workflow for extinguisher compliance.',
     path: '/how-it-works',
   },
+  about: {
+    title: 'About — Extinguisher Tracker',
+    description:
+      'Learn about Extinguisher Tracker: our mission to modernize fire safety compliance for facilities teams everywhere.',
+    path: '/about',
+  },
+  terms: {
+    title: 'Terms of Service — Extinguisher Tracker',
+    description:
+      'Terms of Service for the Extinguisher Tracker platform. Read our usage terms, billing policies, and legal guidelines.',
+    path: '/terms',
+  },
+  privacy: {
+    title: 'Privacy Policy — Extinguisher Tracker',
+    description:
+      'Privacy Policy for Extinguisher Tracker. How we collect, use, and protect your data.',
+    path: '/privacy',
+  },
 } as const;

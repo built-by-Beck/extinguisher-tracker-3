@@ -15,6 +15,7 @@ import {
   Flame,
   Archive,
   AlertTriangle,
+  Printer,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -170,15 +171,24 @@ export default function Inventory() {
             {totalCount} extinguisher{totalCount !== 1 ? 's' : ''} in your organization
           </p>
         </div>
-        {canEdit && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate('/dashboard/inventory/new')}
-            className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700"
+            onClick={() => navigate('/dashboard/inventory/print')}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
-            <Plus className="h-4 w-4" />
-            Add Extinguisher
+            <Printer className="h-4 w-4" />
+            Print List
           </button>
-        )}
+          {canEdit && (
+            <button
+              onClick={() => navigate('/dashboard/inventory/new')}
+              className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700"
+            >
+              <Plus className="h-4 w-4" />
+              Add Extinguisher
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Asset limit bar */}

@@ -1,14 +1,264 @@
 # EX3 Agent System -- Project State
 
-**Last Updated**: 2026-03-20
-**Updated By**: review-agent (Opus 4.6) -- Phase 10 APPROVED
+**Last Updated**: 2026-03-22
+**Updated By**: review-agent (Opus 4.6) -- Phase 12 REVIEW COMPLETE
 
 ---
 
 ## Current Phase
 
+**Phase 12: Section Timer + Section Notes (Workspace Enhancement)**
+Status: REVIEW COMPLETE -- ready for plan-agent
+
+### Phase 12 Review Summary (review-agent, 2026-03-22)
+
+**Result: 4 bugs fixed. All builds (`pnpm build`, `cd functions && npm run build`, `pnpm lint`) pass clean.**
+
+**Bugs found and fixed:**
+
+1. **`useSectionTimer.ts` -- startTimer on already-active section lost elapsed time**: Calling `startTimer('A')` while section A was already running skipped `accumulateActive()` but reset `timerStartTimeRef` and `currentElapsed` to 0, silently discarding the current interval's elapsed time. **Fix**: Added early return when `activeSectionRef.current === section` (no-op if same section already active).
+
+2. **`sectionNotesService.ts` -- `createdAt` overwritten on every save**: `saveSectionNote` always included `createdAt: now` in the `setDoc({ merge: true })` payload, which overwrites the original creation timestamp on every update. **Fix**: Added `getDoc` check -- only include `createdAt` in the payload when the doc does not already exist.
+
+3. **`firestore.rules` -- sectionNotes missing userId ownership validation**: The `create` and `update` rules only checked role and subscription, allowing any org member to create/update notes belonging to other users. **Fix**: Added `request.resource.data.userId == request.auth.uid` on create and `resource.data.userId == request.auth.uid` on update, matching the plan specification.
+
+4. **`SectionNotes.tsx` -- badge count used local edit state instead of saved state**: The "X sections with notes" badge used `editNotes` (local unsaved textarea state) to decide whether to count the current section, causing premature counting before save. It also double-counted when the current section was already in `allNotes`. **Fix**: Replaced with a simple count of all entries in `allNotes` that have non-empty saved notes.
+
+**Items reviewed and found correct:**
+
+- Timer interval cleanup (useEffect returns clearInterval)
+- localStorage persistence scoped to orgId + workspaceId
+- Active timer restoration after page refresh (startTime stored, elapsed recomputed from Date.now)
+- Refs synced via useEffect (satisfies ESLint react-hooks/refs)
+- useCallback on all handlers passed as props
+- Section notes subscribe with state reset on dependency change
+- Firestore set-with-merge for upsert pattern
+- Deterministic doc IDs (`userId__section_slug`) prevent duplicates
+- Carry-forward logic in createWorkspace: clears non-carry-forward notes, batched at 499
+- archiveWorkspace accepts optional sectionTimes, backward-compatible (defaults to null)
+- Feature gating: timer behind `sectionTimeTracking`, notes always available
+- Hook called unconditionally per React rules of hooks
+- No `any` types anywhere in the new code
+- `sectionTimes` subcollection rules already exist in firestore.rules (unused but harmless)
+
+**Handoff note for plan-agent**: Phase 12 is complete and reviewed. All 14 definition-of-done items are satisfied. Ready to plan Phase 13 (Duplicate Detection + Data Import).
+
+### Phase 12 Build Summary (build-agent, 2026-03-22)
+
+**Result: All tasks (P12-01 through P12-11) complete. `pnpm build`, `cd functions && npm run build`, and `pnpm lint` all pass clean.**
+
+**P12-01 (Types):** Added `SectionTimesMap`, `SectionNote`, `SectionNotesMap` interfaces and `sectionTimes`/`sectionNotes` optional fields to `Workspace` interface in `src/services/workspaceService.ts`. Updated `archiveWorkspaceCall` to accept optional `sectionTimes` parameter.
+
+**P12-02 (Timer hook + component):** Created `src/hooks/useSectionTimer.ts` with play/pause/stop/clear, localStorage persistence (scoped by orgId+workspaceId), interval-based display update (1s), and `formatTime` utility. Created `src/components/workspace/SectionTimer.tsx` with Play/Pause/Stop buttons, elapsed time display, and disabled mode for archived workspaces.
+
+**P12-03 (Notes component):** Created `src/components/workspace/SectionNotes.tsx` with textarea, "Keep for next month" toggle, save button, last-updated timestamp, and collapsible "Other sections with notes" summary. Uses `useId()` for textarea accessibility.
+
+**P12-04 (Notes service):** Created `src/services/sectionNotesService.ts` with `subscribeToSectionNotes`, `saveSectionNote` (upsert via `set({ merge: true })`), and `getCarryForwardNotes`. Deterministic doc IDs: `{userId}__{section_slug}`.
+
+**P12-05 (Timer integration):** Integrated `SectionTimer` into `WorkspaceDetail.tsx` section-selected view. Feature-gated behind `sectionTimeTracking` flag via `hasFeature()`. Hook called unconditionally per React rules.
+
+**P12-06 (Notes integration):** Integrated `SectionNotes` into `WorkspaceDetail.tsx` section-selected view. NOT feature-gated (available to all plans). Subscribes to section notes with state reset on dependency change.
+
+**P12-07 (Archive with times):** Modified `archiveWorkspace.ts` Cloud Function to accept and save `sectionTimes` to both workspace doc and report doc. Updated `Workspaces.tsx` to read localStorage timer data and pass on archive, then clean up localStorage after success.
+
+**P12-08 (Note carry-forward):** Modified `createWorkspace.ts` Cloud Function to clear notes where `saveForNextMonth === false` when a new workspace is created. Uses batched writes capped at 499 ops.
+
+**P12-09 (Firestore rules):** Already existed in `firestore.rules` -- `sectionNotes` and `sectionTimes` subcollection rules were pre-configured.
+
+**P12-10 (Directory):** Created `src/components/workspace/` directory as part of P12-02.
+
+**P12-11 (Build verification):** All three builds pass clean: `pnpm build` (0 TS errors), `cd functions && npm run build` (0 TS errors), `pnpm lint` (0 errors, 0 warnings).
+
+### Handoff to review-agent
+
+Review all new/modified files:
+
+**New files (4):**
+- `src/hooks/useSectionTimer.ts` -- timer hook with localStorage persistence
+- `src/components/workspace/SectionTimer.tsx` -- timer display component
+- `src/components/workspace/SectionNotes.tsx` -- notes display/edit component
+- `src/services/sectionNotesService.ts` -- Firestore CRUD for section notes
+
+**Modified files (5):**
+- `src/services/workspaceService.ts` -- added types + archiveWorkspaceCall signature change
+- `src/pages/WorkspaceDetail.tsx` -- timer + notes integration (~40 lines added)
+- `src/pages/Workspaces.tsx` -- pass sectionTimes on archive + localStorage cleanup
+- `functions/src/workspaces/archiveWorkspace.ts` -- accept and save sectionTimes
+- `functions/src/workspaces/createWorkspace.ts` -- note carry-forward logic
+
+**Key things to verify:**
+1. Timer localStorage persistence across page refreshes (key format: `sectionTimes_{orgId}_{workspaceId}`)
+2. Active timer restoration after page refresh (key format: `sectionTimerActive_{orgId}_{workspaceId}`)
+3. Section notes save to Firestore at `org/{orgId}/sectionNotes/{userId__section_slug}`
+4. Notes with `saveForNextMonth: false` get cleared on new workspace creation
+5. Section times included in archived workspace doc and report doc
+6. Feature gate: timer only shows when `sectionTimeTracking` is enabled for the plan
+7. Notes always show (no feature gate)
+8. Ref sync moved to useEffect to satisfy ESLint react-hooks/refs rule
+9. `user` (not `user?.uid`) used in useCallback deps to satisfy react-hooks/preserve-manual-memoization
+
+---
+
+### Phase 12 Plan Summary (plan-agent, 2026-03-22)
+
+**Goal**: Add per-section timing and per-section notes to WorkspaceDetail, completing the field inspector experience. Timer persists in localStorage; notes persist in Firestore with optional carry-forward to next month.
+
+**10 tasks (P12-01 through P12-11, skipping P12-10 which is trivial mkdir):**
+
+- **P12-01**: Add `SectionTimesMap`, `SectionNote`, `SectionNotesMap` types + `sectionTimes`/`sectionNotes` fields to `Workspace` interface in `src/services/workspaceService.ts`
+- **P12-02**: Create `useSectionTimer` hook (`src/hooks/useSectionTimer.ts`) + `SectionTimer` component (`src/components/workspace/SectionTimer.tsx`). Hook manages play/pause/stop, localStorage persistence, interval-based display update. Component is pure display with Play/Pause/Stop buttons.
+- **P12-03**: Create `SectionNotes` component (`src/components/workspace/SectionNotes.tsx`). Textarea, "save for next month" toggle, save button, other-sections summary.
+- **P12-04**: Create `src/services/sectionNotesService.ts`. Firestore CRUD for `org/{orgId}/sectionNotes/{docId}`. Subscribe, save (upsert), getCarryForwardNotes.
+- **P12-05**: Integrate SectionTimer into `WorkspaceDetail.tsx` section-selected view. Feature-gated behind `sectionTimeTracking` flag.
+- **P12-06**: Integrate SectionNotes into `WorkspaceDetail.tsx` section-selected view. NOT feature-gated.
+- **P12-07**: Modify `archiveWorkspace.ts` Cloud Function to accept/save `sectionTimes`. Update `archiveWorkspaceCall` signature. Update `Workspaces.tsx` to pass localStorage times on archive.
+- **P12-08**: Modify `createWorkspace.ts` Cloud Function to clear non-carry-forward notes on new workspace creation.
+- **P12-09**: Add Firestore security rules for `org/{orgId}/sectionNotes/{noteId}`.
+- **P12-11**: Build verification (`pnpm build`, `functions build`, `pnpm lint`).
+
+**New files (4):**
+- `src/hooks/useSectionTimer.ts`
+- `src/components/workspace/SectionTimer.tsx`
+- `src/components/workspace/SectionNotes.tsx`
+- `src/services/sectionNotesService.ts`
+
+**Modified files (6):**
+- `src/services/workspaceService.ts` -- types + archiveWorkspaceCall signature
+- `src/pages/WorkspaceDetail.tsx` -- timer + notes integration
+- `src/pages/Workspaces.tsx` -- pass sectionTimes on archive
+- `functions/src/workspaces/archiveWorkspace.ts` -- accept sectionTimes
+- `functions/src/workspaces/createWorkspace.ts` -- note carry-forward
+- `firestore.rules` -- sectionNotes subcollection rules
+
+**Key design decisions:**
+1. Timer state lives in a custom hook (`useSectionTimer`) — keeps WorkspaceDetail lean
+2. Section notes stored under `org/{orgId}/sectionNotes/{userId__section_slug}` (tenant-isolated, deterministic IDs)
+3. Timer is feature-gated (`sectionTimeTracking` in planConfig); notes are always available
+4. localStorage key: `sectionTimes_{orgId}_{workspaceId}` — scoped per workspace
+5. Note carry-forward: on `createWorkspace`, notes with `saveForNextMonth: false` get their text cleared
+
+**Handoff**: build-agent should start with P12-01 (types), then P12-04 (service), then P12-02+P12-03 (components), then P12-05+P12-06 (integration), then P12-07+P12-08+P12-09 (backend), then P12-11 (verify). Full details in `agent-system/plan.md`.
+
+---
+
+## Previous Phase
+
+**Phase 11: Legal Pages, Calculator, Confirm Modals, Printable List**
+Status: COMPLETE -- reviewed and approved
+
+### Phase 11 Build Summary (build-agent, 2026-03-22)
+
+**Result: All 14 tasks (P11-01 through P11-14) complete. `pnpm build` and `pnpm lint` both pass clean (0 errors, 0 warnings).**
+
+**P11-01 (ConfirmModal):** Created `src/components/ui/ConfirmModal.tsx` -- reusable modal with danger/warning/info variants, focus trapping, Escape key close. Created `src/components/ui/` directory.
+
+**P11-02 (PromptModal):** Created `src/components/ui/PromptModal.tsx` -- reusable prompt modal with validation, auto-focus, Enter submit, Escape cancel.
+
+**P11-03 (Replace window.confirm):** Replaced `window.confirm()` in all 5 files:
+- `InspectionForm.tsx` -- reset inspection confirm
+- `ExtinguisherDetail.tsx` -- reset inspection confirm
+- `Locations.tsx` -- delete location confirm
+- `OrgSettings.tsx` -- disable guest access confirm
+- `Workspaces.tsx` -- archive workspace confirm
+Each file uses state-driven ConfirmModal with useCallback for the confirm action.
+
+**P11-04 (AboutPage):** Created `src/pages/marketing/AboutPage.tsx` -- mission, team (Beck Publishing), compliance section, CTA. Uses PublicMarketingLayout.
+
+**P11-05 (TermsPage):** Created `src/pages/marketing/TermsPage.tsx` -- 13 numbered sections with placeholder legal text (marked TODO). Uses PublicMarketingLayout.
+
+**P11-06 (PrivacyPage):** Created `src/pages/marketing/PrivacyPage.tsx` -- 12 numbered sections covering Firebase, Stripe, data rights, CCPA, GDPR. Uses PublicMarketingLayout.
+
+**P11-07 (Legal routes):** Added `/about`, `/terms`, `/privacy` routes to `src/routes/index.tsx`.
+
+**P11-08 (Footer links):** Added Company column (About, Terms, Privacy) to `PublicMarketingLayout.tsx` footer.
+
+**P11-09 (Calculator):** Created `src/pages/Calculator.tsx` -- NATIVE NFPA 10 calculator (not iframe). Inputs: sq ft, floors, occupancy type, hazard class. Outputs: min extinguishers, travel distance, area per unit, recommended types, min rating. Uses NFPA 10 Table 6.2.1.1. Includes disclaimer.
+
+**P11-10 (Calculator routes):** Added `/calculator` (public) and `/dashboard/calculator` (authenticated) routes.
+
+**P11-11 (Sidebar):** Added Calculator nav item (with Calculator icon from lucide-react) after Reports in sidebar.
+
+**P11-12 (PrintableList):** Created `src/pages/PrintableList.tsx` -- landscape print-friendly table with @media print CSS, subscribes to extinguishers, sorts by location > assetId.
+
+**P11-13 (Print route + button):** Added `/dashboard/inventory/print` route. Added Print List button (Printer icon) to Inventory page header.
+
+**P11-14 (Build verification):** `pnpm build` passes clean. `pnpm lint` passes clean (0 errors, 0 warnings). Fixed ESLint exhaustive-deps warning by wrapping `refreshHistory` in useCallback.
+
+**SEO:** Added about/terms/privacy entries to `marketingSeo.ts`.
+
+### Handoff to review-agent
+
+Review all new/modified files:
+
+**New files (8):**
+- `src/components/ui/ConfirmModal.tsx`
+- `src/components/ui/PromptModal.tsx`
+- `src/pages/marketing/AboutPage.tsx`
+- `src/pages/marketing/TermsPage.tsx`
+- `src/pages/marketing/PrivacyPage.tsx`
+- `src/pages/Calculator.tsx`
+- `src/pages/PrintableList.tsx`
+
+**Modified files (10):**
+- `src/pages/InspectionForm.tsx` -- window.confirm replaced
+- `src/pages/ExtinguisherDetail.tsx` -- window.confirm replaced, refreshHistory wrapped in useCallback
+- `src/pages/Locations.tsx` -- window.confirm replaced
+- `src/pages/OrgSettings.tsx` -- window.confirm replaced
+- `src/pages/Workspaces.tsx` -- window.confirm replaced
+- `src/routes/index.tsx` -- legal, calculator, print routes added
+- `src/components/layout/Sidebar.tsx` -- Calculator nav item added
+- `src/components/marketing/PublicMarketingLayout.tsx` -- Company footer column
+- `src/pages/marketing/marketingSeo.ts` -- about/terms/privacy SEO entries
+- `src/pages/Inventory.tsx` -- Print List button added
+
+**Key review items:**
+1. ConfirmModal focus trap and accessibility
+2. NFPA 10 calculator formulas accuracy (Table 6.2.1.1 values)
+3. Legal pages content (placeholder -- marked TODO for lawyer review)
+4. PrintableList data loading (subscribes to all extinguishers, limit 100 from service)
+5. All 5 window.confirm replacements preserve original behavior
+
+### Phase 11 Review Summary (review-agent, 2026-03-22)
+
+**Result: APPROVED with 4 fixes applied. `pnpm build` and `pnpm lint` both pass clean.**
+
+**Issues Found and Fixed:**
+
+1. **PromptModal missing focus trapping** -- ConfirmModal had Tab-key focus trapping but PromptModal did not. Added matching focus trap logic (query focusable elements, wrap Tab/Shift+Tab between first and last).
+
+2. **ConfirmModal + PromptModal: static aria IDs** -- Both modals used hardcoded `id="confirm-modal-title"` / `id="prompt-modal-title"` / `id="prompt-input"`. If multiple modals existed in the DOM simultaneously, IDs would collide. Fixed by using React `useId()` for unique IDs.
+
+3. **PrintableList truncated at 100 items** -- `subscribeToExtinguishers()` has a `limit(100)` constraint. PrintableList is supposed to show ALL extinguishers for printing. Added `noLimit?: boolean` option to `subscribeToExtinguishers()` and passed `{ noLimit: true }` from PrintableList.
+
+4. **Locations.tsx executeDelete missing error handling** -- The `executeDelete` callback called `softDeleteLocation()` with no try/catch. If the delete failed, the error was unhandled and the UI wouldn't show any feedback. Added try/catch/finally using the existing `formError` state.
+
+**Verified Correct (no changes needed):**
+
+- NFPA 10 calculator formulas are correct: Light 6000 sqft/unit 75ft travel 2-A, Ordinary 3000/75ft/2-A, Extra 3000/75ft/4-A. All match NFPA 10 Table 6.2.1.1.
+- All 5 window.confirm replacements preserve original semantics correctly.
+- Routes: no conflicts, all properly registered in public and dashboard sections.
+- Legal pages have proper SEO meta, TODO markers for lawyer review, cross-links.
+- Calculator has disclaimer as required.
+- Sidebar calculator item placed correctly after Reports.
+- Print button on Inventory page navigates to `/dashboard/inventory/print`.
+- No `any` types, no XSS risks, no dangerouslySetInnerHTML.
+- All useCallback wrappers have correct dependency arrays.
+
+**Deferred (not urgent):**
+- Large bundle size warning (1099 kB) -- code splitting with dynamic imports should be done in a future phase.
+- PrintableList "Printed:" date renders at component mount time, not actual print time -- cosmetic, acceptable.
+
+### Handoff to plan-agent
+
+Phase 11 is complete and reviewed. All 13 Definition of Done items are satisfied. The plan-agent should advance to Phase 12 (Section Timer + Section Notes) per the plan outline.
+
+---
+
+## Previous Phases
+
+### Phase 10v2 (COMPLETE)
 **Phase 10v2: Replace Barcode Scanner (@zxing/browser -> native BarcodeDetector API)**
-Status: IN PROGRESS — build-agent implementing BarcodeDetector scanner (Codex)
+Status: COMPLETE — reviewed and approved
 
 ### Phase 10v2 Plan Summary (plan-agent, 2026-03-20)
 

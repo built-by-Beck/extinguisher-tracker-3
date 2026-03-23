@@ -130,6 +130,18 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
                   Create account
                 </Link>
               </div>
+              <div className="flex flex-col gap-2">
+                <span className="font-medium text-gray-900">Company</span>
+                <Link to="/about" className="text-gray-600 hover:text-red-600">
+                  About
+                </Link>
+                <Link to="/terms" className="text-gray-600 hover:text-red-600">
+                  Terms of Service
+                </Link>
+                <Link to="/privacy" className="text-gray-600 hover:text-red-600">
+                  Privacy Policy
+                </Link>
+              </div>
             </div>
           </div>
           <p className="mt-8 text-xs text-gray-500">

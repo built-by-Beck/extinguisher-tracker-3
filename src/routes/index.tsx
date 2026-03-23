@@ -33,6 +33,11 @@ import GuestWorkspaceDetail from '../pages/guest/GuestWorkspaceDetail.tsx';
 import MarketingFeaturesPage from '../pages/marketing/MarketingFeaturesPage.tsx';
 import MarketingPricingPage from '../pages/marketing/MarketingPricingPage.tsx';
 import MarketingHowItWorksPage from '../pages/marketing/MarketingHowItWorksPage.tsx';
+import Calculator from '../pages/Calculator.tsx';
+import PrintableList from '../pages/PrintableList.tsx';
+import AboutPage from '../pages/marketing/AboutPage.tsx';
+import TermsPage from '../pages/marketing/TermsPage.tsx';
+import PrivacyPage from '../pages/marketing/PrivacyPage.tsx';
 
 export function AppRoutes() {
   return (
@@ -44,6 +49,10 @@ export function AppRoutes() {
       <Route path="/features" element={<MarketingFeaturesPage />} />
       <Route path="/pricing" element={<MarketingPricingPage />} />
       <Route path="/how-it-works" element={<MarketingHowItWorksPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/calculator" element={<Calculator />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
@@ -83,6 +92,8 @@ export function AppRoutes() {
           <Route path="sync-queue" element={<SyncQueue />} />
           <Route path="reports" element={<Reports />} />
           <Route path="audit-logs" element={<AuditLogs />} />
+          <Route path="calculator" element={<Calculator />} />
+          <Route path="inventory/print" element={<PrintableList />} />
         </Route>
       </Route>
 

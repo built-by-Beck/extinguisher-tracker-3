@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -23,7 +23,7 @@ import {
   subscribeToInspections,
   type Inspection,
 } from '../services/inspectionService.ts';
-import type { Workspace } from '../services/workspaceService.ts';
+import type { Workspace, SectionNotesMap } from '../services/workspaceService.ts';
 import { getReport } from '../services/reportService.ts';
 import { ReportDownloadButton } from '../components/reports/ReportDownloadButton.tsx';
 import type { Report } from '../types/report.ts';
@@ -37,6 +37,14 @@ import {
   subscribeToLocations,
   type Location,
 } from '../services/locationService.ts';
+import { useSectionTimer } from '../hooks/useSectionTimer.ts';
+import { SectionTimer } from '../components/workspace/SectionTimer.tsx';
+import { SectionNotes } from '../components/workspace/SectionNotes.tsx';
+import { hasFeature } from '../lib/planConfig.ts';
+import {
+  subscribeToSectionNotes,
+  saveSectionNote,
+} from '../services/sectionNotesService.ts';
 
 const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; bg: string }> = {
   pass: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
@@ -55,7 +63,7 @@ interface SectionStats {
 export default function WorkspaceDetail() {
   const navigate = useNavigate();
   const { workspaceId } = useParams<{ workspaceId: string }>();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const { org, hasRole } = useOrg();
 
   const orgId = userProfile?.activeOrgId ?? '';
@@ -70,6 +78,37 @@ export default function WorkspaceDetail() {
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
+
+  // Section timer hook (called unconditionally per React rules — render is feature-gated)
+  const {
+    activeSection: timerActiveSection,
+    startTimer,
+    pauseTimer,
+    stopTimer,
+    getTotalTime,
+    getAllTimes: _getAllTimes,
+    formatTime,
+  } = useSectionTimer(orgId, workspaceId ?? '');
+  // Suppress unused-var lint for getAllTimes — used by Workspaces.tsx via localStorage
+  void _getAllTimes;
+
+  // Subscribe to section notes
+  useEffect(() => {
+    if (!orgId || !user?.uid) return;
+    setSectionNotes({}); // Reset on dependency change (per lessons-learned)
+    return subscribeToSectionNotes(orgId, user.uid, (notes) => {
+      setSectionNotes(notes);
+    });
+  }, [orgId, user?.uid]);
+
+  const handleSaveNote = useCallback(
+    async (section: string, notes: string, saveForNextMonth: boolean) => {
+      if (!orgId || !user?.uid) return;
+      await saveSectionNote(orgId, user.uid, section, notes, saveForNextMonth);
+    },
+    [orgId, user],
+  );
 
   // Subscribe to workspace doc — cache on every snapshot, fall back to IndexedDB when offline
   useEffect(() => {
@@ -528,6 +567,37 @@ export default function WorkspaceDetail() {
       {/* ===== VIEW: Extinguisher Cards (section selected) ===== */}
       {selectedSection !== null && (
         <>
+          {/* Section Timer (feature-gated) */}
+          {hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan) && selectedSection && (
+            <div className="mb-4">
+              <SectionTimer
+                section={selectedSection}
+                activeSection={timerActiveSection}
+                totalTime={getTotalTime(selectedSection)}
+                onStart={startTimer}
+                onPause={pauseTimer}
+                onStop={stopTimer}
+                disabled={isArchived}
+                formatTime={formatTime}
+              />
+            </div>
+          )}
+
+          {/* Section Notes */}
+          {selectedSection && (
+            <div className="mb-4">
+              <SectionNotes
+                section={selectedSection}
+                notes={sectionNotes[selectedSection]?.notes ?? ''}
+                saveForNextMonth={sectionNotes[selectedSection]?.saveForNextMonth ?? false}
+                lastUpdated={sectionNotes[selectedSection]?.lastUpdated ?? null}
+                allNotes={sectionNotes}
+                onSave={handleSaveNote}
+                disabled={isArchived}
+              />
+            </div>
+          )}
+
           {/* Filter row */}
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">

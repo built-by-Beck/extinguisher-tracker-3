@@ -9,7 +9,7 @@
  * Author: built_by_Beck
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
+import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
 import { useOffline } from '../hooks/useOffline.ts';
 import { getExtinguisher, type Extinguisher } from '../services/extinguisherService.ts';
 import {
@@ -153,6 +154,7 @@ export default function ExtinguisherDetail() {
   // Saving state
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [actionError, setActionError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -230,12 +232,12 @@ export default function ExtinguisherDetail() {
       .finally(() => setHistoryLoading(false));
   }, [orgId, extId]);
 
-  function refreshHistory() {
+  const refreshHistory = useCallback(() => {
     if (!orgId || !extId) return;
     getInspectionHistoryForExtinguisher(orgId, extId, 10)
       .then(setHistory)
       .catch(() => setHistory([]));
-  }
+  }, [orgId, extId]);
 
   function updateChecklist(key: keyof ChecklistData, value: CheckValue) {
     setChecklist((prev) => ({ ...prev, [key]: value }));
@@ -305,10 +307,14 @@ export default function ExtinguisherDetail() {
     void handleSave('fail', failNotes);
   }
 
-  async function handleReset() {
+  function requestReset() {
     if (!orgId || !inspection?.id) return;
-    if (!confirm('Reset this inspection to pending? This action is logged.')) return;
+    setConfirmResetOpen(true);
+  }
 
+  const executeReset = useCallback(async () => {
+    if (!orgId || !inspection?.id) return;
+    setConfirmResetOpen(false);
     setResetting(true);
     setActionError('');
 
@@ -327,7 +333,7 @@ export default function ExtinguisherDetail() {
     } finally {
       setResetting(false);
     }
-  }
+  }, [orgId, inspection?.id, activeWorkspaceId, extId, refreshHistory]);
 
   function handleBack() {
     if (workspaceId) {
@@ -538,7 +544,7 @@ export default function ExtinguisherDetail() {
             <div className="flex items-center gap-2">
               {isCompleted && canReset && (
                 <button
-                  onClick={() => { void handleReset(); }}
+                  onClick={requestReset}
                   disabled={resetting}
                   className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
@@ -739,6 +745,17 @@ export default function ExtinguisherDetail() {
         onClose={() => setQuickFailOpen(false)}
         onSubmit={handleQuickFailSubmit}
         saving={saving}
+      />
+
+      <ConfirmModal
+        open={confirmResetOpen}
+        title="Reset Inspection"
+        message="Reset this inspection to pending? This action is logged."
+        confirmLabel="Reset"
+        variant="warning"
+        onConfirm={executeReset}
+        onCancel={() => setConfirmResetOpen(false)}
+        loading={resetting}
       />
     </div>
   );

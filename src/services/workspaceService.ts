@@ -17,6 +17,23 @@ export interface WorkspaceStats {
   lastUpdated: unknown;
 }
 
+/** Milliseconds elapsed per section, keyed by section name */
+export interface SectionTimesMap {
+  [sectionName: string]: number;
+}
+
+/** Note data for a single section */
+export interface SectionNote {
+  notes: string;
+  saveForNextMonth: boolean;
+  lastUpdated: string; // ISO 8601 timestamp
+}
+
+/** Notes per section, keyed by section name */
+export interface SectionNotesMap {
+  [sectionName: string]: SectionNote;
+}
+
 export interface Workspace {
   id: string;
   label: string;
@@ -27,6 +44,8 @@ export interface Workspace {
   archivedAt: unknown | null;
   archivedBy: string | null;
   stats: WorkspaceStats;
+  sectionTimes: SectionTimesMap | null;
+  sectionNotes: SectionNotesMap | null;
 }
 
 /**
@@ -86,11 +105,12 @@ export async function createWorkspaceCall(
 export async function archiveWorkspaceCall(
   orgId: string,
   workspaceId: string,
+  sectionTimes?: Record<string, number> | null,
 ): Promise<{ passed: number; failed: number; pending: number }> {
   const fn = httpsCallable<
-    { orgId: string; workspaceId: string },
+    { orgId: string; workspaceId: string; sectionTimes?: Record<string, number> | null },
     { workspaceId: string; passed: number; failed: number; pending: number }
   >(functions, 'archiveWorkspace');
-  const result = await fn({ orgId, workspaceId });
+  const result = await fn({ orgId, workspaceId, sectionTimes: sectionTimes ?? null });
   return result.data;
 }

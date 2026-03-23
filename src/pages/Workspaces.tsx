@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
@@ -18,6 +18,7 @@ import {
   archiveWorkspaceCall,
   type Workspace,
 } from '../services/workspaceService.ts';
+import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
 
 function getNextMonthYear(): string {
   const now = new Date();
@@ -37,6 +38,7 @@ export default function Workspaces() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [creating, setCreating] = useState(false);
   const [archiving, setArchiving] = useState<string | null>(null);
+  const [archiveTargetId, setArchiveTargetId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newMonthYear, setNewMonthYear] = useState(getNextMonthYear());
@@ -61,21 +63,46 @@ export default function Workspaces() {
     }
   }
 
-  async function handleArchive(workspaceId: string) {
+  function requestArchive(workspaceId: string) {
     if (!orgId) return;
-    if (!confirm('Archive this workspace? It will become read-only.')) return;
+    setArchiveTargetId(workspaceId);
+  }
 
-    setArchiving(workspaceId);
+  const executeArchive = useCallback(async () => {
+    if (!orgId || !archiveTargetId) return;
+    setArchiveTargetId(null);
+    setArchiving(archiveTargetId);
     setError('');
 
     try {
-      await archiveWorkspaceCall(orgId, workspaceId);
+      // Read section times from localStorage before archiving
+      const timesKey = `sectionTimes_${orgId}_${archiveTargetId}`;
+      const activeKey = `sectionTimerActive_${orgId}_${archiveTargetId}`;
+      let sectionTimes: Record<string, number> | null = null;
+      try {
+        const savedTimes = localStorage.getItem(timesKey);
+        if (savedTimes) {
+          sectionTimes = JSON.parse(savedTimes) as Record<string, number>;
+        }
+      } catch {
+        // localStorage unavailable — archive without times
+      }
+
+      await archiveWorkspaceCall(orgId, archiveTargetId, sectionTimes);
+
+      // Clear localStorage for this workspace after successful archive
+      try {
+        localStorage.removeItem(timesKey);
+        localStorage.removeItem(activeKey);
+      } catch {
+        // Silently fail
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to archive workspace.');
     } finally {
       setArchiving(null);
     }
-  }
+  }, [orgId, archiveTargetId]);
 
   const activeWorkspaces = workspaces.filter((w) => w.status === 'active');
   const archivedWorkspaces = workspaces.filter((w) => w.status === 'archived');
@@ -165,7 +192,7 @@ export default function Workspaces() {
                 {/* Archive button */}
                 {canManage && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleArchive(ws.id); }}
+                    onClick={(e) => { e.stopPropagation(); requestArchive(ws.id); }}
                     disabled={archiving === ws.id}
                     className="mt-3 flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600"
                   >
@@ -287,6 +314,16 @@ export default function Workspaces() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={archiveTargetId !== null}
+        title="Archive Workspace"
+        message="Archive this workspace? It will become read-only."
+        confirmLabel="Archive"
+        variant="warning"
+        onConfirm={executeArchive}
+        onCancel={() => setArchiveTargetId(null)}
+      />
     </div>
   );
 }

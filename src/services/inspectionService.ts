@@ -46,6 +46,47 @@ export const CHECKLIST_ITEMS: { key: keyof ChecklistData; label: string }[] = [
   { key: 'tagSignedDated', label: 'Tag signed and dated' },
 ];
 
+export interface ChecklistSection {
+  title: string;
+  items: { key: keyof ChecklistData; label: string }[];
+}
+
+export const CHECKLIST_SECTIONS: ChecklistSection[] = [
+  {
+    title: 'Basic Monthly Check',
+    items: [
+      { key: 'pinPresent', label: 'Safety pin present' },
+      { key: 'tamperSealIntact', label: 'Tamper seal intact' },
+      { key: 'gaugeCorrectPressure', label: 'Gauge shows correct pressure' },
+      { key: 'weightCorrect', label: 'Weight is correct' },
+      { key: 'noDamage', label: 'No physical damage' },
+    ],
+  },
+  {
+    title: 'Location & Accessibility',
+    items: [
+      { key: 'inDesignatedLocation', label: 'In designated location' },
+      { key: 'clearlyVisible', label: 'Clearly visible / not obstructed' },
+      { key: 'nearestUnder75ft', label: 'Nearest unit under 75 ft' },
+    ],
+  },
+  {
+    title: 'Mounting & Height',
+    items: [
+      { key: 'topUnder5ft', label: 'Top under 5 ft height' },
+      { key: 'bottomOver4in', label: 'Bottom over 4 in from floor' },
+      { key: 'mountedSecurely', label: 'Mounted securely' },
+    ],
+  },
+  {
+    title: 'Administrative',
+    items: [
+      { key: 'inspectionWithin30Days', label: 'Inspection within 30 days' },
+      { key: 'tagSignedDated', label: 'Tag signed and dated' },
+    ],
+  },
+];
+
 export const EMPTY_CHECKLIST: ChecklistData = {
   pinPresent: 'n/a',
   tamperSealIntact: 'n/a',
@@ -171,6 +212,9 @@ export async function saveInspectionOfflineAware(
     status: 'pass' | 'fail';
     checklistData: ChecklistData;
     notes: string;
+    photoUrl?: string | null;
+    photoPath?: string | null;
+    gps?: unknown | null;
     attestation: {
       confirmed: boolean;
       text: string;
@@ -210,6 +254,9 @@ export async function saveInspectionOfflineAware(
     status: data.status,
     checklistData: data.checklistData,
     notes: data.notes,
+    photoUrl: data.photoUrl ?? null,
+    photoPath: data.photoPath ?? null,
+    gps: data.gps ?? null,
     attestation: data.attestation,
     queuedAt: Date.now(),
   });

@@ -347,7 +347,7 @@ export async function listExtinguishers(
 export function subscribeToExtinguishers(
   orgId: string,
   callback: (items: Extinguisher[]) => void,
-  options: { showDeleted?: boolean } = {},
+  options: { showDeleted?: boolean; noLimit?: boolean } = {},
 ): () => void {
   const constraints: QueryConstraint[] = [];
 
@@ -358,7 +358,9 @@ export function subscribeToExtinguishers(
   }
 
   constraints.push(orderBy('createdAt', 'desc'));
-  constraints.push(limit(100));
+  if (!options.noLimit) {
+    constraints.push(limit(100));
+  }
 
   const q = query(extinguishersRef(orgId), ...constraints);
 

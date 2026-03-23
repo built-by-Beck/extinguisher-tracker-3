@@ -19,7 +19,11 @@ interface InspectionResultData {
 
 export const archiveWorkspace = onCall(async (request) => {
   const { uid } = validateAuth(request);
-  const { orgId, workspaceId } = request.data as { orgId: string; workspaceId: string };
+  const { orgId, workspaceId, sectionTimes } = request.data as {
+    orgId: string;
+    workspaceId: string;
+    sectionTimes?: Record<string, number> | null;
+  };
 
   if (!orgId || typeof orgId !== 'string') {
     throwInvalidArgument('orgId is required.');
@@ -75,6 +79,7 @@ export const archiveWorkspace = onCall(async (request) => {
     status: 'archived',
     archivedAt: FieldValue.serverTimestamp(),
     archivedBy: uid,
+    sectionTimes: sectionTimes ?? null,
     stats: {
       total: inspSnap.size,
       passed,
@@ -97,6 +102,7 @@ export const archiveWorkspace = onCall(async (request) => {
     passedCount: passed,
     failedCount: failed,
     pendingCount: pending,
+    sectionTimes: sectionTimes ?? null,
     results,
     csvDownloadUrl: null,
     csvFilePath: null,

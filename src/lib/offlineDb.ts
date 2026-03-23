@@ -32,6 +32,9 @@ export interface QueuedInspection {
     text: string;
     inspectorName: string;
   } | null;
+  photoUrl?: string | null;
+  photoPath?: string | null;
+  gps?: unknown | null;
   queuedAt: number;
   attempts: number;
   lastAttemptAt: number | null;

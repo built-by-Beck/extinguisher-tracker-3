@@ -1,6 +1,6 @@
 # EX3 Lessons Learned
 
-**Last Updated**: 2026-03-21
+**Last Updated**: 2026-03-22
 
 This file tracks lessons learned during development. The review-agent updates this after reviewing completed work. Build-agent and plan-agent should consult this before starting new tasks.
 
@@ -127,3 +127,57 @@ Each entry follows this structure:
 - **Issue**: Build-agent flagged potential stale closure risk with `stopScanner`. Investigation showed no risk because `controlsRef` is a React ref (mutable `.current`), not state. Refs always reflect the latest value regardless of when the closure that reads them was created.
 - **Resolution**: No code change needed. Added explanatory comment.
 - **Rule**: When a function needs to read a value that changes over time and is called from closures (useEffect cleanup, event callbacks, async callbacks), store that value in a `useRef` rather than state. Refs are immune to stale closure issues because the ref object identity is stable and `.current` is always the latest value.
+
+### 2026-03-22 -- React refs cannot be assigned during render (ESLint react-hooks/refs)
+- **Context**: Phase 12 `useSectionTimer` hook needed refs kept in sync with state for stale-closure avoidance
+- **Issue**: Assigning `ref.current = state` directly in the hook body (render phase) triggers ESLint `react-hooks/refs` error. The rule enforces that refs are only accessed in event handlers or effects, not during render.
+- **Resolution**: Moved ref assignments into `useEffect` hooks keyed on the corresponding state values: `useEffect(() => { activeSectionRef.current = activeSection; }, [activeSection]);`
+- **Rule**: Never assign to `ref.current` during render. Use a `useEffect` keyed on the state value to keep refs in sync with state.
+
+### 2026-03-22 -- React Compiler preserve-manual-memoization requires full object deps
+- **Context**: Phase 12 `handleSaveNote` useCallback in WorkspaceDetail used `user?.uid` in dependency array
+- **Issue**: ESLint `react-hooks/preserve-manual-memoization` errored because the React Compiler inferred `user` as the dependency but the source specified `user?.uid`, which is less specific. The compiler could not preserve the memoization.
+- **Resolution**: Changed dependency from `[orgId, user?.uid]` to `[orgId, user]`. The compiler accepts the full object as a dependency.
+- **Rule**: When the React Compiler's `preserve-manual-memoization` rule fires, use the full object in useCallback/useMemo deps rather than a property accessor (e.g., `user` instead of `user?.uid`).
+
+### 2026-03-22 -- UserProfile type does not have uid; use User from Firebase Auth
+- **Context**: Phase 12 needed the current user's UID for section notes Firestore queries
+- **Issue**: `userProfile` from `useAuth()` is of type `UserProfile` which only has `displayName`, `email`, etc. -- no `uid` field. The Firebase `User` object (also from `useAuth()` as `user`) has the `uid` property.
+- **Resolution**: Destructure `{ user, userProfile }` from `useAuth()` and use `user?.uid` for UID access.
+- **Rule**: For Firebase UID, always use `user.uid` from the Firebase Auth `User` object, not `userProfile`. The `UserProfile` type is the Firestore `usr/{uid}` document which doesn't redundantly store the UID.
+
+### 2026-03-22 -- Replacing window.confirm requires useCallback for the action handler
+- **Context**: Phase 11 replacing `window.confirm()` with `<ConfirmModal>` in 5 files
+- **Issue**: When converting `if (!confirm('...')) return; doAction()` to a state-driven modal pattern, the confirm handler function passed as `onConfirm` to the modal captures stale state if declared as a plain function inside the component. The ESLint `exhaustive-deps` rule catches this when the handler references changing values (e.g., `inspection?.id`).
+- **Resolution**: Wrap the confirm handler in `useCallback` with appropriate dependencies. Also wrap any inner functions (like `refreshHistory`) that the handler calls in `useCallback` to maintain a stable reference chain.
+- **Rule**: When replacing `window.confirm()` with a state-driven modal, always wrap the confirm action handler in `useCallback`. Any helper functions called by the handler must also be stable (useCallback or useRef) to avoid exhaustive-deps warnings cascading.
+
+### 2026-03-22 -- Modal components must use unique IDs and include focus trapping
+- **Context**: Phase 11 review of ConfirmModal and PromptModal
+- **Issue**: Both modals used hardcoded element IDs (`id="confirm-modal-title"`, `id="prompt-input"`). If multiple instances existed in the DOM, IDs would collide, breaking aria-labelledby associations. Additionally, PromptModal was missing Tab-key focus trapping that ConfirmModal had.
+- **Resolution**: Replaced hardcoded IDs with React `useId()` for unique IDs. Added focus trap logic to PromptModal matching ConfirmModal's implementation.
+- **Rule**: All modal components must (1) use `useId()` for element IDs referenced by aria attributes, and (2) include Tab-key focus trapping that queries focusable elements within the modal and wraps navigation between first and last.
+
+### 2026-03-22 -- Subscription queries with limits silently truncate data for "show all" pages
+- **Context**: Phase 11 review of PrintableList page using `subscribeToExtinguishers()`
+- **Issue**: `subscribeToExtinguishers()` had a hardcoded `limit(100)`. PrintableList is designed to print ALL extinguishers but silently received only 100. For orgs with >100 extinguishers, the printed list would be incomplete with no indication of truncation.
+- **Resolution**: Added `noLimit?: boolean` option to `subscribeToExtinguishers()`. PrintableList passes `{ noLimit: true }`.
+- **Rule**: When a service function has a default query limit, always provide an opt-out mechanism for pages that need the full dataset (print views, exports, reports). Document the default limit in the function signature.
+
+### 2026-03-22 -- Calling startTimer on an already-active section silently loses elapsed time
+- **Context**: Phase 12 review of `useSectionTimer` hook
+- **Issue**: `startTimer('A')` while section A was already running skipped the `accumulateActive()` call (guarded by `activeSectionRef.current !== section`) but then reset `timerStartTimeRef` to `Date.now()` and `currentElapsed` to 0. The elapsed time since the original start was silently discarded.
+- **Resolution**: Added early return (`if (activeSectionRef.current === section) return`) so calling startTimer on the already-active section is a no-op.
+- **Rule**: When implementing start/resume functions for timers or similar stateful resources, always handle the "already started" case explicitly. Either no-op, or accumulate the current interval before resetting.
+
+### 2026-03-22 -- set-with-merge overwrites createdAt on every update
+- **Context**: Phase 12 review of `saveSectionNote` in `sectionNotesService.ts`
+- **Issue**: `setDoc(ref, { ..., createdAt: now }, { merge: true })` overwrites `createdAt` every time the note is saved, not just on first creation. While `merge: true` preserves fields NOT in the payload, fields that ARE in the payload get overwritten.
+- **Resolution**: Added a `getDoc` check before writing. Only include `createdAt` in the payload when the doc does not exist.
+- **Rule**: When using `setDoc({ merge: true })` for upsert patterns, do NOT include creation-only fields (like `createdAt`) in every write. Either check if the doc exists first, or use Firestore's `serverTimestamp()` only on a separate `create` path.
+
+### 2026-03-22 -- Firestore security rules must enforce document ownership for user-scoped data
+- **Context**: Phase 12 review of `sectionNotes` Firestore rules
+- **Issue**: The `create` and `update` rules only checked org membership and subscription status, not whether the userId field matched the authenticated user. Any org member could create or modify notes belonging to another user.
+- **Resolution**: Added `request.resource.data.userId == request.auth.uid` on create and `resource.data.userId == request.auth.uid` on update.
+- **Rule**: For collections where documents are user-scoped (contain a `userId` field), always validate ownership in Firestore rules: `request.resource.data.userId == request.auth.uid` for create, `resource.data.userId == request.auth.uid` for update. Org membership alone is insufficient.

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import {
@@ -21,6 +21,7 @@ import { PlanSelector } from '../components/billing/PlanSelector.tsx';
 import { ManageBilling } from '../components/billing/ManageBilling.tsx';
 import { BillingStatus } from '../components/billing/BillingStatus.tsx';
 import { toggleGuestAccessCall } from '../services/guestService.ts';
+import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
 
 const commonTimezones = [
   'America/New_York',
@@ -61,6 +62,7 @@ export default function OrgSettings() {
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [guestShareCode, setGuestShareCode] = useState<string | null>(null);
   const [guestToggling, setGuestToggling] = useState(false);
+  const [confirmDisableGuest, setConfirmDisableGuest] = useState(false);
   const [guestError, setGuestError] = useState('');
   const [guestCopiedLink, setGuestCopiedLink] = useState(false);
   const [guestCopiedCode, setGuestCopiedCode] = useState(false);
@@ -109,10 +111,14 @@ export default function OrgSettings() {
     }
   }
 
-  async function handleDisableGuestAccess() {
+  function requestDisableGuestAccess() {
     if (!orgId || !canEdit) return;
-    if (!confirm('Disable guest access? All active guest sessions will be terminated.')) return;
+    setConfirmDisableGuest(true);
+  }
 
+  const executeDisableGuestAccess = useCallback(async () => {
+    if (!orgId || !canEdit) return;
+    setConfirmDisableGuest(false);
     setGuestToggling(true);
     setGuestError('');
 
@@ -126,7 +132,7 @@ export default function OrgSettings() {
     } finally {
       setGuestToggling(false);
     }
-  }
+  }, [orgId, canEdit]);
 
   function copyToClipboard(text: string, setCopied: (v: boolean) => void) {
     navigator.clipboard.writeText(text).then(() => {
@@ -423,7 +429,7 @@ export default function OrgSettings() {
 
                   {/* Disable button */}
                   <button
-                    onClick={() => { void handleDisableGuestAccess(); }}
+                    onClick={requestDisableGuestAccess}
                     disabled={guestToggling}
                     className="flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
                   >
@@ -481,6 +487,17 @@ export default function OrgSettings() {
           <p className="mt-1 text-xs text-red-400">Organization deletion coming in a future release.</p>
         </div>
       )}
+
+      <ConfirmModal
+        open={confirmDisableGuest}
+        title="Disable Guest Access"
+        message="Disable guest access? All active guest sessions will be terminated."
+        confirmLabel="Disable"
+        variant="danger"
+        onConfirm={executeDisableGuestAccess}
+        onCancel={() => setConfirmDisableGuest(false)}
+        loading={guestToggling}
+      />
     </div>
   );
 }

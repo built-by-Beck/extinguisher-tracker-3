@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   MapPin,
   Plus,
@@ -9,6 +9,7 @@ import {
   X,
   Loader2,
 } from 'lucide-react';
+import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import {
@@ -108,6 +109,7 @@ export default function Locations() {
   const [formParent, setFormParent] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formSaving, setFormSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Location | null>(null);
   const [formError, setFormError] = useState('');
 
   useEffect(() => {
@@ -177,11 +179,21 @@ export default function Locations() {
     }
   }
 
-  async function handleDelete(loc: Location) {
+  function handleDeleteRequest(loc: Location) {
     if (!orgId || !loc.id) return;
-    if (!confirm(`Delete location "${loc.name}"? This cannot be undone.`)) return;
-    await softDeleteLocation(orgId, loc.id);
+    setDeleteTarget(loc);
   }
+
+  const executeDelete = useCallback(async () => {
+    if (!orgId || !deleteTarget?.id) return;
+    try {
+      await softDeleteLocation(orgId, deleteTarget.id);
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Failed to delete location.');
+    } finally {
+      setDeleteTarget(null);
+    }
+  }, [orgId, deleteTarget]);
 
   return (
     <div className="p-6">
@@ -231,7 +243,7 @@ export default function Locations() {
               depth={0}
               canEdit={canEdit}
               onEdit={openEdit}
-              onDelete={handleDelete}
+              onDelete={handleDeleteRequest}
             />
           ))}
         </div>
@@ -330,6 +342,16 @@ export default function Locations() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title="Delete Location"
+        message={`Delete location "${deleteTarget?.name ?? ''}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
