@@ -1,10 +1,14 @@
 import { useState, useRef } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { Upload, Download, Loader2 } from 'lucide-react';
+import { Upload, Download, Loader2, FileJson } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 
-export function ImportExportBar() {
+interface ImportExportBarProps {
+  onImportJSON?: () => void;
+}
+
+export function ImportExportBar({ onImportJSON }: ImportExportBarProps) {
   const { userProfile } = useAuth();
   const orgId = userProfile?.activeOrgId ?? '';
 
@@ -77,8 +81,8 @@ export function ImportExportBar() {
         <p className="mb-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">{importResult}</p>
       )}
 
-      <div className="flex items-center gap-3">
-        {/* Import */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Import CSV */}
         <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
           {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           Import CSV
@@ -92,7 +96,19 @@ export function ImportExportBar() {
           />
         </label>
 
-        {/* Export */}
+        {/* Import JSON */}
+        {onImportJSON && (
+          <button
+            onClick={onImportJSON}
+            disabled={importing}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            <FileJson className="h-4 w-4" />
+            Import JSON Backup
+          </button>
+        )}
+
+        {/* Export CSV */}
         <button
           onClick={handleExport}
           disabled={exporting}

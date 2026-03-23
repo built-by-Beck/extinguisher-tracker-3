@@ -342,6 +342,21 @@ export async function listExtinguishers(
 }
 
 /**
+ * One-time fetch of ALL active (non-deleted) extinguishers.
+ * Used for duplicate detection and data quality scans.
+ * WARNING: may be large for orgs with many extinguishers.
+ */
+export async function getAllActiveExtinguishers(orgId: string): Promise<Extinguisher[]> {
+  const q = query(
+    extinguishersRef(orgId),
+    where('deletedAt', '==', null),
+    orderBy('createdAt', 'desc'),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Extinguisher[];
+}
+
+/**
  * Subscribe to real-time updates for the extinguisher list.
  */
 export function subscribeToExtinguishers(

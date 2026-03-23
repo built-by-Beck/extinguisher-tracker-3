@@ -1,6 +1,6 @@
 # Plan -- extinguisher-tracker-3
 
-**Current Phase**: 12 -- Section Timer + Section Notes (Workspace Enhancement)
+**Current Phase**: 13 -- Duplicate Detection + Data Import
 **Last Updated**: 2026-03-22
 **Author**: built_by_Beck
 
@@ -8,7 +8,7 @@
 
 ## Current Objective
 
-Add per-section timing and per-section notes to the WorkspaceDetail page, completing the field inspector experience. Inspectors can time how long they spend in each location/section and attach notes (with optional carry-forward to next month). Timer state persists in localStorage to survive page refreshes during field work. Section times and notes are saved to Firestore when the workspace is archived.
+Add data quality tools: (1) find and merge duplicate extinguishers by asset ID, and (2) import extinguisher data from JSON backup files. Duplicate detection runs client-side against cached/subscribed data. Merge and delete use client-side Firestore batch writes (chunked to 499). JSON import parses uploaded files, validates against the EX3 Extinguisher interface, previews before writing, and batch-creates using client-side Firestore writes (no new Cloud Function needed — the existing `importExtinguishersCSV` pattern is CSV-only and server-side; JSON import is client-side for simplicity and offline compatibility).
 
 ---
 
@@ -18,527 +18,668 @@ Add per-section timing and per-section notes to the WorkspaceDetail page, comple
 - **Phase 10v2**: Complete (BarcodeDetector API scanner replacement)
 - **Checklist enhancement**: Complete (categorized sections, photo capture, GPS capture, inspection history)
 - **Phase 11**: Complete (Legal pages, Calculator, Confirm Modals, Printable List)
-- **`sectionTimeTracking` feature flag** exists in `planConfig.ts` — enabled for all plans (basic, pro, elite, enterprise)
-- **Workspace interface** (`src/services/workspaceService.ts`) currently has NO `sectionTimes` or `sectionNotes` fields
-- **WorkspaceDetail.tsx** uses location-card drill-down UI: section list view -> extinguisher cards view. Timer/notes integrate into the section-selected view.
-- **archiveWorkspace Cloud Function** (`functions/src/workspaces/archiveWorkspace.ts`) saves final stats and creates report doc — needs modification to include section times
-- **createWorkspace Cloud Function** (`functions/src/workspaces/createWorkspace.ts`) seeds inspections — needs modification for note carry-forward
+- **Phase 12**: Complete (Section Timer + Section Notes for WorkspaceDetail)
+- **Existing ImportExportBar** (`src/components/extinguisher/ImportExportBar.tsx`) handles CSV import/export via Cloud Functions. JSON import is a separate feature for backup restoration.
+- **Inventory page** (`src/pages/Inventory.tsx`) already has: search, filters, scan-to-add, CSV import/export bar, delete confirmations
+- **Extinguisher interface** (`src/services/extinguisherService.ts`) has 40+ fields including lifecycle, compliance, replacement tracking
+- **No client-side `writeBatch`** exists yet — all batch writes so far are in Cloud Functions. This phase introduces client-side batch writes.
+- **`subscribeToExtinguishers`** supports `{ noLimit: true }` option to load all extinguishers (needed for duplicate scan)
 
 ---
 
-## Tasks for This Round (Phase 12)
+## Tasks for This Round (Phase 13)
 
-### Phase 12 — Section Timer + Section Notes (Workspace Enhancement)
+### Phase 13 — Duplicate Detection + Data Import
 
-This phase adds two new features to WorkspaceDetail: per-section timing (play/pause/stop with localStorage persistence) and per-section notes (with Firestore persistence and carry-forward logic).
-
----
-
-### P12-01: Add sectionTimes and sectionNotes fields to Workspace type/interface
-
-**File**: `src/services/workspaceService.ts` (MODIFY)
-
-Add new optional fields to the `Workspace` interface for section times and section notes.
-
-**Implementation:**
-
-Add these type definitions and update `Workspace`:
-
-```typescript
-/** Milliseconds elapsed per section, keyed by section name */
-export interface SectionTimesMap {
-  [sectionName: string]: number;
-}
-
-/** Note data for a single section */
-export interface SectionNote {
-  notes: string;
-  saveForNextMonth: boolean;
-  lastUpdated: string; // ISO 8601 timestamp
-}
-
-/** Notes per section, keyed by section name */
-export interface SectionNotesMap {
-  [sectionName: string]: SectionNote;
-}
-
-export interface Workspace {
-  // ... existing fields ...
-  sectionTimes: SectionTimesMap | null;     // Saved on archive
-  sectionNotes: SectionNotesMap | null;     // Saved on archive and on explicit save
-}
-```
-
-- Both fields are `| null` since existing workspace docs in Firestore won't have them
-- The `as Workspace` casts in `subscribeToWorkspaces` and `getActiveWorkspaceForCurrentMonth` will naturally handle missing fields as `undefined` — the `| null` typing accommodates both
+This phase adds two data quality features: (1) a duplicate detector that scans all extinguishers for matching asset IDs and lets the user merge/delete duplicates with a smart preference picker, and (2) a JSON backup import modal that parses uploaded files, validates them, shows a preview, and batch-creates extinguishers.
 
 ---
 
-### P12-02: Create SectionTimer component
+### P13-01: Create duplicate detection service functions
 
-**File**: `src/components/workspace/SectionTimer.tsx` (NEW)
+**File**: `src/services/duplicateService.ts` (NEW)
 
-Create a self-contained per-section timer component with play/pause/stop controls and elapsed time display.
+Service layer for detecting duplicate extinguishers and performing batch merge/delete operations.
 
-**Props:**
-```typescript
-interface SectionTimerProps {
-  section: string;           // Section name — used as key for localStorage
-  workspaceId: string;       // Scoped localStorage key
-  orgId: string;             // Scoped localStorage key
-  disabled?: boolean;        // True when archived
-  onTimeUpdate?: (section: string, totalMs: number) => void; // Callback when time changes
-}
-```
-
-**Implementation details:**
-
-1. **State**: `activeSection: string | null` (which section is running), `timerStartTime: number | null` (Date.now when started), `currentElapsed: number` (ms since start for display), `sectionTimes: Record<string, number>` (accumulated ms per section)
-
-2. **Wait** — this is a single-section timer, not a multi-section one. The component renders for ONE section at a time. But the timer state (which section is active, accumulated times for ALL sections) must be shared across section navigation. Therefore, use a **custom hook** `useSectionTimer` that manages the shared state and localStorage persistence.
-
-**Alternative approach (better):** Create a **hook** `useSectionTimer` in `src/hooks/useSectionTimer.ts` and a **display component** `SectionTimer.tsx` that consumes it.
-
-**File**: `src/hooks/useSectionTimer.ts` (NEW)
+**Types:**
 
 ```typescript
-export interface UseSectionTimerReturn {
-  /** Which section is currently being timed (null = none) */
-  activeSection: string | null;
-  /** Start/resume timing for a section */
-  startTimer: (section: string) => void;
-  /** Pause the active timer (accumulates elapsed time) */
-  pauseTimer: () => void;
-  /** Stop the active timer (accumulates and clears active) */
-  stopTimer: () => void;
-  /** Get total accumulated ms for a section (including live elapsed) */
-  getTotalTime: (section: string) => number;
-  /** Get all section times (snapshot, not including live elapsed) */
-  getAllTimes: () => Record<string, number>;
-  /** Clear time for one section */
-  clearSectionTime: (section: string) => void;
-  /** Clear all section times */
-  clearAllTimes: () => void;
-  /** Format ms to "Xh Ym Zs" string */
-  formatTime: (ms: number) => string;
-}
-
-export function useSectionTimer(orgId: string, workspaceId: string): UseSectionTimerReturn
-```
-
-**Hook internals:**
-- `sectionTimes` state: `Record<string, number>` — accumulated ms per section
-- `activeSection` state: `string | null`
-- `timerStartTimeRef` ref: `number | null` — use ref to avoid stale closures in interval
-- `currentElapsedRef` ref + `currentElapsed` state (state drives re-render every 1s)
-- `useEffect` with `setInterval(1000)` when `activeSection` is set — updates `currentElapsed` state for display
-- `useEffect` to load from localStorage on mount: key = `sectionTimes_${orgId}_${workspaceId}`
-- `useEffect` to save to localStorage whenever `sectionTimes` changes (debounce not needed — writes are infrequent)
-- `startTimer`: if another section is active, pause it first (accumulate its time), then start the new one
-- `pauseTimer`: accumulate elapsed into `sectionTimes[activeSection]`, clear active
-- `stopTimer`: same as pause but also semantically "done with this section"
-- `getTotalTime(section)`: `sectionTimes[section] + (activeSection === section ? liveElapsed : 0)`
-- `clearAllTimes`: reset state + remove localStorage key
-- `formatTime`: convert ms to `Xh Ym Zs` format (match old app pattern)
-- All handlers wrapped in `useCallback`
-
-**File**: `src/components/workspace/SectionTimer.tsx` (NEW)
-
-```typescript
-interface SectionTimerProps {
-  section: string;
-  activeSection: string | null;
-  totalTime: number;           // from getTotalTime(section)
-  onStart: (section: string) => void;
-  onPause: () => void;
-  onStop: () => void;
-  disabled?: boolean;
-  formatTime: (ms: number) => string;
+/** A group of extinguishers that share the same asset ID */
+export interface DuplicateGroup {
+  assetId: string;
+  /** The extinguisher to keep (preferred by smart selection rules) */
+  keep: Extinguisher;
+  /** The extinguishers to remove (will be soft-deleted after merging data into keep) */
+  remove: Extinguisher[];
 }
 ```
-
-**UI (matches old app pattern, EX3 styling):**
-- Left side: elapsed time display (large bold text, red-600 primary color), minutes count below
-- Right side: Play/Pause button (green-500 / amber-500) + Stop button (red-500)
-- Icons: `Play`, `Pause`, `StopCircle` from lucide-react
-- When disabled (archived): show time read-only, no buttons
-- Compact layout — fits in section header area
-
-**Reference**: Old app lines 3150-3189 (timer UI in SectionDetail)
-
----
-
-### P12-03: Create SectionNotes component
-
-**File**: `src/components/workspace/SectionNotes.tsx` (NEW)
-
-Create a per-section notes component with textarea, "save for next month" toggle, and save button.
-
-**Props:**
-```typescript
-interface SectionNotesProps {
-  section: string;
-  notes: string;
-  saveForNextMonth: boolean;
-  lastUpdated: string | null;
-  allNotes: SectionNotesMap;      // To show "other sections with notes" summary
-  onSave: (section: string, notes: string, saveForNextMonth: boolean) => void;
-  disabled?: boolean;             // True when archived
-}
-```
-
-**UI:**
-- Card with "Section Notes" header + FileText icon
-- Badge showing count of sections with notes (e.g., "3 sections with notes")
-- Current section notes display (textarea when editing, read-only when archived)
-- "Save for next month" toggle (checkbox + label explaining carry-forward)
-- Last updated timestamp display
-- Save button (blue-500)
-- Collapsible "Other sections with notes" summary at bottom (same pattern as old app)
-
-**State management:**
-- Internal `editNotes` and `editSaveForNextMonth` state for the textarea/toggle
-- Reset internal state when `section` prop changes (useEffect keyed on `section`)
-- `onSave` fires when user clicks Save — parent handles Firestore write
-- Use `useId()` for textarea ID (accessibility)
-
-**Reference**: Old app lines 3192-3250 (section notes card in SectionDetail)
-
----
-
-### P12-04: Create section notes service functions
-
-**File**: `src/services/sectionNotesService.ts` (NEW)
-
-Service layer for reading and writing section notes to Firestore.
-
-**Key design decision**: In the old app, section notes were stored in a top-level `sectionNotes` collection keyed by userId. In EX3 (multi-tenant), they should be stored under `org/{orgId}/sectionNotes/{docId}` to maintain tenant isolation. Each doc represents one section's notes for one user.
-
-**Firestore document structure:**
-```
-org/{orgId}/sectionNotes/{docId}
-  userId: string
-  section: string
-  notes: string
-  saveForNextMonth: boolean
-  lastUpdated: string (ISO 8601)
-  createdAt: string (ISO 8601)
-```
-
-**Document ID convention**: `{userId}__{section_slug}` (deterministic, avoids duplicates — same pattern as old app)
 
 **Functions:**
 
 ```typescript
-/** Subscribe to all section notes for a user in an org */
-export function subscribeToSectionNotes(
-  orgId: string,
-  userId: string,
-  callback: (notes: SectionNotesMap) => void,
-): () => void
+import { type Extinguisher } from './extinguisherService.ts';
 
-/** Save/update a section note (upsert pattern using set with merge) */
-export async function saveSectionNote(
-  orgId: string,
-  userId: string,
-  section: string,
-  notes: string,
-  saveForNextMonth: boolean,
-): Promise<void>
+/**
+ * Scan a list of extinguishers for duplicate asset IDs.
+ * Groups by normalized assetId (trimmed, case-insensitive).
+ * Returns only groups with 2+ extinguishers.
+ * Uses smart preference to pick the "keep" extinguisher.
+ */
+export function findDuplicates(extinguishers: Extinguisher[]): DuplicateGroup[]
 
-/** Get all section notes marked "save for next month" for a user in an org */
-export async function getCarryForwardNotes(
+/**
+ * Smart preference: pick which extinguisher to keep.
+ * Priority:
+ * 1. Prefer one that has been inspected (lastMonthlyInspection !== null) over pending
+ * 2. If both inspected, prefer the one with the more recent lastMonthlyInspection
+ * 3. If neither inspected, prefer the one with the more recent createdAt
+ * 4. Prefer 'standard' category over 'spare', 'replaced', 'retired', 'out_of_service'
+ */
+export function pickPreferred(a: Extinguisher, b: Extinguisher): Extinguisher
+
+/**
+ * Merge data from remove extinguishers into the keep extinguisher.
+ * - Merges photos arrays (keep's photos first, then unique others by URL)
+ * - Merges replacementHistory arrays (deduplicated by replacedExtId)
+ * - Picks the most recent non-null values for: lastMonthlyInspection,
+ *   lastAnnualInspection, lastSixYearMaintenance, lastHydroTest
+ * Returns the merged data as a Partial<Extinguisher> to apply via updateDoc.
+ */
+export function mergeExtinguisherData(
+  keep: Extinguisher,
+  remove: Extinguisher[],
+): Partial<Extinguisher>
+
+/**
+ * Execute batch merge and soft-delete for a list of duplicate groups.
+ * For each group:
+ *   1. Update the keep doc with merged data
+ *   2. Soft-delete each remove doc (set deletedAt, deletedBy, deletionReason)
+ * Uses client-side Firestore writeBatch, chunked to 499 operations per batch.
+ * Returns count of merged groups and deleted docs.
+ */
+export async function batchMergeDuplicates(
   orgId: string,
-  userId: string,
-): Promise<SectionNotesMap>
+  uid: string,
+  groups: DuplicateGroup[],
+): Promise<{ mergedGroups: number; deletedDocs: number }>
 ```
 
-**Import**: `SectionNotesMap` and `SectionNote` from `workspaceService.ts` (defined in P12-01)
+**Implementation details for `batchMergeDuplicates`:**
 
----
+```typescript
+import { writeBatch, doc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase.ts';
 
-### P12-05: Integrate SectionTimer into WorkspaceDetail section header
+// For each group: 1 update (keep) + N deletes (remove) = 1 + N operations
+// Chunk across groups, tracking op count, commit at 499
+let batch = writeBatch(db);
+let opCount = 0;
 
-**File**: `src/pages/WorkspaceDetail.tsx` (MODIFY)
+for (const group of groups) {
+  const merged = mergeExtinguisherData(group.keep, group.remove);
+  const keepRef = doc(db, 'org', orgId, 'extinguishers', group.keep.id!);
 
-Add the SectionTimer to the section-selected view in WorkspaceDetail.
+  // Check if adding this group would exceed limit
+  const opsNeeded = 1 + group.remove.length;
+  if (opCount + opsNeeded > 499) {
+    await batch.commit();
+    batch = writeBatch(db);
+    opCount = 0;
+  }
 
-**Changes:**
+  batch.update(keepRef, { ...merged, updatedAt: serverTimestamp() });
+  opCount++;
 
-1. **Import** `useSectionTimer` hook, `SectionTimer` component, `hasFeature` from planConfig
+  for (const rm of group.remove) {
+    const rmRef = doc(db, 'org', orgId, 'extinguishers', rm.id!);
+    batch.update(rmRef, {
+      deletedAt: serverTimestamp(),
+      deletedBy: uid,
+      deletionReason: `Merged duplicate — kept ${group.keep.assetId} (${group.keep.id})`,
+      updatedAt: serverTimestamp(),
+    });
+    opCount++;
+  }
+}
 
-2. **Initialize hook** at component top level:
-   ```typescript
-   const {
-     activeSection: timerActiveSection,
-     startTimer, pauseTimer, stopTimer,
-     getTotalTime, getAllTimes, formatTime,
-   } = useSectionTimer(orgId, workspaceId ?? '');
-   ```
-
-3. **Feature gate**: Only show timer if `hasFeature(featureFlags, 'sectionTimeTracking', org?.plan)` is true
-
-4. **Render** `<SectionTimer>` in the section-selected view (`selectedSection !== null`), placed between the header/progress bar and the filter row. Wrapped in feature flag check.
-
-5. **Layout**: Inside the `{selectedSection !== null && ( ... )}` block, after the section header stats badges and progress bar, before the filter row:
-   ```tsx
-   {hasFeature(featureFlags, 'sectionTimeTracking', org?.plan) && selectedSection && (
-     <div className="mb-4">
-       <SectionTimer
-         section={selectedSection}
-         activeSection={timerActiveSection}
-         totalTime={getTotalTime(selectedSection)}
-         onStart={startTimer}
-         onPause={pauseTimer}
-         onStop={stopTimer}
-         disabled={isArchived}
-         formatTime={formatTime}
-       />
-     </div>
-   )}
-   ```
-
-6. **Timer on section card** (optional enhancement): Show accumulated time on the location cards in the section-list view. Add a small "time: Xm" badge to each location card if time > 0.
-
-**Key considerations:**
-- The hook must be called unconditionally (React rules of hooks) — the feature gate only controls rendering
-- `useSectionTimer` handles its own cleanup (interval + localStorage)
-- When navigating between sections, the timer state persists (hook manages all sections)
-
----
-
-### P12-06: Integrate SectionNotes into WorkspaceDetail section view
-
-**File**: `src/pages/WorkspaceDetail.tsx` (MODIFY)
-
-Add section notes display and editing to the section-selected view.
-
-**Changes:**
-
-1. **Import** `SectionNotes` component, `subscribeToSectionNotes`, `saveSectionNote` from sectionNotesService, `SectionNotesMap` type
-
-2. **State**: `sectionNotes: SectionNotesMap` state variable
-
-3. **useEffect** to subscribe to section notes:
-   ```typescript
-   useEffect(() => {
-     if (!orgId || !userProfile?.uid) return;
-     setSectionNotes({}); // Reset on dependency change (per lessons-learned)
-     return subscribeToSectionNotes(orgId, userProfile.uid, (notes) => {
-       setSectionNotes(notes);
-     });
-   }, [orgId, userProfile?.uid]);
-   ```
-
-4. **Save handler** (useCallback):
-   ```typescript
-   const handleSaveNote = useCallback(async (
-     section: string, notes: string, saveForNextMonth: boolean
-   ) => {
-     if (!orgId || !userProfile?.uid) return;
-     await saveSectionNote(orgId, userProfile.uid, section, notes, saveForNextMonth);
-   }, [orgId, userProfile?.uid]);
-   ```
-
-5. **Render** `<SectionNotes>` in the section-selected view, after the SectionTimer and before the filter row:
-   ```tsx
-   {selectedSection && (
-     <div className="mb-4">
-       <SectionNotes
-         section={selectedSection}
-         notes={sectionNotes[selectedSection]?.notes ?? ''}
-         saveForNextMonth={sectionNotes[selectedSection]?.saveForNextMonth ?? false}
-         lastUpdated={sectionNotes[selectedSection]?.lastUpdated ?? null}
-         allNotes={sectionNotes}
-         onSave={handleSaveNote}
-         disabled={isArchived}
-       />
-     </div>
-   )}
-   ```
-
-6. **Notes are NOT feature-gated** — available to all plans. Only the timer is feature-gated.
-
----
-
-### P12-07: Save section times to Firestore on workspace archive
-
-**File**: `functions/src/workspaces/archiveWorkspace.ts` (MODIFY)
-**File**: `src/pages/Workspaces.tsx` (MODIFY)
-
-When archiving a workspace, include the final section times in the workspace document and report.
-
-**Backend changes (archiveWorkspace.ts):**
-
-1. Accept optional `sectionTimes` in the request data:
-   ```typescript
-   const { orgId, workspaceId, sectionTimes } = request.data as {
-     orgId: string;
-     workspaceId: string;
-     sectionTimes?: Record<string, number> | null;
-   };
-   ```
-
-2. Include `sectionTimes` in the workspace update:
-   ```typescript
-   await wsRef.update({
-     status: 'archived',
-     archivedAt: FieldValue.serverTimestamp(),
-     archivedBy: uid,
-     sectionTimes: sectionTimes ?? null,
-     stats: { ... },
-   });
-   ```
-
-3. Include `sectionTimes` in the report document:
-   ```typescript
-   await reportRef.set({
-     ...existingFields,
-     sectionTimes: sectionTimes ?? null,
-   });
-   ```
-
-**Frontend changes (Workspaces.tsx):**
-
-1. The archive flow on Workspaces.tsx calls `archiveWorkspaceCall(orgId, workspaceId)`. This needs to be updated to pass the current section times from localStorage.
-
-2. Before calling archive, read section times from localStorage:
-   ```typescript
-   const timesKey = `sectionTimes_${orgId}_${workspaceId}`;
-   const savedTimes = localStorage.getItem(timesKey);
-   const sectionTimes = savedTimes ? JSON.parse(savedTimes) : null;
-   ```
-
-3. Update `archiveWorkspaceCall` in `workspaceService.ts` to accept and pass `sectionTimes`:
-   ```typescript
-   export async function archiveWorkspaceCall(
-     orgId: string,
-     workspaceId: string,
-     sectionTimes?: Record<string, number> | null,
-   ): Promise<{ passed: number; failed: number; pending: number }>
-   ```
-
-4. After successful archive, clear localStorage for that workspace:
-   ```typescript
-   localStorage.removeItem(timesKey);
-   ```
-
-**File**: `src/services/workspaceService.ts` (MODIFY) — update `archiveWorkspaceCall` signature
-
----
-
-### P12-08: Implement note carry-forward in createWorkspace
-
-**File**: `functions/src/workspaces/createWorkspace.ts` (MODIFY)
-
-When creating a new workspace, copy section notes marked "save for next month" from the previous workspace period.
-
-**Implementation:**
-
-1. After creating the workspace doc and seeding inspections, query `org/{orgId}/sectionNotes` for notes where `saveForNextMonth === true`:
-   ```typescript
-   const notesSnap = await adminDb.collection(`org/${orgId}/sectionNotes`)
-     .where('saveForNextMonth', '==', true)
-     .get();
-   ```
-
-2. For each carried-forward note, the note doc already persists across workspaces (it's not workspace-scoped, it's user-scoped within the org). So the carry-forward is **implicit** — the notes with `saveForNextMonth: true` simply persist and are displayed in the new workspace.
-
-3. For notes where `saveForNextMonth: false`, they should be cleared when a new workspace is created. After creating the workspace:
-   ```typescript
-   // Clear non-carry-forward notes
-   const clearNotesSnap = await adminDb.collection(`org/${orgId}/sectionNotes`)
-     .where('saveForNextMonth', '==', false)
-     .get();
-
-   if (!clearNotesSnap.empty) {
-     let batch = adminDb.batch();
-     let count = 0;
-     for (const noteDoc of clearNotesSnap.docs) {
-       batch.update(noteDoc.ref, { notes: '' });
-       count++;
-       if (count >= 499) {
-         await batch.commit();
-         batch = adminDb.batch();
-         count = 0;
-       }
-     }
-     if (count > 0) await batch.commit();
-   }
-   ```
-
-4. This clears the note text but keeps the doc (so the structure is preserved). Notes marked `saveForNextMonth: true` are untouched.
-
-**Note**: This is a subtle but important behavior — when a new workspace is created, old notes that aren't marked for carry-forward get their text cleared so the inspector starts fresh.
-
----
-
-### P12-09: Add Firestore security rules for sectionNotes collection
-
-**File**: `firestore.rules` (MODIFY)
-
-Add rules for the new `org/{orgId}/sectionNotes/{noteId}` subcollection.
-
-**Rules:**
-```
-match /sectionNotes/{noteId} {
-  // Members can read all notes in their org (needed for "other sections" display)
-  allow read: if isOrgMember(orgId);
-  // Users can create/update their own notes
-  allow create: if isOrgMember(orgId)
-    && request.resource.data.userId == request.auth.uid;
-  allow update: if isOrgMember(orgId)
-    && resource.data.userId == request.auth.uid;
-  // Only owner/admin can delete (not typically needed)
-  allow delete: if hasRole(orgId, 'owner') || hasRole(orgId, 'admin');
+if (opCount > 0) {
+  await batch.commit();
 }
 ```
 
-**Note**: Check how the existing `firestore.rules` file defines helper functions (`isOrgMember`, `hasRole`) and match that pattern.
+**Key considerations:**
+- `findDuplicates` is a pure function — works on the already-subscribed extinguisher list, no Firestore calls. Works offline with cached data.
+- Normalize assetId: `assetId.trim().toLowerCase()` for grouping, but display the original.
+- `pickPreferred` compares two extinguishers and returns the better one. `findDuplicates` iterates the group using `reduce` with `pickPreferred` to find the keep candidate.
+- Soft-delete (not hard delete) for safety — keeps audit trail. Uses `batch.update` not `batch.delete`.
+- Import `Extinguisher` type from `extinguisherService.ts`.
 
 ---
 
-### P12-10: Create src/components/workspace/ directory
+### P13-02: Create DuplicateScanModal component
 
-**Prerequisite for P12-02 and P12-03.**
+**File**: `src/components/extinguisher/DuplicateScanModal.tsx` (NEW)
 
-The `src/components/workspace/` directory does not currently exist. Create it for the SectionTimer and SectionNotes components.
+A modal that shows the results of a duplicate scan and lets the user review and confirm merge actions.
 
-This is a trivial mkdir task — the build-agent can do it as part of P12-02.
+**Props:**
+
+```typescript
+interface DuplicateScanModalProps {
+  open: boolean;
+  groups: DuplicateGroup[];
+  scanning: boolean;
+  onMerge: () => void;
+  onCancel: () => void;
+  merging: boolean;
+}
+```
+
+**UI layout (based on old app's duplicate modal, EX3 styling):**
+
+1. **Header**: "Duplicate Cleanup" title + X close button
+2. **Scanning state**: Show spinner + "Scanning for duplicates..." when `scanning === true`
+3. **No duplicates**: Show "No duplicates found" message with check icon when `groups.length === 0 && !scanning`
+4. **Results summary**: "Found {groups.length} Asset ID(s) with duplicates. Total duplicates: {sum of remove.length}"
+5. **Scrollable list** (max-h-[60vh] overflow-y-auto):
+   - For each `DuplicateGroup`:
+     - Card with border, gray-50 background
+     - Bold "Asset ID: {assetId}"
+     - **Keep** row: green badge, shows id (truncated), category, compliance status, last inspection date
+     - **Remove** rows: red badge per row, shows id (truncated), category, why it was not preferred
+6. **Footer buttons**: Cancel (gray) + "Merge & Remove Duplicates" (indigo-600, disabled when `merging`)
+7. **Loading state during merge**: Button shows spinner + "Merging..."
+
+**Styling references:**
+- Use `useId()` for modal title ID (aria-labelledby)
+- Include focus trap (Tab key wrapping) — match `ConfirmModal` pattern from `src/components/ui/ConfirmModal.tsx`
+- Backdrop: fixed inset-0, bg-black/50, z-50
+- Modal panel: max-w-3xl, rounded-lg, shadow-xl
+
+**Icons from lucide-react**: `X`, `Loader2`, `CheckCircle`, `AlertTriangle`, `Copy` (for duplicate icon)
 
 ---
 
-### P12-11: Build verification
+### P13-03: Integrate duplicate detection into Inventory page
+
+**File**: `src/pages/Inventory.tsx` (MODIFY)
+
+Add a "Find Duplicates" button and wire up the duplicate scan modal.
+
+**Changes:**
+
+1. **Import** `DuplicateScanModal` component, `findDuplicates`, `batchMergeDuplicates`, `DuplicateGroup` type from `duplicateService.ts`
+
+2. **State** (add to existing state block):
+   ```typescript
+   const [showDupModal, setShowDupModal] = useState(false);
+   const [dupGroups, setDupGroups] = useState<DuplicateGroup[]>([]);
+   const [dupScanning, setDupScanning] = useState(false);
+   const [dupMerging, setDupMerging] = useState(false);
+   ```
+
+3. **Scan handler** (useCallback):
+   ```typescript
+   const handleDuplicateScan = useCallback(() => {
+     setDupScanning(true);
+     setShowDupModal(true);
+     // Use setTimeout to allow modal to render before blocking scan
+     setTimeout(() => {
+       const groups = findDuplicates(items);
+       setDupGroups(groups);
+       setDupScanning(false);
+       if (groups.length === 0) {
+         // Keep modal open to show "no duplicates found" message
+       }
+     }, 50);
+   }, [items]);
+   ```
+
+4. **Merge handler** (useCallback):
+   ```typescript
+   const handleDuplicateMerge = useCallback(async () => {
+     if (!orgId || !user || dupGroups.length === 0) return;
+     setDupMerging(true);
+     try {
+       const result = await batchMergeDuplicates(orgId, user.uid, dupGroups);
+       setShowDupModal(false);
+       setDupGroups([]);
+       // Success feedback — items will update via subscription
+     } catch (err) {
+       // Error handling
+     } finally {
+       setDupMerging(false);
+     }
+   }, [orgId, user, dupGroups]);
+   ```
+
+5. **Button placement**: Add "Find Duplicates" button in the header button row, next to "Print List", before "Add Extinguisher". Only visible when `canEdit` is true.
+   ```tsx
+   {canEdit && (
+     <button
+       onClick={handleDuplicateScan}
+       className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+     >
+       <Copy className="h-4 w-4" />
+       Find Duplicates
+     </button>
+   )}
+   ```
+
+6. **Modal render** (at bottom of component, before DeleteConfirmModal):
+   ```tsx
+   <DuplicateScanModal
+     open={showDupModal}
+     groups={dupGroups}
+     scanning={dupScanning}
+     onMerge={handleDuplicateMerge}
+     onCancel={() => { setShowDupModal(false); setDupGroups([]); }}
+     merging={dupMerging}
+   />
+   ```
+
+7. **Import `Copy` icon** from lucide-react (add to existing import)
+
+**Key considerations:**
+- The `items` state already contains all subscribed extinguishers (loaded via `subscribeToExtinguishers` with default limit of 100). For accurate duplicate detection on large inventories, the scan should use `{ noLimit: true }`. However, modifying the subscription would load ALL extinguishers permanently. **Better approach**: keep the normal subscription as-is, but for the duplicate scan, do a one-time fetch with `noLimit: true` inside `handleDuplicateScan`. This requires a new function or using the existing `subscribeToExtinguishers` with a temporary subscription.
+- **Revised approach**: Add a `getAllExtinguishers` function to `extinguisherService.ts` that does a one-time `getDocs` with no limit. Use this in `handleDuplicateScan` instead of `items`.
+
+**Additional change to `src/services/extinguisherService.ts`** (MODIFY):
+
+Add this function:
+
+```typescript
+/**
+ * One-time fetch of ALL active (non-deleted) extinguishers.
+ * Used for duplicate detection and data quality scans.
+ * WARNING: may be large for orgs with many extinguishers.
+ */
+export async function getAllActiveExtinguishers(orgId: string): Promise<Extinguisher[]> {
+  const q = query(
+    extinguishersRef(orgId),
+    where('deletedAt', '==', null),
+    orderBy('createdAt', 'desc'),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Extinguisher[];
+}
+```
+
+Update `handleDuplicateScan` to use `getAllActiveExtinguishers(orgId)` instead of `items`:
+
+```typescript
+const handleDuplicateScan = useCallback(async () => {
+  if (!orgId) return;
+  setDupScanning(true);
+  setShowDupModal(true);
+  try {
+    const allExt = await getAllActiveExtinguishers(orgId);
+    const groups = findDuplicates(allExt);
+    setDupGroups(groups);
+  } finally {
+    setDupScanning(false);
+  }
+}, [orgId]);
+```
+
+---
+
+### P13-04: Create JSON import service functions
+
+**File**: `src/services/jsonImportService.ts` (NEW)
+
+Service layer for parsing, validating, and importing JSON backup files into the EX3 Extinguisher collection.
+
+**Types:**
+
+```typescript
+/** Shape of a single extinguisher in a JSON backup file */
+export interface BackupExtinguisher {
+  assetId?: string;
+  serial?: string;
+  barcode?: string;
+  manufacturer?: string;
+  category?: string;
+  extinguisherType?: string;
+  serviceClass?: string;
+  extinguisherSize?: string;
+  section?: string;
+  vicinity?: string;
+  parentLocation?: string;
+  manufactureYear?: number;
+  expirationYear?: number;
+  // Old app fields that need mapping
+  status?: string;          // old app field — maps to complianceStatus
+  checkedDate?: string;     // old app field — maps to lastMonthlyInspection
+  inspectionHistory?: Array<Record<string, unknown>>;
+  photos?: Array<Record<string, unknown>>;
+  // Allow any other fields (we'll pick what we recognize)
+  [key: string]: unknown;
+}
+
+/** Shape of the JSON backup file */
+export interface BackupFile {
+  collections?: {
+    extinguishers?: BackupExtinguisher[];
+    [key: string]: unknown;
+  };
+  // Also support flat array format
+  extinguishers?: BackupExtinguisher[];
+  // Metadata
+  date?: string;
+  exportedBy?: string;
+  totalItems?: number;
+}
+
+/** Result of validating a backup file */
+export interface ValidationResult {
+  valid: boolean;
+  extinguishers: BackupExtinguisher[];
+  errors: string[];
+  warnings: string[];
+}
+
+/** Result of the import operation */
+export interface ImportResult {
+  created: number;
+  skipped: number;
+  errors: string[];
+}
+```
+
+**Functions:**
+
+```typescript
+/**
+ * Parse and validate a JSON backup file.
+ * Accepts two formats:
+ * 1. { collections: { extinguishers: [...] } } (old app export format)
+ * 2. { extinguishers: [...] } (flat format)
+ * 3. [...] (raw array of extinguisher objects)
+ *
+ * Validates:
+ * - File is valid JSON
+ * - Contains an array of extinguisher-like objects
+ * - Each item has at least an assetId or serial
+ * - Reports warnings for items missing recommended fields
+ */
+export function parseAndValidateBackup(jsonText: string): ValidationResult
+
+/**
+ * Map a BackupExtinguisher to EX3's Extinguisher shape.
+ * Handles field name differences between old app and EX3:
+ * - status → (ignored, EX3 calculates complianceStatus)
+ * - checkedDate → lastMonthlyInspection (as ISO string)
+ * - photos array → maps to EX3 photo structure
+ * - inspectionHistory → (stored as-is if present, for future reference)
+ */
+export function mapToExtinguisher(
+  item: BackupExtinguisher,
+  uid: string,
+): Record<string, unknown>
+
+/**
+ * Import a validated list of extinguishers into Firestore.
+ * - Checks asset limit before starting
+ * - Skips items whose assetId already exists in the org
+ * - Uses client-side writeBatch, chunked to 499 operations
+ * - Sets createdBy to the importing user's UID
+ */
+export async function importExtinguishers(
+  orgId: string,
+  uid: string,
+  items: BackupExtinguisher[],
+  assetLimit: number | null,
+): Promise<ImportResult>
+```
+
+**Implementation details for `importExtinguishers`:**
+
+```typescript
+import { writeBatch, doc, collection, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase.ts';
+
+// 1. Fetch existing assetIds to check for conflicts
+const extRef = collection(db, 'org', orgId, 'extinguishers');
+const existingSnap = await getDocs(query(extRef, where('deletedAt', '==', null)));
+const existingAssetIds = new Set(
+  existingSnap.docs.map((d) => (d.data().assetId as string).trim().toLowerCase())
+);
+
+// 2. Check asset limit
+const currentCount = existingSnap.size;
+if (assetLimit && currentCount + items.length > assetLimit) {
+  // Return error or truncate to fit
+}
+
+// 3. Batch create, skipping duplicates
+let batch = writeBatch(db);
+let opCount = 0;
+let created = 0;
+const skipped: string[] = [];
+
+for (const item of items) {
+  const assetId = (item.assetId ?? '').trim().toLowerCase();
+  if (existingAssetIds.has(assetId)) {
+    skipped.push(`"${item.assetId}" already exists`);
+    continue;
+  }
+
+  const docRef = doc(extRef); // auto-ID
+  const data = mapToExtinguisher(item, uid);
+  batch.set(docRef, data);
+  existingAssetIds.add(assetId); // prevent duplicates within the import itself
+  opCount++;
+  created++;
+
+  if (opCount >= 499) {
+    await batch.commit();
+    batch = writeBatch(db);
+    opCount = 0;
+  }
+}
+
+if (opCount > 0) {
+  await batch.commit();
+}
+```
+
+**Key considerations:**
+- Import is client-side (not a Cloud Function) — works with cached Firestore data and supports offline queuing
+- `mapToExtinguisher` must produce the exact same field set as `createExtinguisher` in `extinguisherService.ts` (40+ fields with defaults). Reference the `docData` object in `createExtinguisher` for the canonical field list.
+- Handle both old app format (`{ collections: { extinguishers: [...] } }`) and flat format
+- Normalize assetIds for duplicate checking but preserve original casing in the created doc
+- Use `serverTimestamp()` for `createdAt` and `updatedAt`
+
+---
+
+### P13-05: Create DataImportModal component
+
+**File**: `src/components/extinguisher/DataImportModal.tsx` (NEW)
+
+A modal for uploading, previewing, and importing JSON backup files.
+
+**Props:**
+
+```typescript
+interface DataImportModalProps {
+  open: boolean;
+  onClose: () => void;
+  orgId: string;
+  uid: string;
+  assetLimit: number | null;
+  currentCount: number;
+}
+```
+
+**UI layout (3-step wizard):**
+
+**Step 1 — Upload:**
+- Dropzone area with dashed border (drag-and-drop + click to browse)
+- Accept `.json` files only
+- File input ref for programmatic click
+- Show file name and size after selection
+- "Next" button (disabled until file loaded and validated)
+
+**Step 2 — Preview:**
+- Validation result summary:
+  - Green: "{N} extinguishers found in backup"
+  - Amber warnings (e.g., "5 items missing serial number")
+  - Red errors (e.g., "Invalid JSON format")
+- Asset limit check: "Current: {currentCount}, Importing: {N}, Limit: {assetLimit}"
+  - Red warning if would exceed limit
+- Scrollable preview table (max 10 rows):
+  - Columns: Asset ID, Serial, Type, Section, Category
+  - Show "{total - 10} more..." text if truncated
+- "Back" and "Import" buttons
+
+**Step 3 — Result:**
+- Success summary: "Created {N} extinguishers. {M} skipped."
+- Error list if any
+- "Done" button to close
+
+**State:**
+
+```typescript
+const [step, setStep] = useState<'upload' | 'preview' | 'result'>('upload');
+const [file, setFile] = useState<File | null>(null);
+const [validation, setValidation] = useState<ValidationResult | null>(null);
+const [importing, setImporting] = useState(false);
+const [importResult, setImportResult] = useState<ImportResult | null>(null);
+const [parseError, setParseError] = useState('');
+```
+
+**File handling:**
+
+```typescript
+const handleFileSelect = async (file: File) => {
+  setFile(file);
+  setParseError('');
+  try {
+    const text = await file.text();
+    const result = parseAndValidateBackup(text);
+    setValidation(result);
+    if (result.valid) {
+      setStep('preview');
+    }
+  } catch {
+    setParseError('Failed to read file.');
+  }
+};
+```
+
+**Styling:**
+- Match EX3 modal patterns (ConfirmModal for reference)
+- Use `useId()` for modal title ID
+- Focus trap (Tab key wrapping)
+- Icons: `Upload`, `FileJson`, `CheckCircle`, `AlertTriangle`, `X`, `Loader2` from lucide-react
+
+---
+
+### P13-06: Integrate JSON import into Inventory page
+
+**File**: `src/pages/Inventory.tsx` (MODIFY)
+
+Add the "Import JSON" button and wire up the DataImportModal.
+
+**Changes:**
+
+1. **Import** `DataImportModal` component
+
+2. **State**:
+   ```typescript
+   const [showImportModal, setShowImportModal] = useState(false);
+   ```
+
+3. **Button placement**: Add "Import JSON" button inside the existing `ImportExportBar` area OR as a separate button. Since `ImportExportBar` already handles CSV import/export, the cleanest approach is to add a JSON import button next to the CSV import in `ImportExportBar`.
+
+**Better approach — modify ImportExportBar:**
+
+**File**: `src/components/extinguisher/ImportExportBar.tsx` (MODIFY)
+
+Add a new prop `onImportJSON` and render a second import button:
+
+```typescript
+interface ImportExportBarProps {
+  onImportJSON?: () => void;
+}
+
+export function ImportExportBar({ onImportJSON }: ImportExportBarProps) {
+  // ... existing code ...
+  return (
+    <div>
+      {/* ... existing error/result messages ... */}
+      <div className="flex items-center gap-3">
+        {/* ... existing CSV Import button ... */}
+        {/* ... existing CSV Export button ... */}
+
+        {/* JSON Import */}
+        {onImportJSON && (
+          <button
+            onClick={onImportJSON}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <FileJson className="h-4 w-4" />
+            Import JSON Backup
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+Then in `Inventory.tsx`, pass the handler:
+
+```tsx
+<ImportExportBar onImportJSON={() => setShowImportModal(true)} />
+
+{showImportModal && (
+  <DataImportModal
+    open={showImportModal}
+    onClose={() => setShowImportModal(false)}
+    orgId={orgId}
+    uid={user?.uid ?? ''}
+    assetLimit={org?.assetLimit ?? null}
+    currentCount={totalCount}
+  />
+)}
+```
+
+**Import `FileJson`** from lucide-react in ImportExportBar.
+
+---
+
+### P13-07: Build verification
 
 - Run `pnpm build` — fix any TypeScript errors
-- Run `cd functions && npm run build` — verify archiveWorkspace/createWorkspace changes compile
 - Run `pnpm lint` — fix any ESLint warnings/errors
-- Verify localStorage persistence: timer state should survive page refresh
-- Verify section notes save to Firestore correctly
+- Verify duplicate detection finds duplicates when two extinguishers share the same assetId
+- Verify merge soft-deletes the non-preferred extinguisher and updates the kept one
+- Verify JSON import parses old app backup format correctly
+- Verify JSON import skips extinguishers whose assetId already exists
+- Verify batch writes are chunked at 499
 
 ---
 
 ## Task Order
 
-**Round 1 — Types and service layer (no UI dependencies):**
-1. P12-01: Add types to Workspace interface
-2. P12-04: Create sectionNotesService.ts
+**Round 1 — Service layer (no UI dependencies):**
+1. P13-01: Create `duplicateService.ts` — types, findDuplicates, pickPreferred, mergeExtinguisherData, batchMergeDuplicates
+2. P13-04: Create `jsonImportService.ts` — types, parseAndValidateBackup, mapToExtinguisher, importExtinguishers
+3. Add `getAllActiveExtinguishers` to `extinguisherService.ts`
 
-**Round 2 — Hook and components (depends on P12-01):**
-3. P12-02: Create useSectionTimer hook + SectionTimer component (creates `src/components/workspace/` and `src/hooks/useSectionTimer.ts`)
-4. P12-03: Create SectionNotes component
+**Round 2 — Components (depends on Round 1):**
+4. P13-02: Create `DuplicateScanModal.tsx`
+5. P13-05: Create `DataImportModal.tsx`
 
-**Round 3 — Integration into WorkspaceDetail (depends on P12-02, P12-03, P12-04):**
-5. P12-05: Integrate SectionTimer into WorkspaceDetail
-6. P12-06: Integrate SectionNotes into WorkspaceDetail
+**Round 3 — Integration (depends on Round 2):**
+6. P13-03: Integrate duplicate detection into Inventory page
+7. P13-06: Integrate JSON import — modify ImportExportBar + Inventory page
 
-**Round 4 — Backend and persistence (depends on P12-01):**
-7. P12-07: Save section times on archive (backend + frontend)
-8. P12-08: Note carry-forward in createWorkspace
-9. P12-09: Firestore security rules for sectionNotes
-
-**Round 5 — Verification:**
-10. P12-11: Build verification
+**Round 4 — Verification:**
+8. P13-07: Build verification
 
 ---
 
@@ -546,140 +687,124 @@ This is a trivial mkdir task — the build-agent can do it as part of P12-02.
 
 | Task | Depends On |
 |------|-----------|
-| P12-01 | None |
-| P12-02 | P12-01 (types) |
-| P12-03 | P12-01 (types) |
-| P12-04 | P12-01 (types) |
-| P12-05 | P12-02, P12-04 |
-| P12-06 | P12-03, P12-04 |
-| P12-07 | P12-01 (types for archiveWorkspaceCall) |
-| P12-08 | P12-04 (sectionNotes collection exists) |
-| P12-09 | P12-04 (defines the collection path) |
-| P12-11 | All above |
+| P13-01 | None (uses existing Extinguisher type) |
+| P13-04 | None (uses existing Extinguisher type) |
+| getAllActiveExtinguishers | None |
+| P13-02 | P13-01 (DuplicateGroup type) |
+| P13-05 | P13-04 (ValidationResult, ImportResult types) |
+| P13-03 | P13-01, P13-02, getAllActiveExtinguishers |
+| P13-06 | P13-05 |
+| P13-07 | All above |
 
 ---
 
 ## Blockers or Risks
 
-1. **localStorage persistence during field work**: The timer relies on localStorage, which can be cleared by the user or browser. This is acceptable — the old app had the same behavior. If the browser clears localStorage, accumulated times are lost. The timer is a convenience tool, not an audit trail.
+1. **Large inventory performance**: `getAllActiveExtinguishers` loads all extinguishers at once. For an org with thousands of extinguishers, this could be slow. Acceptable for a manual "scan" action — not a subscription. The old app did the same thing (scanned `extinguishers` array in memory).
 
-2. **Multi-tab behavior**: If the inspector has the same workspace open in two tabs, both tabs will read/write the same localStorage key. The last write wins. This is the same behavior as the old app — acceptable for field use (inspectors typically use one device/tab).
+2. **Client-side writeBatch security**: The Firestore security rules for `extinguishers` already allow owners/admins to update and the soft-delete pattern uses `updateDoc`. The batch merge uses `batch.update` which goes through the same rules. No new security rules needed.
 
-3. **Firestore security rules**: The `sectionNotes` subcollection needs proper rules. Without them, reads/writes will be denied. This is a hard requirement — P12-09 must not be skipped.
+3. **Offline merge**: Client-side `writeBatch` will queue writes if offline. If the user merges duplicates while offline, the writes will sync when connectivity returns. This is correct behavior per EX3's offline-first design.
 
-4. **archiveWorkspace Cloud Function change**: Modifying the Cloud Function requires `cd functions && npm run build` and deployment. The frontend change (passing sectionTimes) must align with the backend expectation. Test with `firebase emulators` if possible.
+4. **JSON backup format compatibility**: The old app exported backups in `{ collections: { extinguishers: [...] } }` format. We also support flat `{ extinguishers: [...] }` and raw `[...]` arrays. The parser must be lenient with field names (old app used `status`, `checkedDate`, etc.) while mapping them to EX3 fields.
 
-5. **createWorkspace note carry-forward**: Clearing notes on workspace creation is a destructive operation. If the Cloud Function fails after clearing notes but before completing, notes could be lost. However, since we're only clearing the `notes` field (not deleting docs), the structure is preserved and the inspector can re-enter notes. Acceptable risk.
+5. **Asset limit enforcement during import**: The import checks the limit before starting. If the org is near its limit, it should import up to the limit and report how many were skipped. This matches the existing `importExtinguishersCSV` Cloud Function behavior.
 
-6. **Large WorkspaceDetail.tsx**: This file is already ~608 lines. Adding timer and notes integration will add approximately 30-40 more lines. The hook pattern (`useSectionTimer`) keeps the bulk of the logic out of the component.
+6. **No Cloud Function for JSON import**: Unlike CSV import (which uses a Cloud Function), JSON import is client-side. This is intentional — it avoids passing large payloads through Cloud Functions (which have a ~10MB request limit) and works offline. The trade-off is that security is enforced by Firestore rules (which already gate extinguisher creation to owners/admins) rather than by server-side validation.
 
 ---
 
 ## Key Code References
 
-**Old app reference (timer + notes patterns):**
-- Timer state: `/home/built-by-beck/SaaS-built-by-Beck/Fire-Extinguisher-Tracker/src/App.jsx` lines 119-126 (state), 668-715 (localStorage load/save), 736-807 (start/pause/stop/clear)
-- Timer UI: Same file lines 3150-3189
-- Notes state/load: Same file lines 680-709 (Firestore subscription)
-- Notes UI: Same file lines 3192-3250
-- Notes save: Same file lines 2506-2577
+**Old app reference (duplicate detection + merge):**
+- Duplicate state: `App.jsx` lines 369-373 (state variables)
+- `pickPreferredDoc`: `App.jsx` lines 376-388 (smart preference logic — prefer checked over pending, newer over older)
+- `computeDuplicateGroups`: `App.jsx` lines 390-409 (group by assetId, pick keep vs remove)
+- `mergeHistories`: `App.jsx` lines 426-440 (merge inspection history arrays, deduplicate)
+- `runDuplicateCleanup`: `App.jsx` lines 458-504 (batch merge + delete, set with merge)
+- Duplicate modal UI: `App.jsx` lines 5390-5434
+
+**Old app reference (JSON backup import):**
+- `handleImportDatabaseBackup`: `App.jsx` lines 1229-1310 (parse JSON, confirm, delete old docs, create new)
+- `exportDatabaseBackup`: `App.jsx` lines 1133-1160 (export format — `{ collections: { extinguishers: [...] } }`)
 
 **EX3 files to modify:**
-- `src/services/workspaceService.ts` — Workspace interface + archiveWorkspaceCall signature
-- `src/pages/WorkspaceDetail.tsx` — main integration point (608 lines)
-- `src/pages/Workspaces.tsx` — pass sectionTimes on archive call
-- `functions/src/workspaces/archiveWorkspace.ts` — accept and save sectionTimes
-- `functions/src/workspaces/createWorkspace.ts` — note carry-forward logic
-- `firestore.rules` — sectionNotes security rules
+- `src/services/extinguisherService.ts` — add `getAllActiveExtinguishers`
+- `src/pages/Inventory.tsx` — add duplicate scan button + modal, JSON import modal
+- `src/components/extinguisher/ImportExportBar.tsx` — add JSON import button
 
 **EX3 files to create:**
-- `src/hooks/useSectionTimer.ts` — timer hook
-- `src/components/workspace/SectionTimer.tsx` — timer display component
-- `src/components/workspace/SectionNotes.tsx` — notes display/edit component
-- `src/services/sectionNotesService.ts` — notes Firestore service
+- `src/services/duplicateService.ts` — duplicate detection + merge logic
+- `src/services/jsonImportService.ts` — JSON backup parse + import logic
+- `src/components/extinguisher/DuplicateScanModal.tsx` — duplicate results modal
+- `src/components/extinguisher/DataImportModal.tsx` — JSON import wizard modal
 
 **EX3 files to reference (patterns):**
-- `src/lib/planConfig.ts` — `hasFeature()` function, `sectionTimeTracking` flag
-- `src/hooks/useAuth.ts` — hook pattern for `userProfile.uid`
-- `src/hooks/useOrg.ts` — hook pattern for `org.featureFlags`, `org.plan`
-- `src/services/locationService.ts` — `subscribeToLocations` pattern (model subscribeToSectionNotes on this)
-- `src/components/ui/ConfirmModal.tsx` — modal styling reference
+- `src/components/ui/ConfirmModal.tsx` — modal styling, focus trap, useId() pattern
+- `src/services/extinguisherService.ts` — `createExtinguisher` docData (canonical field list for imports)
+- `src/services/extinguisherService.ts` — `Extinguisher` interface (40+ fields)
+- `functions/src/data/importCSV.ts` — batch write chunking pattern (499 limit), asset limit checking
+- `src/components/extinguisher/ImportExportBar.tsx` — existing import/export UI
+- `src/components/extinguisher/DeleteConfirmModal.tsx` — existing delete confirmation pattern
 
 ---
 
 ## Handoff to build-agent
 
-**Start with P12-01** — update the `Workspace` interface in `src/services/workspaceService.ts` to add `SectionTimesMap`, `SectionNote`, `SectionNotesMap` types and the `sectionTimes` / `sectionNotes` fields.
+**Start with P13-01** — create `src/services/duplicateService.ts`. Define the `DuplicateGroup` interface. Implement `pickPreferred` using the old app's logic adapted for EX3 fields: compare `lastMonthlyInspection` (not `checkedDate`), `createdAt`, and `category`. Implement `findDuplicates` that groups by normalized assetId and uses `reduce(pickPreferred)` to select the keep candidate. Implement `mergeExtinguisherData` that merges photos (deduplicate by URL) and picks latest non-null dates. Implement `batchMergeDuplicates` with chunked `writeBatch` at 499 ops.
 
-**Then P12-04** — create `src/services/sectionNotesService.ts`. Model `subscribeToSectionNotes` on `subscribeToLocations` from `locationService.ts`. Use `set({ ... }, { merge: true })` for upserts (per lessons-learned: never call `update()` without confirming doc exists). Deterministic doc IDs: `{userId}__{section_slug}`.
+**Also in Round 1** — add `getAllActiveExtinguishers` to `src/services/extinguisherService.ts`. Simple `getDocs` query with `where('deletedAt', '==', null)` and `orderBy('createdAt', 'desc')`, no limit.
 
-**Then P12-02** — create `src/hooks/useSectionTimer.ts` and `src/components/workspace/SectionTimer.tsx`. Create the `src/components/workspace/` directory. The hook manages all timer state + localStorage. The component is a pure display. Use `useCallback` for all handlers (per lessons-learned). Use `useRef` for timerStartTime to avoid stale closures in the interval callback (per lessons-learned).
+**Then P13-04** — create `src/services/jsonImportService.ts`. Implement `parseAndValidateBackup` that accepts three JSON formats. Implement `mapToExtinguisher` that produces the same field set as `createExtinguisher`'s `docData` (reference lines 158-205 of `extinguisherService.ts`). Implement `importExtinguishers` with chunked `writeBatch`.
 
-**Then P12-03** — create `src/components/workspace/SectionNotes.tsx`. Use `useId()` for textarea ID (per lessons-learned: unique IDs for accessibility). Reset internal edit state when `section` prop changes via useEffect.
+**Then P13-02** — create `src/components/extinguisher/DuplicateScanModal.tsx`. Use `useId()` for aria, focus trap from ConfirmModal. Display keep/remove with color badges.
 
-**Then P12-05 and P12-06** — integrate into WorkspaceDetail.tsx. Timer is feature-gated behind `sectionTimeTracking`. Notes are always available. Call hooks unconditionally per React rules; gate only the render.
+**Then P13-05** — create `src/components/extinguisher/DataImportModal.tsx`. Three-step wizard: upload, preview, result. Drag-and-drop file input. Scrollable preview table.
 
-**Then P12-07** — modify `archiveWorkspace.ts` to accept `sectionTimes`, update `archiveWorkspaceCall` signature, update `Workspaces.tsx` to read localStorage and pass times on archive.
+**Then P13-03** — modify `Inventory.tsx`. Add state, handlers (useCallback), "Find Duplicates" button, and `DuplicateScanModal` render. Use `getAllActiveExtinguishers` for complete scan.
 
-**Then P12-08** — modify `createWorkspace.ts` for note carry-forward. Query `sectionNotes` where `saveForNextMonth == false` and clear their `notes` field. Chunk batch writes to 499 (per lessons-learned: 500-op limit).
+**Then P13-06** — modify `ImportExportBar.tsx` to accept `onImportJSON` prop. Modify `Inventory.tsx` to render `DataImportModal`.
 
-**Then P12-09** — add Firestore security rules for `org/{orgId}/sectionNotes/{noteId}`.
-
-**Finally P12-11** — run `pnpm build`, `cd functions && npm run build`, and `pnpm lint` to verify everything compiles clean.
+**Finally P13-07** — run `pnpm build` and `pnpm lint` to verify everything compiles clean.
 
 **Warnings from lessons-learned:**
 - No `any` types. TypeScript strict mode.
 - Always include `built_by_Beck` in commit messages.
 - `useCallback` for all handlers passed as props or used in dependency arrays.
-- `useRef` for values read inside intervals/closures (timerStartTime).
 - `useId()` for element IDs referenced by aria attributes.
-- Reset state in useEffect when dependencies change (before async calls).
-- `set({ merge: true })` instead of `update()` for upsert patterns.
-- Chunk Firestore batch writes to 499 operations.
-- ESLint flat config: rule overrides must be in the config block that loads those plugins.
+- Focus trap in all modals (Tab key wrapping).
+- Chunk Firestore `writeBatch` to 499 operations.
+- `set({ merge: true })` for upserts (per lessons-learned). For `batchMergeDuplicates`, use `batch.update` since we know the docs exist (they came from a query).
+- When using `useEffect` with async data, reset state when dependencies change.
+- For `useCallback` deps, use full objects (e.g., `user` not `user?.uid`) per React Compiler lesson.
+- ESLint flat config: rule overrides in the config block that loads those plugins.
 
 ---
 
 ## Definition of Done
 
-Phase 12 is complete when ALL of the following are true:
+Phase 13 is complete when ALL of the following are true:
 
-1. **Workspace interface** includes `sectionTimes` and `sectionNotes` optional fields
-2. **useSectionTimer hook** exists at `src/hooks/useSectionTimer.ts` with play/pause/stop/clear, localStorage persistence, and `formatTime` utility
-3. **SectionTimer component** exists at `src/components/workspace/SectionTimer.tsx` with play/pause/stop buttons and elapsed time display
-4. **SectionNotes component** exists at `src/components/workspace/SectionNotes.tsx` with textarea, "save for next month" toggle, and save button
-5. **sectionNotesService** exists at `src/services/sectionNotesService.ts` with subscribe, save, and getCarryForward functions
-6. **WorkspaceDetail.tsx** shows SectionTimer (feature-gated) and SectionNotes when a section is selected
-7. **Timer persists** across page refreshes via localStorage (scoped to orgId + workspaceId)
-8. **Section notes save** to Firestore at `org/{orgId}/sectionNotes/{docId}`
-9. **archiveWorkspace** Cloud Function accepts and saves `sectionTimes` to workspace and report docs
-10. **createWorkspace** Cloud Function clears non-carry-forward notes when creating a new workspace
-11. **Firestore security rules** allow org members to read/write their own section notes
-12. **`pnpm build` passes** with no TypeScript errors
-13. **`cd functions && npm run build` passes** with no TypeScript errors
-14. **`pnpm lint` passes** with no new warnings
+1. **`duplicateService.ts`** exists at `src/services/duplicateService.ts` with `DuplicateGroup` type, `findDuplicates`, `pickPreferred`, `mergeExtinguisherData`, `batchMergeDuplicates` functions
+2. **`getAllActiveExtinguishers`** function added to `src/services/extinguisherService.ts`
+3. **`jsonImportService.ts`** exists at `src/services/jsonImportService.ts` with `parseAndValidateBackup`, `mapToExtinguisher`, `importExtinguishers` functions
+4. **`DuplicateScanModal.tsx`** exists at `src/components/extinguisher/DuplicateScanModal.tsx` with scan results display, merge confirmation
+5. **`DataImportModal.tsx`** exists at `src/components/extinguisher/DataImportModal.tsx` with upload, preview, result steps
+6. **Inventory page** has "Find Duplicates" button (owner/admin only) that opens DuplicateScanModal
+7. **Inventory page** has "Import JSON Backup" button (via ImportExportBar) that opens DataImportModal
+8. **Duplicate detection** correctly groups extinguishers by normalized assetId
+9. **Smart preference** picks the inspected/newer extinguisher to keep
+10. **Batch merge** updates keep doc with merged data and soft-deletes remove docs, chunked to 499 ops
+11. **JSON import** parses old app backup format and flat format
+12. **JSON import** validates items and skips existing assetIds
+13. **JSON import** respects asset limit
+14. **All modals** use `useId()` for aria and include focus traps
+15. **`pnpm build` passes** with no TypeScript errors
+16. **`pnpm lint` passes** with no new warnings
 
 ---
 
 ## Future Phases (Outline)
-
-### Phase 13 — Duplicate Detection + Data Import
-
-**Goal**: Data quality tools — find and merge duplicate extinguishers, import from JSON backups.
-
-**Tasks (to be detailed when Phase 13 starts):**
-- P13-01: Create `DuplicateDetector` component (scan for duplicate asset IDs, group matches)
-- P13-02: Create `DuplicateMergeModal` (smart preference picker — prefer checked, newer)
-- P13-03: Add duplicate detection button/trigger to Inventory page
-- P13-04: Batch merge/delete API (Cloud Function or client-side with Firestore batch writes, chunked to 500)
-- P13-05: Create `DataImportModal` component (JSON file upload, validation, preview)
-- P13-06: Import logic — parse JSON backup, map to EX3 Extinguisher interface, batch create
-- P13-07: Add import button to Inventory page or Settings page
-- P13-08: Build verification
-
-**Reference**: Old app's duplicate cleaning modal, Firestore batch 500-op limit lesson
-
----
 
 ### Phase 14 — Export Options + Status Quick Lists
 
@@ -794,3 +919,6 @@ Categorized sections, photo capture, GPS capture, inspection history in checklis
 
 ### Phase 11 -- Legal Pages, Calculator, Confirm Modals, Printable List (COMPLETE)
 14 tasks. ConfirmModal, PromptModal, replaced window.confirm in 5 files, About/Terms/Privacy pages, native NFPA 10 Calculator, PrintableList. Reviewed and approved.
+
+### Phase 12 -- Section Timer + Section Notes (COMPLETE)
+11 tasks. useSectionTimer hook, SectionTimer + SectionNotes components, sectionNotesService, WorkspaceDetail integration, archiveWorkspace + createWorkspace backend changes, Firestore rules. Reviewed and approved (4 bugs fixed during review).

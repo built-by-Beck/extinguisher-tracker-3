@@ -16,6 +16,8 @@ import {
   Archive,
   AlertTriangle,
   Printer,
+  Copy,
+  FileJson,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -23,6 +25,8 @@ import { hasFeature } from '../lib/planConfig.ts';
 import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
 import { DeleteConfirmModal } from '../components/extinguisher/DeleteConfirmModal.tsx';
 import { ImportExportBar } from '../components/extinguisher/ImportExportBar.tsx';
+import { DuplicateDetectionModal } from '../components/extinguisher/DuplicateDetectionModal.tsx';
+import { JsonImportModal } from '../components/extinguisher/JsonImportModal.tsx';
 import { ComplianceStatusBadge } from '../components/compliance/ComplianceStatusBadge.tsx';
 import {
   subscribeToExtinguishers,
@@ -56,6 +60,16 @@ export default function Inventory() {
     searchParams.get('compliance') ?? '',
   );
   const [deleteTarget, setDeleteTarget] = useState<Extinguisher | null>(null);
+  
+  // Duplicate detection state
+  const [showDupModal, setShowDupModal] = useState(false);
+  const [dupGroups, setDupGroups] = useState<DuplicateGroup[]>([]);
+  const [dupScanning, setDupScanning] = useState(false);
+  const [dupMerging, setDupMerging] = useState(false);
+
+  // JSON Import state
+  const [showImportModal, setShowImportModal] = useState(false);
+
   const [scanAddTarget, setScanAddTarget] = useState<{ code: string; format: string | null } | null>(null);
   const [scanAddLoading, setScanAddLoading] = useState(false);
   const [scanAddError, setScanAddError] = useState('');
@@ -127,6 +141,33 @@ export default function Inventory() {
     setDeleteTarget(null);
   }
 
+  const handleDuplicateScan = useCallback(async () => {
+    if (!orgId) return;
+    setDupScanning(true);
+    setShowDupModal(true);
+    try {
+      const allExt = await getAllActiveExtinguishers(orgId);
+      const groups = findDuplicates(allExt);
+      setDupGroups(groups);
+    } finally {
+      setDupScanning(false);
+    }
+  }, [orgId]);
+
+  const handleDuplicateMerge = useCallback(async () => {
+    if (!orgId || !user || dupGroups.length === 0) return;
+    setDupMerging(true);
+    try {
+      await batchMergeDuplicates(orgId, user.uid, dupGroups);
+      setShowDupModal(false);
+      setDupGroups([]);
+    } catch (err) {
+      console.error('Merge failed:', err);
+    } finally {
+      setDupMerging(false);
+    }
+  }, [orgId, user, dupGroups]);
+
   async function handleConfirmScannedAdd() {
     if (!scanAddTarget || !orgId || !user) return;
     setScanAddLoading(true);
@@ -172,6 +213,16 @@ export default function Inventory() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {canEdit && (
+            <button
+              onClick={handleDuplicateScan}
+              className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              title="Find and merge duplicate asset IDs"
+            >
+              <Copy className="h-4 w-4" />
+              Find Duplicates
+            </button>
+          )}
           <button
             onClick={() => navigate('/dashboard/inventory/print')}
             className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -224,7 +275,7 @@ export default function Inventory() {
       {/* Import/Export */}
       {canEdit && (
         <div className="mb-4">
-          <ImportExportBar />
+          <ImportExportBar onImportJSON={() => setShowImportModal(true)} />
         </div>
       )}
 
@@ -443,6 +494,26 @@ export default function Inventory() {
           assetId={deleteTarget.assetId}
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      <DuplicateScanModal
+        open={showDupModal}
+        groups={dupGroups}
+        scanning={dupScanning}
+        onMerge={handleDuplicateMerge}
+        onCancel={() => { setShowDupModal(false); setDupGroups([]); }}
+        merging={dupMerging}
+      />
+
+      {showImportModal && (
+        <DataImportModal
+          open={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          orgId={orgId}
+          uid={user?.uid ?? ''}
+          assetLimit={org?.assetLimit ?? null}
+          currentCount={totalCount}
         />
       )}
 
