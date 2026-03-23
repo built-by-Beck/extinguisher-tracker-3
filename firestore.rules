@@ -35,7 +35,8 @@ service cloud.firestore {
     }
 
     function hasWritableSubscription(orgId) {
-      return get(orgDoc(orgId)).data.subscriptionStatus in ['active', 'trialing'];
+      let org = get(orgDoc(orgId)).data;
+      return org.plan == 'enterprise' || org.subscriptionStatus in ['active', 'trialing'];
     }
 
     match /usr/{uid} {

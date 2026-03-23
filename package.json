@@ -18,14 +18,15 @@
     "@stripe/react-stripe-js": "^5.6.1",
     "@stripe/stripe-js": "^8.10.0",
     "@tailwindcss/vite": "^4.2.1",
-    "firebase": "^12.10.0",
     "@undecaf/barcode-detector-polyfill": "^0.9.23",
+    "firebase": "^12.10.0",
     "idb": "^8.0.3",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.1",
-    "tailwindcss": "^4.2.1"
+    "tailwindcss": "^4.2.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

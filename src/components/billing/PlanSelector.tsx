@@ -144,15 +144,27 @@ export function PlanSelector() {
         })}
       </div>
 
-      {/* Enterprise CTA */}
-      <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-        <p className="text-sm text-gray-600">
-          Need more than 500 extinguishers?{' '}
-          <span className="font-semibold text-gray-900">Enterprise</span> plans with unlimited
-          assets, AI access, and custom pricing are available.
-        </p>
-        <p className="mt-1 text-sm text-gray-500">Contact us at help@beck-publishing.com</p>
-      </div>
+      {/* Enterprise section */}
+      {currentPlan === 'enterprise' ? (
+        <div className="mt-4 rounded-lg border-2 border-red-500 bg-red-50 p-4 text-center">
+          <p className="text-sm font-semibold text-gray-900">Enterprise Plan</p>
+          <p className="mt-1 text-sm text-gray-600">
+            Unlimited assets, all features, custom pricing, and priority support.
+          </p>
+          <span className="mt-2 inline-block rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+            Current Plan
+          </span>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+          <p className="text-sm text-gray-600">
+            Need more than 500 extinguishers?{' '}
+            <span className="font-semibold text-gray-900">Enterprise</span> plans with unlimited
+            assets, AI access, and custom pricing are available.
+          </p>
+          <p className="mt-1 text-sm text-gray-500">Contact us at help@beck-publishing.com</p>
+        </div>
+      )}
     </div>
   );
 }

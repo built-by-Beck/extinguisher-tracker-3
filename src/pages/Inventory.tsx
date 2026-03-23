@@ -287,7 +287,7 @@ export default function Inventory() {
       {/* Import/Export */}
       {canEdit && (
         <div className="mb-4">
-          <ImportExportBar onImportJSON={() => setShowImportModal(true)} />
+          <ImportExportBar onImportJSON={() => setShowImportModal(true)} plan={org?.plan} />
         </div>
       )}
 

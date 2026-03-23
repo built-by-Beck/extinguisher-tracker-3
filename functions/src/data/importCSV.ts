@@ -69,8 +69,14 @@ export const importExtinguishersCSV = onCall(async (request) => {
   const plan = orgData.plan as PlanName | null;
   const subscriptionStatus = orgData.subscriptionStatus as string | null;
 
-  if (!plan || !['active', 'trialing'].includes(subscriptionStatus ?? '')) {
+  // Enterprise plans are managed manually — no Stripe subscription required
+  if (plan !== 'enterprise' && !['active', 'trialing'].includes(subscriptionStatus ?? '')) {
     throwFailedPrecondition('Active subscription required to import extinguishers.');
+  }
+
+  // Bulk import is only available on Elite and Enterprise plans
+  if (!plan || !['elite', 'enterprise'].includes(plan)) {
+    throwFailedPrecondition('Bulk import is available on Elite and Enterprise plans only.');
   }
 
   const rows = parseCSV(csvContent);

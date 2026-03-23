@@ -14,6 +14,12 @@ export async function validateSubscription(orgId: string): Promise<void> {
   }
 
   const orgData = orgSnap.data()!;
+
+  // Enterprise plans are managed manually — no Stripe subscription required
+  if (orgData.plan === 'enterprise') {
+    return;
+  }
+
   const subStatus = orgData.subscriptionStatus as string | null;
 
   if (!subStatus || !['active', 'trialing'].includes(subStatus)) {
@@ -36,6 +42,12 @@ export async function validateSubscriptionTx(
   }
 
   const orgData = orgSnap.data()!;
+
+  // Enterprise plans are managed manually — no Stripe subscription required
+  if (orgData.plan === 'enterprise') {
+    return;
+  }
+
   const subStatus = orgData.subscriptionStatus as string | null;
 
   if (!subStatus || !['active', 'trialing'].includes(subStatus)) {
