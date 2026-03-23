@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Upload, Download, Loader2, FileJson } from 'lucide-react';
-import { read, utils } from 'xlsx';
+import { Workbook } from 'exceljs';
 import { functions } from '../../lib/firebase.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { ColumnMapperModal, TARGET_FIELDS } from './ColumnMapperModal.tsx';
@@ -84,12 +84,35 @@ function parseTXTToRows(content: string): Record<string, string>[] {
 /**
  * Parse an Excel file into rows from the first sheet.
  */
-function parseExcelToRows(buffer: ArrayBuffer): Record<string, string>[] {
-  const workbook = read(buffer, { type: 'array' });
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) return [];
-  const sheet = workbook.Sheets[sheetName];
-  return utils.sheet_to_json<Record<string, string>>(sheet, { raw: false, defval: '' });
+async function parseExcelToRows(buffer: ArrayBuffer): Promise<Record<string, string>[]> {
+  const workbook = new Workbook();
+  await workbook.xlsx.load(buffer);
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) return [];
+
+  const rows: Record<string, string>[] = [];
+  let headers: string[] = [];
+
+  worksheet.eachRow((row, rowNumber) => {
+    // exceljs row.values is a 1-indexed sparse array; index 0 is always undefined,
+    // so we slice off the leading empty slot before mapping header names.
+    const values = (row.values as (string | number | boolean | null | undefined)[]).slice(1);
+    if (rowNumber === 1) {
+      headers = values.map((v) => String(v ?? '').trim());
+    } else {
+      const rowObj: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        const cell = row.getCell(idx + 1);
+        // Prefer cell.text (the formatted display value, e.g. "01/15/2025" for a date cell)
+        // over cell.value (the raw underlying value, e.g. a Date object or serial number),
+        // so imported data matches what the user sees in the spreadsheet.
+        rowObj[header] = cell.text !== undefined ? String(cell.text) : String(cell.value ?? '');
+      });
+      rows.push(rowObj);
+    }
+  });
+
+  return rows;
 }
 
 /**
@@ -168,7 +191,7 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
 
       if (ext === 'xls' || ext === 'xlsx') {
         const buffer = await file.arrayBuffer();
-        rows = parseExcelToRows(buffer);
+        rows = await parseExcelToRows(buffer);
       } else if (ext === 'txt') {
         const text = await file.text();
         rows = parseTXTToRows(text);
