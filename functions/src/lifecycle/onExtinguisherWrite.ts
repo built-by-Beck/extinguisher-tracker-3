@@ -37,111 +37,115 @@ export const onExtinguisherCreated = onDocumentCreated(
     // Match workspace seeding behavior: only standard assets are tracked in monthly workspaces.
     if (extData.category !== 'standard') return;
 
-    const extType = (extData.extinguisherType as string | null) ?? '';
-    const hydroInterval = (extData.hydroTestIntervalYears as number | null) ?? getHydroIntervalByType(extType);
-    const needsSixYear = (extData.requiresSixYearMaintenance as boolean | null) ?? requiresSixYear(extType);
-
-    const lastMonthly = extData.lastMonthlyInspection as Timestamp | null;
-    const lastAnnual = extData.lastAnnualInspection as Timestamp | null;
-    const lastSixYear = extData.lastSixYearMaintenance as Timestamp | null;
-    const lastHydro = extData.lastHydroTest as Timestamp | null;
-
-    // Calculate next due dates
-    const nextMonthlyInspection = calculateNextMonthlyInspection(lastMonthly);
-    const nextAnnualInspection = calculateNextAnnualInspection(lastAnnual);
-    const nextHydroTest = calculateNextHydroTest(lastHydro, hydroInterval);
-    const nextSixYearMaintenance = needsSixYear
-      ? calculateNextSixYearMaintenance(lastSixYear)
-      : null;
-
-    const calcInput: ExtinguisherForCalc = {
-      lifecycleStatus: extData.lifecycleStatus as string,
-      extinguisherType: extData.extinguisherType as string | null,
-      requiresSixYearMaintenance: needsSixYear,
-      lastMonthlyInspection: lastMonthly,
-      lastAnnualInspection: lastAnnual,
-      lastSixYearMaintenance: lastSixYear,
-      lastHydroTest: lastHydro,
-      hydroTestIntervalYears: hydroInterval,
-      nextMonthlyInspection,
-      nextAnnualInspection,
-      nextSixYearMaintenance,
-      nextHydroTest,
-    };
-
-    const { complianceStatus, overdueFlags } = calculateComplianceStatus(calcInput);
-
-    const extRef = adminDb.doc(`org/${orgId}/extinguishers/${extId}`);
-    await extRef.update({
-      nextMonthlyInspection,
-      nextAnnualInspection,
-      nextSixYearMaintenance,
-      nextHydroTest,
-      complianceStatus,
-      overdueFlags,
-      updatedAt: Timestamp.now(),
-    });
-
-    // Also seed the current active workspace inspection row so workspace location cards
-    // immediately reflect newly-created extinguishers.
+    // Fetch active workspace outside transaction (queries not allowed in tx)
     const activeWorkspaceSnap = await adminDb
       .collection(`org/${orgId}/workspaces`)
       .where('status', '==', 'active')
       .limit(1)
       .get();
 
-    if (activeWorkspaceSnap.empty) return;
-
-    const workspaceDoc = activeWorkspaceSnap.docs[0];
-    const workspaceId = workspaceDoc.id;
-    const inspectionRef = adminDb.doc(`org/${orgId}/inspections/${workspaceId}_${extId}`);
-
     await adminDb.runTransaction(async (tx) => {
-      const [workspaceTxSnap, inspectionTxSnap] = await Promise.all([
-        tx.get(workspaceDoc.ref),
-        tx.get(inspectionRef),
-      ]);
+      const extRef = adminDb.doc(`org/${orgId}/extinguishers/${extId}`);
+      const extSnap = await tx.get(extRef);
+      if (!extSnap.exists) return; // Doc deleted between trigger and tx
 
-      // Idempotency guard for at-least-once trigger delivery.
-      if (inspectionTxSnap.exists) return;
-      if (!workspaceTxSnap.exists || workspaceTxSnap.data()?.status !== 'active') return;
+      const currentExtData = extSnap.data()!;
+      if (currentExtData.lifecycleStatus !== 'active') return;
 
-      let section = (extData.section as string | null) ?? '';
-      const locationId = (extData.locationId as string | null) ?? null;
+      const extType = (currentExtData.extinguisherType as string | null) ?? '';
+      const hydroInterval = (currentExtData.hydroTestIntervalYears as number | null) ?? getHydroIntervalByType(extType);
+      const needsSixYear = (currentExtData.requiresSixYearMaintenance as boolean | null) ?? requiresSixYear(extType);
 
-      // Fallback for legacy/partial data where section may be empty but locationId exists.
-      if (!section && locationId) {
-        const locationRef = adminDb.doc(`org/${orgId}/locations/${locationId}`);
-        const locationSnap = await tx.get(locationRef);
-        if (locationSnap.exists) {
-          section = ((locationSnap.data()?.name as string | null) ?? '').trim();
+      const lastMonthly = currentExtData.lastMonthlyInspection as Timestamp | null;
+      const lastAnnual = currentExtData.lastAnnualInspection as Timestamp | null;
+      const lastSixYear = currentExtData.lastSixYearMaintenance as Timestamp | null;
+      const lastHydro = currentExtData.lastHydroTest as Timestamp | null;
+
+      const nextMonthlyInspection = calculateNextMonthlyInspection(lastMonthly);
+      const nextAnnualInspection = calculateNextAnnualInspection(lastAnnual);
+      const nextHydroTest = calculateNextHydroTest(lastHydro, hydroInterval);
+      const nextSixYearMaintenance = needsSixYear
+        ? calculateNextSixYearMaintenance(lastSixYear)
+        : null;
+
+      const calcInput: ExtinguisherForCalc = {
+        lifecycleStatus: currentExtData.lifecycleStatus as string,
+        extinguisherType: currentExtData.extinguisherType as string | null,
+        requiresSixYearMaintenance: needsSixYear,
+        lastMonthlyInspection: lastMonthly,
+        lastAnnualInspection: lastAnnual,
+        lastSixYearMaintenance: lastSixYear,
+        lastHydroTest: lastHydro,
+        hydroTestIntervalYears: hydroInterval,
+        nextMonthlyInspection,
+        nextAnnualInspection,
+        nextSixYearMaintenance,
+        nextHydroTest,
+      };
+
+      const { complianceStatus, overdueFlags } = calculateComplianceStatus(calcInput);
+      const serverTimestamp = FieldValue.serverTimestamp();
+
+      // 1. Update extinguisher lifecycle
+      tx.update(extRef, {
+        nextMonthlyInspection,
+        nextAnnualInspection,
+        nextSixYearMaintenance,
+        nextHydroTest,
+        complianceStatus,
+        overdueFlags,
+        updatedAt: serverTimestamp,
+      });
+
+      // 2. Seed active workspace if one exists
+      if (!activeWorkspaceSnap.empty) {
+        const workspaceDoc = activeWorkspaceSnap.docs[0];
+        const workspaceId = workspaceDoc.id;
+        const inspectionRef = adminDb.doc(`org/${orgId}/inspections/${workspaceId}_${extId}`);
+        const [workspaceTxSnap, inspectionTxSnap] = await Promise.all([
+          tx.get(workspaceDoc.ref),
+          tx.get(inspectionRef),
+        ]);
+
+        if (!inspectionTxSnap.exists && workspaceTxSnap.exists && workspaceTxSnap.data()?.status === 'active') {
+          let section = (currentExtData.section as string | null) ?? '';
+          const locationId = (currentExtData.locationId as string | null) ?? null;
+
+          if (!section && locationId) {
+            const locationRef = adminDb.doc(`org/${orgId}/locations/${locationId}`);
+            const locationSnap = await tx.get(locationRef);
+            if (locationSnap.exists) {
+              section = ((locationSnap.data()?.name as string | null) ?? '').trim();
+            }
+          }
+
+          tx.set(inspectionRef, {
+            extinguisherId: extId,
+            workspaceId,
+            assetId: (currentExtData.assetId as string | null) ?? '',
+            section,
+            status: 'pending',
+            inspectedAt: null,
+            inspectedBy: null,
+            inspectedByEmail: null,
+            checklistData: null,
+            notes: '',
+            photoUrl: null,
+            photoPath: null,
+            gps: null,
+            attestation: null,
+            createdAt: serverTimestamp,
+            updatedAt: serverTimestamp,
+          });
+
+          tx.update(workspaceDoc.ref, {
+            'stats.total': FieldValue.increment(1),
+            'stats.pending': FieldValue.increment(1),
+            'stats.lastUpdated': serverTimestamp,
+          });
         }
       }
-
-      tx.set(inspectionRef, {
-        extinguisherId: extId,
-        workspaceId,
-        assetId: (extData.assetId as string | null) ?? '',
-        section,
-        status: 'pending',
-        inspectedAt: null,
-        inspectedBy: null,
-        inspectedByEmail: null,
-        checklistData: null,
-        notes: '',
-        photoUrl: null,
-        photoPath: null,
-        gps: null,
-        attestation: null,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-
-      tx.update(workspaceDoc.ref, {
-        'stats.total': FieldValue.increment(1),
-        'stats.pending': FieldValue.increment(1),
-        'stats.lastUpdated': FieldValue.serverTimestamp(),
-      });
     });
   },
 );
+

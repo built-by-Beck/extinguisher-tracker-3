@@ -30,3 +30,26 @@ export async function writeAuditLog(orgId: string, entry: AuditLogEntry): Promis
     createdAt: ts,
   });
 }
+
+/**
+ * Writes an audit log entry within a transaction.
+ */
+export function writeAuditLogTx(
+  transaction: FirebaseFirestore.Transaction,
+  orgId: string,
+  entry: AuditLogEntry
+): void {
+  const logsRef = adminDb.collection(`org/${orgId}/auditLogs`).doc();
+  const ts = FieldValue.serverTimestamp();
+  transaction.set(logsRef, {
+    action: entry.action,
+    performedBy: entry.performedBy,
+    performedByEmail: entry.performedByEmail ?? null,
+    entityType: entry.entityType ?? null,
+    entityId: entry.entityId ?? null,
+    details: entry.details ?? {},
+    performedAt: ts,
+    createdAt: ts,
+  });
+}
+

@@ -2,8 +2,9 @@ import { onCall } from 'firebase-functions/v2/https';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
+import { validateSubscriptionTx } from '../utils/subscription.js';
 import { throwInvalidArgument, throwFailedPrecondition } from '../utils/errors.js';
-import { writeAuditLog } from '../utils/auditLog.js';
+import { writeAuditLogTx } from '../utils/auditLog.js';
 import { FieldValue } from 'firebase-admin/firestore';
 
 const MONTH_LABELS = [
@@ -18,7 +19,7 @@ function formatLabel(monthYear: string): string {
 }
 
 export const createWorkspace = onCall(async (request) => {
-  const { uid } = validateAuth(request);
+  const { uid, email } = validateAuth(request);
   const { orgId, monthYear } = request.data as { orgId: string; monthYear: string };
 
   if (!orgId || typeof orgId !== 'string') {
@@ -30,24 +31,7 @@ export const createWorkspace = onCall(async (request) => {
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
 
-  // Check org has active subscription
-  const orgRef = adminDb.doc(`org/${orgId}`);
-  const orgSnap = await orgRef.get();
-  if (!orgSnap.exists) throwInvalidArgument('Organization not found.');
-  const orgData = orgSnap.data()!;
-  const subStatus = orgData.subscriptionStatus as string | null;
-  if (!subStatus || !['active', 'trialing'].includes(subStatus)) {
-    throwFailedPrecondition('Active subscription required to create workspaces.');
-  }
-
-  // Check for duplicate workspace
-  const wsRef = adminDb.doc(`org/${orgId}/workspaces/${monthYear}`);
-  const wsSnap = await wsRef.get();
-  if (wsSnap.exists) {
-    throwFailedPrecondition(`Workspace for ${monthYear} already exists.`);
-  }
-
-  // Fetch all active extinguishers
+  // 1. Check for active extinguishers outside transaction
   const extSnap = await adminDb.collection(`org/${orgId}/extinguishers`)
     .where('deletedAt', '==', null)
     .where('category', '==', 'standard')
@@ -55,41 +39,62 @@ export const createWorkspace = onCall(async (request) => {
 
   const totalExtinguishers = extSnap.size;
 
-  // Create workspace document
-  await wsRef.set({
-    label: formatLabel(monthYear),
-    monthYear,
-    status: 'active',
-    createdAt: FieldValue.serverTimestamp(),
-    createdBy: uid,
-    archivedAt: null,
-    archivedBy: null,
-    stats: {
-      total: totalExtinguishers,
-      passed: 0,
-      failed: 0,
-      pending: totalExtinguishers,
-      lastUpdated: FieldValue.serverTimestamp(),
-    },
+  // 2. Create workspace document within transaction
+  await adminDb.runTransaction(async (tx) => {
+    // Subscription check
+    await validateSubscriptionTx(tx, orgId);
+
+    // Duplicate check
+    const wsRef = adminDb.doc(`org/${orgId}/workspaces/${monthYear}`);
+    const wsSnap = await tx.get(wsRef);
+    if (wsSnap.exists) {
+      throwFailedPrecondition(`Workspace for ${monthYear} already exists.`);
+    }
+
+    const serverTimestamp = FieldValue.serverTimestamp();
+
+    // Create workspace document
+    tx.set(wsRef, {
+      label: formatLabel(monthYear),
+      monthYear,
+      status: 'active',
+      createdAt: serverTimestamp,
+      createdBy: uid,
+      archivedAt: null,
+      archivedBy: null,
+      stats: {
+        total: totalExtinguishers,
+        passed: 0,
+        failed: 0,
+        pending: totalExtinguishers,
+        lastUpdated: serverTimestamp,
+      },
+    });
+
+    // Write audit log within transaction
+    writeAuditLogTx(tx, orgId, {
+      action: 'workspace.created',
+      performedBy: uid,
+      performedByEmail: email,
+      entityType: 'workspace',
+      entityId: monthYear,
+      details: { monthYear, extinguishersSeeded: totalExtinguishers },
+    });
   });
 
-  // Seed one inspection per active extinguisher (batch writes, 500 limit)
+  // 3. Seed inspections (Batches are okay here as the workspace is already created)
   const inspRef = adminDb.collection(`org/${orgId}/inspections`);
   let batch = adminDb.batch();
   let batchCount = 0;
 
   for (const extDoc of extSnap.docs) {
     const extData = extDoc.data();
-
     const inspDocRef = inspRef.doc();
+    
     batch.set(inspDocRef, {
       extinguisherId: extDoc.id,
       workspaceId: monthYear,
       assetId: extData.assetId ?? '',
-      // section is copied from the extinguisher at workspace creation time.
-      // This drives grouping on WorkspaceDetail location cards.
-      // extinguisher.section is set to the location name when assigned via the
-      // ExtinguisherForm location dropdown (unified with the locations collection).
       section: extData.section ?? '',
       status: 'pending',
       inspectedAt: null,
@@ -106,8 +111,6 @@ export const createWorkspace = onCall(async (request) => {
     });
 
     batchCount++;
-
-    // Commit every 499 and start a new batch
     if (batchCount >= 499) {
       await batch.commit();
       batch = adminDb.batch();
@@ -115,12 +118,11 @@ export const createWorkspace = onCall(async (request) => {
     }
   }
 
-  // Commit remaining
   if (batchCount > 0) {
     await batch.commit();
   }
 
-  // Clear non-carry-forward section notes (notes where saveForNextMonth is false)
+  // 4. Clear non-carry-forward section notes
   const clearNotesSnap = await adminDb.collection(`org/${orgId}/sectionNotes`)
     .where('saveForNextMonth', '==', false)
     .get();
@@ -140,13 +142,6 @@ export const createWorkspace = onCall(async (request) => {
     if (notesCount > 0) await notesBatch.commit();
   }
 
-  await writeAuditLog(orgId, {
-    action: 'workspace.created',
-    performedBy: uid,
-    entityType: 'workspace',
-    entityId: monthYear,
-    details: { monthYear, extinguishersSeeded: totalExtinguishers },
-  });
-
   return { monthYear, label: formatLabel(monthYear), totalExtinguishers };
 });
+

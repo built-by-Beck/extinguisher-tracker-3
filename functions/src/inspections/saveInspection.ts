@@ -2,6 +2,7 @@ import { onCall } from 'firebase-functions/v2/https';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
+import { validateSubscriptionTx } from '../utils/subscription.js';
 import { throwInvalidArgument, throwNotFound, throwFailedPrecondition } from '../utils/errors.js';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import {
@@ -56,128 +57,137 @@ export const saveInspection = onCall(async (request) => {
 
   await validateMembership(orgId, uid, ['owner', 'admin', 'inspector']);
 
-  // Load inspection
-  const inspRef = adminDb.doc(`org/${orgId}/inspections/${inspectionId}`);
-  const inspSnap = await inspRef.get();
-  if (!inspSnap.exists) throwNotFound('Inspection not found.');
+  return await adminDb.runTransaction(async (tx) => {
+    // 1. Subscription check
+    await validateSubscriptionTx(tx, orgId);
 
-  const inspData = inspSnap.data()!;
-  const previousStatus = inspData.status as string;
+    // 2. Load all required data (reads must come before writes)
+    const inspRef = adminDb.doc(`org/${orgId}/inspections/${inspectionId}`);
+    const inspSnap = await tx.get(inspRef);
+    if (!inspSnap.exists) throwNotFound('Inspection not found.');
 
-  // Check workspace is not archived
-  const wsRef = adminDb.doc(`org/${orgId}/workspaces/${inspData.workspaceId}`);
-  const wsSnap = await wsRef.get();
-  if (wsSnap.exists && wsSnap.data()?.status === 'archived') {
-    throwFailedPrecondition('Cannot modify inspections in an archived workspace.');
-  }
+    const inspData = inspSnap.data()!;
+    const previousStatus = inspData.status as string;
 
-  // Update inspection
-  const updateData: Record<string, unknown> = {
-    status,
-    inspectedAt: FieldValue.serverTimestamp(),
-    inspectedBy: uid,
-    inspectedByEmail: email,
-    notes: data.notes ?? inspData.notes ?? '',
-    updatedAt: FieldValue.serverTimestamp(),
-  };
+    const wsRef = adminDb.doc(`org/${orgId}/workspaces/${inspData.workspaceId}`);
+    const wsSnap = await tx.get(wsRef);
 
-  if (data.checklistData) updateData.checklistData = data.checklistData;
-  if (data.photoUrl !== undefined) updateData.photoUrl = data.photoUrl;
-  if (data.photoPath !== undefined) updateData.photoPath = data.photoPath;
-  if (data.gps !== undefined) updateData.gps = data.gps;
-  if (data.attestation) {
-    updateData.attestation = {
-      confirmed: data.attestation.confirmed,
-      text: data.attestation.text,
-      inspectorName: data.attestation.inspectorName,
-      inspectorUserId: uid,
-      deviceId: data.attestation.deviceId ?? null,
-      confirmedAt: FieldValue.serverTimestamp(),
-    };
-  }
+    const extRef = adminDb.doc(`org/${orgId}/extinguishers/${inspData.extinguisherId}`);
+    const extSnap = await tx.get(extRef);
 
-  await inspRef.update(updateData);
+    // 3. Validation logic
+    if (wsSnap.exists && wsSnap.data()?.status === 'archived') {
+      throwFailedPrecondition('Cannot modify inspections in an archived workspace.');
+    }
 
-  // Create immutable inspection event
-  await adminDb.collection(`org/${orgId}/inspectionEvents`).add({
-    inspectionId,
-    extinguisherId: inspData.extinguisherId,
-    workspaceId: inspData.workspaceId,
-    assetId: inspData.assetId,
-    action: 'inspected',
-    previousStatus,
-    newStatus: status,
-    checklistData: data.checklistData ?? null,
-    notes: data.notes ?? null,
-    photoUrl: data.photoUrl ?? null,
-    gps: data.gps ?? null,
-    attestation: data.attestation ?? null,
-    performedBy: uid,
-    performedByEmail: email,
-    performedAt: FieldValue.serverTimestamp(),
-  });
-
-  // Update workspace stats
-  if (wsSnap.exists) {
-    const statsUpdate: Record<string, unknown> = {
-      'stats.lastUpdated': FieldValue.serverTimestamp(),
-    };
-
-    // Decrement previous status count
-    if (previousStatus === 'pending') statsUpdate['stats.pending'] = FieldValue.increment(-1);
-    else if (previousStatus === 'pass') statsUpdate['stats.passed'] = FieldValue.increment(-1);
-    else if (previousStatus === 'fail') statsUpdate['stats.failed'] = FieldValue.increment(-1);
-
-    // Increment new status count
-    if (status === 'pass') statsUpdate['stats.passed'] = FieldValue.increment(1);
-    else if (status === 'fail') statsUpdate['stats.failed'] = FieldValue.increment(1);
-
-    await wsRef.update(statsUpdate);
-  }
-
-  // Update extinguisher lifecycle after inspection
-  const extRef = adminDb.doc(`org/${orgId}/extinguishers/${inspData.extinguisherId}`);
-  const extSnap = await extRef.get();
-
-  if (extSnap.exists) {
-    const extData = extSnap.data()!;
+    const serverTimestamp = FieldValue.serverTimestamp();
     const now = Timestamp.now();
 
-    // nextMonthlyInspection = now + 30 days (inspection just completed)
-    const nextMonthlyInspection = calculateNextMonthlyInspection(now);
-
-    // Build calc input with the freshly updated monthly date
-    const extType = (extData.extinguisherType as string | null) ?? '';
-    const hydroInterval = (extData.hydroTestIntervalYears as number | null) ?? getHydroIntervalByType(extType);
-    const needsSixYear = (extData.requiresSixYearMaintenance as boolean | null) ?? requiresSixYear(extType);
-
-    const calcInput: ExtinguisherForCalc = {
-      lifecycleStatus: extData.lifecycleStatus as string | null,
-      extinguisherType: extData.extinguisherType as string | null,
-      requiresSixYearMaintenance: needsSixYear,
-      lastMonthlyInspection: now,
-      lastAnnualInspection: extData.lastAnnualInspection as Timestamp | null,
-      lastSixYearMaintenance: extData.lastSixYearMaintenance as Timestamp | null,
-      lastHydroTest: extData.lastHydroTest as Timestamp | null,
-      hydroTestIntervalYears: hydroInterval,
-      nextMonthlyInspection,
-      nextAnnualInspection: extData.nextAnnualInspection as Timestamp | null,
-      nextSixYearMaintenance: extData.nextSixYearMaintenance as Timestamp | null,
-      nextHydroTest: extData.nextHydroTest as Timestamp | null,
+    // 4. Prepare updates
+    const updateData: Record<string, unknown> = {
+      status,
+      inspectedAt: serverTimestamp,
+      inspectedBy: uid,
+      inspectedByEmail: email,
+      notes: data.notes ?? inspData.notes ?? '',
+      updatedAt: serverTimestamp,
     };
 
-    const { complianceStatus, overdueFlags } = calculateComplianceStatus(calcInput);
+    if (data.checklistData) updateData.checklistData = data.checklistData;
+    if (data.photoUrl !== undefined) updateData.photoUrl = data.photoUrl;
+    if (data.photoPath !== undefined) updateData.photoPath = data.photoPath;
+    if (data.gps !== undefined) updateData.gps = data.gps;
+    if (data.attestation) {
+      updateData.attestation = {
+        confirmed: data.attestation.confirmed,
+        text: data.attestation.text,
+        inspectorName: data.attestation.inspectorName,
+        inspectorUserId: uid,
+        deviceId: data.attestation.deviceId ?? null,
+        confirmedAt: serverTimestamp,
+      };
+    }
 
-    await extRef.update({
-      lastMonthlyInspection: now,
-      nextMonthlyInspection,
-      complianceStatus,
-      overdueFlags,
-      updatedAt: FieldValue.serverTimestamp(),
+    // 5. Apply Updates (Writes)
+    tx.update(inspRef, updateData);
+
+    // Create immutable inspection event
+    const eventRef = adminDb.collection(`org/${orgId}/inspectionEvents`).doc();
+    tx.set(eventRef, {
+      inspectionId,
+      extinguisherId: inspData.extinguisherId,
+      workspaceId: inspData.workspaceId,
+      assetId: inspData.assetId,
+      action: 'inspected',
+      previousStatus,
+      newStatus: status,
+      checklistData: data.checklistData ?? null,
+      notes: data.notes ?? null,
+      photoUrl: data.photoUrl ?? null,
+      gps: data.gps ?? null,
+      attestation: data.attestation ?? null,
+      performedBy: uid,
+      performedByEmail: email,
+      performedAt: serverTimestamp,
     });
-  }
-  // If extinguisher doc was not found, skip lifecycle update — the inspection
-  // references an extinguisher that no longer exists (edge case, not actionable).
 
-  return { inspectionId, status, previousStatus };
+    // Update workspace stats
+    if (wsSnap.exists) {
+      const statsUpdate: Record<string, unknown> = {
+        'stats.lastUpdated': serverTimestamp,
+      };
+
+      // Decrement previous status count
+      if (previousStatus === 'pending') statsUpdate['stats.pending'] = FieldValue.increment(-1);
+      else if (previousStatus === 'pass') statsUpdate['stats.passed'] = FieldValue.increment(-1);
+      else if (previousStatus === 'fail') statsUpdate['stats.failed'] = FieldValue.increment(-1);
+
+      // Increment new status count
+      if (status === 'pass') statsUpdate['stats.passed'] = FieldValue.increment(1);
+      else if (status === 'fail') statsUpdate['stats.failed'] = FieldValue.increment(1);
+
+      tx.update(wsRef, statsUpdate);
+    }
+
+    // Update extinguisher lifecycle after inspection
+    if (extSnap.exists) {
+      const extData = extSnap.data()!;
+
+      // nextMonthlyInspection = now + 30 days (inspection just completed)
+      const nextMonthlyInspection = calculateNextMonthlyInspection(now);
+
+      // Build calc input with the freshly updated monthly date
+      const extType = (extData.extinguisherType as string | null) ?? '';
+      const hydroInterval = (extData.hydroTestIntervalYears as number | null) ?? getHydroIntervalByType(extType);
+      const needsSixYear = (extData.requiresSixYearMaintenance as boolean | null) ?? requiresSixYear(extType);
+
+      const calcInput: ExtinguisherForCalc = {
+        lifecycleStatus: extData.lifecycleStatus as string | null,
+        extinguisherType: extData.extinguisherType as string | null,
+        requiresSixYearMaintenance: needsSixYear,
+        lastMonthlyInspection: now,
+        lastAnnualInspection: extData.lastAnnualInspection as Timestamp | null,
+        lastSixYearMaintenance: extData.lastSixYearMaintenance as Timestamp | null,
+        lastHydroTest: extData.lastHydroTest as Timestamp | null,
+        hydroTestIntervalYears: hydroInterval,
+        nextMonthlyInspection,
+        nextAnnualInspection: extData.nextAnnualInspection as Timestamp | null,
+        nextSixYearMaintenance: extData.nextSixYearMaintenance as Timestamp | null,
+        nextHydroTest: extData.nextHydroTest as Timestamp | null,
+      };
+
+      const { complianceStatus, overdueFlags } = calculateComplianceStatus(calcInput);
+
+      tx.update(extRef, {
+        lastMonthlyInspection: now,
+        nextMonthlyInspection,
+        complianceStatus,
+        overdueFlags,
+        updatedAt: serverTimestamp,
+      });
+    }
+
+    return { inspectionId, status, previousStatus };
+  });
 });
+

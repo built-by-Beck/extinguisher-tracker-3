@@ -2,8 +2,9 @@ import { onCall } from 'firebase-functions/v2/https';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
+import { validateSubscriptionTx } from '../utils/subscription.js';
 import { throwInvalidArgument, throwNotFound, throwFailedPrecondition } from '../utils/errors.js';
-import { writeAuditLog } from '../utils/auditLog.js';
+import { writeAuditLogTx } from '../utils/auditLog.js';
 import { FieldValue } from 'firebase-admin/firestore';
 
 interface InspectionResultData {
@@ -18,7 +19,7 @@ interface InspectionResultData {
 }
 
 export const archiveWorkspace = onCall(async (request) => {
-  const { uid } = validateAuth(request);
+  const { uid, email } = validateAuth(request);
   const { orgId, workspaceId, sectionTimes } = request.data as {
     orgId: string;
     workspaceId: string;
@@ -34,19 +35,7 @@ export const archiveWorkspace = onCall(async (request) => {
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
 
-  const wsRef = adminDb.doc(`org/${orgId}/workspaces/${workspaceId}`);
-  const wsSnap = await wsRef.get();
-
-  if (!wsSnap.exists) {
-    throwNotFound('Workspace not found.');
-  }
-
-  const wsData = wsSnap.data()!;
-  if (wsData.status === 'archived') {
-    throwFailedPrecondition('Workspace is already archived.');
-  }
-
-  // Compute final stats
+  // 1. Fetch inspections outside transaction (queries not allowed in tx)
   const inspSnap = await adminDb.collection(`org/${orgId}/inspections`)
     .where('workspaceId', '==', workspaceId)
     .get();
@@ -75,51 +64,74 @@ export const archiveWorkspace = onCall(async (request) => {
     });
   });
 
-  await wsRef.update({
-    status: 'archived',
-    archivedAt: FieldValue.serverTimestamp(),
-    archivedBy: uid,
-    sectionTimes: sectionTimes ?? null,
-    stats: {
-      total: inspSnap.size,
-      passed,
-      failed,
-      pending,
-      lastUpdated: FieldValue.serverTimestamp(),
-    },
-  });
+  return await adminDb.runTransaction(async (tx) => {
+    // 2. Subscription check
+    await validateSubscriptionTx(tx, orgId);
 
-  // Create report snapshot doc at org/{orgId}/reports/{workspaceId}
-  // File exports (CSV/PDF/JSON) are generated on demand via the generateReport CF.
-  const reportRef = adminDb.doc(`org/${orgId}/reports/${workspaceId}`);
-  await reportRef.set({
-    workspaceId,
-    monthYear: wsData.monthYear ?? '',
-    label: wsData.label ?? '',
-    archivedAt: FieldValue.serverTimestamp(),
-    archivedBy: uid,
-    totalExtinguishers: inspSnap.size,
-    passedCount: passed,
-    failedCount: failed,
-    pendingCount: pending,
-    sectionTimes: sectionTimes ?? null,
-    results,
-    csvDownloadUrl: null,
-    csvFilePath: null,
-    pdfDownloadUrl: null,
-    pdfFilePath: null,
-    jsonDownloadUrl: null,
-    jsonFilePath: null,
-    generatedAt: null,
-  });
+    // 3. Load workspace
+    const wsRef = adminDb.doc(`org/${orgId}/workspaces/${workspaceId}`);
+    const wsSnap = await tx.get(wsRef);
 
-  await writeAuditLog(orgId, {
-    action: 'workspace.archived',
-    performedBy: uid,
-    entityType: 'workspace',
-    entityId: workspaceId,
-    details: { workspaceId, total: inspSnap.size, passed, failed, pending },
-  });
+    if (!wsSnap.exists) {
+      throwNotFound('Workspace not found.');
+    }
 
-  return { workspaceId, passed, failed, pending };
+    const wsData = wsSnap.data()!;
+    if (wsData.status === 'archived') {
+      throwFailedPrecondition('Workspace is already archived.');
+    }
+
+    const serverTimestamp = FieldValue.serverTimestamp();
+
+    // 4. Update workspace
+    tx.update(wsRef, {
+      status: 'archived',
+      archivedAt: serverTimestamp,
+      archivedBy: uid,
+      sectionTimes: sectionTimes ?? null,
+      stats: {
+        total: inspSnap.size,
+        passed,
+        failed,
+        pending,
+        lastUpdated: serverTimestamp,
+      },
+    });
+
+    // 5. Create report snapshot
+    const reportRef = adminDb.doc(`org/${orgId}/reports/${workspaceId}`);
+    tx.set(reportRef, {
+      workspaceId,
+      monthYear: wsData.monthYear ?? '',
+      label: wsData.label ?? '',
+      archivedAt: serverTimestamp,
+      archivedBy: uid,
+      totalExtinguishers: inspSnap.size,
+      passedCount: passed,
+      failedCount: failed,
+      pendingCount: pending,
+      sectionTimes: sectionTimes ?? null,
+      results, // NOTE: Limited to ~1000 items due to 1MB doc size
+      csvDownloadUrl: null,
+      csvFilePath: null,
+      pdfDownloadUrl: null,
+      pdfFilePath: null,
+      jsonDownloadUrl: null,
+      jsonFilePath: null,
+      generatedAt: null,
+    });
+
+    // 6. Audit log
+    writeAuditLogTx(tx, orgId, {
+      action: 'workspace.archived',
+      performedBy: uid,
+      performedByEmail: email,
+      entityType: 'workspace',
+      entityId: workspaceId,
+      details: { workspaceId, total: inspSnap.size, passed, failed, pending },
+    });
+
+    return { workspaceId, passed, failed, pending };
+  });
 });
+

@@ -11,6 +11,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
+import { validateSubscription } from '../utils/subscription.js';
 import { throwInvalidArgument } from '../utils/errors.js';
 import {
   calculateNextMonthlyInspection,
@@ -34,6 +35,7 @@ export const batchRecalculateLifecycle = onCall(async (request) => {
   if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
+  await validateSubscription(orgId);
 
   const extRef = adminDb.collection(`org/${orgId}/extinguishers`);
   const extSnap = await extRef
