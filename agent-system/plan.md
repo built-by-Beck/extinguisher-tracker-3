@@ -1,6 +1,6 @@
 # Plan -- extinguisher-tracker-3
 
-**Current Phase**: 15 -- Add Location Hierarchy Level Indicators
+**Current Phase**: 16 -- Delete Workspace & AI Knowledge Base
 **Last Updated**: 2026-03-23
 **Author**: built_by_Beck
 
@@ -8,27 +8,31 @@
 
 ## Current Objective
 
-The customer needs to know the hierarchy order of the locations in relation to their names. We need to add visual numbers beside the locations to show their level (e.g., top level = 1, next level = 2, etc.). 
+1. Allow users to permanently delete a workspace.
+2. Provide the AI assistant with an internal knowledge base so it can answer questions about how to use the Extinguisher Tracker program.
 
 ---
 
-## Project State Summary
+## Tasks for This Round (Phase 16)
 
-- Phase 14 complete (Data Organizer, unified location mapping, real-time workspace tiles).
-- Location tree views exist in `src/pages/Locations.tsx` and `src/pages/guest/GuestLocations.tsx`.
-- Both views render an indented list using `depth` to calculate padding.
+### P16-01: Implement `deleteWorkspace` Cloud Function
+**File**: `functions/src/workspaces/deleteWorkspace.ts` (NEW)
+**File**: `functions/src/index.ts` (MODIFY)
+Create a new Cloud Function that recursively deletes a workspace document, its `inspections` subcollection, its `sectionNotes` subcollection, and its associated report document. Export it in `index.ts`.
 
----
+### P16-02: Connect Delete Function to Frontend
+**File**: `src/services/workspaceService.ts` (MODIFY)
+Add `deleteWorkspaceCall` to trigger the backend function.
 
-## Tasks for This Round (Phase 15)
+### P16-03: Add Delete UI to Workspaces Page
+**File**: `src/pages/Workspaces.tsx` (MODIFY)
+Add a "Delete" button (trash icon) to the workspace cards (perhaps primarily for archived workspaces, or both). Add a `ConfirmModal` (variant: danger) to confirm the deletion.
 
-### P15-01: Add level indicators to Admin Locations View
-**File**: `src/pages/Locations.tsx` (MODIFY)
-Update the `TreeNode` component to include a visual badge next to the location name, displaying "Level 1", "Level 2", etc., based on the `depth` prop (`depth + 1`).
+### P16-04: Implement AI Knowledge Base
+**File**: `src/lib/aiKnowledgeBase.ts` (NEW)
+Create a file exporting a constant string with instructions and FAQ for the AI about how to use the app (e.g., how to delete an extinguisher, how to import, how to manage workspaces).
+**File**: `src/services/aiService.ts` (MODIFY)
+Import the knowledge base and append it to the `SYSTEM_PROMPT`.
 
-### P15-02: Add level indicators to Guest Locations View
-**File**: `src/pages/guest/GuestLocations.tsx` (MODIFY)
-Update the `ReadOnlyTreeNode` component to include the same visual badge.
-
-### P15-03: Build verification
-Run `pnpm build` and `pnpm lint` to ensure no errors.
+### P16-05: Build & Lint
+Run build scripts to verify everything is solid.

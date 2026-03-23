@@ -31,6 +31,7 @@ export { exportExtinguishersCSV } from './data/exportCSV.js';
 // Workspaces
 export { createWorkspace } from './workspaces/createWorkspace.js';
 export { archiveWorkspace } from './workspaces/archiveWorkspace.js';
+export { deleteWorkspace } from './workspaces/deleteWorkspace.js';
 
 // Inspections
 export { saveInspection } from './inspections/saveInspection.js';
