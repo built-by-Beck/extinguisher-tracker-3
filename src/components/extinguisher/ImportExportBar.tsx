@@ -6,6 +6,8 @@ import { functions } from '../../lib/firebase.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { ColumnMapperModal, TARGET_FIELDS } from './ColumnMapperModal.tsx';
 import { getAllActiveExtinguishers } from '../../services/extinguisherService.ts';
+import { subscribeToLocations, type Location } from '../../services/locationService.ts';
+import { useEffect } from 'react';
 
 interface ImportExportBarProps {
   onImportJSON?: () => void;
@@ -128,6 +130,15 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Locations for default assignment
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [defaultImportLocId, setDefaultImportLocId] = useState('');
+
+  useEffect(() => {
+    if (!orgId) return;
+    return subscribeToLocations(orgId, setLocations);
+  }, [orgId]);
+
   // Column mapper state
   const [showMapper, setShowMapper] = useState(false);
   const [parsedColumns, setParsedColumns] = useState<string[]>([]);
@@ -173,6 +184,19 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
       }
 
       const columns = Object.keys(rows[0]);
+
+      // If a default location was selected, inject it into every row
+      if (defaultImportLocId) {
+        const loc = locations.find((l) => l.id === defaultImportLocId);
+        if (loc) {
+          rows.forEach((row) => {
+            row.parentLocation = loc.name;
+            row.locationId = loc.id!;
+          });
+          if (!columns.includes('parentLocation')) columns.push('parentLocation');
+          if (!columns.includes('locationId')) columns.push('locationId');
+        }
+      }
 
       // If columns already match, import directly
       if (columnsMatchExpected(columns)) {
@@ -285,18 +309,33 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
       <div className="flex flex-wrap items-center gap-3">
         {/* Bulk Import — Elite and Enterprise only */}
         {canBulkImport && (
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            Import
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPTED_EXTENSIONS}
-              onChange={handleFileSelected}
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-1.5 shadow-sm">
+            <select
+              value={defaultImportLocId}
+              onChange={(e) => setDefaultImportLocId(e.target.value)}
               disabled={importing}
-              className="hidden"
-            />
-          </label>
+              className="h-9 max-w-[200px] rounded-md border-gray-300 py-0 pl-3 pr-8 text-sm focus:border-red-500 focus:ring-red-500"
+            >
+              <option value="">-- Auto-map Location --</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+            <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md bg-white border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50">
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              Import
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_EXTENSIONS}
+                onChange={handleFileSelected}
+                disabled={importing}
+                className="hidden"
+              />
+            </label>
+          </div>
         )}
 
         {/* Import JSON Backup — Elite and Enterprise only */}
