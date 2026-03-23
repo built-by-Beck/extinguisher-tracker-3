@@ -53,6 +53,11 @@ export default function Inventory() {
 
   const orgId = userProfile?.activeOrgId ?? '';
   const canEdit = hasRole(['owner', 'admin']);
+  const canMerge = hasFeature(
+    org?.featureFlags as Record<string, boolean> | null | undefined,
+    'bulkTagPrinting',
+    org?.plan
+  );
 
   const [items, setItems] = useState<Extinguisher[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -218,7 +223,7 @@ export default function Inventory() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {canEdit && (
+          {canEdit && canMerge && (
             <button
               onClick={handleDuplicateScan}
               className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"

@@ -9,6 +9,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Printer, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
+import { useOrg } from '../hooks/useOrg.ts';
+import { hasFeature } from '../lib/planConfig.ts';
 import {
   subscribeToExtinguishers,
   type Extinguisher,
@@ -61,7 +63,14 @@ function toPrintRow(ext: Extinguisher): PrintRow {
 export default function PrintableList() {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
+  const { org } = useOrg();
   const orgId = userProfile?.activeOrgId ?? '';
+
+  const canPrint = hasFeature(
+    org?.featureFlags as Record<string, boolean> | null | undefined,
+    'tagPrinting',
+    org?.plan
+  );
 
   const [items, setItems] = useState<Extinguisher[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,13 +80,20 @@ export default function PrintableList() {
       setLoading(false);
       return;
     }
+
+    // If we have org data and can't print, redirect
+    if (org && !canPrint) {
+      navigate('/dashboard/inventory');
+      return;
+    }
+
     setLoading(true);
     const unsub = subscribeToExtinguishers(orgId, (data) => {
       setItems(data);
       setLoading(false);
     }, { noLimit: true });
     return unsub;
-  }, [orgId]);
+  }, [orgId, org, canPrint, navigate]);
 
   const rows = useMemo(() => {
     const mapped = items.map(toPrintRow);
@@ -88,6 +104,10 @@ export default function PrintableList() {
     });
     return mapped;
   }, [items]);
+
+  if (org && !canPrint) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-white text-black">

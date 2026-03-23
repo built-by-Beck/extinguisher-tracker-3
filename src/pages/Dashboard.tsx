@@ -28,6 +28,7 @@ import {
 import { db } from '../lib/firebase.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { useAuth } from '../hooks/useAuth.ts';
+import { hasFeature } from '../lib/planConfig.ts';
 import { BillingStatus } from '../components/billing/BillingStatus.tsx';
 import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
 import { ComplianceSummaryCard } from '../components/compliance/ComplianceSummaryCard.tsx';
@@ -68,8 +69,11 @@ export default function Dashboard() {
   const isAdminOrOwner = hasRole(['owner', 'admin']);
   const hasPlan = !!org?.plan;
   const subActive = org?.subscriptionStatus === 'active' || org?.subscriptionStatus === 'trialing';
-  const hasAiAccess =
-    org?.plan === 'pro' || org?.plan === 'elite' || org?.plan === 'enterprise';
+  const hasAiAccess = hasFeature(
+    org?.featureFlags as Record<string, boolean> | null | undefined,
+    'aiAssistant',
+    org?.plan
+  );
 
   const [extCount, setExtCount] = useState(0);
   const [memberCount, setMemberCount] = useState(0);
