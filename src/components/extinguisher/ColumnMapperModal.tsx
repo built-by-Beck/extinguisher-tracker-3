@@ -205,6 +205,8 @@ interface ColumnMapperModalProps {
   previewRows: Record<string, string>[];
   /** Called with the final mapping: { sourceColumn -> targetFieldKey } */
   onConfirm: (mapping: Record<string, string>) => void;
+  /** If true, removes location mapping options because they are auto-mapped */
+  autoMappedLocation?: boolean;
 }
 
 export function ColumnMapperModal({
@@ -213,7 +215,16 @@ export function ColumnMapperModal({
   sourceColumns,
   previewRows,
   onConfirm,
+  autoMappedLocation,
 }: ColumnMapperModalProps) {
+  // If the user selected a default location, hide the location fields from the mapper
+  const availableFields = useMemo(() => {
+    if (autoMappedLocation) {
+      return TARGET_FIELDS.filter(f => f.key !== 'parentLocation' && f.key !== 'locationId');
+    }
+    return TARGET_FIELDS;
+  }, [autoMappedLocation]);
+
   // Initialize mapping with auto-suggestions
   const initialMapping = useMemo(() => {
     const map: Record<string, string> = {};
@@ -222,7 +233,7 @@ export function ColumnMapperModal({
     // First pass: find confident matches
     for (const col of sourceColumns) {
       const match = autoMatch(col);
-      if (match && !usedTargets.has(match)) {
+      if (match && !usedTargets.has(match) && availableFields.some(f => f.key === match)) {
         map[col] = match;
         usedTargets.add(match);
       }
@@ -234,7 +245,7 @@ export function ColumnMapperModal({
     }
 
     return map;
-  }, [sourceColumns]);
+  }, [sourceColumns, availableFields]);
 
   const [mapping, setMapping] = useState<Record<string, string>>(initialMapping);
   const [showPreview, setShowPreview] = useState(true);
@@ -249,7 +260,7 @@ export function ColumnMapperModal({
   }, [mapping]);
 
   // Check required fields
-  const missingRequired = TARGET_FIELDS.filter(
+  const missingRequired = availableFields.filter(
     (f) => f.required && !usedTargets.has(f.key),
   );
 
@@ -342,7 +353,7 @@ export function ColumnMapperModal({
                     } focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500`}
                   >
                     <option value="">-- Skip this column --</option>
-                    {TARGET_FIELDS.map((field) => {
+                    {availableFields.map((field) => {
                       const isUsed = usedTargets.has(field.key) && target !== field.key;
                       return (
                         <option key={field.key} value={field.key} disabled={isUsed}>

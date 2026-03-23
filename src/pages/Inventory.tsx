@@ -19,6 +19,7 @@ import {
   Copy,
   ChevronLeft,
   ChevronRight,
+  LayoutList,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -74,6 +75,20 @@ export default function Inventory() {
     searchParams.get('compliance') ?? '',
   );
   const [deleteTarget, setDeleteTarget] = useState<Extinguisher | null>(null);
+
+  // Dynamic columns
+  const [visibleColumns, setVisibleColumns] = useState({
+    assetId: true,
+    serial: true,
+    building: true,
+    vicinity: true,
+    type: false,
+    section: true,
+    category: false,
+    compliance: true,
+    nextInspection: true,
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
 
   // Pagination and selection
   const [currentPage, setCurrentPage] = useState(1);
@@ -407,6 +422,42 @@ export default function Inventory() {
           />
         </div>
 
+        {/* Columns toggle */}
+        <div className="relative">
+          <button
+            onClick={() => setShowColumnMenu(!showColumnMenu)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <LayoutList className="h-4 w-4" />
+            Columns
+          </button>
+          {showColumnMenu && (
+            <div className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white p-2 shadow-xl">
+              {Object.entries({
+                assetId: 'Asset ID',
+                serial: 'Serial',
+                building: 'Building',
+                vicinity: 'Vicinity',
+                section: 'Section',
+                type: 'Type',
+                category: 'Category',
+                compliance: 'Compliance',
+                nextInspection: 'Next Inspection',
+              }).map(([key, label]) => (
+                <label key={key} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns[key as keyof typeof visibleColumns]}
+                    onChange={() => setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key as keyof typeof visibleColumns] }))}
+                    className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                  />
+                  <span className="text-sm text-gray-700">{label}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Show deleted toggle */}
         {canEdit && (
           <button
@@ -478,27 +529,51 @@ export default function Inventory() {
                     />
                   </th>
                 )}
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Asset ID
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Serial
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Type
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Section
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Category
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Compliance
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Next Inspection
-                </th>
+                {visibleColumns.assetId && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Asset ID
+                  </th>
+                )}
+                {visibleColumns.serial && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Serial
+                  </th>
+                )}
+                {visibleColumns.building && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Building
+                  </th>
+                )}
+                {visibleColumns.vicinity && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Vicinity
+                  </th>
+                )}
+                {visibleColumns.type && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Type
+                  </th>
+                )}
+                {visibleColumns.section && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Section
+                  </th>
+                )}
+                {visibleColumns.category && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Category
+                  </th>
+                )}
+                {visibleColumns.compliance && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Compliance
+                  </th>
+                )}
+                {visibleColumns.nextInspection && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Next Inspection
+                  </th>
+                )}
                 {canEdit && (
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Actions
@@ -523,27 +598,51 @@ export default function Inventory() {
                       />
                     </td>
                   )}
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                    {ext.assetId}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                    {ext.serial}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                    {ext.extinguisherType ?? '--'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                    {ext.section || '--'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                    {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                    {formatDueDate(ext.nextMonthlyInspection)}
-                  </td>
+                  {visibleColumns.assetId && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                      {ext.assetId}
+                    </td>
+                  )}
+                  {visibleColumns.serial && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.serial}
+                    </td>
+                  )}
+                  {visibleColumns.building && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.parentLocation || '--'}
+                    </td>
+                  )}
+                  {visibleColumns.vicinity && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.vicinity || '--'}
+                    </td>
+                  )}
+                  {visibleColumns.type && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.extinguisherType ?? '--'}
+                    </td>
+                  )}
+                  {visibleColumns.section && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.section || '--'}
+                    </td>
+                  )}
+                  {visibleColumns.category && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                    </td>
+                  )}
+                  {visibleColumns.compliance && (
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />
+                    </td>
+                  )}
+                  {visibleColumns.nextInspection && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      {formatDueDate(ext.nextMonthlyInspection)}
+                    </td>
+                  )}
                   {canEdit && (
                     <td className="whitespace-nowrap px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">

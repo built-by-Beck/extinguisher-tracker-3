@@ -215,42 +215,42 @@ export default function WorkspaceDetail() {
     if (!isArchived) {
       // For active workspaces, the source of truth for totals is the live extinguisher inventory
       for (const ext of extinguishers) {
-        const section = ext.section || 'Unassigned';
-        if (!map[section]) {
-          map[section] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+        const locName = ext.parentLocation || 'Unassigned';
+        if (!map[locName]) {
+          map[locName] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
         }
-        map[section].total += 1;
-        map[section].pending += 1; // Assume pending until an inspection is found
+        map[locName].total += 1;
+        map[locName].pending += 1; // Assume pending until an inspection is found
       }
 
       // Apply inspection results
       for (const insp of inspections) {
-        const section = insp.section || 'Unassigned';
-        if (!map[section]) {
-          map[section] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
-          map[section].total += 1;
-          map[section].pending += 1;
+        const locName = insp.parentLocation || insp.section || 'Unassigned';
+        if (!map[locName]) {
+          map[locName] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+          map[locName].total += 1;
+          map[locName].pending += 1;
         }
 
         if (insp.status === 'pass') {
-          map[section].passed += 1;
-          map[section].pending = Math.max(0, map[section].pending - 1);
+          map[locName].passed += 1;
+          map[locName].pending = Math.max(0, map[locName].pending - 1);
         } else if (insp.status === 'fail') {
-          map[section].failed += 1;
-          map[section].pending = Math.max(0, map[section].pending - 1);
+          map[locName].failed += 1;
+          map[locName].pending = Math.max(0, map[locName].pending - 1);
         }
       }
     } else {
       // For archived workspaces, strictly use the historical inspection data
       for (const insp of inspections) {
-        const section = insp.section || 'Unassigned';
-        if (!map[section]) {
-          map[section] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+        const locName = insp.parentLocation || insp.section || 'Unassigned';
+        if (!map[locName]) {
+          map[locName] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
         }
-        map[section].total += 1;
-        if (insp.status === 'pass') map[section].passed += 1;
-        else if (insp.status === 'fail') map[section].failed += 1;
-        else map[section].pending += 1;
+        map[locName].total += 1;
+        if (insp.status === 'pass') map[locName].passed += 1;
+        else if (insp.status === 'fail') map[locName].failed += 1;
+        else map[locName].pending += 1;
       }
     }
 
@@ -273,11 +273,11 @@ export default function WorkspaceDetail() {
     for (const loc of locations) sectionSet.add(loc.name);
     // Merge in live extinguishers if active
     if (!isArchived) {
-      for (const ext of extinguishers) sectionSet.add(ext.section || 'Unassigned');
+      for (const ext of extinguishers) sectionSet.add(ext.parentLocation || 'Unassigned');
     }
-    // Merge in any insp.section values (handles pre-unification data)
+    // Merge in any insp.parentLocation/section values (handles pre-unification data)
     for (const insp of inspections) {
-      sectionSet.add(insp.section || 'Unassigned');
+      sectionSet.add(insp.parentLocation || insp.section || 'Unassigned');
     }
     return Array.from(sectionSet).sort();
   }, [inspections, extinguishers, locations, isArchived]);
@@ -292,7 +292,7 @@ export default function WorkspaceDetail() {
       // For active workspaces, source of truth for items is live extinguishers + existing inspections
       const extMap = new Map<string, Extinguisher>();
       for (const ext of extinguishers) {
-        if ((ext.section || 'Unassigned') === selectedSection) {
+        if ((ext.parentLocation || 'Unassigned') === selectedSection) {
           extMap.set(ext.id!, ext);
         }
       }
@@ -301,7 +301,7 @@ export default function WorkspaceDetail() {
       
       // Add all inspections that belong to this section
       for (const insp of inspections) {
-        if ((insp.section || 'Unassigned') === selectedSection) {
+        if ((insp.parentLocation || insp.section || 'Unassigned') === selectedSection) {
           combined.push(insp);
           handledExtIds.add(insp.extinguisherId);
         }
@@ -318,7 +318,8 @@ export default function WorkspaceDetail() {
             status: 'pending',
             inspectedAt: null,
             inspectedBy: null,
-            section: ext.section || 'Unassigned',
+            parentLocation: ext.parentLocation || '',
+            section: ext.section || '',
             qrCodeValue: ext.qrCodeValue,
             barcode: ext.barcode,
             serial: ext.serial,
@@ -328,8 +329,8 @@ export default function WorkspaceDetail() {
     } else {
       // Archived: just filter inspections
       combined = inspections.filter((insp) => {
-        const section = insp.section || 'Unassigned';
-        return section === selectedSection;
+        const locName = insp.parentLocation || insp.section || 'Unassigned';
+        return locName === selectedSection;
       });
     }
 
@@ -339,7 +340,7 @@ export default function WorkspaceDetail() {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       combined = combined.filter(
-        (insp) => insp.assetId.toLowerCase().includes(q) || (insp.section || '').toLowerCase().includes(q),
+        (insp) => insp.assetId.toLowerCase().includes(q) || (insp.parentLocation || '').toLowerCase().includes(q) || (insp.section || '').toLowerCase().includes(q),
       );
     }
     

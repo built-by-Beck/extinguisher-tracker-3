@@ -95,6 +95,7 @@ export const createWorkspace = onCall(async (request) => {
       extinguisherId: extDoc.id,
       workspaceId: monthYear,
       assetId: extData.assetId ?? '',
+      parentLocation: extData.parentLocation ?? '',
       section: extData.section ?? '',
       status: 'pending',
       inspectedAt: null,
