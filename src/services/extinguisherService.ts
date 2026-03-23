@@ -223,7 +223,6 @@ export async function updateExtinguisher(
     updatedAt: serverTimestamp(),
   });
 }
-
 /**
  * Soft-delete an extinguisher.
  */
@@ -235,11 +234,40 @@ export async function softDeleteExtinguisher(
 ): Promise<void> {
   const ref = doc(db, 'org', orgId, 'extinguishers', extId);
   await updateDoc(ref, {
+    lifecycleStatus: 'deleted',
     deletedAt: serverTimestamp(),
     deletedBy: uid,
-    deletionReason: reason,
+    deletedReason: reason,
     updatedAt: serverTimestamp(),
   });
+}
+
+/**
+ * Batch soft-delete multiple extinguishers.
+ * Chunks to 499 operations per batch.
+ */
+export async function batchSoftDeleteExtinguishers(
+  orgId: string,
+  extIds: string[],
+  uid: string,
+  reason: string,
+): Promise<void> {
+  const chunkSize = 499;
+  for (let i = 0; i < extIds.length; i += chunkSize) {
+    const chunk = extIds.slice(i, i + chunkSize);
+    const batch = writeBatch(db);
+    for (const extId of chunk) {
+      const ref = doc(db, 'org', orgId, 'extinguishers', extId);
+      batch.update(ref, {
+        lifecycleStatus: 'deleted',
+        deletedAt: serverTimestamp(),
+        deletedBy: uid,
+        deletedReason: reason,
+        updatedAt: serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
 }
 
 /**
