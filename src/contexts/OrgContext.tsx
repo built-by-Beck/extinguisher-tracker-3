@@ -84,13 +84,36 @@ export function OrgProvider({ children }: OrgProviderProps) {
         });
         setUserOrgs(orgs);
       },
-      () => {
+      (err) => {
+        console.error('[OrgContext] Failed to query user org memberships:', err);
         setUserOrgs([]);
       },
     );
 
     return () => unsub();
   }, [authLoading, user]);
+
+  // Auto-select first available org when activeOrgId is missing but user has memberships
+  const autoSelectingRef = useRef(false);
+  useEffect(() => {
+    if (authLoading || !user || activeOrgId || userOrgs.length === 0 || autoSelectingRef.current) {
+      return;
+    }
+    // User is authenticated with org memberships but no activeOrgId — auto-select
+    autoSelectingRef.current = true;
+    const firstOrgId = userOrgs[0].orgId;
+    const userDocRef = doc(db, 'usr', user.uid);
+    updateDoc(userDocRef, {
+      activeOrgId: firstOrgId,
+      updatedAt: serverTimestamp(),
+    })
+      .catch((err) => {
+        console.error('Failed to auto-select org:', err);
+      })
+      .finally(() => {
+        autoSelectingRef.current = false;
+      });
+  }, [authLoading, user, activeOrgId, userOrgs]);
 
   // Listen to active org document and membership document
   useEffect(() => {
@@ -111,7 +134,10 @@ export function OrgProvider({ children }: OrgProviderProps) {
     if (!user || !activeOrgId) {
       setOrg(null);
       setMembership(null);
-      setOrgLoading(false);
+      // Only mark loading as done if there are no orgs to auto-select
+      if (userOrgs.length === 0) {
+        setOrgLoading(false);
+      }
       return;
     }
 
@@ -133,12 +159,14 @@ export function OrgProvider({ children }: OrgProviderProps) {
         if (snapshot.exists()) {
           setOrg(snapshot.data() as Organization);
         } else {
+          console.warn(`[OrgContext] Org document org/${activeOrgId} does not exist.`);
           setOrg(null);
         }
         orgLoaded = true;
         checkBothLoaded();
       },
-      () => {
+      (err) => {
+        console.error(`[OrgContext] Failed to listen to org/${activeOrgId}:`, err);
         setOrg(null);
         orgLoaded = true;
         checkBothLoaded();
@@ -153,12 +181,14 @@ export function OrgProvider({ children }: OrgProviderProps) {
         if (snapshot.exists()) {
           setMembership(snapshot.data() as OrgMember);
         } else {
+          console.warn(`[OrgContext] Membership doc for user ${user.uid} in org/${activeOrgId} does not exist.`);
           setMembership(null);
         }
         memberLoaded = true;
         checkBothLoaded();
       },
-      () => {
+      (err) => {
+        console.error(`[OrgContext] Failed to listen to membership in org/${activeOrgId}:`, err);
         setMembership(null);
         memberLoaded = true;
         checkBothLoaded();
@@ -175,7 +205,7 @@ export function OrgProvider({ children }: OrgProviderProps) {
         unsubMemberRef.current = null;
       }
     };
-  }, [authLoading, user, activeOrgId]);
+  }, [authLoading, user, activeOrgId, userOrgs.length]);
 
   const switchOrg = useCallback(
     async (orgId: string): Promise<void> => {
