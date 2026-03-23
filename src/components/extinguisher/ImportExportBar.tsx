@@ -5,6 +5,7 @@ import { read, utils } from 'xlsx';
 import { functions } from '../../lib/firebase.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { ColumnMapperModal, TARGET_FIELDS } from './ColumnMapperModal.tsx';
+import { getAllActiveExtinguishers } from '../../services/extinguisherService.ts';
 
 interface ImportExportBarProps {
   onImportJSON?: () => void;
@@ -226,6 +227,32 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
     }
   }
 
+  async function handleExportBackup() {
+    if (!orgId) return;
+    setExporting(true);
+    setError('');
+    try {
+      const allExt = await getAllActiveExtinguishers(orgId);
+      const backup = {
+        exportedAt: new Date().toISOString(),
+        orgId,
+        version: '3.0',
+        extinguishers: allExt,
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ex3-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Backup export failed.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function handleExport() {
     if (!orgId) return;
     setExporting(true);
@@ -260,7 +287,7 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
         {canBulkImport && (
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            Import File
+            Import
             <input
               ref={fileInputRef}
               type="file"
@@ -292,6 +319,16 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
         >
           {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           Export CSV
+        </button>
+
+        {/* Export Backup */}
+        <button
+          onClick={handleExportBackup}
+          disabled={exporting}
+          className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          Export Backup
         </button>
       </div>
 

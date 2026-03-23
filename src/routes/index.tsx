@@ -8,6 +8,7 @@ import Dashboard from '../pages/Dashboard.tsx';
 import Members from '../pages/Members.tsx';
 import OrgSettings from '../pages/OrgSettings.tsx';
 import Inventory from '../pages/Inventory.tsx';
+import DataOrganizer from '../pages/DataOrganizer.tsx';
 import ExtinguisherCreate from '../pages/ExtinguisherCreate.tsx';
 import ExtinguisherEdit from '../pages/ExtinguisherEdit.tsx';
 import Locations from '../pages/Locations.tsx';
@@ -80,6 +81,7 @@ export function AppRoutes() {
           <Route path="members" element={<Members />} />
           <Route path="settings" element={<OrgSettings />} />
           <Route path="inventory" element={<Inventory />} />
+          <Route path="data-organizer" element={<DataOrganizer />} />
           <Route path="inventory/new" element={<ExtinguisherCreate />} />
           <Route path="inventory/:extId" element={<ExtinguisherDetail />} />
           <Route path="inventory/:extId/edit" element={<ExtinguisherEdit />} />

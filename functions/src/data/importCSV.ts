@@ -9,7 +9,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 interface CSVRow {
   assetId: string;
-  serial: string;
+  serial?: string;
   barcode?: string;
   manufacturer?: string;
   extinguisherType?: string;
@@ -38,7 +38,7 @@ function parseCSV(csvContent: string): CSVRow[] {
       row[header] = values[idx] ?? '';
     });
 
-    if (!row.assetId || !row.serial) continue; // skip rows missing required fields
+    if (!row.assetId) continue; // skip rows missing required fields
 
     rows.push(row as unknown as CSVRow);
   }
@@ -81,7 +81,7 @@ export const importExtinguishersCSV = onCall(async (request) => {
 
   const rows = parseCSV(csvContent);
   if (rows.length === 0) {
-    throwInvalidArgument('CSV contains no valid rows. Ensure headers include assetId and serial.');
+    throwInvalidArgument('CSV contains no valid rows. Ensure headers include assetId.');
   }
 
   // Count existing active extinguishers
@@ -135,7 +135,7 @@ export const importExtinguishersCSV = onCall(async (request) => {
     const docRef = extRef.doc();
     writeBatch.set(docRef, {
       assetId: row.assetId,
-      serial: row.serial,
+      serial: row.serial || '',
       barcode: row.barcode || null,
       barcodeFormat: null,
       qrCodeValue: null,

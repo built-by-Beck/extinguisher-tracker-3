@@ -69,19 +69,16 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
 
   // When a location is selected from the dropdown, set both section (name) and locationId (doc ID)
   function handleLocationChange(locId: string) {
-    if (locId === '') {
+    if (locId === '' || locId === '__unassigned__') {
       setSection('');
-      setLocationId('');
-      return;
-    }
-    if (locId === '__unassigned__') {
-      setSection('');
+      setParentLocation('');
       setLocationId('');
       return;
     }
     const loc = locations.find((l) => l.id === locId);
     if (loc) {
       setSection(loc.name);
+      setParentLocation(loc.name);
       setLocationId(loc.id ?? '');
     }
   }

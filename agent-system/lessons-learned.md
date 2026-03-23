@@ -181,3 +181,12 @@ Each entry follows this structure:
 - **Issue**: The `create` and `update` rules only checked org membership and subscription status, not whether the userId field matched the authenticated user. Any org member could create or modify notes belonging to another user.
 - **Resolution**: Added `request.resource.data.userId == request.auth.uid` on create and `resource.data.userId == request.auth.uid` on update.
 - **Rule**: For collections where documents are user-scoped (contain a `userId` field), always validate ownership in Firestore rules: `request.resource.data.userId == request.auth.uid` for create, `resource.data.userId == request.auth.uid` for update. Org membership alone is insufficient.
+
+### 2026-03-23 -- Dashboard location tiles and filters must unify snapshot and live data
+- **Context**: Resolving a bug where newly created extinguishers were not incrementing "Location" tile counts in the active Workspace and were missing from Inventory location filters.
+- **Issue**: Active Workspaces generate location counts based purely on existing `inspection` records. Because Workspaces are effectively a snapshot at the time of creation, new extinguishers added mid-month had no inspection record yet, so their location tiles remained frozen. Additionally, assigning a location in the form populated `section` and `locationId`, but missed `parentLocation`, while the Inventory filter queried an obsolete string array.
+- **Resolution**: 
+  1. Updated `ExtinguisherForm` to unify mapping: selecting a location instantly writes to `parentLocation`, `section`, and `locationId`.
+  2. Changed the Inventory location filter to query exclusively by `locationId`.
+  3. Modified `WorkspaceDetail` to subscribe to the live `extinguishers` collection when active. It now merges the live inventory data with the snapshot `inspections`, dynamically generating "Pending" stubs for any new items so the location tile count accurately reflects real-time totals.
+- **Rule**: When building aggregate UI components (like location tiles or completion bars) that depend on snapshot data (e.g. active inspections), always join them with the live source of truth (the active inventory) to ensure newly created entities are instantly reflected. Always ensure form components map unified data back to all required legacy string fields for backwards compatibility.
