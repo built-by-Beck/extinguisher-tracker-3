@@ -11,6 +11,7 @@
     "emulators": "firebase emulators:start",
     "emulators:export": "firebase emulators:export ./emulator-data",
     "emulators:import": "firebase emulators:start --import=./emulator-data",
+    "deploy:dev": "pnpm build && firebase hosting:channel:deploy dev --expires 7d",
     "secrets:push": "bash scripts/push-function-secrets.sh"
   },
   "dependencies": {
