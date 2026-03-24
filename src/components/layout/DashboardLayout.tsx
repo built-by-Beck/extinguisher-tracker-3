@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar.tsx';
 import { Topbar } from './Topbar.tsx';
 import { OfflineBanner } from '../offline/OfflineBanner.tsx';
 import { AiAssistantPanel } from '../ai/AiAssistantPanel.tsx';
+import { DashboardAdBanner } from '../ads/DashboardAdBanner.tsx';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { hasFeature } from '../../lib/planConfig.ts';
 
@@ -28,6 +29,9 @@ export function DashboardLayout() {
 
         {/* Offline / sync status banner */}
         <OfflineBanner />
+
+        {/* Plan-based ad banner (only on publisher content pages) */}
+        <DashboardAdBanner />
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
