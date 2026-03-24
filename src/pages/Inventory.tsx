@@ -20,6 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutList,
+  MapPin,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -441,7 +442,7 @@ export default function Inventory() {
             className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             <LayoutList className="h-4 w-4" />
-            Columns
+            Fields
           </button>
           {showColumnMenu && (
             <div className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white p-2 shadow-xl">
@@ -502,7 +503,22 @@ export default function Inventory() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Select All bar (for card view) */}
+      {canEdit && !showDeleted && paginatedItems.length > 0 && (
+        <div className="mb-3 flex items-center gap-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === paginatedItems.length && paginatedItems.length > 0}
+              onChange={toggleSelectAll}
+              className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+            />
+            Select all on page
+          </label>
+        </div>
+      )}
+
+      {/* Card Grid */}
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <Flame className="mx-auto h-12 w-12 text-gray-300" />
@@ -527,170 +543,98 @@ export default function Inventory() {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                {canEdit && !showDeleted && (
-                  <th className="px-4 py-3 text-left w-10">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size === paginatedItems.length && paginatedItems.length > 0}
-                      onChange={toggleSelectAll}
-                      className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                    />
-                  </th>
-                )}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {paginatedItems.map((ext: Extinguisher) => (
+            <div
+              key={ext.id}
+              onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}`)}
+              className={`group relative cursor-pointer rounded-lg border bg-white p-4 shadow-sm transition-all hover:border-red-300 hover:shadow-md ${
+                selectedIds.has(ext.id!) ? 'border-red-300 bg-red-50/50' : 'border-gray-200'
+              }`}
+            >
+              {/* Selection checkbox */}
+              {canEdit && !showDeleted && (
+                <div className="absolute left-3 top-3" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(ext.id!)}
+                    onChange={() => toggleSelectRow(ext.id!)}
+                    className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                  />
+                </div>
+              )}
+
+              {/* Action buttons */}
+              {canEdit && (
+                <div className="absolute right-3 top-3 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (ext.id) navigate(`/dashboard/inventory/${ext.id}/edit`);
+                    }}
+                    className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    title="Edit"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </button>
+                  {!showDeleted && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(ext);
+                      }}
+                      className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Card header */}
+              <div className={`mb-3 flex items-start justify-between ${canEdit && !showDeleted ? 'pl-6' : ''}`}>
                 {visibleColumns.assetId && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Asset ID
-                  </th>
-                )}
-                {visibleColumns.serial && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Serial
-                  </th>
-                )}
-                {visibleColumns.building && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Building
-                  </th>
-                )}
-                {visibleColumns.vicinity && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Vicinity
-                  </th>
-                )}
-                {visibleColumns.type && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Type
-                  </th>
-                )}
-                {visibleColumns.section && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Location
-                  </th>
-                )}
-                {visibleColumns.category && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Category
-                  </th>
+                  <span className="text-lg font-bold text-gray-900 group-hover:text-red-600">
+                    {ext.assetId}
+                  </span>
                 )}
                 {visibleColumns.compliance && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Compliance
-                  </th>
+                  <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />
+                )}
+              </div>
+
+              {/* Card body */}
+              <div className="space-y-1.5 text-xs text-gray-500">
+                {visibleColumns.serial && ext.serial && (
+                  <p><span className="font-medium text-gray-600">Serial:</span> {ext.serial}</p>
+                )}
+                {visibleColumns.type && (
+                  <p><span className="font-medium text-gray-600">Type:</span> {ext.extinguisherType ?? '--'}</p>
+                )}
+                {visibleColumns.section && (
+                  <p className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    {ext.locationId
+                      ? getLocationPath(locations, ext.locationId)
+                      : ext.section || '--'}
+                  </p>
+                )}
+                {visibleColumns.building && ext.parentLocation && (
+                  <p><span className="font-medium text-gray-600">Building:</span> {ext.parentLocation}</p>
+                )}
+                {visibleColumns.vicinity && ext.vicinity && (
+                  <p><span className="font-medium text-gray-600">Vicinity:</span> {ext.vicinity}</p>
+                )}
+                {visibleColumns.category && (
+                  <p><span className="font-medium text-gray-600">Category:</span> {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
                 )}
                 {visibleColumns.nextInspection && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Next Inspection
-                  </th>
+                  <p><span className="font-medium text-gray-600">Next Inspection:</span> {formatDueDate(ext.nextMonthlyInspection)}</p>
                 )}
-                {canEdit && (
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Actions
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {paginatedItems.map((ext: Extinguisher) => (
-                <tr
-                  key={ext.id}
-                  className={`hover:bg-gray-50 cursor-pointer ${selectedIds.has(ext.id!) ? 'bg-red-50/50' : ''}`}
-                  onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}`)}
-                >
-                  {canEdit && !showDeleted && (
-                    <td className="whitespace-nowrap px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(ext.id!)}
-                        onChange={() => toggleSelectRow(ext.id!)}
-                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                      />
-                    </td>
-                  )}
-                  {visibleColumns.assetId && (
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                      {ext.assetId}
-                    </td>
-                  )}
-                  {visibleColumns.serial && (
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                      {ext.serial}
-                    </td>
-                  )}
-                  {visibleColumns.building && (
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                      {ext.parentLocation || '--'}
-                    </td>
-                  )}
-                  {visibleColumns.vicinity && (
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                      {ext.vicinity || '--'}
-                    </td>
-                  )}
-                  {visibleColumns.type && (
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                      {ext.extinguisherType ?? '--'}
-                    </td>
-                  )}
-                  {visibleColumns.section && (
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                      {ext.locationId
-                        ? getLocationPath(locations, ext.locationId)
-                        : ext.section || '--'}
-                    </td>
-                  )}
-                  {visibleColumns.category && (
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                      {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                    </td>
-                  )}
-                  {visibleColumns.compliance && (
-                    <td className="whitespace-nowrap px-4 py-3">
-                      <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />
-                    </td>
-                  )}
-                  {visibleColumns.nextInspection && (
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                      {formatDueDate(ext.nextMonthlyInspection)}
-                    </td>
-                  )}
-                  {canEdit && (
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (ext.id) {
-                              navigate(`/dashboard/inventory/${ext.id}/edit`);
-                            }
-                          }}
-                          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                          title="Edit"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        {!showDeleted && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteTarget(ext);
-                            }}
-                            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

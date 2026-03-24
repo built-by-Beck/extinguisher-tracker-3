@@ -20,6 +20,8 @@ import {
   FileText,
   WifiOff,
   MapPin,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 import { subscribeToExtinguishers, type Extinguisher } from '../services/extinguisherService.ts';
@@ -91,6 +93,17 @@ export default function WorkspaceDetail() {
   const [filters, setFilters] = useState<FilterState>(createEmptyFilters);
   const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
   const [showUnassigned, setShowUnassigned] = useState(false);
+  const [sortKey, setSortKey] = useState<'assetId' | 'status' | 'section'>('assetId');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  function toggleSort(key: typeof sortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  }
 
   const isArchived = workspace?.status === 'archived';
 
@@ -759,36 +772,42 @@ export default function WorkspaceDetail() {
               <p className="text-sm text-gray-500">No unassigned extinguishers match your filters.</p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {unassignedInspections.map((insp) => {
-                const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
-                const Icon = style.icon;
-                return (
-                  <button
-                    key={insp.id}
-                    onClick={() =>
-                      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)
-                    }
-                    className="group rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-red-300 hover:shadow-md"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-lg font-bold text-gray-900 group-hover:text-red-600">
-                        {insp.assetId}
-                      </span>
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
-                        <Icon className="h-3 w-3" />
-                        {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
-                      </span>
-                    </div>
-                    <div className="space-y-1 text-xs text-gray-500">
-                      <p className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {insp.section || 'No location assigned'}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Asset ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Serial</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">Section</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {unassignedInspections.map((insp) => {
+                    const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+                    const Icon = style.icon;
+                    return (
+                      <tr
+                        key={insp.id}
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)}
+                      >
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{insp.assetId}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{insp.serial || '--'}</td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                            <Icon className="h-3 w-3" />
+                            {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">{insp.section || '--'}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-600">Inspect</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </>
@@ -852,52 +871,102 @@ export default function WorkspaceDetail() {
             </div>
           </div>
 
-          {/* Extinguisher cards grid */}
+          {/* Extinguisher list table */}
           {leafInspections.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
               <p className="text-sm text-gray-500">No extinguishers match your filters.</p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {leafInspections.map((insp) => {
-                const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
-                const Icon = style.icon;
-
-                return (
-                  <button
-                    key={insp.id}
-                    onClick={() =>
-                      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)
-                    }
-                    className="group rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-red-300 hover:shadow-md"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-lg font-bold text-gray-900 group-hover:text-red-600">
-                        {insp.assetId}
+            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th
+                      onClick={() => toggleSort('assetId')}
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-700"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        Asset ID
+                        {sortKey === 'assetId' && (sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </span>
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}
-                      >
-                        <Icon className="h-3 w-3" />
-                        {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Serial
+                    </th>
+                    <th
+                      onClick={() => toggleSort('status')}
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-700"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        Status
+                        {sortKey === 'status' && (sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </span>
-                    </div>
-
-                    <div className="space-y-1 text-xs text-gray-500">
-                      <p className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {insp.section || 'No section'}
-                      </p>
-                      {insp.inspectedByEmail && (
-                        <p className="truncate">Inspected by: {insp.inspectedByEmail}</p>
-                      )}
-                      {insp.notes && (
-                        <p className="truncate italic text-gray-400">{insp.notes}</p>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+                    </th>
+                    <th
+                      onClick={() => toggleSort('section')}
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-700"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        Location
+                        {sortKey === 'section' && (sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                      </span>
+                    </th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">
+                      Inspected By
+                    </th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">
+                      Notes
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {[...leafInspections]
+                    .sort((a, b) => {
+                      const valA = (a[sortKey] || '').toString().toLowerCase();
+                      const valB = (b[sortKey] || '').toString().toLowerCase();
+                      return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    })
+                    .map((insp) => {
+                      const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+                      const Icon = style.icon;
+                      return (
+                        <tr
+                          key={insp.id}
+                          className="cursor-pointer hover:bg-gray-50"
+                          onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)}
+                        >
+                          <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                            {insp.assetId}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                            {insp.serial || '--'}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3">
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                              <Icon className="h-3 w-3" />
+                              {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                            {insp.section || '--'}
+                          </td>
+                          <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 sm:table-cell">
+                            {insp.inspectedByEmail || '--'}
+                          </td>
+                          <td className="hidden max-w-[200px] truncate px-4 py-3 text-sm text-gray-400 italic md:table-cell">
+                            {insp.notes || '--'}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-600">
+                            Inspect
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
             </div>
           )}
         </>
