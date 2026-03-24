@@ -1,3 +1,13 @@
+/**
+ * WorkspaceDetail — hierarchical location drill-down for inspection workspaces.
+ *
+ * Navigation: Workspace → Building cards → Floor cards → Extinguisher list
+ * Uses locationId as the single source of truth for grouping.
+ * Falls back to section string for archived workspaces with legacy data.
+ *
+ * Author: built_by_Beck
+ */
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -10,8 +20,6 @@ import {
   FileText,
   WifiOff,
   MapPin,
-  Flame,
-  LayoutList,
 } from 'lucide-react';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 import { subscribeToExtinguishers, type Extinguisher } from '../services/extinguisherService.ts';
@@ -36,8 +44,18 @@ import {
 } from '../services/offlineCacheService.ts';
 import {
   subscribeToLocations,
+  getAllDescendantIds,
   type Location,
 } from '../services/locationService.ts';
+import { useLocationDrillDown } from '../hooks/useLocationDrillDown.ts';
+import { LocationCard, type LocationCardStats } from '../components/locations/LocationCard.tsx';
+import { LocationBreadcrumb } from '../components/locations/LocationBreadcrumb.tsx';
+import {
+  FilterPanel,
+  createEmptyFilters,
+  hasActiveFilters,
+  type FilterState,
+} from '../components/locations/FilterPanel.tsx';
 import { useSectionTimer } from '../hooks/useSectionTimer.ts';
 import { SectionTimer } from '../components/workspace/SectionTimer.tsx';
 import { SectionNotes } from '../components/workspace/SectionNotes.tsx';
@@ -52,14 +70,6 @@ const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; 
   fail: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-100' },
   pending: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100' },
 };
-
-interface LocationStats {
-  total: number;
-  passed: number;
-  failed: number;
-  pending: number;
-  percentage: number;
-}
 
 export default function WorkspaceDetail() {
   const navigate = useNavigate();
@@ -77,23 +87,20 @@ export default function WorkspaceDetail() {
   const [extinguishers, setExtinguishers] = useState<Extinguisher[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [report, setReport] = useState<Report | null | undefined>(undefined);
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [filters, setFilters] = useState<FilterState>(createEmptyFilters);
   const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
-
-  // Dynamic columns for extinguisher list
-  const [visibleColumns, setVisibleColumns] = useState({
-    assetId: true,
-    serial: true,
-    building: true,
-    vicinity: true,
-    section: true,
-    status: true,
-  });
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const [showUnassigned, setShowUnassigned] = useState(false);
 
   const isArchived = workspace?.status === 'archived';
+
+  // Location drill-down hook
+  const drillDown = useLocationDrillDown(locations);
+
+  // Detect if we have locationId on inspections (new data) or only section strings (legacy)
+  const hasLocationIdData = useMemo(() => {
+    return inspections.some((insp) => insp.locationId) || extinguishers.some((ext) => ext.locationId);
+  }, [inspections, extinguishers]);
 
   // Subscribe to live extinguishers (only if workspace is active)
   useEffect(() => {
@@ -101,9 +108,9 @@ export default function WorkspaceDetail() {
     return subscribeToExtinguishers(orgId, setExtinguishers);
   }, [orgId, isArchived]);
 
-  // Section timer hook (called unconditionally per React rules — render is feature-gated)
+  // Section timer hook
   const {
-    activeSection: timerActiveLocation,
+    activeSection: timerActiveSection,
     startTimer,
     pauseTimer,
     stopTimer,
@@ -111,13 +118,12 @@ export default function WorkspaceDetail() {
     getAllTimes: _getAllTimes,
     formatTime,
   } = useSectionTimer(orgId, workspaceId ?? '');
-  // Suppress unused-var lint for getAllTimes — used by Workspaces.tsx via localStorage
   void _getAllTimes;
 
   // Subscribe to section notes
   useEffect(() => {
     if (!orgId || !user?.uid) return;
-    setSectionNotes({}); // Reset on dependency change (per lessons-learned)
+    setSectionNotes({});
     return subscribeToSectionNotes(orgId, user.uid, (notes) => {
       setSectionNotes(notes);
     });
@@ -131,7 +137,7 @@ export default function WorkspaceDetail() {
     [orgId, user],
   );
 
-  // Subscribe to workspace doc — cache on every snapshot, fall back to IndexedDB when offline
+  // Subscribe to workspace doc
   useEffect(() => {
     if (!orgId || !workspaceId) return;
     const wsRef = doc(db, 'org', orgId, 'workspaces', workspaceId);
@@ -148,9 +154,7 @@ export default function WorkspaceDetail() {
         if (!isOnline) {
           getCachedWorkspace(orgId, workspaceId)
             .then((cached) => {
-              if (cached) {
-                setWorkspace(cached as unknown as Workspace);
-              }
+              if (cached) setWorkspace(cached as unknown as Workspace);
             })
             .catch(() => undefined);
         }
@@ -158,45 +162,36 @@ export default function WorkspaceDetail() {
     );
   }, [orgId, workspaceId, isOnline]);
 
-  // Subscribe to inspections — cache on every snapshot, fall back to IndexedDB when offline
+  // Subscribe to inspections
   useEffect(() => {
     if (!orgId || !workspaceId) return;
-    return subscribeToInspections(
-      orgId,
-      workspaceId,
-      (items) => {
-        setInspections(items);
-        cacheInspectionsForWorkspace(
-          orgId,
-          workspaceId,
-          items as unknown as Array<Record<string, unknown>>,
-        ).catch(() => undefined);
-      },
-    );
+    return subscribeToInspections(orgId, workspaceId, (items) => {
+      setInspections(items);
+      cacheInspectionsForWorkspace(
+        orgId,
+        workspaceId,
+        items as unknown as Array<Record<string, unknown>>,
+      ).catch(() => undefined);
+    });
   }, [orgId, workspaceId]);
 
-  // Subscribe to locations — used to drive location cards (location.name is the section key)
+  // Subscribe to locations
   useEffect(() => {
     if (!orgId) return;
-    return subscribeToLocations(orgId, (locs) => {
-      setLocations(locs);
-    });
+    return subscribeToLocations(orgId, setLocations);
   }, [orgId]);
 
-  // When offline and inspections haven't loaded from Firestore, try loading from cache
+  // Offline cache fallback
   useEffect(() => {
     if (!orgId || !workspaceId || isOnline || inspections.length > 0) return;
-
     getCachedInspectionsForWorkspace(orgId, workspaceId)
       .then((cached) => {
-        if (cached.length > 0) {
-          setInspections(cached as unknown as Inspection[]);
-        }
+        if (cached.length > 0) setInspections(cached as unknown as Inspection[]);
       })
       .catch(() => undefined);
   }, [orgId, workspaceId, isOnline, inspections.length]);
 
-  // Load report doc when workspace is archived
+  // Load report for archived workspaces
   useEffect(() => {
     if (!isArchived || !orgId || !workspaceId) return;
     getReport(orgId, workspaceId)
@@ -204,122 +199,182 @@ export default function WorkspaceDetail() {
       .catch(() => setReport(null));
   }, [isArchived, orgId, workspaceId]);
 
-  // Build a lookup map from location name → Location object (for P9-02 badge display)
-  const locationByName = useMemo(() => {
-    const map = new Map<string, Location>();
-    for (const loc of locations) {
-      map.set(loc.name, loc);
-    }
-    return map;
-  }, [locations]);
+  // ========== STATS COMPUTATION BY LOCATION ID ==========
 
-  // Compute section stats from inspections.
-  // Initialized from location names (the unified source of truth), then enriched
-  // with any insp.section values found on inspections (backward compat).
+  // Build location stats map: locationId → { total, passed, failed, pending, percentage }
   const locationStatsMap = useMemo(() => {
-    const map: Record<string, LocationStats> = {};
+    const map = new Map<string, LocationCardStats>();
 
-    // Initialize from location names (locations collection is source of truth)
-    for (const loc of locations) {
-      map[loc.name] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+    // Helper to init/get a stats entry
+    function getStats(id: string): LocationCardStats {
+      if (!map.has(id)) {
+        map.set(id, { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 });
+      }
+      return map.get(id)!;
     }
 
-    if (!isArchived) {
-      // For active workspaces, the source of truth for totals is the live extinguisher inventory
-      for (const ext of extinguishers) {
-        const locName = ext.parentLocation || 'Unassigned';
-        if (!map[locName]) {
-          map[locName] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+    if (hasLocationIdData) {
+      // Modern path: use locationId
+      if (!isArchived) {
+        // Active workspace: extinguishers are source of truth for totals
+        const trackedExtIds = new Set<string>();
+        for (const ext of extinguishers) {
+          const locId = ext.locationId || '__unassigned__';
+          const stats = getStats(locId);
+          stats.total += 1;
+          stats.pending += 1;
+          trackedExtIds.add(ext.id!);
         }
-        map[locName].total += 1;
-        map[locName].pending += 1; // Assume pending until an inspection is found
-      }
-
-      // Apply inspection results
-      for (const insp of inspections) {
-        const locName = insp.parentLocation || insp.section || 'Unassigned';
-        if (!map[locName]) {
-          map[locName] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
-          map[locName].total += 1;
-          map[locName].pending += 1;
+        // Apply inspection results
+        for (const insp of inspections) {
+          const locId = insp.locationId || '__unassigned__';
+          // Only add to totals if this is an orphaned inspection (extinguisher no longer exists)
+          if (!trackedExtIds.has(insp.extinguisherId)) {
+            const stats = getStats(locId);
+            stats.total += 1;
+            stats.pending += 1;
+          }
+          const stats = map.get(locId)!;
+          if (insp.status === 'pass') {
+            stats.passed += 1;
+            stats.pending = Math.max(0, stats.pending - 1);
+          } else if (insp.status === 'fail') {
+            stats.failed += 1;
+            stats.pending = Math.max(0, stats.pending - 1);
+          }
         }
-
-        if (insp.status === 'pass') {
-          map[locName].passed += 1;
-          map[locName].pending = Math.max(0, map[locName].pending - 1);
-        } else if (insp.status === 'fail') {
-          map[locName].failed += 1;
-          map[locName].pending = Math.max(0, map[locName].pending - 1);
+      } else {
+        // Archived: strictly from inspections
+        for (const insp of inspections) {
+          const locId = insp.locationId || '__unassigned__';
+          const stats = getStats(locId);
+          stats.total += 1;
+          if (insp.status === 'pass') stats.passed += 1;
+          else if (insp.status === 'fail') stats.failed += 1;
+          else stats.pending += 1;
         }
       }
     } else {
-      // For archived workspaces, strictly use the historical inspection data
-      for (const insp of inspections) {
-        const locName = insp.parentLocation || insp.section || 'Unassigned';
-        if (!map[locName]) {
-          map[locName] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+      // Legacy path: use section string, map to location name
+      const nameToId = new Map<string, string>();
+      for (const loc of locations) {
+        nameToId.set(loc.name, loc.id!);
+      }
+
+      if (!isArchived) {
+        const trackedExtIdsLegacy = new Set<string>();
+        for (const ext of extinguishers) {
+          const locId = nameToId.get(ext.section) ?? '__unassigned__';
+          const stats = getStats(locId);
+          stats.total += 1;
+          stats.pending += 1;
+          trackedExtIdsLegacy.add(ext.id!);
         }
-        map[locName].total += 1;
-        if (insp.status === 'pass') map[locName].passed += 1;
-        else if (insp.status === 'fail') map[locName].failed += 1;
-        else map[locName].pending += 1;
+        for (const insp of inspections) {
+          const locId = nameToId.get(insp.section) ?? '__unassigned__';
+          if (!trackedExtIdsLegacy.has(insp.extinguisherId)) {
+            const stats = getStats(locId);
+            stats.total += 1;
+            stats.pending += 1;
+          }
+          const stats = map.get(locId)!;
+          if (insp.status === 'pass') {
+            stats.passed += 1;
+            stats.pending = Math.max(0, stats.pending - 1);
+          } else if (insp.status === 'fail') {
+            stats.failed += 1;
+            stats.pending = Math.max(0, stats.pending - 1);
+          }
+        }
+      } else {
+        for (const insp of inspections) {
+          const locId = nameToId.get(insp.section) ?? '__unassigned__';
+          const stats = getStats(locId);
+          stats.total += 1;
+          if (insp.status === 'pass') stats.passed += 1;
+          else if (insp.status === 'fail') stats.failed += 1;
+          else stats.pending += 1;
+        }
       }
     }
 
     // Calculate percentages
-    for (const key of Object.keys(map)) {
-      const s = map[key];
-      s.percentage = s.total > 0 ? Math.round(((s.passed + s.failed) / s.total) * 100) : 0;
+    for (const stats of map.values()) {
+      stats.percentage = stats.total > 0 ? Math.round(((stats.passed + stats.failed) / stats.total) * 100) : 0;
     }
 
     return map;
-  }, [inspections, extinguishers, locations, isArchived]);
+  }, [inspections, extinguishers, locations, isArchived, hasLocationIdData]);
 
-  // Get sorted section names.
-  // Union of: location names from the locations collection + insp.section values found on
-  // inspections (backward compat for data created before this unification).
-  // Inspections without a section (or whose section matches no location) go under "Unassigned".
-  const allLocations = useMemo(() => {
-    const sectionSet = new Set<string>();
-    // Seed from locations collection (unified source of truth)
-    for (const loc of locations) sectionSet.add(loc.name);
-    // Merge in live extinguishers if active
-    if (!isArchived) {
-      for (const ext of extinguishers) sectionSet.add(ext.parentLocation || 'Unassigned');
-    }
-    // Merge in any insp.parentLocation/section values (handles pre-unification data)
-    for (const insp of inspections) {
-      sectionSet.add(insp.parentLocation || insp.section || 'Unassigned');
-    }
-    return Array.from(sectionSet).sort();
-  }, [inspections, extinguishers, locations, isArchived]);
+  // Aggregate stats for a location + all its descendants (for parent cards)
+  const getAggregatedStats = useCallback(
+    (locationId: string): LocationCardStats => {
+      const descendants = getAllDescendantIds(locations, locationId);
+      const allIds = [locationId, ...descendants];
+      const agg: LocationCardStats = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
 
-  // Extinguisher cards for the selected section
-  const locationInspections = useMemo(() => {
-    if (selectedLocation === null) return [];
-    
+      for (const id of allIds) {
+        const stats = locationStatsMap.get(id);
+        if (stats) {
+          agg.total += stats.total;
+          agg.passed += stats.passed;
+          agg.failed += stats.failed;
+          agg.pending += stats.pending;
+        }
+      }
+      agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed) / agg.total) * 100) : 0;
+      return agg;
+    },
+    [locations, locationStatsMap],
+  );
+
+  // Overall stats for current view (header display)
+  const currentViewStats = useMemo(() => {
+    if (drillDown.isRoot) {
+      // Sum of all
+      const agg: LocationCardStats = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+      for (const stats of locationStatsMap.values()) {
+        agg.total += stats.total;
+        agg.passed += stats.passed;
+        agg.failed += stats.failed;
+        agg.pending += stats.pending;
+      }
+      agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed) / agg.total) * 100) : 0;
+      return agg;
+    }
+    return getAggregatedStats(drillDown.currentLocationId!);
+  }, [drillDown.isRoot, drillDown.currentLocationId, locationStatsMap, getAggregatedStats]);
+
+  // ========== EXTINGUISHER LIST FOR LEAF VIEW ==========
+
+  const leafInspections = useMemo(() => {
+    if (!drillDown.isLeaf) return [];
+
+    const relevantLocIds = drillDown.currentLocationAndDescendants;
     let combined: Inspection[] = [];
 
     if (!isArchived) {
-      // For active workspaces, source of truth for items is live extinguishers + existing inspections
+      // Build map of extinguishers at this location
       const extMap = new Map<string, Extinguisher>();
       for (const ext of extinguishers) {
-        if ((ext.parentLocation || 'Unassigned') === selectedLocation) {
+        const extLocId = ext.locationId || '__unassigned__';
+        if (relevantLocIds.has(extLocId)) {
           extMap.set(ext.id!, ext);
         }
       }
-      
+
       const handledExtIds = new Set<string>();
-      
-      // Add all inspections that belong to this section
+
+      // Add inspections at this location
       for (const insp of inspections) {
-        if ((insp.parentLocation || insp.section || 'Unassigned') === selectedLocation) {
+        const inspLocId = insp.locationId || '__unassigned__';
+        if (relevantLocIds.has(inspLocId)) {
           combined.push(insp);
           handledExtIds.add(insp.extinguisherId);
         }
       }
-      
-      // Add dummy inspections for extinguishers that don't have one yet
+
+      // Add dummy inspections for extinguishers without one
       for (const ext of extMap.values()) {
         if (!handledExtIds.has(ext.id!)) {
           combined.push({
@@ -330,8 +385,8 @@ export default function WorkspaceDetail() {
             status: 'pending',
             inspectedAt: null,
             inspectedBy: null,
-            parentLocation: ext.parentLocation || '',
             section: ext.section || '',
+            locationId: ext.locationId || null,
             qrCodeValue: ext.qrCodeValue,
             barcode: ext.barcode,
             serial: ext.serial,
@@ -339,30 +394,104 @@ export default function WorkspaceDetail() {
         }
       }
     } else {
-      // Archived: just filter inspections
-      combined = inspections.filter((insp) => {
-        const locName = insp.parentLocation || insp.section || 'Unassigned';
-        return locName === selectedLocation;
-      });
+      // Archived: filter inspections
+      for (const insp of inspections) {
+        const inspLocId = insp.locationId || '__unassigned__';
+        if (relevantLocIds.has(inspLocId)) {
+          combined.push(insp);
+        }
+      }
     }
 
-    if (statusFilter) {
-      combined = combined.filter((insp) => insp.status === statusFilter);
+    // Apply filters
+    if (filters.statuses.size > 0) {
+      combined = combined.filter((insp) => filters.statuses.has(insp.status));
+    }
+    if (filters.locationIds.size > 0) {
+      combined = combined.filter((insp) => {
+        const locId = insp.locationId || '__unassigned__';
+        return filters.locationIds.has(locId);
+      });
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       combined = combined.filter(
-        (insp) => 
-          insp.assetId.toLowerCase().includes(q) || 
-          (insp.parentLocation || '').toLowerCase().includes(q) || 
-          (insp.section || '').toLowerCase().includes(q) ||
-          (insp.serial || '').toLowerCase().includes(q),
+        (insp) =>
+          insp.assetId.toLowerCase().includes(q) ||
+          (insp.section || '').toLowerCase().includes(q),
       );
     }
-    
-    // Sort combined by assetId
+
     return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
-  }, [inspections, extinguishers, selectedLocation, statusFilter, searchQuery, isArchived, workspaceId]);
+  }, [
+    drillDown.isLeaf,
+    drillDown.currentLocationAndDescendants,
+    inspections,
+    extinguishers,
+    filters,
+    searchQuery,
+    isArchived,
+    workspaceId,
+  ]);
+
+  // Unassigned extinguisher list
+  const unassignedInspections = useMemo(() => {
+    if (!showUnassigned) return [];
+    let combined: Inspection[] = [];
+
+    if (!isArchived) {
+      const extMap = new Map<string, Extinguisher>();
+      for (const ext of extinguishers) {
+        if (!ext.locationId) extMap.set(ext.id!, ext);
+      }
+      const handledExtIds = new Set<string>();
+      for (const insp of inspections) {
+        if (!insp.locationId) {
+          combined.push(insp);
+          handledExtIds.add(insp.extinguisherId);
+        }
+      }
+      for (const ext of extMap.values()) {
+        if (!handledExtIds.has(ext.id!)) {
+          combined.push({
+            id: `dummy-${ext.id}`,
+            extinguisherId: ext.id!,
+            workspaceId: workspaceId!,
+            assetId: ext.assetId,
+            status: 'pending',
+            inspectedAt: null,
+            inspectedBy: null,
+            section: ext.section || '',
+            locationId: null,
+          } as unknown as Inspection);
+        }
+      }
+    } else {
+      combined = inspections.filter((insp) => !insp.locationId);
+    }
+
+    if (filters.statuses.size > 0) {
+      combined = combined.filter((insp) => filters.statuses.has(insp.status));
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      combined = combined.filter((insp) =>
+        insp.assetId.toLowerCase().includes(q) || (insp.section || '').toLowerCase().includes(q),
+      );
+    }
+    return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
+  }, [showUnassigned, inspections, extinguishers, filters, searchQuery, isArchived, workspaceId]);
+
+  // Get sibling locations for filter panel (children of current's parent, or current's children)
+  const filterSiblingLocations = useMemo(() => {
+    if (!drillDown.isLeaf) return [];
+    // Show siblings at the current level (other locations under the same parent)
+    const current = drillDown.currentLocation;
+    if (!current) return [];
+    return locations.filter(
+      (l) => l.parentLocationId === current.parentLocationId && l.id !== current.id,
+    );
+  }, [drillDown.isLeaf, drillDown.currentLocation, locations]);
 
   function handleExtinguisherFound(ext: Extinguisher) {
     if (ext.id) {
@@ -380,14 +509,27 @@ export default function WorkspaceDetail() {
     format?: string | null;
   }) {
     if (source !== 'scan' || !canEdit) return;
-
-    const params = new URLSearchParams({
-      scanAdd: code,
-    });
+    const params = new URLSearchParams({ scanAdd: code });
     if (format) params.set('scanFormat', format);
-
     navigate(`/dashboard/inventory?${params.toString()}`);
   }
+
+  function handleBack() {
+    if (showUnassigned) {
+      setShowUnassigned(false);
+      setSearchQuery('');
+      setFilters(createEmptyFilters());
+    } else if (drillDown.isLeaf || !drillDown.isRoot) {
+      drillDown.navigateUp();
+      setSearchQuery('');
+      setFilters(createEmptyFilters());
+    } else {
+      navigate('/dashboard/workspaces');
+    }
+  }
+
+  // Timer section key: use locationId-based key or section name
+  const timerSection = drillDown.currentLocation?.name ?? '';
 
   if (!workspace) {
     return (
@@ -410,105 +552,79 @@ export default function WorkspaceDetail() {
       {/* Header */}
       <div className="mb-6">
         <button
-          onClick={() => {
-            if (selectedLocation !== null) {
-              setSelectedLocation(null);
-              setSearchQuery('');
-              setStatusFilter('');
-            } else {
-              navigate('/dashboard/workspaces');
-            }
-          }}
+          onClick={handleBack}
           className="mb-3 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
           <ArrowLeft className="h-4 w-4" />
-          {selectedLocation !== null ? 'Back to Locations' : 'Back to Workspaces'}
+          {drillDown.isRoot ? 'Back to Workspaces' : 'Back'}
         </button>
+
+        {/* Breadcrumb navigation */}
+        {!drillDown.isRoot && (
+          <div className="mb-3">
+            <LocationBreadcrumb
+              breadcrumbs={drillDown.breadcrumbs}
+              onNavigate={(id) => {
+                drillDown.navigateToBreadcrumb(id);
+                setSearchQuery('');
+                setFilters(createEmptyFilters());
+              }}
+              rootLabel={workspace.label}
+            />
+          </div>
+        )}
 
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {selectedLocation !== null ? selectedLocation : workspace.label}
+              {drillDown.isRoot
+                ? workspace.label
+                : drillDown.currentLocation?.name ?? workspace.label}
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              {selectedLocation !== null
-                ? `${locationInspections.length} extinguisher${locationInspections.length === 1 ? '' : 's'}${statusFilter || searchQuery ? ' matching filters' : ' in this location'}`
-                : `${workspace.stats.total} extinguishers`}
+              {currentViewStats.total} extinguisher{currentViewStats.total !== 1 ? 's' : ''}
+              {drillDown.isLeaf && (hasActiveFilters(filters) || searchQuery)
+                ? ` (${leafInspections.length} matching filters)`
+                : ''}
               {isArchived && ' (archived — read only)'}
             </p>
           </div>
 
           {/* Stats badges */}
           <div className="flex items-center gap-4">
-            {selectedLocation !== null && locationStatsMap[selectedLocation] ? (
-              <>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-semibold text-green-700">{locationStatsMap[selectedLocation].passed}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <XCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-sm font-semibold text-red-700">{locationStatsMap[selectedLocation].failed}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm font-semibold text-gray-600">{locationStatsMap[selectedLocation].pending}</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-semibold text-green-700">{workspace.stats.passed}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <XCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-sm font-semibold text-red-700">{workspace.stats.failed}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm font-semibold text-gray-600">{workspace.stats.pending}</span>
-                </div>
-              </>
-            )}
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span className="text-sm font-semibold text-green-700">{currentViewStats.passed}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <XCircle className="h-4 w-4 text-red-500" />
+              <span className="text-sm font-semibold text-red-700">{currentViewStats.failed}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4 text-gray-400" />
+              <span className="text-sm font-semibold text-gray-600">{currentViewStats.pending}</span>
+            </div>
           </div>
         </div>
 
         {/* Progress bar */}
-        {selectedLocation === null ? (
-          <div className="mt-3 h-3 rounded-full bg-gray-200">
-            {workspace.stats.total > 0 && (
-              <div className="flex h-3 overflow-hidden rounded-full">
-                <div
-                  className="bg-green-500 transition-all"
-                  style={{ width: `${(workspace.stats.passed / workspace.stats.total) * 100}%` }}
-                />
-                <div
-                  className="bg-red-500 transition-all"
-                  style={{ width: `${(workspace.stats.failed / workspace.stats.total) * 100}%` }}
-                />
-              </div>
-            )}
-          </div>
-        ) : locationStatsMap[selectedLocation] ? (
-          <div className="mt-3 h-3 rounded-full bg-gray-200">
-            {locationStatsMap[selectedLocation].total > 0 && (
-              <div className="flex h-3 overflow-hidden rounded-full">
-                <div
-                  className="bg-green-500 transition-all"
-                  style={{ width: `${(locationStatsMap[selectedLocation].passed / locationStatsMap[selectedLocation].total) * 100}%` }}
-                />
-                <div
-                  className="bg-red-500 transition-all"
-                  style={{ width: `${(locationStatsMap[selectedLocation].failed / locationStatsMap[selectedLocation].total) * 100}%` }}
-                />
-              </div>
-            )}
-          </div>
-        ) : null}
+        <div className="mt-3 h-3 rounded-full bg-gray-200">
+          {currentViewStats.total > 0 && (
+            <div className="flex h-3 overflow-hidden rounded-full">
+              <div
+                className="bg-green-500 transition-all"
+                style={{ width: `${(currentViewStats.passed / currentViewStats.total) * 100}%` }}
+              />
+              <div
+                className="bg-red-500 transition-all"
+                style={{ width: `${(currentViewStats.failed / currentViewStats.total) * 100}%` }}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Scan/Search bar — primary extinguisher lookup */}
+      {/* Scan/Search bar */}
       {!isArchived && orgId && (
         <div className="mb-6">
           <ScanSearchBar
@@ -522,27 +638,22 @@ export default function WorkspaceDetail() {
         </div>
       )}
 
-      {/* Compliance Report section — archived workspaces only */}
+      {/* Compliance Report — archived workspaces only */}
       {isArchived && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <FileText className="h-5 w-5 text-red-600" />
             <h2 className="text-base font-semibold text-gray-900">Compliance Report</h2>
           </div>
-
           {report === undefined && (
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading report data...
             </div>
           )}
-
           {report === null && (
-            <p className="text-sm text-gray-500">
-              Report data not available for this workspace.
-            </p>
+            <p className="text-sm text-gray-500">Report data not available for this workspace.</p>
           )}
-
           {report !== undefined && report !== null && (
             <>
               <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -567,7 +678,6 @@ export default function WorkspaceDetail() {
                   </p>
                 </div>
               </div>
-
               <div className="flex flex-wrap gap-2">
                 <span className="self-center text-xs text-gray-500 font-medium mr-1">Download:</span>
                 <ReportDownloadButton orgId={orgId} workspaceId={workspaceId!} format="csv" />
@@ -579,128 +689,57 @@ export default function WorkspaceDetail() {
         </div>
       )}
 
-      {/* ===== VIEW: Location Cards (no section selected) ===== */}
-      {selectedLocation === null && (
+      {/* ===== VIEW: Location Cards (drill-down, not at leaf) ===== */}
+      {!drillDown.isLeaf && !showUnassigned && (
         <>
-          <h2 className="mb-3 text-lg font-semibold text-gray-900">Locations</h2>
+          <h2 className="mb-3 text-lg font-semibold text-gray-900">
+            {drillDown.isRoot ? 'Locations' : drillDown.currentLocation?.name ?? 'Locations'}
+          </h2>
 
-          {allLocations.length === 0 ? (
+          {drillDown.currentChildren.length === 0 && drillDown.isRoot ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
               <MapPin className="mx-auto h-8 w-8 text-gray-300" />
-              <p className="mt-2 text-sm text-gray-500">No locations configured. Add locations on the Locations page.</p>
+              <p className="mt-2 text-sm text-gray-500">
+                No locations configured. Add locations on the Locations page.
+              </p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {allLocations.map((section) => {
-                const stats = locationStatsMap[section] ?? { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
-                const locMeta = locationByName.get(section);
-                const completionColor =
-                  stats.percentage === 100
-                    ? 'text-green-600'
-                    : stats.percentage >= 50
-                      ? 'text-yellow-600'
-                      : stats.percentage > 0
-                        ? 'text-orange-600'
-                        : 'text-gray-400';
-
+              {drillDown.currentChildren.map((child) => {
+                const stats = getAggregatedStats(child.id!);
                 return (
-                  <button
-                    key={section}
-                    onClick={() => setSelectedLocation(section)}
-                    className="group rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all hover:border-red-300 hover:shadow-md"
-                  >
-                    <div className="mb-3 flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5 text-red-500" />
-                        <h3 className="font-semibold text-gray-900 group-hover:text-red-600">{section}</h3>
-                      </div>
-                      {locMeta && (
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 capitalize">
-                          {locMeta.locationType}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mb-3 flex items-baseline justify-between">
-                      <div className="flex items-center gap-1">
-                        <Flame className="h-4 w-4 text-gray-400" />
-                        <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
-                        <span className="text-xs text-gray-500">extinguishers</span>
-                      </div>
-                      <span className={`text-lg font-bold ${completionColor}`}>
-                        {stats.percentage}%
-                      </span>
-                    </div>
-
-                    {/* Mini progress bar */}
-                    <div className="h-2 rounded-full bg-gray-100">
-                      {stats.total > 0 && (
-                        <div className="flex h-2 overflow-hidden rounded-full">
-                          <div
-                            className="bg-green-500 transition-all"
-                            style={{ width: `${(stats.passed / stats.total) * 100}%` }}
-                          />
-                          <div
-                            className="bg-red-500 transition-all"
-                            style={{ width: `${(stats.failed / stats.total) * 100}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Mini stats */}
-                    <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-green-500" />{stats.passed}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <XCircle className="h-3 w-3 text-red-500" />{stats.failed}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-gray-400" />{stats.pending}
-                      </span>
-                    </div>
-                  </button>
+                  <LocationCard
+                    key={child.id}
+                    name={child.name}
+                    locationType={child.locationType}
+                    stats={stats}
+                    onClick={() => drillDown.navigateTo(child.id!)}
+                  />
                 );
               })}
+
+              {/* Show "Unassigned" card if there are unassigned extinguishers */}
+              {drillDown.isRoot && locationStatsMap.has('__unassigned__') && (
+                <LocationCard
+                  name="Unassigned"
+                  locationType="other"
+                  stats={locationStatsMap.get('__unassigned__')!}
+                  onClick={() => setShowUnassigned(true)}
+                />
+              )}
             </div>
           )}
         </>
       )}
 
-      {/* ===== VIEW: Extinguisher List (location selected) ===== */}
-      {selectedLocation !== null && (
+      {/* ===== VIEW: Unassigned Extinguishers ===== */}
+      {showUnassigned && (
         <>
-          {/* Section Timer (feature-gated) */}
-          {hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan) && selectedLocation && (
-            <div className="mb-4">
-              <SectionTimer
-                section={selectedLocation}
-                activeSection={timerActiveLocation}
-                totalTime={getTotalTime(selectedLocation)}
-                onStart={startTimer}
-                onPause={pauseTimer}
-                onStop={stopTimer}
-                disabled={isArchived}
-                formatTime={formatTime}
-              />
-            </div>
-          )}
+          <h2 className="mb-3 text-lg font-semibold text-gray-900">Unassigned Extinguishers</h2>
 
-          {/* Section Notes */}
-          {selectedLocation && (
-            <div className="mb-4">
-              <SectionNotes
-                section={selectedLocation}
-                notes={sectionNotes[selectedLocation]?.notes ?? ''}
-                saveForNextMonth={sectionNotes[selectedLocation]?.saveForNextMonth ?? false}
-                lastUpdated={sectionNotes[selectedLocation]?.lastUpdated ?? null}
-                allNotes={sectionNotes}
-                onSave={handleSaveNote}
-                disabled={isArchived}
-              />
-            </div>
-          )}
+          <div className="mb-4">
+            <FilterPanel filters={filters} onChange={setFilters} showStatus />
+          </div>
 
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
@@ -713,151 +752,152 @@ export default function WorkspaceDetail() {
                 className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               />
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-              >
-                <option value="">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="pass">Passed</option>
-                <option value="fail">Failed</option>
-              </select>
+          {unassignedInspections.length === 0 ? (
+            <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
+              <p className="text-sm text-gray-500">No unassigned extinguishers match your filters.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {unassignedInspections.map((insp) => {
+                const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+                const Icon = style.icon;
+                return (
+                  <button
+                    key={insp.id}
+                    onClick={() =>
+                      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)
+                    }
+                    className="group rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-red-300 hover:shadow-md"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-lg font-bold text-gray-900 group-hover:text-red-600">
+                        {insp.assetId}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                        <Icon className="h-3 w-3" />
+                        {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-xs text-gray-500">
+                      <p className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {insp.section || 'No location assigned'}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
 
-              {/* Columns toggle */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowColumnMenu(!showColumnMenu)}
-                  className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  <LayoutList className="h-4 w-4" />
-                  Columns
-                </button>
-                {showColumnMenu && (
-                  <div className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white p-2 shadow-xl">
-                    {Object.entries({
-                      assetId: 'Asset ID',
-                      serial: 'Serial',
-                      building: 'Building',
-                      vicinity: 'Vicinity',
-                      section: 'Section',
-                      status: 'Status',
-                    }).map(([key, label]) => (
-                      <label key={key} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50">
-                        <input
-                          type="checkbox"
-                          checked={visibleColumns[key as keyof typeof visibleColumns]}
-                          onChange={() => setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key as keyof typeof visibleColumns] }))}
-                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                        />
-                        <span className="text-sm text-gray-700">{label}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
+      {/* ===== VIEW: Extinguisher List (leaf location selected) ===== */}
+      {drillDown.isLeaf && !showUnassigned && (
+        <>
+          {/* Section Timer (feature-gated) */}
+          {hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan) && timerSection && (
+            <div className="mb-4">
+              <SectionTimer
+                section={timerSection}
+                activeSection={timerActiveSection}
+                totalTime={getTotalTime(timerSection)}
+                onStart={startTimer}
+                onPause={pauseTimer}
+                onStop={stopTimer}
+                disabled={isArchived}
+                formatTime={formatTime}
+              />
+            </div>
+          )}
+
+          {/* Section Notes */}
+          {timerSection && (
+            <div className="mb-4">
+              <SectionNotes
+                section={timerSection}
+                notes={sectionNotes[timerSection]?.notes ?? ''}
+                saveForNextMonth={sectionNotes[timerSection]?.saveForNextMonth ?? false}
+                lastUpdated={sectionNotes[timerSection]?.lastUpdated ?? null}
+                allNotes={sectionNotes}
+                onSave={handleSaveNote}
+                disabled={isArchived}
+              />
+            </div>
+          )}
+
+          {/* Filter Panel */}
+          <div className="mb-4">
+            <FilterPanel
+              filters={filters}
+              onChange={setFilters}
+              siblingLocations={filterSiblingLocations}
+              showStatus
+            />
+          </div>
+
+          {/* Search row */}
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filter by asset ID..."
+                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+              />
             </div>
           </div>
 
-          {/* Extinguisher list table */}
-          {locationInspections.length === 0 ? (
+          {/* Extinguisher cards grid */}
+          {leafInspections.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
               <p className="text-sm text-gray-500">No extinguishers match your filters.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {visibleColumns.assetId && (
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Asset ID
-                      </th>
-                    )}
-                    {visibleColumns.serial && (
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Serial
-                      </th>
-                    )}
-                    {visibleColumns.building && (
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Building
-                      </th>
-                    )}
-                    {visibleColumns.vicinity && (
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Vicinity
-                      </th>
-                    )}
-                    {visibleColumns.section && (
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Section
-                      </th>
-                    )}
-                    {visibleColumns.status && (
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Status
-                      </th>
-                    )}
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {locationInspections.map((insp) => {
-                    const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
-                    const Icon = style.icon;
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {leafInspections.map((insp) => {
+                const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+                const Icon = style.icon;
 
-                    return (
-                      <tr
-                        key={insp.id}
-                        className="hover:bg-gray-50 cursor-pointer"
-                        onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)}
+                return (
+                  <button
+                    key={insp.id}
+                    onClick={() =>
+                      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)
+                    }
+                    className="group rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-red-300 hover:shadow-md"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-lg font-bold text-gray-900 group-hover:text-red-600">
+                        {insp.assetId}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}
                       >
-                        {visibleColumns.assetId && (
-                          <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                            {insp.assetId}
-                          </td>
-                        )}
-                        {visibleColumns.serial && (
-                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                            {insp.serial || '--'}
-                          </td>
-                        )}
-                        {visibleColumns.building && (
-                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                            {insp.parentLocation || '--'}
-                          </td>
-                        )}
-                        {visibleColumns.vicinity && (
-                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                            {extinguishers.find(e => e.id === insp.extinguisherId)?.vicinity || '--'}
-                          </td>
-                        )}
-                        {visibleColumns.section && (
-                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                            {insp.section || '--'}
-                          </td>
-                        )}
-                        {visibleColumns.status && (
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
-                              <Icon className="h-3 w-3" />
-                              {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
-                            </span>
-                          </td>
-                        )}
-                        <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-600">
-                          Inspect
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        <Icon className="h-3 w-3" />
+                        {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 text-xs text-gray-500">
+                      <p className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {insp.section || 'No section'}
+                      </p>
+                      {insp.inspectedByEmail && (
+                        <p className="truncate">Inspected by: {insp.inspectedByEmail}</p>
+                      )}
+                      {insp.notes && (
+                        <p className="truncate italic text-gray-400">{insp.notes}</p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </>

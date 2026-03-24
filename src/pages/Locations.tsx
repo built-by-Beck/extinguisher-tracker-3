@@ -18,6 +18,7 @@ import {
   updateLocation,
   softDeleteLocation,
   buildLocationTree,
+  isLocationNameTaken,
   LOCATION_TYPES,
   type Location,
   type LocationTreeNode,
@@ -161,12 +162,24 @@ export default function Locations() {
     setFormError('');
 
     try {
-      // Note: location.name IS the section identifier — we no longer expose
-      // the separate "section" freetext field in the form (P9-07).
+      const parentId = formParent || null;
+      // Check for duplicate name under same parent
+      const taken = await isLocationNameTaken(
+        orgId,
+        formName.trim(),
+        parentId,
+        editingLoc?.id,
+      );
+      if (taken) {
+        setFormError('A location with this name already exists under the same parent. Use a unique name.');
+        setFormSaving(false);
+        return;
+      }
+
       const data: Partial<Location> = {
         name: formName.trim(),
         locationType: formType,
-        parentLocationId: formParent || null,
+        parentLocationId: parentId,
         description: formDescription.trim() || null,
       };
 

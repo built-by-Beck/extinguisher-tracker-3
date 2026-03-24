@@ -98,6 +98,7 @@ export const createWorkspace = onCall(async (request) => {
       parentLocation: extData.parentLocation ?? '',
       section: extData.section ?? '',
       serial: extData.serial ?? '',
+      locationId: extData.locationId ?? null,
       status: 'pending',
       inspectedAt: null,
       inspectedBy: null,

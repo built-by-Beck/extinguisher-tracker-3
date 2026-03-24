@@ -124,6 +124,7 @@ export const onExtinguisherCreated = onDocumentCreated(
             workspaceId,
             assetId: (currentExtData.assetId as string | null) ?? '',
             section,
+            locationId: locationId ?? null,
             status: 'pending',
             inspectedAt: null,
             inspectedBy: null,
