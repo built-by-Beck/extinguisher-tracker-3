@@ -50,7 +50,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     inspectionReminders: true,
     sectionTimeTracking: true,
     tagPrinting: true,
-    bulkTagPrinting: true,
+    bulkTagPrinting: false,
     inspectionRoutes: true,
     aiAssistant: true,
     guestAccess: false,
