@@ -10,6 +10,8 @@ import {
   Loader2,
   Lock,
   Trash2,
+  Search,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -46,6 +48,7 @@ export default function Workspaces() {
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newMonthYear, setNewMonthYear] = useState(getNextMonthYear());
+  const [wsSearch, setWsSearch] = useState('');
 
   useEffect(() => {
     if (!orgId) return;
@@ -129,8 +132,14 @@ export default function Workspaces() {
     }
   }, [orgId, archiveTargetId]);
 
-  const activeWorkspaces = workspaces.filter((w) => w.status === 'active');
-  const archivedWorkspaces = workspaces.filter((w) => w.status === 'archived');
+  const filteredWorkspaces = wsSearch
+    ? workspaces.filter((w) =>
+        w.label.toLowerCase().includes(wsSearch.toLowerCase()) ||
+        w.monthYear.includes(wsSearch)
+      )
+    : workspaces;
+  const activeWorkspaces = filteredWorkspaces.filter((w) => w.status === 'active');
+  const archivedWorkspaces = filteredWorkspaces.filter((w) => w.status === 'archived');
 
   return (
     <div className="p-6">
@@ -155,6 +164,28 @@ export default function Workspaces() {
 
       {error && (
         <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      )}
+
+      {/* Search workspaces */}
+      {workspaces.length > 3 && (
+        <div className="mb-4 relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={wsSearch}
+            onChange={(e) => setWsSearch(e.target.value)}
+            placeholder="Search workspaces..."
+            className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-10 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+          />
+          {wsSearch && (
+            <button
+              onClick={() => setWsSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       )}
 
       {/* Active workspaces */}
@@ -210,9 +241,16 @@ export default function Workspaces() {
                   )}
                 </div>
 
-                <p className="text-xs text-gray-400">
-                  {ws.stats.total} total extinguishers
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-400">
+                    {ws.stats.total} total extinguishers
+                  </p>
+                  {ws.stats.total > 0 && (
+                    <p className="text-xs font-medium text-gray-500">
+                      {Math.round(((ws.stats.passed + ws.stats.failed) / ws.stats.total) * 100)}% complete
+                    </p>
+                  )}
+                </div>
 
                 {/* Actions */}
                 {canManage && (
@@ -250,14 +288,27 @@ export default function Workspaces() {
       )}
 
       {/* Empty state */}
-      {workspaces.length === 0 && (
+      {filteredWorkspaces.length === 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <Calendar className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-sm font-semibold text-gray-900">No workspaces yet</h3>
+          <h3 className="mt-4 text-sm font-semibold text-gray-900">
+            {wsSearch ? 'No matching workspaces' : 'No workspaces yet'}
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
-            Create a monthly workspace to start inspecting your extinguishers.
+            {wsSearch
+              ? 'Try a different search term.'
+              : 'Create a monthly workspace to start inspecting your extinguishers.'}
           </p>
-          {canManage && (
+          {wsSearch && (
+            <button
+              onClick={() => setWsSearch('')}
+              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <X className="h-4 w-4" />
+              Clear Search
+            </button>
+          )}
+          {!wsSearch && canManage && (
             <button
               onClick={() => setShowCreateModal(true)}
               className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"

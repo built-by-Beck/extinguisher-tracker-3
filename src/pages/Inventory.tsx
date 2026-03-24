@@ -1,11 +1,11 @@
 /**
  * Inventory page for EX3.
- * Extinguisher list with filters, search, pagination, compliance column.
+ * Table/card view with sortable columns, enhanced search, filters, pagination.
  *
  * Author: built_by_Beck
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus,
@@ -20,7 +20,10 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutList,
+  LayoutGrid,
   MapPin,
+  Table2,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -31,6 +34,7 @@ import { ImportExportBar } from '../components/extinguisher/ImportExportBar.tsx'
 import { DuplicateScanModal } from '../components/extinguisher/DuplicateScanModal.tsx';
 import { DataImportModal } from '../components/extinguisher/DataImportModal.tsx';
 import { ComplianceStatusBadge } from '../components/compliance/ComplianceStatusBadge.tsx';
+import { SortableTableHeader } from '../components/ui/SortableTableHeader.tsx';
 import {
   subscribeToExtinguishers,
   softDeleteExtinguisher,
@@ -56,11 +60,44 @@ import {
   type Location,
 } from '../services/locationService.ts';
 
+type SortKey = 'assetId' | 'serial' | 'location' | 'compliance' | 'nextInspection';
+type ViewMode = 'table' | 'cards';
+
+const COMPLIANCE_SORT_ORDER: Record<string, number> = {
+  compliant: 0,
+  monthly_due: 1,
+  annual_due: 2,
+  six_year_due: 3,
+  hydro_due: 4,
+  overdue: 5,
+  missing_data: 6,
+};
+
+const STORAGE_KEY_PREFIX = 'ex3_inventory_';
+
+function loadPref<T>(orgId: string, key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${orgId}_${key}`);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function savePref(orgId: string, key: string, value: unknown) {
+  try {
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}${orgId}_${key}`, JSON.stringify(value));
+  } catch {
+    // localStorage unavailable
+  }
+}
+
 export default function Inventory() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, userProfile } = useAuth();
   const { org, hasRole } = useOrg();
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const orgId = userProfile?.activeOrgId ?? '';
   const canEdit = hasRole(['owner', 'admin']);
@@ -73,14 +110,18 @@ export default function Inventory() {
   const [items, setItems] = useState<Extinguisher[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [showDeleted, setShowDeleted] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
-  // Initialize compliance filter from URL param (from dashboard card clicks)
   const [complianceFilter, setComplianceFilter] = useState(
     searchParams.get('compliance') ?? '',
   );
   const [deleteTarget, setDeleteTarget] = useState<Extinguisher | null>(null);
+
+  // View mode & sorting — persisted per org
+  const [viewMode, setViewMode] = useState<ViewMode>(() => loadPref(orgId, 'viewMode', 'table'));
+  const [sortKey, setSortKey] = useState<SortKey>(() => loadPref(orgId, 'sortKey', 'assetId'));
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(() => loadPref(orgId, 'sortDir', 'asc'));
 
   // Dynamic columns
   const [visibleColumns, setVisibleColumns] = useState({
@@ -98,10 +139,10 @@ export default function Inventory() {
 
   // Pagination and selection
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(() => loadPref(orgId, 'pageSize', 25));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDelete, setShowBulkDelete] = useState(false);
-  
+
   // Duplicate detection state
   const [showDupModal, setShowDupModal] = useState(false);
   const [dupGroups, setDupGroups] = useState<DuplicateGroup[]>([]);
@@ -110,6 +151,7 @@ export default function Inventory() {
 
   // JSON Import state
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showImportExport, setShowImportExport] = useState(false);
 
   const [scanAddTarget, setScanAddTarget] = useState<{ code: string; format: string | null } | null>(null);
   const [scanAddLoading, setScanAddLoading] = useState(false);
@@ -118,6 +160,36 @@ export default function Inventory() {
 
   const flags = org?.featureFlags as Record<string, boolean> | null | undefined;
   const canScan = hasFeature(flags, 'cameraBarcodeScan', org?.plan) || hasFeature(flags, 'qrScanning', org?.plan);
+
+  // Persist preferences
+  useEffect(() => { savePref(orgId, 'viewMode', viewMode); }, [orgId, viewMode]);
+  useEffect(() => { savePref(orgId, 'sortKey', sortKey); }, [orgId, sortKey]);
+  useEffect(() => { savePref(orgId, 'sortDir', sortDir); }, [orgId, sortDir]);
+  useEffect(() => { savePref(orgId, 'pageSize', pageSize); }, [orgId, pageSize]);
+
+  // Keyboard shortcut: / to focus search
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  function toggleSort(key: string) {
+    const k = key as SortKey;
+    if (sortKey === k) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(k);
+      setSortDir('asc');
+    }
+  }
 
   useEffect(() => {
     const scanAddCode = searchParams.get('scanAdd');
@@ -149,7 +221,6 @@ export default function Inventory() {
 
     const unsub = subscribeToExtinguishers(orgId, (extinguishers) => {
       setItems(extinguishers);
-      // Cache on read (fire-and-forget)
       cacheExtinguishersForWorkspace(
         orgId,
         extinguishers as unknown as Array<Record<string, unknown>>,
@@ -164,29 +235,70 @@ export default function Inventory() {
     getActiveExtinguisherCount(orgId).then(setTotalCount);
   }, [orgId, items]);
 
-  // Client-side filtering
+  // Helper: get location path for an extinguisher
+  const getExtLocationPath = useCallback(
+    (ext: Extinguisher) => {
+      if (ext.locationId) return getLocationPath(locations, ext.locationId);
+      return ext.section || ext.parentLocation || '';
+    },
+    [locations],
+  );
+
+  // Client-side filtering with enhanced location search
   const filtered = useMemo(() => {
     return items.filter((ext) => {
       if (categoryFilter && ext.category !== categoryFilter) return false;
       if (locationFilter) {
-        // Match either by formal locationId or if the legacy string fields match
         if (ext.locationId !== locationFilter) return false;
       }
       if (complianceFilter && ext.complianceStatus !== complianceFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
+        const locationPath = getExtLocationPath(ext).toLowerCase();
         return (
           ext.assetId.toLowerCase().includes(q) ||
           ext.serial.toLowerCase().includes(q) ||
           (ext.barcode?.toLowerCase().includes(q) ?? false) ||
+          locationPath.includes(q) ||
           (ext.section || '').toLowerCase().includes(q) ||
           (ext.parentLocation || '').toLowerCase().includes(q) ||
-          (ext.manufacturer?.toLowerCase().includes(q) ?? false)
+          (ext.manufacturer?.toLowerCase().includes(q) ?? false) ||
+          (ext.vicinity || '').toLowerCase().includes(q)
         );
       }
       return true;
     });
-  }, [items, categoryFilter, locationFilter, complianceFilter, searchQuery]);
+  }, [items, categoryFilter, locationFilter, complianceFilter, searchQuery, getExtLocationPath]);
+
+  // Sorted list
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    arr.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'assetId':
+          cmp = a.assetId.localeCompare(b.assetId);
+          break;
+        case 'serial':
+          cmp = a.serial.localeCompare(b.serial);
+          break;
+        case 'location':
+          cmp = getExtLocationPath(a).localeCompare(getExtLocationPath(b));
+          break;
+        case 'compliance':
+          cmp = (COMPLIANCE_SORT_ORDER[a.complianceStatus] ?? 99) - (COMPLIANCE_SORT_ORDER[b.complianceStatus] ?? 99);
+          break;
+        case 'nextInspection': {
+          const dateA = a.nextMonthlyInspection ?? '';
+          const dateB = b.nextMonthlyInspection ?? '';
+          cmp = String(dateA).localeCompare(String(dateB));
+          break;
+        }
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir, getExtLocationPath]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -197,10 +309,10 @@ export default function Inventory() {
   // Pagination slice
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage, pageSize]);
+    return sorted.slice(start, start + pageSize);
+  }, [sorted, currentPage, pageSize]);
 
-  const totalPages = Math.ceil(filtered.length / pageSize);
+  const totalPages = Math.ceil(sorted.length / pageSize);
 
   function toggleSelectAll() {
     if (selectedIds.size === paginatedItems.length && paginatedItems.length > 0) {
@@ -293,6 +405,16 @@ export default function Inventory() {
     }
   }
 
+  function clearAllFilters() {
+    setSearchQuery('');
+    setCategoryFilter('');
+    setLocationFilter(null);
+    setComplianceFilter('');
+    setShowDeleted(false);
+  }
+
+  const hasActiveFilters = searchQuery || categoryFilter || locationFilter || complianceFilter || showDeleted;
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -303,7 +425,7 @@ export default function Inventory() {
             {totalCount} extinguisher{totalCount !== 1 ? 's' : ''} in your organization
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canEdit && canMerge && (
             <button
               onClick={handleDuplicateScan}
@@ -311,7 +433,7 @@ export default function Inventory() {
               title="Find and merge duplicate asset IDs"
             >
               <Copy className="h-4 w-4" />
-              Find Duplicates
+              <span className="hidden sm:inline">Find Duplicates</span>
             </button>
           )}
           <button
@@ -319,7 +441,7 @@ export default function Inventory() {
             className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             <Printer className="h-4 w-4" />
-            Print List
+            <span className="hidden sm:inline">Print List</span>
           </button>
           {canEdit && (
             <button
@@ -327,7 +449,7 @@ export default function Inventory() {
               className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700"
             >
               <Plus className="h-4 w-4" />
-              Add Extinguisher
+              Add
             </button>
           )}
         </div>
@@ -349,10 +471,7 @@ export default function Inventory() {
               if (ext.id) navigate(`/dashboard/inventory/${ext.id}`);
             }}
             onNotFound={({ code, source, format }) => {
-              if (source !== 'scan' || !canEdit || !canScan) {
-                return;
-              }
-
+              if (source !== 'scan' || !canEdit || !canScan) return;
               setScanAddError('');
               setScanAddTarget({ code, format: format ?? null });
             }}
@@ -363,27 +482,60 @@ export default function Inventory() {
         </div>
       )}
 
-      {/* Import/Export */}
+      {/* Import/Export collapsible */}
       {canEdit && (
         <div className="mb-4">
-          <ImportExportBar onImportJSON={() => setShowImportModal(true)} plan={org?.plan} />
+          <button
+            onClick={() => setShowImportExport(!showImportExport)}
+            className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+              showImportExport
+                ? 'border-red-300 bg-red-50 text-red-700'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <LayoutList className="h-4 w-4" />
+              Import / Export
+            </span>
+          </button>
+          {showImportExport && (
+            <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <ImportExportBar onImportJSON={() => setShowImportModal(true)} plan={org?.plan} />
+            </div>
+          )}
         </div>
       )}
 
-      {/* Filters bar */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        {/* Search */}
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      {/* Search bar — full width, prominent */}
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <input
+            ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by asset ID, serial, barcode..."
-            className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+            placeholder="Search by asset ID, serial, location, barcode, manufacturer... (press / to focus)"
+            className="w-full rounded-lg border border-gray-300 py-3 pl-11 pr-10 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
+        {searchQuery && (
+          <p className="mt-1.5 text-xs text-gray-500">
+            Showing {sorted.length} of {items.length} extinguishers
+          </p>
+        )}
+      </div>
 
+      {/* Filters row */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         {/* Category filter */}
         <select
           value={categoryFilter}
@@ -435,6 +587,24 @@ export default function Inventory() {
           />
         </div>
 
+        {/* View mode toggle */}
+        <div className="ml-auto flex items-center gap-1 rounded-lg border border-gray-300 p-0.5">
+          <button
+            onClick={() => setViewMode('table')}
+            className={`rounded-md p-1.5 ${viewMode === 'table' ? 'bg-red-100 text-red-700' : 'text-gray-400 hover:text-gray-600'}`}
+            title="Table view"
+          >
+            <Table2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setViewMode('cards')}
+            className={`rounded-md p-1.5 ${viewMode === 'cards' ? 'bg-red-100 text-red-700' : 'text-gray-400 hover:text-gray-600'}`}
+            title="Card view"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+        </div>
+
         {/* Columns toggle */}
         <div className="relative">
           <button
@@ -451,7 +621,7 @@ export default function Inventory() {
                 serial: 'Serial',
                 building: 'Building',
                 vicinity: 'Vicinity',
-                section: 'Section',
+                section: 'Location',
                 type: 'Type',
                 category: 'Category',
                 compliance: 'Compliance',
@@ -485,6 +655,17 @@ export default function Inventory() {
             {showDeleted ? 'Showing Deleted' : 'Deleted'}
           </button>
         )}
+
+        {/* Clear all filters */}
+        {hasActiveFilters && (
+          <button
+            onClick={clearAllFilters}
+            className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50"
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear
+          </button>
+        )}
       </div>
 
       {/* Bulk Actions Bar */}
@@ -512,36 +693,30 @@ export default function Inventory() {
         </div>
       )}
 
-      {/* Select All bar (for card view) */}
-      {canEdit && !showDeleted && paginatedItems.length > 0 && (
-        <div className="mb-3 flex items-center gap-3">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
-            <input
-              type="checkbox"
-              checked={selectedIds.size === paginatedItems.length && paginatedItems.length > 0}
-              onChange={toggleSelectAll}
-              className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-            />
-            Select all on page
-          </label>
-        </div>
-      )}
-
-      {/* Card Grid */}
-      {filtered.length === 0 ? (
+      {/* Empty state */}
+      {sorted.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <Flame className="mx-auto h-12 w-12 text-gray-300" />
           <h3 className="mt-4 text-sm font-semibold text-gray-900">
-            {showDeleted ? 'No deleted extinguishers' : 'No extinguishers yet'}
+            {showDeleted ? 'No deleted extinguishers' : hasActiveFilters ? 'No matching extinguishers' : 'No extinguishers yet'}
           </h3>
           <p className="mt-1 text-sm text-gray-500">
             {showDeleted
               ? 'Deleted extinguishers will appear here.'
-              : complianceFilter
-              ? 'No extinguishers match the selected compliance filter.'
+              : hasActiveFilters
+              ? 'Try adjusting your search or filters.'
               : 'Get started by adding your first extinguisher.'}
           </p>
-          {!showDeleted && !complianceFilter && canEdit && (
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <X className="h-4 w-4" />
+              Clear Filters
+            </button>
+          )}
+          {!showDeleted && !hasActiveFilters && canEdit && (
             <button
               onClick={() => navigate('/dashboard/inventory/new')}
               className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
@@ -551,116 +726,307 @@ export default function Inventory() {
             </button>
           )}
         </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {paginatedItems.map((ext: Extinguisher) => (
-            <div
-              key={ext.id}
-              onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}`)}
-              className={`group relative cursor-pointer rounded-lg border bg-white p-4 shadow-sm transition-all hover:border-red-300 hover:shadow-md ${
-                selectedIds.has(ext.id!) ? 'border-red-300 bg-red-50/50' : 'border-gray-200'
-              }`}
-            >
-              {/* Selection checkbox */}
-              {canEdit && !showDeleted && (
-                <div className="absolute left-3 top-3" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(ext.id!)}
-                    onChange={() => toggleSelectRow(ext.id!)}
-                    className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                  />
-                </div>
-              )}
-
-              {/* Action buttons */}
-              {canEdit && (
-                <div className="absolute right-3 top-3 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  {hasFeature(flags, 'tagPrinting', org?.plan) && ext.id && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/dashboard/inventory/print-tags?ids=${ext.id}`);
-                      }}
-                      className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                      title="Print Tag"
-                    >
-                      <Printer className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (ext.id) navigate(`/dashboard/inventory/${ext.id}/edit`);
-                    }}
-                    className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                    title="Edit"
-                  >
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </button>
-                  {!showDeleted && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget(ext);
-                      }}
-                      className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Card header */}
-              <div className={`mb-3 flex items-start justify-between ${canEdit && !showDeleted ? 'pl-6' : ''}`}>
+      ) : viewMode === 'table' ? (
+        /* ===== TABLE VIEW ===== */
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50 sticky top-0 z-10">
+              <tr>
+                {/* Select all checkbox */}
+                {canEdit && !showDeleted && (
+                  <th className="w-10 px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === paginatedItems.length && paginatedItems.length > 0}
+                      onChange={toggleSelectAll}
+                      className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    />
+                  </th>
+                )}
                 {visibleColumns.assetId && (
-                  <span className="text-lg font-bold text-gray-900 group-hover:text-red-600">
-                    {ext.assetId}
-                  </span>
+                  <SortableTableHeader
+                    label="Asset ID"
+                    sortKey="assetId"
+                    activeSortKey={sortKey}
+                    activeSortDir={sortDir}
+                    onToggle={toggleSort}
+                  />
                 )}
-                {visibleColumns.compliance && (
-                  <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />
-                )}
-              </div>
-
-              {/* Card body */}
-              <div className="space-y-1.5 text-xs text-gray-500">
-                {visibleColumns.serial && ext.serial && (
-                  <p><span className="font-medium text-gray-600">Serial:</span> {ext.serial}</p>
-                )}
-                {visibleColumns.type && (
-                  <p><span className="font-medium text-gray-600">Type:</span> {ext.extinguisherType ?? '--'}</p>
+                {visibleColumns.serial && (
+                  <SortableTableHeader
+                    label="Serial"
+                    sortKey="serial"
+                    activeSortKey={sortKey}
+                    activeSortDir={sortDir}
+                    onToggle={toggleSort}
+                  />
                 )}
                 {visibleColumns.section && (
-                  <p className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    {ext.locationId
-                      ? getLocationPath(locations, ext.locationId)
-                      : ext.section || '--'}
-                  </p>
+                  <SortableTableHeader
+                    label="Location"
+                    sortKey="location"
+                    activeSortKey={sortKey}
+                    activeSortDir={sortDir}
+                    onToggle={toggleSort}
+                  />
                 )}
-                {visibleColumns.building && ext.parentLocation && (
-                  <p><span className="font-medium text-gray-600">Building:</span> {ext.parentLocation}</p>
+                {visibleColumns.building && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Building</th>
                 )}
-                {visibleColumns.vicinity && ext.vicinity && (
-                  <p><span className="font-medium text-gray-600">Vicinity:</span> {ext.vicinity}</p>
+                {visibleColumns.vicinity && (
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 lg:table-cell">Vicinity</th>
+                )}
+                {visibleColumns.type && (
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">Type</th>
                 )}
                 {visibleColumns.category && (
-                  <p><span className="font-medium text-gray-600">Category:</span> {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">Category</th>
+                )}
+                {visibleColumns.compliance && (
+                  <SortableTableHeader
+                    label="Compliance"
+                    sortKey="compliance"
+                    activeSortKey={sortKey}
+                    activeSortDir={sortDir}
+                    onToggle={toggleSort}
+                  />
                 )}
                 {visibleColumns.nextInspection && (
-                  <p><span className="font-medium text-gray-600">Next Inspection:</span> {formatDueDate(ext.nextMonthlyInspection)}</p>
+                  <SortableTableHeader
+                    label="Next Inspection"
+                    sortKey="nextInspection"
+                    activeSortKey={sortKey}
+                    activeSortDir={sortDir}
+                    onToggle={toggleSort}
+                    className="hidden sm:table-cell"
+                  />
                 )}
-              </div>
-            </div>
-          ))}
+                {canEdit && (
+                  <th className="w-20 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Actions
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {paginatedItems.map((ext) => (
+                <tr
+                  key={ext.id}
+                  onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}`)}
+                  className={`cursor-pointer transition-colors hover:bg-red-50/40 ${
+                    selectedIds.has(ext.id!) ? 'bg-red-50/60' : ''
+                  }`}
+                >
+                  {canEdit && !showDeleted && (
+                    <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(ext.id!)}
+                        onChange={() => toggleSelectRow(ext.id!)}
+                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                    </td>
+                  )}
+                  {visibleColumns.assetId && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-900">
+                      {ext.assetId}
+                    </td>
+                  )}
+                  {visibleColumns.serial && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.serial || '--'}
+                    </td>
+                  )}
+                  {visibleColumns.section && (
+                    <td className="max-w-[200px] truncate px-4 py-3 text-sm text-gray-600">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3 shrink-0 text-gray-400" />
+                        {getExtLocationPath(ext) || '--'}
+                      </span>
+                    </td>
+                  )}
+                  {visibleColumns.building && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.parentLocation || '--'}
+                    </td>
+                  )}
+                  {visibleColumns.vicinity && (
+                    <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 lg:table-cell">
+                      {ext.vicinity || '--'}
+                    </td>
+                  )}
+                  {visibleColumns.type && (
+                    <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 md:table-cell">
+                      {ext.extinguisherType ?? '--'}
+                    </td>
+                  )}
+                  {visibleColumns.category && (
+                    <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 md:table-cell">
+                      {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                    </td>
+                  )}
+                  {visibleColumns.compliance && (
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />
+                    </td>
+                  )}
+                  {visibleColumns.nextInspection && (
+                    <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">
+                      {formatDueDate(ext.nextMonthlyInspection)}
+                    </td>
+                  )}
+                  {canEdit && (
+                    <td className="whitespace-nowrap px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}/edit`)}
+                          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title="Edit"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        {!showDeleted && (
+                          <button
+                            onClick={() => setDeleteTarget(ext)}
+                            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+      ) : (
+        /* ===== CARD VIEW ===== */
+        <>
+          {/* Select All bar */}
+          {canEdit && !showDeleted && paginatedItems.length > 0 && (
+            <div className="mb-3 flex items-center gap-3">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === paginatedItems.length && paginatedItems.length > 0}
+                  onChange={toggleSelectAll}
+                  className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                />
+                Select all on page
+              </label>
+            </div>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {paginatedItems.map((ext: Extinguisher) => (
+              <div
+                key={ext.id}
+                onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}`)}
+                className={`group relative cursor-pointer rounded-lg border bg-white p-4 shadow-sm transition-all hover:border-red-300 hover:shadow-md ${
+                  selectedIds.has(ext.id!) ? 'border-red-300 bg-red-50/50' : 'border-gray-200'
+                }`}
+              >
+                {/* Selection checkbox */}
+                {canEdit && !showDeleted && (
+                  <div className="absolute left-3 top-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(ext.id!)}
+                      onChange={() => toggleSelectRow(ext.id!)}
+                      className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    />
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                {canEdit && (
+                  <div className="absolute right-3 top-3 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    {hasFeature(flags, 'tagPrinting', org?.plan) && ext.id && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/dashboard/inventory/print-tags?ids=${ext.id}`);
+                        }}
+                        className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                        title="Print Tag"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (ext.id) navigate(`/dashboard/inventory/${ext.id}/edit`);
+                      }}
+                      className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      title="Edit"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </button>
+                    {!showDeleted && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(ext);
+                        }}
+                        className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Card header */}
+                <div className={`mb-3 flex items-start justify-between ${canEdit && !showDeleted ? 'pl-6' : ''}`}>
+                  {visibleColumns.assetId && (
+                    <span className="text-lg font-bold text-gray-900 group-hover:text-red-600">
+                      {ext.assetId}
+                    </span>
+                  )}
+                  {visibleColumns.compliance && (
+                    <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />
+                  )}
+                </div>
+
+                {/* Card body */}
+                <div className="space-y-1.5 text-xs text-gray-500">
+                  {visibleColumns.serial && ext.serial && (
+                    <p><span className="font-medium text-gray-600">Serial:</span> {ext.serial}</p>
+                  )}
+                  {visibleColumns.type && (
+                    <p><span className="font-medium text-gray-600">Type:</span> {ext.extinguisherType ?? '--'}</p>
+                  )}
+                  {visibleColumns.section && (
+                    <p className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      {getExtLocationPath(ext) || '--'}
+                    </p>
+                  )}
+                  {visibleColumns.building && ext.parentLocation && (
+                    <p><span className="font-medium text-gray-600">Building:</span> {ext.parentLocation}</p>
+                  )}
+                  {visibleColumns.vicinity && ext.vicinity && (
+                    <p><span className="font-medium text-gray-600">Vicinity:</span> {ext.vicinity}</p>
+                  )}
+                  {visibleColumns.category && (
+                    <p><span className="font-medium text-gray-600">Category:</span> {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
+                  )}
+                  {visibleColumns.nextInspection && (
+                    <p><span className="font-medium text-gray-600">Next Inspection:</span> {formatDueDate(ext.nextMonthlyInspection)}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Pagination Controls */}
-      {filtered.length > 0 && (
+      {sorted.length > 0 && (
         <div className="mt-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span>Show</span>
@@ -678,6 +1044,10 @@ export default function Inventory() {
               <option value={100}>100</option>
             </select>
             <span>per page</span>
+            <span className="ml-2 text-gray-400">|</span>
+            <span className="text-gray-500">
+              {sorted.length} result{sorted.length !== 1 ? 's' : ''}
+            </span>
           </div>
 
           <div className="flex items-center gap-2">
