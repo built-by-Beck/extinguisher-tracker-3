@@ -3,9 +3,7 @@ import { useAuth } from '../../hooks/useAuth.ts';
 import {
   subscribeToLocations,
   getLocationPath,
-  buildLocationTree,
   type Location,
-  type LocationTreeNode,
 } from '../../services/locationService.ts';
 import type { Extinguisher } from '../../services/extinguisherService.ts';
 
