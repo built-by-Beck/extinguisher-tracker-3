@@ -1,9 +1,20 @@
 /**
  * Plan configuration: maps plan names to feature flags, asset limits, and Stripe price env vars.
  * Single source of truth for plan-based gating (used by webhook, checkout, and frontend).
+ *
+ * Prices & limits read from PRICE_* / LIMIT_* env vars at deploy time.
+ * Change functions/.env → redeploy → pricing updates everywhere.
  */
 
 export type PlanName = 'basic' | 'pro' | 'elite' | 'enterprise';
+
+// Read prices/limits from env. Fallback to defaults.
+const ENV_PRICE_BASIC = Number(process.env.PRICE_BASIC) || 29.99;
+const ENV_PRICE_PRO = Number(process.env.PRICE_PRO) || 99;
+const ENV_PRICE_ELITE = Number(process.env.PRICE_ELITE) || 199;
+const ENV_LIMIT_BASIC = Number(process.env.LIMIT_BASIC) || 50;
+const ENV_LIMIT_PRO = Number(process.env.LIMIT_PRO) || 250;
+const ENV_LIMIT_ELITE = Number(process.env.LIMIT_ELITE) || 500;
 
 export interface PlanConfig {
   name: PlanName;
@@ -19,8 +30,8 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
     name: 'basic',
     displayName: 'Basic',
     priceEnvVar: 'STRIPE_PRICE_ID_BASIC',
-    monthlyPrice: 29.99,
-    assetLimit: 50,
+    monthlyPrice: ENV_PRICE_BASIC,
+    assetLimit: ENV_LIMIT_BASIC,
     featureFlags: {
       manualBarcodeEntry: true,
       cameraBarcodeScan: false,
@@ -41,8 +52,8 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
     name: 'pro',
     displayName: 'Pro',
     priceEnvVar: 'STRIPE_PRICE_ID_PRO',
-    monthlyPrice: 99,
-    assetLimit: 250,
+    monthlyPrice: ENV_PRICE_PRO,
+    assetLimit: ENV_LIMIT_PRO,
     featureFlags: {
       manualBarcodeEntry: true,
       cameraBarcodeScan: true,
@@ -63,8 +74,8 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
     name: 'elite',
     displayName: 'Elite',
     priceEnvVar: 'STRIPE_PRICE_ID_ELITE',
-    monthlyPrice: 199,
-    assetLimit: 500,
+    monthlyPrice: ENV_PRICE_ELITE,
+    assetLimit: ENV_LIMIT_ELITE,
     featureFlags: {
       manualBarcodeEntry: true,
       cameraBarcodeScan: true,
