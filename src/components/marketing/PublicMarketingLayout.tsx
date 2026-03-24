@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { Flame, Menu, X } from 'lucide-react';
+import { PublicAdSlot } from '../ads/PublicAdSlot.tsx';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-sm font-medium ${isActive ? 'text-red-600' : 'text-gray-700 hover:text-red-600'}`;
@@ -97,7 +98,13 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
         ) : null}
       </header>
 
+      {/* Top ad banner — below header */}
+      <PublicAdSlot format="banner" className="border-b border-gray-200 bg-white px-4 py-2" />
+
       <main className="flex-1">{children}</main>
+
+      {/* Bottom ad banner — above footer */}
+      <PublicAdSlot format="banner" className="border-t border-gray-200 bg-white px-4 py-2" />
 
       <footer className="border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">

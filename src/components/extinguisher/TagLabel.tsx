@@ -3,7 +3,6 @@ import { formatDueDate } from '../../utils/compliance.ts';
 
 interface TagLabelProps {
   extinguisher: Extinguisher;
-  orgId: string;
   orgName?: string;
   qrDataUrl?: string;
   labelSize: 'small' | 'medium' | 'large';
@@ -15,7 +14,7 @@ const SIZE_CONFIG = {
   large: { width: 576, height: 384, qr: 240, titleText: '28px', bodyText: '16px', orgText: '12px' },
 } as const;
 
-export function TagLabel({ extinguisher, orgId: _orgId, orgName, qrDataUrl, labelSize }: TagLabelProps) {
+export function TagLabel({ extinguisher, orgName, qrDataUrl, labelSize }: TagLabelProps) {
   const cfg = SIZE_CONFIG[labelSize];
   const location = extinguisher.parentLocation || extinguisher.section || '';
 

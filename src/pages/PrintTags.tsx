@@ -159,7 +159,6 @@ export default function PrintTags() {
                 <TagLabel
                   key={ext.id}
                   extinguisher={ext}
-                  orgId={orgId}
                   orgName={org?.name}
                   qrDataUrl={ext.id ? qrDataUrls[ext.id] : undefined}
                   labelSize={labelSize}

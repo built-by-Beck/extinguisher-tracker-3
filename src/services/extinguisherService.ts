@@ -237,7 +237,7 @@ export async function softDeleteExtinguisher(
     lifecycleStatus: 'deleted',
     deletedAt: serverTimestamp(),
     deletedBy: uid,
-    deletedReason: reason,
+    deletionReason: reason,
     updatedAt: serverTimestamp(),
   });
 }
@@ -262,7 +262,7 @@ export async function batchSoftDeleteExtinguishers(
         lifecycleStatus: 'deleted',
         deletedAt: serverTimestamp(),
         deletedBy: uid,
-        deletedReason: reason,
+        deletionReason: reason,
         updatedAt: serverTimestamp(),
       });
     }
