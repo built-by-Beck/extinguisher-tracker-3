@@ -64,7 +64,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       inspectionReminders: true,
       sectionTimeTracking: true,
       tagPrinting: true,
-      bulkTagPrinting: true,
+      bulkTagPrinting: false,
       inspectionRoutes: true,
       aiAssistant: true,
       guestAccess: false,

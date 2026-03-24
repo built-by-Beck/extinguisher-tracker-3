@@ -66,7 +66,7 @@ export default function Inventory() {
   const canEdit = hasRole(['owner', 'admin']);
   const canMerge = hasFeature(
     org?.featureFlags as Record<string, boolean> | null | undefined,
-    'bulkTagPrinting',
+    'tagPrinting',
     org?.plan
   );
 
@@ -493,6 +493,15 @@ export default function Inventory() {
           <span className="text-sm font-medium text-red-800">
             {selectedIds.size} selected
           </span>
+          {hasFeature(flags, 'bulkTagPrinting', org?.plan) && (
+            <button
+              onClick={() => navigate(`/dashboard/inventory/print-tags?ids=${Array.from(selectedIds).join(',')}`)}
+              className="flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+            >
+              <Printer className="h-4 w-4" />
+              Print Tags
+            </button>
+          )}
           <button
             onClick={() => setShowBulkDelete(true)}
             className="flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
@@ -567,6 +576,18 @@ export default function Inventory() {
               {/* Action buttons */}
               {canEdit && (
                 <div className="absolute right-3 top-3 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  {hasFeature(flags, 'tagPrinting', org?.plan) && ext.id && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/dashboard/inventory/print-tags?ids=${ext.id}`);
+                      }}
+                      className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      title="Print Tag"
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

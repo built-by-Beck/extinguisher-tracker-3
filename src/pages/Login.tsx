@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.ts';
 
 function getFirebaseErrorMessage(code: string): string {
@@ -23,6 +23,8 @@ function getFirebaseErrorMessage(code: string): string {
 export default function Login() {
   const { signIn, loading: authLoading, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/dashboard';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +33,7 @@ export default function Login() {
 
   // If user is already authenticated, redirect
   if (!authLoading && user) {
-    navigate('/dashboard', { replace: true });
+    navigate(redirectTo, { replace: true });
     return null;
   }
 
@@ -47,7 +49,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await signIn(email.trim(), password);
-      navigate('/dashboard', { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
       const firebaseError = err as { code?: string };
       setError(getFirebaseErrorMessage(firebaseError.code ?? ''));

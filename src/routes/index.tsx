@@ -36,6 +36,8 @@ import MarketingPricingPage from '../pages/marketing/MarketingPricingPage.tsx';
 import MarketingHowItWorksPage from '../pages/marketing/MarketingHowItWorksPage.tsx';
 import Calculator from '../pages/Calculator.tsx';
 import PrintableList from '../pages/PrintableList.tsx';
+import PrintTags from '../pages/PrintTags.tsx';
+import QRLanding from '../pages/QRLanding.tsx';
 import AboutPage from '../pages/marketing/AboutPage.tsx';
 import TermsPage from '../pages/marketing/TermsPage.tsx';
 import PrivacyPage from '../pages/marketing/PrivacyPage.tsx';
@@ -58,6 +60,7 @@ export function AppRoutes() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
       <Route path="/create-org" element={<CreateOrg />} />
+      <Route path="/qr/:orgId/:extId" element={<QRLanding />} />
 
       {/* Guest routes — public share link entry */}
       <Route path="/guest/code" element={<GuestCodeEntry />} />
@@ -96,6 +99,7 @@ export function AppRoutes() {
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="calculator" element={<Calculator />} />
           <Route path="inventory/print" element={<PrintableList />} />
+          <Route path="inventory/print-tags" element={<PrintTags />} />
         </Route>
       </Route>
 

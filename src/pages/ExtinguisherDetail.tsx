@@ -23,11 +23,13 @@ import {
   History,
   RefreshCw,
   Edit2,
+  Printer,
   WifiOff,
   Info,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
+import { hasFeature } from '../lib/planConfig.ts';
 import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
 import { useOffline } from '../hooks/useOffline.ts';
 import { getExtinguisher, type Extinguisher } from '../services/extinguisherService.ts';
@@ -129,7 +131,7 @@ export default function ExtinguisherDetail() {
   const navigate = useNavigate();
   const { extId, workspaceId } = useParams<{ extId: string; workspaceId?: string }>();
   const { user, userProfile } = useAuth();
-  const { hasRole } = useOrg();
+  const { org, hasRole } = useOrg();
   const { isOnline } = useOffline();
 
   const orgId = userProfile?.activeOrgId ?? '';
@@ -409,15 +411,26 @@ export default function ExtinguisherDetail() {
             </div>
           )}
         </div>
-        {canEdit && extId && (
-          <Link
-            to={`/dashboard/inventory/${extId}/edit`}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <Edit2 className="h-4 w-4" />
-            Edit
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          {hasFeature(org?.featureFlags as Record<string, boolean> | null | undefined, 'tagPrinting', org?.plan) && extId && (
+            <button
+              onClick={() => navigate(`/dashboard/inventory/print-tags?ids=${extId}`)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Printer className="h-4 w-4" />
+              Print Tag
+            </button>
+          )}
+          {canEdit && extId && (
+            <Link
+              to={`/dashboard/inventory/${extId}/edit`}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Edit2 className="h-4 w-4" />
+              Edit
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Identity section */}
