@@ -75,8 +75,13 @@ service cloud.firestore {
 
       allow create, delete: if false;
 
-      match /members/{uid} {
-        allow read: if isMember(orgId) && !isGuest(orgId);
+      match /members/{memberId} {
+        // Users can always read their own membership doc (needed for collectionGroup queries)
+        // Other members' docs require active non-guest membership in the org
+        allow read: if isAuth() && (
+          request.auth.uid == resource.data.uid ||
+          (isMember(orgId) && !isGuest(orgId))
+        );
         allow write: if false;
       }
 

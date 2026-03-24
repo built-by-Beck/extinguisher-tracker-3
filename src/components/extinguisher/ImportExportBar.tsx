@@ -16,6 +16,7 @@ import { subscribeToLocations, type Location } from '../../services/locationServ
 
 interface ImportExportBarProps {
   onImportJSON?: () => void;
+  /** @deprecated No longer used — import available on all plans */
   plan?: string | null;
 }
 
@@ -106,7 +107,7 @@ function columnsMatchExpected(columns: string[]): boolean {
 
 const ACCEPTED_EXTENSIONS = '.csv,.xls,.xlsx,.json,.txt';
 
-export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
+export function ImportExportBar({ onImportJSON }: ImportExportBarProps) {
   const { userProfile } = useAuth();
   const orgId = userProfile?.activeOrgId ?? '';
 
@@ -144,7 +145,7 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
   const [parsedColumns, setParsedColumns] = useState<string[]>([]);
   const [parsedRows, setParsedRows] = useState<Record<string, string>[]>([]);
 
-  const canBulkImport = plan === 'elite' || plan === 'enterprise';
+  // Import is available on all plans
 
   async function processFile(file: File) {
     if (!orgId) return;
@@ -333,71 +334,75 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
 
       <div className="flex flex-col gap-3 sm:flex-row">
         {/* Import section */}
-        {canBulkImport && (
-          <div className="flex-1 rounded-lg border border-gray-200 bg-white p-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Import</p>
+        <div className="flex-1 rounded-lg border border-gray-200 bg-white p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Import</p>
 
-            {/* Drag and drop zone */}
-            <div
-              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-              onDragLeave={() => setIsDragOver(false)}
-              onDrop={handleDrop}
-              className={`mb-3 flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 transition-colors ${
-                isDragOver
-                  ? 'border-red-400 bg-red-50'
-                  : 'border-gray-300 bg-gray-50 hover:border-gray-400'
-              }`}
-            >
-              <FileSpreadsheet className={`mb-1.5 h-6 w-6 ${isDragOver ? 'text-red-400' : 'text-gray-400'}`} />
-              <p className="text-xs text-gray-500">
-                Drop CSV, Excel, or TXT file here
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={defaultImportLocId}
-                onChange={(e) => setDefaultImportLocId(e.target.value)}
-                disabled={importing}
-                className="h-9 max-w-[180px] rounded-md border-gray-300 py-0 pl-3 pr-8 text-sm focus:border-red-500 focus:ring-red-500"
-              >
-                <option value="">-- Auto-map Location --</option>
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </option>
-                ))}
-              </select>
-
-              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md bg-white border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100">
-                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                Browse
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={ACCEPTED_EXTENSIONS}
-                  onChange={handleFileSelected}
-                  disabled={importing}
-                  className="hidden"
-                />
-              </label>
-
-              {onImportJSON && (
-                <button
-                  onClick={onImportJSON}
-                  disabled={importing}
-                  className="flex h-9 items-center gap-2 rounded-md border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <FileJson className="h-4 w-4" />
-                  JSON Backup
-                </button>
-              )}
-            </div>
+          {/* Drag and drop zone */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDrop}
+            className={`mb-3 flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 transition-colors ${
+              isDragOver
+                ? 'border-red-400 bg-red-50'
+                : 'border-gray-300 bg-gray-50 hover:border-gray-400'
+            }`}
+          >
+            <FileSpreadsheet className={`mb-1.5 h-6 w-6 ${isDragOver ? 'text-red-400' : 'text-gray-400'}`} />
+            <p className="text-xs text-gray-500">
+              Drop CSV, Excel, or TXT file here
+            </p>
           </div>
-        )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={defaultImportLocId}
+              onChange={(e) => { setDefaultImportLocId(e.target.value); setError(''); }}
+              disabled={importing}
+              className="h-9 max-w-[180px] rounded-md border-gray-300 py-0 pl-3 pr-8 text-sm focus:border-red-500 focus:ring-red-500"
+            >
+              <option value="">
+                {locations.length === 0 ? '-- Add a location first --' : '-- Select Location --'}
+              </option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+
+            <label className={`flex h-9 items-center gap-2 rounded-md border border-gray-300 px-3 text-sm font-medium ${
+              !defaultImportLocId || locations.length === 0
+                ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+                : 'cursor-pointer bg-white text-gray-700 hover:bg-gray-100'
+            }`}>
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              Browse
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_EXTENSIONS}
+                onChange={handleFileSelected}
+                disabled={importing || !defaultImportLocId || locations.length === 0}
+                className="hidden"
+              />
+            </label>
+
+            {onImportJSON && (
+              <button
+                onClick={onImportJSON}
+                disabled={importing}
+                className="flex h-9 items-center gap-2 rounded-md border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                <FileJson className="h-4 w-4" />
+                JSON Backup
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Export section */}
-        <div className={`rounded-lg border border-gray-200 bg-white p-3 ${canBulkImport ? '' : 'flex-1'}`}>
+        <div className="rounded-lg border border-gray-200 bg-white p-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Export</p>
           <div className="flex flex-wrap items-center gap-2">
             <button

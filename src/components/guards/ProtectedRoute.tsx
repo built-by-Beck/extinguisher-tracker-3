@@ -11,8 +11,8 @@ import { useOrg } from '../../hooks/useOrg.ts';
  * - Shows loading spinner while auth/org state resolves
  */
 export function ProtectedRoute() {
-  const { user, loading: authLoading } = useAuth();
-  const { org, orgLoading, userOrgs } = useOrg();
+  const { user, userProfile, loading: authLoading } = useAuth();
+  const { org, orgLoading, userOrgs, userOrgsLoading } = useOrg();
   const location = useLocation();
 
   // Show loading while auth state resolves
@@ -33,7 +33,7 @@ export function ProtectedRoute() {
   }
 
   // Show loading while org state resolves
-  if (orgLoading) {
+  if (orgLoading || userOrgsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -44,8 +44,8 @@ export function ProtectedRoute() {
     );
   }
 
-  // Authenticated but no active org and no orgs at all -> redirect to create-org
-  if (!org && userOrgs.length === 0) {
+  // Authenticated but no active org, no orgs, and no activeOrgId in profile -> redirect to create-org
+  if (!org && userOrgs.length === 0 && !userProfile?.activeOrgId) {
     return <Navigate to="/create-org" replace />;
   }
 
