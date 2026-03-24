@@ -1,23 +1,24 @@
-import { useState, useRef } from 'react';
+/**
+ * ImportExportBar — grouped import/export actions with drag-and-drop.
+ *
+ * Author: built_by_Beck
+ */
+
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { Upload, Download, Loader2, FileJson } from 'lucide-react';
+import { Upload, Download, Loader2, FileJson, X, FileSpreadsheet } from 'lucide-react';
 import { read, utils } from 'xlsx';
 import { functions } from '../../lib/firebase.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { ColumnMapperModal, TARGET_FIELDS } from './ColumnMapperModal.tsx';
 import { getAllActiveExtinguishers } from '../../services/extinguisherService.ts';
 import { subscribeToLocations, type Location } from '../../services/locationService.ts';
-import { useEffect } from 'react';
 
 interface ImportExportBarProps {
   onImportJSON?: () => void;
-  /** Current org plan — bulk import gated to elite/enterprise */
   plan?: string | null;
 }
 
-/**
- * Convert parsed rows (array of objects) to a CSV string.
- */
 function rowsToCSV(rows: Record<string, string>[], headers?: string[]): string {
   if (rows.length === 0) return '';
   const cols = headers ?? Object.keys(rows[0]);
@@ -34,9 +35,6 @@ function rowsToCSV(rows: Record<string, string>[], headers?: string[]): string {
   return lines.join('\n');
 }
 
-/**
- * Parse a raw CSV string into rows.
- */
 function parseCSVToRows(content: string): Record<string, string>[] {
   const lines = content.trim().split('\n');
   if (lines.length < 2) return [];
@@ -53,9 +51,6 @@ function parseCSVToRows(content: string): Record<string, string>[] {
   return rows;
 }
 
-/**
- * Parse a .txt file (tab, pipe, or semicolon delimited) into rows.
- */
 function parseTXTToRows(content: string): Record<string, string>[] {
   const lines = content.trim().split('\n');
   if (lines.length < 2) return parseCSVToRows(content);
@@ -81,9 +76,6 @@ function parseTXTToRows(content: string): Record<string, string>[] {
   return rows;
 }
 
-/**
- * Parse an Excel file into rows from the first sheet.
- */
 function parseExcelToRows(buffer: ArrayBuffer): Record<string, string>[] {
   const workbook = read(buffer, { type: 'array' });
   const sheetName = workbook.SheetNames[0];
@@ -92,9 +84,6 @@ function parseExcelToRows(buffer: ArrayBuffer): Record<string, string>[] {
   return utils.sheet_to_json<Record<string, string>>(sheet, { raw: false, defval: '' });
 }
 
-/**
- * Apply a column mapping to remap source rows to target field names.
- */
 function applyMapping(
   rows: Record<string, string>[],
   mapping: Record<string, string>,
@@ -110,9 +99,6 @@ function applyMapping(
   });
 }
 
-/**
- * Check if the parsed columns already match expected field names exactly.
- */
 function columnsMatchExpected(columns: string[]): boolean {
   const required = TARGET_FIELDS.filter((f) => f.required).map((f) => f.key);
   return required.every((key) => columns.includes(key));
@@ -129,6 +115,20 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
   const [importResult, setImportResult] = useState<string | null>(null);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  // Auto-dismiss messages
+  useEffect(() => {
+    if (!importResult) return;
+    const timer = setTimeout(() => setImportResult(null), 8000);
+    return () => clearTimeout(timer);
+  }, [importResult]);
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(''), 8000);
+    return () => clearTimeout(timer);
+  }, [error]);
 
   // Locations for default assignment
   const [locations, setLocations] = useState<Location[]>([]);
@@ -146,20 +146,15 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
 
   const canBulkImport = plan === 'elite' || plan === 'enterprise';
 
-  /** Parse file into rows, then either import directly or show the mapper */
-  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !orgId) return;
-
+  async function processFile(file: File) {
+    if (!orgId) return;
     setError('');
     setImportResult(null);
 
     try {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
 
-      // JSON files use the dedicated JSON import modal
       if (ext === 'json') {
-        if (fileInputRef.current) fileInputRef.current.value = '';
         onImportJSON?.();
         return;
       }
@@ -179,30 +174,47 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
 
       if (rows.length === 0) {
         setError('File contains no data rows. Check the file and try again.');
-        if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
 
       const columns = Object.keys(rows[0]);
 
-      // If columns already match, import directly
       if (columnsMatchExpected(columns)) {
         await performImport(rows, columns);
       } else {
-        // Show column mapper
         setParsedColumns(columns);
         setParsedRows(rows);
         setShowMapper(true);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to read file.');
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }
 
+  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  async function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    const validExts = ['csv', 'xls', 'xlsx', 'json', 'txt'];
+    if (!validExts.includes(ext)) {
+      setError(`Unsupported file type: .${ext}. Use CSV, Excel, JSON, or TXT.`);
+      return;
+    }
+
+    await processFile(file);
+  }
+
   async function performImport(finalRows: Record<string, string>[], targetKeys: string[]) {
-    // If a default location was selected, inject it into every row now (so it isn't shown in the mapper)
     if (defaultImportLocId) {
       const loc = locations.find((l) => l.id === defaultImportLocId);
       if (loc) {
@@ -218,7 +230,6 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
     await doImport(csvContent);
   }
 
-  /** Called when user confirms their column mapping */
   async function handleMappingConfirmed(mapping: Record<string, string>) {
     setShowMapper(false);
     const remapped = applyMapping(parsedRows, mapping);
@@ -228,7 +239,6 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
     setParsedRows([]);
   }
 
-  /** Send CSV to the Cloud Function */
   async function doImport(csvContent: string) {
     setImporting(true);
     setError('');
@@ -302,77 +312,112 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
   }
 
   return (
-    <div>
+    <div className="space-y-3">
+      {/* Feedback messages */}
       {error && (
-        <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-2.5">
+          <p className="text-sm text-red-700">{error}</p>
+          <button onClick={() => setError('')} className="ml-3 text-red-400 hover:text-red-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       )}
       {importResult && (
-        <p className="mb-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">{importResult}</p>
+        <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-4 py-2.5">
+          <p className="text-sm text-green-700">{importResult}</p>
+          <button onClick={() => setImportResult(null)} className="ml-3 text-green-400 hover:text-green-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Bulk Import — Elite and Enterprise only */}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        {/* Import section */}
         {canBulkImport && (
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-1.5 shadow-sm">
-            <select
-              value={defaultImportLocId}
-              onChange={(e) => setDefaultImportLocId(e.target.value)}
-              disabled={importing}
-              className="h-9 max-w-[200px] rounded-md border-gray-300 py-0 pl-3 pr-8 text-sm focus:border-red-500 focus:ring-red-500"
+          <div className="flex-1 rounded-lg border border-gray-200 bg-white p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Import</p>
+
+            {/* Drag and drop zone */}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={handleDrop}
+              className={`mb-3 flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 transition-colors ${
+                isDragOver
+                  ? 'border-red-400 bg-red-50'
+                  : 'border-gray-300 bg-gray-50 hover:border-gray-400'
+              }`}
             >
-              <option value="">-- Auto-map Location --</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
-            <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md bg-white border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50">
-              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              Import
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={ACCEPTED_EXTENSIONS}
-                onChange={handleFileSelected}
+              <FileSpreadsheet className={`mb-1.5 h-6 w-6 ${isDragOver ? 'text-red-400' : 'text-gray-400'}`} />
+              <p className="text-xs text-gray-500">
+                Drop CSV, Excel, or TXT file here
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={defaultImportLocId}
+                onChange={(e) => setDefaultImportLocId(e.target.value)}
                 disabled={importing}
-                className="hidden"
-              />
-            </label>
+                className="h-9 max-w-[180px] rounded-md border-gray-300 py-0 pl-3 pr-8 text-sm focus:border-red-500 focus:ring-red-500"
+              >
+                <option value="">-- Auto-map Location --</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+
+              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md bg-white border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100">
+                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                Browse
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_EXTENSIONS}
+                  onChange={handleFileSelected}
+                  disabled={importing}
+                  className="hidden"
+                />
+              </label>
+
+              {onImportJSON && (
+                <button
+                  onClick={onImportJSON}
+                  disabled={importing}
+                  className="flex h-9 items-center gap-2 rounded-md border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <FileJson className="h-4 w-4" />
+                  JSON Backup
+                </button>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Import JSON Backup — Elite and Enterprise only */}
-        {canBulkImport && onImportJSON && (
-          <button
-            onClick={onImportJSON}
-            disabled={importing}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            <FileJson className="h-4 w-4" />
-            Import JSON Backup
-          </button>
-        )}
-
-        {/* Export CSV */}
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Export CSV
-        </button>
-
-        {/* Export Backup */}
-        <button
-          onClick={handleExportBackup}
-          disabled={exporting}
-          className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Export Backup
-        </button>
+        {/* Export section */}
+        <div className={`rounded-lg border border-gray-200 bg-white p-3 ${canBulkImport ? '' : 'flex-1'}`}>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Export</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex h-9 items-center gap-2 rounded-md border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Export CSV
+            </button>
+            <button
+              onClick={handleExportBackup}
+              disabled={exporting}
+              className="flex h-9 items-center gap-2 rounded-md border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              JSON Backup
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Column Mapper Modal */}
