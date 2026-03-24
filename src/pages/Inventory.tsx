@@ -17,6 +17,9 @@ import {
   AlertTriangle,
   Printer,
   Copy,
+  ChevronLeft,
+  ChevronRight,
+  LayoutList,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -30,6 +33,7 @@ import { ComplianceStatusBadge } from '../components/compliance/ComplianceStatus
 import {
   subscribeToExtinguishers,
   softDeleteExtinguisher,
+  batchSoftDeleteExtinguishers,
   getActiveExtinguisherCount,
   createExtinguisher,
   generateScannedAssetId,
@@ -71,6 +75,26 @@ export default function Inventory() {
     searchParams.get('compliance') ?? '',
   );
   const [deleteTarget, setDeleteTarget] = useState<Extinguisher | null>(null);
+
+  // Dynamic columns
+  const [visibleColumns, setVisibleColumns] = useState({
+    assetId: true,
+    serial: true,
+    building: true,
+    vicinity: true,
+    type: false,
+    section: true,
+    category: false,
+    compliance: true,
+    nextInspection: true,
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+
+  // Pagination and selection
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
   
   // Duplicate detection state
   const [showDupModal, setShowDupModal] = useState(false);
@@ -151,10 +175,48 @@ export default function Inventory() {
     });
   }, [items, categoryFilter, locationFilter, complianceFilter, searchQuery]);
 
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedIds(new Set());
+  }, [categoryFilter, locationFilter, complianceFilter, searchQuery, showDeleted]);
+
+  // Pagination slice
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
+
+  function toggleSelectAll() {
+    if (selectedIds.size === paginatedItems.length && paginatedItems.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedItems.map((item) => item.id!)));
+    }
+  }
+
+  function toggleSelectRow(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   async function handleDelete(reason: string) {
     if (!deleteTarget?.id || !orgId || !user) return;
     await softDeleteExtinguisher(orgId, deleteTarget.id, user.uid, reason);
     setDeleteTarget(null);
+  }
+
+  async function handleBulkDelete(reason: string) {
+    if (selectedIds.size === 0 || !orgId || !user) return;
+    await batchSoftDeleteExtinguishers(orgId, Array.from(selectedIds), user.uid, reason);
+    setShowBulkDelete(false);
+    setSelectedIds(new Set());
   }
 
   const handleDuplicateScan = useCallback(async () => {
@@ -360,6 +422,42 @@ export default function Inventory() {
           />
         </div>
 
+        {/* Columns toggle */}
+        <div className="relative">
+          <button
+            onClick={() => setShowColumnMenu(!showColumnMenu)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <LayoutList className="h-4 w-4" />
+            Columns
+          </button>
+          {showColumnMenu && (
+            <div className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white p-2 shadow-xl">
+              {Object.entries({
+                assetId: 'Asset ID',
+                serial: 'Serial',
+                building: 'Building',
+                vicinity: 'Vicinity',
+                section: 'Section',
+                type: 'Type',
+                category: 'Category',
+                compliance: 'Compliance',
+                nextInspection: 'Next Inspection',
+              }).map(([key, label]) => (
+                <label key={key} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns[key as keyof typeof visibleColumns]}
+                    onChange={() => setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key as keyof typeof visibleColumns] }))}
+                    className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                  />
+                  <span className="text-sm text-gray-700">{label}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Show deleted toggle */}
         {canEdit && (
           <button
@@ -375,6 +473,22 @@ export default function Inventory() {
           </button>
         )}
       </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && canEdit && !showDeleted && (
+        <div className="mb-4 flex items-center gap-4 rounded-lg bg-red-50 p-3 border border-red-200">
+          <span className="text-sm font-medium text-red-800">
+            {selectedIds.size} selected
+          </span>
+          <button
+            onClick={() => setShowBulkDelete(true)}
+            className="flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Selected
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       {filtered.length === 0 ? (
@@ -405,27 +519,61 @@ export default function Inventory() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Asset ID
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Serial
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Type
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Section
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Category
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Compliance
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Next Inspection
-                </th>
+                {canEdit && !showDeleted && (
+                  <th className="px-4 py-3 text-left w-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === paginatedItems.length && paginatedItems.length > 0}
+                      onChange={toggleSelectAll}
+                      className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    />
+                  </th>
+                )}
+                {visibleColumns.assetId && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Asset ID
+                  </th>
+                )}
+                {visibleColumns.serial && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Serial
+                  </th>
+                )}
+                {visibleColumns.building && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Building
+                  </th>
+                )}
+                {visibleColumns.vicinity && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Vicinity
+                  </th>
+                )}
+                {visibleColumns.type && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Type
+                  </th>
+                )}
+                {visibleColumns.section && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Section
+                  </th>
+                )}
+                {visibleColumns.category && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Category
+                  </th>
+                )}
+                {visibleColumns.compliance && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Compliance
+                  </th>
+                )}
+                {visibleColumns.nextInspection && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Next Inspection
+                  </th>
+                )}
                 {canEdit && (
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Actions
@@ -434,33 +582,67 @@ export default function Inventory() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((ext: Extinguisher) => (
+              {paginatedItems.map((ext: Extinguisher) => (
                 <tr
                   key={ext.id}
-                  className="hover:bg-gray-50 cursor-pointer"
+                  className={`hover:bg-gray-50 cursor-pointer ${selectedIds.has(ext.id!) ? 'bg-red-50/50' : ''}`}
                   onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}`)}
                 >
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                    {ext.assetId}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                    {ext.serial}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                    {ext.extinguisherType ?? '--'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                    {ext.section || '--'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                    {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                    {formatDueDate(ext.nextMonthlyInspection)}
-                  </td>
+                  {canEdit && !showDeleted && (
+                    <td className="whitespace-nowrap px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(ext.id!)}
+                        onChange={() => toggleSelectRow(ext.id!)}
+                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                    </td>
+                  )}
+                  {visibleColumns.assetId && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                      {ext.assetId}
+                    </td>
+                  )}
+                  {visibleColumns.serial && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.serial}
+                    </td>
+                  )}
+                  {visibleColumns.building && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.parentLocation || '--'}
+                    </td>
+                  )}
+                  {visibleColumns.vicinity && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.vicinity || '--'}
+                    </td>
+                  )}
+                  {visibleColumns.type && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.extinguisherType ?? '--'}
+                    </td>
+                  )}
+                  {visibleColumns.section && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.section || '--'}
+                    </td>
+                  )}
+                  {visibleColumns.category && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                    </td>
+                  )}
+                  {visibleColumns.compliance && (
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />
+                    </td>
+                  )}
+                  {visibleColumns.nextInspection && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      {formatDueDate(ext.nextMonthlyInspection)}
+                    </td>
+                  )}
                   {canEdit && (
                     <td className="whitespace-nowrap px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -498,12 +680,66 @@ export default function Inventory() {
         </div>
       )}
 
+      {/* Pagination Controls */}
+      {filtered.length > 0 && (
+        <div className="mt-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <span>Show</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>per page</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Prev
+            </button>
+            <span className="text-sm text-gray-600">
+              Page {currentPage} of {Math.max(1, totalPages)}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+              className="flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Delete modal */}
       {deleteTarget && (
         <DeleteConfirmModal
           assetId={deleteTarget.assetId}
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {/* Bulk Delete modal */}
+      {showBulkDelete && (
+        <DeleteConfirmModal
+          assetId={`${selectedIds.size} selected extinguisher${selectedIds.size !== 1 ? 's' : ''}`}
+          onConfirm={handleBulkDelete}
+          onCancel={() => setShowBulkDelete(false)}
         />
       )}
 

@@ -185,22 +185,9 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
 
       const columns = Object.keys(rows[0]);
 
-      // If a default location was selected, inject it into every row
-      if (defaultImportLocId) {
-        const loc = locations.find((l) => l.id === defaultImportLocId);
-        if (loc) {
-          rows.forEach((row) => {
-            row.parentLocation = loc.name;
-            row.locationId = loc.id!;
-          });
-          if (!columns.includes('parentLocation')) columns.push('parentLocation');
-          if (!columns.includes('locationId')) columns.push('locationId');
-        }
-      }
-
       // If columns already match, import directly
       if (columnsMatchExpected(columns)) {
-        await doImport(rowsToCSV(rows));
+        await performImport(rows, columns);
       } else {
         // Show column mapper
         setParsedColumns(columns);
@@ -214,12 +201,29 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
     }
   }
 
+  async function performImport(finalRows: Record<string, string>[], targetKeys: string[]) {
+    // If a default location was selected, inject it into every row now (so it isn't shown in the mapper)
+    if (defaultImportLocId) {
+      const loc = locations.find((l) => l.id === defaultImportLocId);
+      if (loc) {
+        finalRows.forEach((row) => {
+          row.parentLocation = loc.name;
+          row.locationId = loc.id!;
+        });
+        if (!targetKeys.includes('parentLocation')) targetKeys.push('parentLocation');
+        if (!targetKeys.includes('locationId')) targetKeys.push('locationId');
+      }
+    }
+    const csvContent = rowsToCSV(finalRows, targetKeys);
+    await doImport(csvContent);
+  }
+
   /** Called when user confirms their column mapping */
   async function handleMappingConfirmed(mapping: Record<string, string>) {
     setShowMapper(false);
     const remapped = applyMapping(parsedRows, mapping);
     const targetKeys = [...new Set(Object.values(mapping).filter(Boolean))];
-    await doImport(rowsToCSV(remapped, targetKeys));
+    await performImport(remapped, targetKeys);
     setParsedColumns([]);
     setParsedRows([]);
   }
@@ -382,6 +386,7 @@ export function ImportExportBar({ onImportJSON, plan }: ImportExportBarProps) {
         sourceColumns={parsedColumns}
         previewRows={parsedRows}
         onConfirm={handleMappingConfirmed}
+        autoMappedLocation={!!defaultImportLocId}
       />
     </div>
   );

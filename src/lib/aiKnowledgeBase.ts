@@ -18,7 +18,8 @@ The AI Assistant should use this information to answer user questions about how 
 **2. Managing Workspaces (Inspections)**
 - **What is a Workspace?** A workspace represents a monthly snapshot of your inventory used to conduct inspections.
 - **How to create a workspace:** Go to the "Inspections" (Workspaces) page and click "Create Workspace". It will generate a workspace for the current month.
-- **How to inspect an extinguisher:** Open an active workspace, click on a Location, and then click on a specific extinguisher. You can also scan an extinguisher's barcode using the "ScanSearchBar" to jump straight to its inspection.
+- **How to inspect an extinguisher:** Open a workspace. You will see a list of **Locations** (Buildings). Click on a Location to see the table of extinguishers assigned to it. Click on any extinguisher in the table to perform the inspection.
+- **Customizing the view:** In both the Inventory and Workspace/Location tables, you can click the **"Columns"** button to toggle which information is visible (Asset ID, Serial, Building, Vicinity, Section, etc.).
 - **How to delete a workspace:** Go to the "Inspections" page. On any workspace card (Active or Archived), click the "Delete" (trash can) button. Note: This permanently deletes the workspace and all its inspection records. Only Owners/Admins can delete workspaces.
 - **How to archive a workspace:** Once inspections are complete, go to the "Inspections" page and click "Archive" on the workspace. This makes it read-only and generates a final compliance report.
 

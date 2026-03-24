@@ -1,6 +1,6 @@
 # Plan -- extinguisher-tracker-3
 
-**Current Phase**: 16 -- Delete Workspace & AI Knowledge Base
+**Current Phase**: 17 -- Inventory Bulk Delete and Pagination
 **Last Updated**: 2026-03-23
 **Author**: built_by_Beck
 
@@ -8,31 +8,29 @@
 
 ## Current Objective
 
-1. Allow users to permanently delete a workspace.
-2. Provide the AI assistant with an internal knowledge base so it can answer questions about how to use the Extinguisher Tracker program.
+1. Allow users to select multiple extinguishers at once for bulk deletion.
+2. Add pagination to the Inventory page with options to show 10, 25, 50, or 100 items per page.
 
 ---
 
-## Tasks for This Round (Phase 16)
+## Tasks for This Round (Phase 17)
 
-### P16-01: Implement `deleteWorkspace` Cloud Function
-**File**: `functions/src/workspaces/deleteWorkspace.ts` (NEW)
-**File**: `functions/src/index.ts` (MODIFY)
-Create a new Cloud Function that recursively deletes a workspace document, its `inspections` subcollection, its `sectionNotes` subcollection, and its associated report document. Export it in `index.ts`.
+### P17-01: Implement `batchSoftDeleteExtinguishers`
+**File**: `src/services/extinguisherService.ts` (MODIFY)
+Add a function to batch update multiple extinguisher documents with `deletedAt` and `deletedBy` fields, as well as a `deletedReason`.
 
-### P16-02: Connect Delete Function to Frontend
-**File**: `src/services/workspaceService.ts` (MODIFY)
-Add `deleteWorkspaceCall` to trigger the backend function.
+### P17-02: Add Pagination to Inventory Page
+**File**: `src/pages/Inventory.tsx` (MODIFY)
+Introduce `currentPage` and `pageSize` state variables. Slice the `filtered` list to create `paginatedItems`. Add a pagination UI below the table to change pages and select the page size (10, 25, 50, 100).
 
-### P16-03: Add Delete UI to Workspaces Page
-**File**: `src/pages/Workspaces.tsx` (MODIFY)
-Add a "Delete" button (trash icon) to the workspace cards (perhaps primarily for archived workspaces, or both). Add a `ConfirmModal` (variant: danger) to confirm the deletion.
+### P17-03: Add Checkboxes and Selection State
+**File**: `src/pages/Inventory.tsx` (MODIFY)
+Add a `selectedIds` state (Set or Array of strings). Add a checkbox to each row to toggle selection, and a "Select All" checkbox in the header to select/deselect all items on the *current page*.
 
-### P16-04: Implement AI Knowledge Base
-**File**: `src/lib/aiKnowledgeBase.ts` (NEW)
-Create a file exporting a constant string with instructions and FAQ for the AI about how to use the app (e.g., how to delete an extinguisher, how to import, how to manage workspaces).
-**File**: `src/services/aiService.ts` (MODIFY)
-Import the knowledge base and append it to the `SYSTEM_PROMPT`.
+### P17-04: Implement Bulk Delete Action
+**File**: `src/pages/Inventory.tsx` (MODIFY)
+**File**: `src/components/extinguisher/DeleteConfirmModal.tsx` (MODIFY)
+Add a "Bulk Delete" button when `selectedIds.length > 0`. Modify `DeleteConfirmModal` to optionally accept an array of asset IDs and update the text to say "Delete X extinguishers", then trigger the batch delete function.
 
-### P16-05: Build & Lint
+### P17-05: Build & Lint
 Run build scripts to verify everything is solid.

@@ -108,7 +108,9 @@ export interface Inspection {
   extinguisherId: string;
   workspaceId: string;
   assetId: string;
+  parentLocation?: string;
   section: string;
+  serial?: string;
   status: string; // pending, pass, fail
   inspectedAt: unknown | null;
   inspectedBy: string | null;

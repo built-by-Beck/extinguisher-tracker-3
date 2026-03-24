@@ -11,6 +11,7 @@ import {
   WifiOff,
   MapPin,
   Flame,
+  LayoutList,
 } from 'lucide-react';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 import { subscribeToExtinguishers, type Extinguisher } from '../services/extinguisherService.ts';
@@ -52,7 +53,7 @@ const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; 
   pending: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100' },
 };
 
-interface SectionStats {
+interface LocationStats {
   total: number;
   passed: number;
   failed: number;
@@ -76,10 +77,21 @@ export default function WorkspaceDetail() {
   const [extinguishers, setExtinguishers] = useState<Extinguisher[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [report, setReport] = useState<Report | null | undefined>(undefined);
-  const [selectedSection, setSelectedSection] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
+
+  // Dynamic columns for extinguisher list
+  const [visibleColumns, setVisibleColumns] = useState({
+    assetId: true,
+    serial: true,
+    building: true,
+    vicinity: true,
+    section: true,
+    status: true,
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
 
   const isArchived = workspace?.status === 'archived';
 
@@ -91,7 +103,7 @@ export default function WorkspaceDetail() {
 
   // Section timer hook (called unconditionally per React rules — render is feature-gated)
   const {
-    activeSection: timerActiveSection,
+    activeSection: timerActiveLocation,
     startTimer,
     pauseTimer,
     stopTimer,
@@ -204,8 +216,8 @@ export default function WorkspaceDetail() {
   // Compute section stats from inspections.
   // Initialized from location names (the unified source of truth), then enriched
   // with any insp.section values found on inspections (backward compat).
-  const sectionStatsMap = useMemo(() => {
-    const map: Record<string, SectionStats> = {};
+  const locationStatsMap = useMemo(() => {
+    const map: Record<string, LocationStats> = {};
 
     // Initialize from location names (locations collection is source of truth)
     for (const loc of locations) {
@@ -215,42 +227,42 @@ export default function WorkspaceDetail() {
     if (!isArchived) {
       // For active workspaces, the source of truth for totals is the live extinguisher inventory
       for (const ext of extinguishers) {
-        const section = ext.section || 'Unassigned';
-        if (!map[section]) {
-          map[section] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+        const locName = ext.parentLocation || 'Unassigned';
+        if (!map[locName]) {
+          map[locName] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
         }
-        map[section].total += 1;
-        map[section].pending += 1; // Assume pending until an inspection is found
+        map[locName].total += 1;
+        map[locName].pending += 1; // Assume pending until an inspection is found
       }
 
       // Apply inspection results
       for (const insp of inspections) {
-        const section = insp.section || 'Unassigned';
-        if (!map[section]) {
-          map[section] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
-          map[section].total += 1;
-          map[section].pending += 1;
+        const locName = insp.parentLocation || insp.section || 'Unassigned';
+        if (!map[locName]) {
+          map[locName] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+          map[locName].total += 1;
+          map[locName].pending += 1;
         }
 
         if (insp.status === 'pass') {
-          map[section].passed += 1;
-          map[section].pending = Math.max(0, map[section].pending - 1);
+          map[locName].passed += 1;
+          map[locName].pending = Math.max(0, map[locName].pending - 1);
         } else if (insp.status === 'fail') {
-          map[section].failed += 1;
-          map[section].pending = Math.max(0, map[section].pending - 1);
+          map[locName].failed += 1;
+          map[locName].pending = Math.max(0, map[locName].pending - 1);
         }
       }
     } else {
       // For archived workspaces, strictly use the historical inspection data
       for (const insp of inspections) {
-        const section = insp.section || 'Unassigned';
-        if (!map[section]) {
-          map[section] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+        const locName = insp.parentLocation || insp.section || 'Unassigned';
+        if (!map[locName]) {
+          map[locName] = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
         }
-        map[section].total += 1;
-        if (insp.status === 'pass') map[section].passed += 1;
-        else if (insp.status === 'fail') map[section].failed += 1;
-        else map[section].pending += 1;
+        map[locName].total += 1;
+        if (insp.status === 'pass') map[locName].passed += 1;
+        else if (insp.status === 'fail') map[locName].failed += 1;
+        else map[locName].pending += 1;
       }
     }
 
@@ -267,24 +279,24 @@ export default function WorkspaceDetail() {
   // Union of: location names from the locations collection + insp.section values found on
   // inspections (backward compat for data created before this unification).
   // Inspections without a section (or whose section matches no location) go under "Unassigned".
-  const allSections = useMemo(() => {
+  const allLocations = useMemo(() => {
     const sectionSet = new Set<string>();
     // Seed from locations collection (unified source of truth)
     for (const loc of locations) sectionSet.add(loc.name);
     // Merge in live extinguishers if active
     if (!isArchived) {
-      for (const ext of extinguishers) sectionSet.add(ext.section || 'Unassigned');
+      for (const ext of extinguishers) sectionSet.add(ext.parentLocation || 'Unassigned');
     }
-    // Merge in any insp.section values (handles pre-unification data)
+    // Merge in any insp.parentLocation/section values (handles pre-unification data)
     for (const insp of inspections) {
-      sectionSet.add(insp.section || 'Unassigned');
+      sectionSet.add(insp.parentLocation || insp.section || 'Unassigned');
     }
     return Array.from(sectionSet).sort();
   }, [inspections, extinguishers, locations, isArchived]);
 
   // Extinguisher cards for the selected section
-  const sectionInspections = useMemo(() => {
-    if (selectedSection === null) return [];
+  const locationInspections = useMemo(() => {
+    if (selectedLocation === null) return [];
     
     let combined: Inspection[] = [];
 
@@ -292,7 +304,7 @@ export default function WorkspaceDetail() {
       // For active workspaces, source of truth for items is live extinguishers + existing inspections
       const extMap = new Map<string, Extinguisher>();
       for (const ext of extinguishers) {
-        if ((ext.section || 'Unassigned') === selectedSection) {
+        if ((ext.parentLocation || 'Unassigned') === selectedLocation) {
           extMap.set(ext.id!, ext);
         }
       }
@@ -301,7 +313,7 @@ export default function WorkspaceDetail() {
       
       // Add all inspections that belong to this section
       for (const insp of inspections) {
-        if ((insp.section || 'Unassigned') === selectedSection) {
+        if ((insp.parentLocation || insp.section || 'Unassigned') === selectedLocation) {
           combined.push(insp);
           handledExtIds.add(insp.extinguisherId);
         }
@@ -318,7 +330,8 @@ export default function WorkspaceDetail() {
             status: 'pending',
             inspectedAt: null,
             inspectedBy: null,
-            section: ext.section || 'Unassigned',
+            parentLocation: ext.parentLocation || '',
+            section: ext.section || '',
             qrCodeValue: ext.qrCodeValue,
             barcode: ext.barcode,
             serial: ext.serial,
@@ -328,8 +341,8 @@ export default function WorkspaceDetail() {
     } else {
       // Archived: just filter inspections
       combined = inspections.filter((insp) => {
-        const section = insp.section || 'Unassigned';
-        return section === selectedSection;
+        const locName = insp.parentLocation || insp.section || 'Unassigned';
+        return locName === selectedLocation;
       });
     }
 
@@ -339,13 +352,17 @@ export default function WorkspaceDetail() {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       combined = combined.filter(
-        (insp) => insp.assetId.toLowerCase().includes(q) || (insp.section || '').toLowerCase().includes(q),
+        (insp) => 
+          insp.assetId.toLowerCase().includes(q) || 
+          (insp.parentLocation || '').toLowerCase().includes(q) || 
+          (insp.section || '').toLowerCase().includes(q) ||
+          (insp.serial || '').toLowerCase().includes(q),
       );
     }
     
     // Sort combined by assetId
     return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
-  }, [inspections, extinguishers, selectedSection, statusFilter, searchQuery, isArchived, workspaceId]);
+  }, [inspections, extinguishers, selectedLocation, statusFilter, searchQuery, isArchived, workspaceId]);
 
   function handleExtinguisherFound(ext: Extinguisher) {
     if (ext.id) {
@@ -394,8 +411,8 @@ export default function WorkspaceDetail() {
       <div className="mb-6">
         <button
           onClick={() => {
-            if (selectedSection !== null) {
-              setSelectedSection(null);
+            if (selectedLocation !== null) {
+              setSelectedLocation(null);
               setSearchQuery('');
               setStatusFilter('');
             } else {
@@ -405,17 +422,17 @@ export default function WorkspaceDetail() {
           className="mb-3 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
           <ArrowLeft className="h-4 w-4" />
-          {selectedSection !== null ? 'Back to Locations' : 'Back to Workspaces'}
+          {selectedLocation !== null ? 'Back to Locations' : 'Back to Workspaces'}
         </button>
 
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {selectedSection !== null ? selectedSection : workspace.label}
+              {selectedLocation !== null ? selectedLocation : workspace.label}
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              {selectedSection !== null
-                ? `${sectionInspections.length} extinguisher${sectionInspections.length === 1 ? '' : 's'}${statusFilter || searchQuery ? ' matching filters' : ' in this location'}`
+              {selectedLocation !== null
+                ? `${locationInspections.length} extinguisher${locationInspections.length === 1 ? '' : 's'}${statusFilter || searchQuery ? ' matching filters' : ' in this location'}`
                 : `${workspace.stats.total} extinguishers`}
               {isArchived && ' (archived — read only)'}
             </p>
@@ -423,19 +440,19 @@ export default function WorkspaceDetail() {
 
           {/* Stats badges */}
           <div className="flex items-center gap-4">
-            {selectedSection !== null && sectionStatsMap[selectedSection] ? (
+            {selectedLocation !== null && locationStatsMap[selectedLocation] ? (
               <>
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-semibold text-green-700">{sectionStatsMap[selectedSection].passed}</span>
+                  <span className="text-sm font-semibold text-green-700">{locationStatsMap[selectedLocation].passed}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <XCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-sm font-semibold text-red-700">{sectionStatsMap[selectedSection].failed}</span>
+                  <span className="text-sm font-semibold text-red-700">{locationStatsMap[selectedLocation].failed}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Clock className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm font-semibold text-gray-600">{sectionStatsMap[selectedSection].pending}</span>
+                  <span className="text-sm font-semibold text-gray-600">{locationStatsMap[selectedLocation].pending}</span>
                 </div>
               </>
             ) : (
@@ -458,7 +475,7 @@ export default function WorkspaceDetail() {
         </div>
 
         {/* Progress bar */}
-        {selectedSection === null ? (
+        {selectedLocation === null ? (
           <div className="mt-3 h-3 rounded-full bg-gray-200">
             {workspace.stats.total > 0 && (
               <div className="flex h-3 overflow-hidden rounded-full">
@@ -473,17 +490,17 @@ export default function WorkspaceDetail() {
               </div>
             )}
           </div>
-        ) : sectionStatsMap[selectedSection] ? (
+        ) : locationStatsMap[selectedLocation] ? (
           <div className="mt-3 h-3 rounded-full bg-gray-200">
-            {sectionStatsMap[selectedSection].total > 0 && (
+            {locationStatsMap[selectedLocation].total > 0 && (
               <div className="flex h-3 overflow-hidden rounded-full">
                 <div
                   className="bg-green-500 transition-all"
-                  style={{ width: `${(sectionStatsMap[selectedSection].passed / sectionStatsMap[selectedSection].total) * 100}%` }}
+                  style={{ width: `${(locationStatsMap[selectedLocation].passed / locationStatsMap[selectedLocation].total) * 100}%` }}
                 />
                 <div
                   className="bg-red-500 transition-all"
-                  style={{ width: `${(sectionStatsMap[selectedSection].failed / sectionStatsMap[selectedSection].total) * 100}%` }}
+                  style={{ width: `${(locationStatsMap[selectedLocation].failed / locationStatsMap[selectedLocation].total) * 100}%` }}
                 />
               </div>
             )}
@@ -563,19 +580,19 @@ export default function WorkspaceDetail() {
       )}
 
       {/* ===== VIEW: Location Cards (no section selected) ===== */}
-      {selectedSection === null && (
+      {selectedLocation === null && (
         <>
           <h2 className="mb-3 text-lg font-semibold text-gray-900">Locations</h2>
 
-          {allSections.length === 0 ? (
+          {allLocations.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
               <MapPin className="mx-auto h-8 w-8 text-gray-300" />
               <p className="mt-2 text-sm text-gray-500">No locations configured. Add locations on the Locations page.</p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {allSections.map((section) => {
-                const stats = sectionStatsMap[section] ?? { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+              {allLocations.map((section) => {
+                const stats = locationStatsMap[section] ?? { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
                 const locMeta = locationByName.get(section);
                 const completionColor =
                   stats.percentage === 100
@@ -589,7 +606,7 @@ export default function WorkspaceDetail() {
                 return (
                   <button
                     key={section}
-                    onClick={() => setSelectedSection(section)}
+                    onClick={() => setSelectedLocation(section)}
                     className="group rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all hover:border-red-300 hover:shadow-md"
                   >
                     <div className="mb-3 flex items-start justify-between">
@@ -651,16 +668,16 @@ export default function WorkspaceDetail() {
         </>
       )}
 
-      {/* ===== VIEW: Extinguisher Cards (section selected) ===== */}
-      {selectedSection !== null && (
+      {/* ===== VIEW: Extinguisher List (location selected) ===== */}
+      {selectedLocation !== null && (
         <>
           {/* Section Timer (feature-gated) */}
-          {hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan) && selectedSection && (
+          {hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan) && selectedLocation && (
             <div className="mb-4">
               <SectionTimer
-                section={selectedSection}
-                activeSection={timerActiveSection}
-                totalTime={getTotalTime(selectedSection)}
+                section={selectedLocation}
+                activeSection={timerActiveLocation}
+                totalTime={getTotalTime(selectedLocation)}
                 onStart={startTimer}
                 onPause={pauseTimer}
                 onStop={stopTimer}
@@ -671,13 +688,13 @@ export default function WorkspaceDetail() {
           )}
 
           {/* Section Notes */}
-          {selectedSection && (
+          {selectedLocation && (
             <div className="mb-4">
               <SectionNotes
-                section={selectedSection}
-                notes={sectionNotes[selectedSection]?.notes ?? ''}
-                saveForNextMonth={sectionNotes[selectedSection]?.saveForNextMonth ?? false}
-                lastUpdated={sectionNotes[selectedSection]?.lastUpdated ?? null}
+                section={selectedLocation}
+                notes={sectionNotes[selectedLocation]?.notes ?? ''}
+                saveForNextMonth={sectionNotes[selectedLocation]?.saveForNextMonth ?? false}
+                lastUpdated={sectionNotes[selectedLocation]?.lastUpdated ?? null}
                 allNotes={sectionNotes}
                 onSave={handleSaveNote}
                 disabled={isArchived}
@@ -685,7 +702,6 @@ export default function WorkspaceDetail() {
             </div>
           )}
 
-          {/* Filter row */}
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -698,64 +714,150 @@ export default function WorkspaceDetail() {
               />
             </div>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="pass">Passed</option>
-              <option value="fail">Failed</option>
-            </select>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+              >
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="pass">Passed</option>
+                <option value="fail">Failed</option>
+              </select>
+
+              {/* Columns toggle */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowColumnMenu(!showColumnMenu)}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <LayoutList className="h-4 w-4" />
+                  Columns
+                </button>
+                {showColumnMenu && (
+                  <div className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white p-2 shadow-xl">
+                    {Object.entries({
+                      assetId: 'Asset ID',
+                      serial: 'Serial',
+                      building: 'Building',
+                      vicinity: 'Vicinity',
+                      section: 'Section',
+                      status: 'Status',
+                    }).map(([key, label]) => (
+                      <label key={key} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns[key as keyof typeof visibleColumns]}
+                          onChange={() => setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key as keyof typeof visibleColumns] }))}
+                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                        />
+                        <span className="text-sm text-gray-700">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Extinguisher cards grid */}
-          {sectionInspections.length === 0 ? (
+          {/* Extinguisher list table */}
+          {locationInspections.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
               <p className="text-sm text-gray-500">No extinguishers match your filters.</p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {sectionInspections.map((insp) => {
-                const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
-                const Icon = style.icon;
+            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {visibleColumns.assetId && (
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Asset ID
+                      </th>
+                    )}
+                    {visibleColumns.serial && (
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Serial
+                      </th>
+                    )}
+                    {visibleColumns.building && (
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Building
+                      </th>
+                    )}
+                    {visibleColumns.vicinity && (
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Vicinity
+                      </th>
+                    )}
+                    {visibleColumns.section && (
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Section
+                      </th>
+                    )}
+                    {visibleColumns.status && (
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Status
+                      </th>
+                    )}
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {locationInspections.map((insp) => {
+                    const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+                    const Icon = style.icon;
 
-                return (
-                  <button
-                    key={insp.id}
-                    onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)}
-                    className="group rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-red-300 hover:shadow-md"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-lg font-bold text-gray-900 group-hover:text-red-600">
-                        {insp.assetId}
-                      </span>
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
-                        <Icon className="h-3 w-3" />
-                        {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1 text-xs text-gray-500">
-                      <p className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {insp.section || 'No section'}
-                      </p>
-                      {insp.inspectedByEmail && (
-                        <p className="truncate">
-                          Inspected by: {insp.inspectedByEmail}
-                        </p>
-                      )}
-                      {insp.notes && (
-                        <p className="truncate italic text-gray-400">
-                          {insp.notes}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+                    return (
+                      <tr
+                        key={insp.id}
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)}
+                      >
+                        {visibleColumns.assetId && (
+                          <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                            {insp.assetId}
+                          </td>
+                        )}
+                        {visibleColumns.serial && (
+                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                            {insp.serial || '--'}
+                          </td>
+                        )}
+                        {visibleColumns.building && (
+                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                            {insp.parentLocation || '--'}
+                          </td>
+                        )}
+                        {visibleColumns.vicinity && (
+                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                            {extinguishers.find(e => e.id === insp.extinguisherId)?.vicinity || '--'}
+                          </td>
+                        )}
+                        {visibleColumns.section && (
+                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                            {insp.section || '--'}
+                          </td>
+                        )}
+                        {visibleColumns.status && (
+                          <td className="whitespace-nowrap px-4 py-3">
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                              <Icon className="h-3 w-3" />
+                              {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                            </span>
+                          </td>
+                        )}
+                        <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-600">
+                          Inspect
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </>
