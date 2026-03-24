@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth.ts';
 import {
   subscribeToLocations,
+  getLocationPath,
+  buildLocationTree,
   type Location,
+  type LocationTreeNode,
 } from '../../services/locationService.ts';
 import type { Extinguisher } from '../../services/extinguisherService.ts';
 
@@ -67,7 +70,7 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
     }
   }, [initialData]);
 
-  // When a location is selected from the dropdown, set both parentLocation (name) and locationId (doc ID)
+  // When a location is selected, set both parentLocation (name) and locationId (doc ID)
   function handleLocationChange(locId: string) {
     if (locId === '' || locId === '__unassigned__') {
       setParentLocation('');
@@ -280,10 +283,10 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
       {/* Location */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
         <h3 className="mb-4 text-sm font-semibold text-gray-900 uppercase tracking-wide">Location</h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="location" className="mb-1 block text-sm font-medium text-gray-700">
-              Location / Section
+              Location
             </label>
             {locations.length > 0 ? (
               <select
@@ -295,19 +298,14 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
                 <option value="">-- Unassigned --</option>
                 {locations.map((loc) => (
                   <option key={loc.id} value={loc.id ?? ''}>
-                    {loc.name} ({loc.locationType})
+                    {getLocationPath(locations, loc.id!)}
                   </option>
                 ))}
               </select>
             ) : (
-              <input
-                id="section"
-                type="text"
-                value={section}
-                onChange={(e) => setSection(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                placeholder="e.g., Building A"
-              />
+              <p className="text-sm text-gray-400">
+                No locations configured. Add locations on the Locations page first.
+              </p>
             )}
           </div>
           <div>
@@ -320,20 +318,7 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
               value={vicinity}
               onChange={(e) => setVicinity(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-              placeholder="e.g., Near elevator B"
-            />
-          </div>
-          <div>
-            <label htmlFor="parentLoc" className="mb-1 block text-sm font-medium text-gray-700">
-              Parent Location
-            </label>
-            <input
-              id="parentLoc"
-              type="text"
-              value={parentLocation}
-              onChange={(e) => setParentLocation(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-              placeholder="e.g., Floor 2"
+              placeholder="e.g., Near elevator B, East wall"
             />
           </div>
         </div>

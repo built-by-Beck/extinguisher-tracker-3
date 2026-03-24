@@ -111,6 +111,7 @@ export interface Inspection {
   parentLocation?: string;
   section: string;
   serial?: string;
+  locationId: string | null;
   status: string; // pending, pass, fail
   inspectedAt: unknown | null;
   inspectedBy: string | null;

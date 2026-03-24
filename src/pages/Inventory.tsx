@@ -49,6 +49,11 @@ import { formatDueDate } from '../utils/compliance.ts';
 import { cacheExtinguishersForWorkspace } from '../services/offlineCacheService.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 import { LocationSelector } from '../components/locations/LocationSelector.tsx';
+import {
+  subscribeToLocations,
+  getLocationPath,
+  type Location,
+} from '../services/locationService.ts';
 
 export default function Inventory() {
   const navigate = useNavigate();
@@ -108,6 +113,7 @@ export default function Inventory() {
   const [scanAddTarget, setScanAddTarget] = useState<{ code: string; format: string | null } | null>(null);
   const [scanAddLoading, setScanAddLoading] = useState(false);
   const [scanAddError, setScanAddError] = useState('');
+  const [locations, setLocations] = useState<Location[]>([]);
 
   const flags = org?.featureFlags as Record<string, boolean> | null | undefined;
   const canScan = hasFeature(flags, 'cameraBarcodeScan', org?.plan) || hasFeature(flags, 'qrScanning', org?.plan);
@@ -129,6 +135,12 @@ export default function Inventory() {
     next.delete('scanFormat');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams, canEdit, canScan]);
+
+  // Subscribe to locations (for path display)
+  useEffect(() => {
+    if (!orgId) return;
+    return subscribeToLocations(orgId, setLocations);
+  }, [orgId]);
 
   // Subscribe to extinguishers — cache on read
   useEffect(() => {
@@ -556,7 +568,7 @@ export default function Inventory() {
                 )}
                 {visibleColumns.section && (
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Section
+                    Location
                   </th>
                 )}
                 {visibleColumns.category && (
@@ -625,7 +637,9 @@ export default function Inventory() {
                   )}
                   {visibleColumns.section && (
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                      {ext.section || '--'}
+                      {ext.locationId
+                        ? getLocationPath(locations, ext.locationId)
+                        : ext.section || '--'}
                     </td>
                   )}
                   {visibleColumns.category && (

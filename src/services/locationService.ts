@@ -7,6 +7,7 @@ import {
   where,
   orderBy,
   onSnapshot,
+  getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
@@ -41,6 +42,43 @@ export const LOCATION_TYPES = [
 
 function locationsRef(orgId: string) {
   return collection(db, 'org', orgId, 'locations');
+}
+
+/**
+ * Normalize a location name for uniqueness comparison.
+ * Trims whitespace, collapses multiple spaces, lowercases.
+ */
+export function normalizeLocationName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * Check if a location name already exists under the same parent.
+ * Returns true if the name is taken (case-insensitive, trimmed).
+ */
+export async function isLocationNameTaken(
+  orgId: string,
+  name: string,
+  parentLocationId: string | null,
+  excludeId?: string,
+): Promise<boolean> {
+  const q = query(
+    locationsRef(orgId),
+    where('deletedAt', '==', null),
+  );
+  const snap = await getDocs(q);
+  const normalized = normalizeLocationName(name);
+
+  for (const d of snap.docs) {
+    if (excludeId && d.id === excludeId) continue;
+    const data = d.data();
+    const existingName = normalizeLocationName((data.name as string) ?? '');
+    const existingParent = (data.parentLocationId as string | null) ?? null;
+    if (existingName === normalized && existingParent === parentLocationId) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -144,6 +182,52 @@ export function buildLocationTree(locations: Location[]): LocationTreeNode[] {
   }
 
   return roots;
+}
+
+/**
+ * Get all descendant location IDs for a given location (recursive).
+ */
+export function getAllDescendantIds(locations: Location[], locationId: string): Set<string> {
+  const childMap = new Map<string, string[]>();
+  for (const loc of locations) {
+    if (loc.parentLocationId) {
+      const children = childMap.get(loc.parentLocationId) ?? [];
+      children.push(loc.id!);
+      childMap.set(loc.parentLocationId, children);
+    }
+  }
+
+  const result = new Set<string>();
+  const stack = [locationId];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    const children = childMap.get(current) ?? [];
+    for (const childId of children) {
+      result.add(childId);
+      stack.push(childId);
+    }
+  }
+  return result;
+}
+
+/**
+ * Get ancestor chain for a location (from root to immediate parent).
+ */
+export function getAncestorChain(locations: Location[], locationId: string): Location[] {
+  const map = new Map(locations.map((l) => [l.id!, l]));
+  const ancestors: Location[] = [];
+  let current = map.get(locationId);
+
+  while (current?.parentLocationId) {
+    const parent = map.get(current.parentLocationId);
+    if (parent) {
+      ancestors.unshift(parent);
+      current = parent;
+    } else {
+      break;
+    }
+  }
+  return ancestors;
 }
 
 /**
