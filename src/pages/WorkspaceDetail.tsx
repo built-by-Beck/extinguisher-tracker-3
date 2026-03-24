@@ -20,8 +20,10 @@ import {
   FileText,
   WifiOff,
   MapPin,
-  ChevronUp,
-  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  SkipForward,
+  X,
 } from 'lucide-react';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 import { subscribeToExtinguishers, type Extinguisher } from '../services/extinguisherService.ts';
@@ -62,6 +64,7 @@ import { useSectionTimer } from '../hooks/useSectionTimer.ts';
 import { SectionTimer } from '../components/workspace/SectionTimer.tsx';
 import { SectionNotes } from '../components/workspace/SectionNotes.tsx';
 import { hasFeature } from '../lib/planConfig.ts';
+import { SortableTableHeader } from '../components/ui/SortableTableHeader.tsx';
 import {
   subscribeToSectionNotes,
   saveSectionNote,
@@ -93,10 +96,12 @@ export default function WorkspaceDetail() {
   const [filters, setFilters] = useState<FilterState>(createEmptyFilters);
   const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
   const [showUnassigned, setShowUnassigned] = useState(false);
-  const [sortKey, setSortKey] = useState<'assetId' | 'status' | 'section'>('assetId');
+  const [sortKey, setSortKey] = useState<string>('assetId');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [leafPage, setLeafPage] = useState(1);
+  const [leafPageSize, setLeafPageSize] = useState(25);
 
-  function toggleSort(key: typeof sortKey) {
+  function toggleSort(key: string) {
     if (sortKey === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -431,6 +436,7 @@ export default function WorkspaceDetail() {
       combined = combined.filter(
         (insp) =>
           insp.assetId.toLowerCase().includes(q) ||
+          (insp.serial || '').toLowerCase().includes(q) ||
           (insp.section || '').toLowerCase().includes(q),
       );
     }
@@ -446,6 +452,26 @@ export default function WorkspaceDetail() {
     isArchived,
     workspaceId,
   ]);
+
+  // Sorted leaf inspections (memoized)
+  const sortedLeafInspections = useMemo(() => {
+    return [...leafInspections].sort((a, b) => {
+      const valA = (a[sortKey as keyof Inspection] || '').toString().toLowerCase();
+      const valB = (b[sortKey as keyof Inspection] || '').toString().toLowerCase();
+      return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+  }, [leafInspections, sortKey, sortDir]);
+
+  const leafTotalPages = Math.ceil(sortedLeafInspections.length / leafPageSize);
+  const paginatedLeafInspections = useMemo(() => {
+    const start = (leafPage - 1) * leafPageSize;
+    return sortedLeafInspections.slice(start, start + leafPageSize);
+  }, [sortedLeafInspections, leafPage, leafPageSize]);
+
+  // Reset leaf pagination when filters/search change
+  useEffect(() => {
+    setLeafPage(1);
+  }, [searchQuery, filters, drillDown.currentLocationId]);
 
   // Unassigned extinguisher list
   const unassignedInspections = useMemo(() => {
@@ -489,7 +515,9 @@ export default function WorkspaceDetail() {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       combined = combined.filter((insp) =>
-        insp.assetId.toLowerCase().includes(q) || (insp.section || '').toLowerCase().includes(q),
+        insp.assetId.toLowerCase().includes(q) ||
+        (insp.serial || '').toLowerCase().includes(q) ||
+        (insp.section || '').toLowerCase().includes(q),
       );
     }
     return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
@@ -857,7 +885,7 @@ export default function WorkspaceDetail() {
             />
           </div>
 
-          {/* Search row */}
+          {/* Search row + Next Pending */}
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -865,71 +893,78 @@ export default function WorkspaceDetail() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filter by asset ID..."
-                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                placeholder="Search by asset ID, serial, or location..."
+                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-10 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
+            {/* Next Pending button */}
+            {!isArchived && leafInspections.some((i) => i.status === 'pending') && (
+              <button
+                onClick={() => {
+                  const first = leafInspections.find((i) => i.status === 'pending');
+                  if (first) {
+                    navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${first.extinguisherId}`);
+                  }
+                }}
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                <SkipForward className="h-4 w-4" />
+                Next Pending
+              </button>
+            )}
           </div>
+
+          {searchQuery && (
+            <p className="mb-3 text-xs text-gray-500">
+              Showing {leafInspections.length} result{leafInspections.length !== 1 ? 's' : ''}
+            </p>
+          )}
 
           {/* Extinguisher list table */}
           {leafInspections.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
               <p className="text-sm text-gray-500">No extinguishers match your filters.</p>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="mt-3 inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Clear Search
+                </button>
+              )}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      onClick={() => toggleSort('assetId')}
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-700"
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        Asset ID
-                        {sortKey === 'assetId' && (sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
-                      </span>
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Serial
-                    </th>
-                    <th
-                      onClick={() => toggleSort('status')}
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-700"
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        Status
-                        {sortKey === 'status' && (sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
-                      </span>
-                    </th>
-                    <th
-                      onClick={() => toggleSort('section')}
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-700"
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        Location
-                        {sortKey === 'section' && (sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
-                      </span>
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">
-                      Inspected By
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">
-                      Notes
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {[...leafInspections]
-                    .sort((a, b) => {
-                      const valA = (a[sortKey] || '').toString().toLowerCase();
-                      const valB = (b[sortKey] || '').toString().toLowerCase();
-                      return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                    })
-                    .map((insp) => {
+            <>
+              <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50 sticky top-0 z-10">
+                    <tr>
+                      <SortableTableHeader label="Asset ID" sortKey="assetId" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={toggleSort} />
+                      <SortableTableHeader label="Serial" sortKey="serial" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={toggleSort} />
+                      <SortableTableHeader label="Status" sortKey="status" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={toggleSort} />
+                      <SortableTableHeader label="Location" sortKey="section" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={toggleSort} />
+                      <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">
+                        Inspected By
+                      </th>
+                      <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">
+                        Notes
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {paginatedLeafInspections.map((insp) => {
                       const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
                       const Icon = style.icon;
                       return (
@@ -965,9 +1000,50 @@ export default function WorkspaceDetail() {
                         </tr>
                       );
                     })}
-                </tbody>
-              </table>
-            </div>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Leaf pagination */}
+              {leafTotalPages > 1 && (
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <span>Show</span>
+                    <select
+                      value={leafPageSize}
+                      onChange={(e) => { setLeafPageSize(Number(e.target.value)); setLeafPage(1); }}
+                      className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
+                    >
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                    <span>per page</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setLeafPage((p) => Math.max(1, p - 1))}
+                      disabled={leafPage === 1}
+                      className="flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Prev
+                    </button>
+                    <span className="text-sm text-gray-600">
+                      Page {leafPage} of {leafTotalPages}
+                    </span>
+                    <button
+                      onClick={() => setLeafPage((p) => Math.min(leafTotalPages, p + 1))}
+                      disabled={leafPage >= leafTotalPages}
+                      className="flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
