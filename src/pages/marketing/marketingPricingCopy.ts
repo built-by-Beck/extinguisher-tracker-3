@@ -1,7 +1,20 @@
 /**
  * Display-only pricing and FAQ copy for the public marketing site.
- * Does not drive billing; update amounts and bullets as your go-to-market evolves.
+ *
+ * Prices read from VITE_PRICE_* env vars so they stay in sync with planConfig.
+ * Change .env → rebuild → marketing page updates automatically.
  */
+
+import { PLANS } from '../../lib/planConfig.ts';
+
+function formatPrice(price: number | null): string {
+  if (price === null) return 'Custom';
+  return price % 1 === 0 ? `$${price}` : `$${price}`;
+}
+
+const basicPlan = PLANS.find((p) => p.name === 'basic')!;
+const proPlan = PLANS.find((p) => p.name === 'pro')!;
+const elitePlan = PLANS.find((p) => p.name === 'elite')!;
 
 export const CONTACT_SALES_EMAIL = 'sales@example.com';
 
@@ -26,7 +39,7 @@ export const marketingPlans: MarketingPlanCard[] = [
   {
     id: 'basic',
     name: 'Basic',
-    priceLabel: '$29.99',
+    priceLabel: formatPrice(basicPlan.monthlyPrice),
     priceDetail: 'per month',
     blurb: 'Small sites that want to ditch paper and get faster checks.',
     bullets: [
@@ -41,7 +54,7 @@ export const marketingPlans: MarketingPlanCard[] = [
   {
     id: 'pro',
     name: 'Pro',
-    priceLabel: '$99',
+    priceLabel: formatPrice(proPlan.monthlyPrice),
     priceDetail: 'per month',
     blurb: 'Growing teams that need lightning fast scanning and AI help.',
     bullets: [
@@ -57,7 +70,7 @@ export const marketingPlans: MarketingPlanCard[] = [
   {
     id: 'elite',
     name: 'Elite',
-    priceLabel: '$199',
+    priceLabel: formatPrice(elitePlan.monthlyPrice),
     priceDetail: 'per month',
     blurb: 'Large programs that need advanced data tools and priority help.',
     bullets: [

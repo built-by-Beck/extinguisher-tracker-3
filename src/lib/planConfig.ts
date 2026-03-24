@@ -1,9 +1,20 @@
 /**
  * Frontend plan configuration — mirrors the backend planConfig.ts.
  * Used for UI gating only. Backend enforces actual limits.
+ *
+ * Prices & limits read from VITE_PRICE_* / VITE_LIMIT_* env vars at build time.
+ * Change .env → rebuild → deploy = prices update everywhere.
  */
 
 export type PlanName = 'basic' | 'pro' | 'elite' | 'enterprise';
+
+// Read prices/limits from env (Vite injects at build time). Fallback to defaults.
+const ENV_PRICE_BASIC = Number(import.meta.env.VITE_PRICE_BASIC) || 29.99;
+const ENV_PRICE_PRO = Number(import.meta.env.VITE_PRICE_PRO) || 99;
+const ENV_PRICE_ELITE = Number(import.meta.env.VITE_PRICE_ELITE) || 199;
+const ENV_LIMIT_BASIC = Number(import.meta.env.VITE_LIMIT_BASIC) || 50;
+const ENV_LIMIT_PRO = Number(import.meta.env.VITE_LIMIT_PRO) || 250;
+const ENV_LIMIT_ELITE = Number(import.meta.env.VITE_LIMIT_ELITE) || 500;
 
 export interface PlanInfo {
   name: PlanName;
@@ -80,10 +91,10 @@ export const PLANS: PlanInfo[] = [
   {
     name: 'basic',
     displayName: 'Basic',
-    monthlyPrice: 29.99,
-    assetLimit: 50,
+    monthlyPrice: ENV_PRICE_BASIC,
+    assetLimit: ENV_LIMIT_BASIC,
     features: [
-      'Up to 50 extinguishers',
+      `Up to ${ENV_LIMIT_BASIC} extinguishers`,
       'Type-in barcode search',
       'Quantity & placement calculator',
       'Easy compliance reports',
@@ -94,10 +105,10 @@ export const PLANS: PlanInfo[] = [
   {
     name: 'pro',
     displayName: 'Pro',
-    monthlyPrice: 99,
-    assetLimit: 250,
+    monthlyPrice: ENV_PRICE_PRO,
+    assetLimit: ENV_LIMIT_PRO,
     features: [
-      'Up to 250 extinguishers',
+      `Up to ${ENV_LIMIT_PRO} extinguishers`,
       'Fast phone camera scanning',
       'AI maintenance helper',
       'Quick QR code scanning',
@@ -109,10 +120,10 @@ export const PLANS: PlanInfo[] = [
   {
     name: 'elite',
     displayName: 'Elite',
-    monthlyPrice: 199,
-    assetLimit: 500,
+    monthlyPrice: ENV_PRICE_ELITE,
+    assetLimit: ENV_LIMIT_ELITE,
     features: [
-      'Up to 500 extinguishers',
+      `Up to ${ENV_LIMIT_ELITE} extinguishers`,
       'Bulk tag printing',
       'Advanced data cleanup',
       'Priority help',

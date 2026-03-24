@@ -158,7 +158,7 @@ export function PlanSelector() {
       ) : (
         <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
           <p className="text-sm text-gray-600">
-            Need more than 500 extinguishers?{' '}
+            Need more than {PLANS.find((p) => p.name === 'elite')?.assetLimit ?? 500} extinguishers?{' '}
             <span className="font-semibold text-gray-900">Enterprise</span> plans with unlimited
             assets, AI access, and custom pricing are available.
           </p>
