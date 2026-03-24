@@ -74,9 +74,9 @@ export const importExtinguishersCSV = onCall(async (request) => {
     throwFailedPrecondition('Active subscription required to import extinguishers.');
   }
 
-  // Bulk import is only available on Elite and Enterprise plans
-  if (!plan || !['elite', 'enterprise'].includes(plan)) {
-    throwFailedPrecondition('Bulk import is available on Elite and Enterprise plans only.');
+  // Import requires an active plan
+  if (!plan) {
+    throwFailedPrecondition('An active plan is required to import extinguishers.');
   }
 
   const rows = parseCSV(csvContent);
