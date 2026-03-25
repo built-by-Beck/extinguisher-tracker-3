@@ -62,7 +62,7 @@ function StatCard({ label, value, icon: Icon, color }: StatCardProps) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { org, membership, hasRole } = useOrg();
+  const { org, membership, hasRole, orgLoading } = useOrg();
   const { user, userProfile } = useAuth();
 
   const orgId = userProfile?.activeOrgId ?? '';
@@ -158,7 +158,7 @@ export default function Dashboard() {
       </div>
 
       {/* Subscription banner */}
-      {!hasPlan && (
+      {!hasPlan && !orgLoading && (
         <div className="mb-6 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
           <div className="flex-1">
