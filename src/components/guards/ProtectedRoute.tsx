@@ -15,8 +15,10 @@ export function ProtectedRoute() {
   const { org, orgLoading, userOrgs, userOrgsLoading } = useOrg();
   const location = useLocation();
 
-  // Show loading while auth state resolves
-  if (authLoading) {
+  // Show loading while auth state or user profile resolves
+  // We must wait for userProfile to load before making org decisions,
+  // otherwise activeOrgId is unknown and we incorrectly redirect to /create-org
+  if (authLoading || (user && !userProfile)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
