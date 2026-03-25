@@ -1,6 +1,6 @@
 # EX3 Lessons Learned
 
-**Last Updated**: 2026-03-22
+**Last Updated**: 2026-03-25
 
 This file tracks lessons learned during development. The review-agent updates this after reviewing completed work. Build-agent and plan-agent should consult this before starting new tasks.
 
@@ -190,3 +190,15 @@ Each entry follows this structure:
   2. Changed the Inventory location filter to query exclusively by `locationId`.
   3. Modified `WorkspaceDetail` to subscribe to the live `extinguishers` collection when active. It now merges the live inventory data with the snapshot `inspections`, dynamically generating "Pending" stubs for any new items so the location tile count accurately reflects real-time totals.
 - **Rule**: When building aggregate UI components (like location tiles or completion bars) that depend on snapshot data (e.g. active inspections), always join them with the live source of truth (the active inventory) to ensure newly created entities are instantly reflected. Always ensure form components map unified data back to all required legacy string fields for backwards compatibility.
+
+### 2026-03-25 -- Multiple list views must exclude items that belong to a different category
+- **Context**: Phase 18 review of WorkspaceDetail `unassignedInspections` memo after adding `__deleted__` bucket
+- **Issue**: The `unassignedInspections` list filtered by `!insp.locationId` but did not exclude orphaned inspections (deleted extinguishers). An orphaned inspection with no `locationId` appeared in both the "Unassigned" and "Deleted" views simultaneously.
+- **Resolution**: Added a `trackedExtIds` Set to the unassigned memo and filtered out inspections whose `extinguisherId` was not in the set.
+- **Rule**: When introducing a new category/bucket that splits items from an existing category (e.g., splitting "deleted" out of "unassigned"), audit ALL list views that previously included those items and add exclusion filters. Every item should appear in exactly one category.
+
+### 2026-03-25 -- Keyboard-accessible buttons must preventDefault on Space to avoid page scroll
+- **Context**: Phase 18 review of Dashboard StatCard keyboard handler
+- **Issue**: The `onKeyDown` handler for Space key activated the click but did not call `e.preventDefault()`, causing the browser's default Space behavior (page scroll) to fire simultaneously with the navigation.
+- **Resolution**: Added `e.preventDefault()` before calling `onClick()`.
+- **Rule**: When making non-button elements keyboard-accessible with `role="button"` and Space/Enter handlers, always call `e.preventDefault()` for the Space key to suppress the browser's default scroll-down behavior.

@@ -1,11 +1,63 @@
 # EX3 Agent System -- Project State
 
-**Last Updated**: 2026-03-23
-**Updated By**: plan-agent (Opus 4.6) -- Phase 14 PLANNED
+**Last Updated**: 2026-03-25
+**Updated By**: review-agent (Opus 4.6) -- Phase 18 REVIEW COMPLETE
 
 ---
 
 ## Current Phase
+
+**Phase 18: Soft-Delete Hygiene and Dashboard UX**
+Status: REVIEW COMPLETE
+
+### Phase 18 Build Summary (build-agent, 2026-03-25)
+
+**Result: All tasks (P18-01 through P18-07) complete. Functions build passes clean. Frontend TS errors and lint errors are pre-existing (not introduced by Phase 18).**
+
+**P18-01 (Cloud Function trigger):** Created `functions/src/lifecycle/onExtinguisherSoftDeleted.ts` — `onDocumentUpdated` trigger on `org/{orgId}/extinguishers/{extId}`. Guards on `before.deletedAt == null && after.deletedAt != null`. Queries active workspace, then runs a transaction to: look up the inspection record, decrement the appropriate stat (pending/passed/failed) and `stats.total` with `FieldValue.increment(-1)`, delete the inspection doc. No-ops if no inspection record exists (extinguisher was never seeded).
+
+**P18-02 (index.ts):** Added `export { onExtinguisherSoftDeleted } from './lifecycle/onExtinguisherSoftDeleted.js'` to the lifecycle trigger section.
+
+**P18-03 (WorkspaceDetail.tsx):** In the `locationStatsMap` computation for active workspaces, orphaned inspections (where `extinguisherId` is NOT in the live `trackedExtIds` Set) are now bucketed into `__deleted__` instead of `__unassigned__`. Both modern (locationId) and legacy (section) paths updated. Added `showDeleted` state, `deletedInspections` memo, a "Deleted" location card (red border styling), and a "Deleted Extinguishers" view with a read-only table (no Inspect link). `handleBack` resets `showDeleted` first.
+
+**P18-04 (GuestWorkspaceDetail.tsx):** N/A — guests only see archived workspaces (frozen snapshots). Archived workspace inspection records are historical; the trigger only targets active workspaces. No orphaned inspection cleanup needed for guest views.
+
+**P18-05 (Dashboard clamp):** Pending and Passed stat card values wrapped with `Math.max(0, ...)` to prevent negative display values.
+
+**P18-06 (Dashboard clickable cards):** `StatCard` updated with optional `onClick` prop. When provided: `cursor-pointer hover:border-gray-300 hover:shadow-md transition-shadow`, `role="button"`, `tabIndex={0}`, keyboard Enter/Space handler. Wired: Total → `/dashboard/inventory`, Pending/Passed → active workspace URL or `/dashboard/workspaces`, Members → `/dashboard/members`.
+
+**P18-07 (Build verify):** `cd functions && npm run build` — clean (0 errors). `pnpm build` — 3 pre-existing TS errors (not Phase 18). `pnpm lint` — 4 pre-existing errors (not Phase 18). Zero new errors introduced.
+
+### Phase 18 Review Summary (review-agent, 2026-03-25)
+
+**Result: 2 bugs fixed. All builds (`cd functions && npm run build`) pass clean. `pnpm build` has 3 pre-existing TS errors (not Phase 18).**
+
+**Bugs found and fixed:**
+
+1. **`WorkspaceDetail.tsx` -- `unassignedInspections` memo included orphaned inspections**: The unassigned list filtered inspections by `!insp.locationId` but did NOT exclude orphaned inspections (where `extinguisherId` is not in the live extinguishers set). An orphaned inspection with no `locationId` would appear in BOTH the unassigned list AND the deleted list. **Fix**: Added `trackedExtIds` Set and filtered the inspection loop to only include inspections whose `extinguisherId` exists in the live extinguishers.
+
+2. **`Dashboard.tsx` -- StatCard Space key handler did not prevent default scrolling**: The `onKeyDown` handler for Space key called `onClick()` but did not call `e.preventDefault()`, causing the page to scroll down when activating a stat card via keyboard. **Fix**: Added `e.preventDefault()` before `onClick()` in the Space/Enter handler.
+
+**Items reviewed and found correct:**
+
+- Cloud Function trigger guard: `before.deletedAt != null` check uses `!=` (not `!==`), which correctly handles both `null` and `undefined` from Firestore. The two-part guard (`wasDeleted || !isNowDeleted`) correctly prevents re-firing on non-delete updates.
+- Transaction atomicity: workspace stats decrement + inspection delete happen in one transaction. Workspace doc is re-read inside the transaction for consistency.
+- No-op when no inspection exists (line 51) and when workspace is no longer active (line 52) — both correctly guard with early returns.
+- `__deleted__` bucket correctly separated from `__unassigned__` in both modern (locationId) and legacy (section) paths of `locationStatsMap`.
+- `showDeleted` resets first in `handleBack` (line 582-585), before the `showUnassigned` check.
+- Deleted card only shows at root level for non-archived workspaces (line 800: `!isArchived`).
+- Deleted view table is read-only with no "Inspect" column — correct for soft-deleted items.
+- `deletedInspections` memo guards with `isArchived` (returns empty for archived workspaces).
+- StatCard `onClick` is optional; when undefined, no hover/cursor/role/tabIndex/keyDown are applied.
+- `Math.max(0, ...)` applied to both pending (line 262) and passed (line 273) stat values.
+- Cloud Function export registered correctly in `functions/src/index.ts` under the "Lifecycle engine (Firestore trigger)" section.
+- Admin SDK used throughout the Cloud Function — no auth gaps (triggers run with admin privileges).
+
+**Handoff note for plan-agent**: Phase 18 is complete and reviewed. Ready to plan Phase 19.
+
+---
+
+## Previous Phase
 
 **Phase 14: Import UX Polish, Reports Generate Button, Data Organizer, Export Backup**
 Status: PLANNED -- ready for build-agent
