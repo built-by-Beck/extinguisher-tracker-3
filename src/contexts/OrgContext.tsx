@@ -61,7 +61,13 @@ export function OrgProvider({ children }: OrgProviderProps) {
 
   // Listen to all orgs the user is a member of (collectionGroup query on "members")
   useEffect(() => {
-    if (authLoading || !user) {
+    if (authLoading) {
+      // Auth still resolving — keep loading states at their initial `true` values
+      // so the guards don't make premature routing decisions with empty data
+      return;
+    }
+    if (!user) {
+      // Definitively signed out — safe to clear
       setUserOrgs([]);
       setUserOrgsLoading(false);
       return;

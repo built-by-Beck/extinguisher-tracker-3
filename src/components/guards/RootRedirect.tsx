@@ -13,10 +13,8 @@ export function RootRedirect() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { org, orgLoading, userOrgs, userOrgsLoading } = useOrg();
 
-  // Show loading while auth state resolves
-  // Must also wait for userProfile when user exists — otherwise activeOrgId
-  // is unknown and we incorrectly redirect to /create-org instead of /dashboard
-  if (authLoading || userOrgsLoading || (user && !userProfile)) {
+  // Show loading while auth state resolves (includes waiting for user profile snapshot)
+  if (authLoading || userOrgsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
