@@ -39,6 +39,11 @@ service cloud.firestore {
       return org.plan == 'enterprise' || org.subscriptionStatus in ['active', 'trialing'];
     }
 
+    // collectionGroup('members') — needed by OrgContext to find all orgs a user belongs to
+    match /{path=**}/members/{memberId} {
+      allow read: if isAuth() && request.auth.uid == resource.data.uid;
+    }
+
     match /usr/{uid} {
       allow read, create, update: if isAuth() && request.auth.uid == uid;
       allow delete: if false;
