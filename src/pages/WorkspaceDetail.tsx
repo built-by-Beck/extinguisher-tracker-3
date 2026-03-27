@@ -96,6 +96,7 @@ export default function WorkspaceDetail() {
   const [filters, setFilters] = useState<FilterState>(createEmptyFilters);
   const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
   const [showUnassigned, setShowUnassigned] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [sortKey, setSortKey] = useState<string>('assetId');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [leafPage, setLeafPage] = useState(1);
@@ -245,9 +246,10 @@ export default function WorkspaceDetail() {
         }
         // Apply inspection results
         for (const insp of inspections) {
-          const locId = insp.locationId || '__unassigned__';
-          // Only add to totals if this is an orphaned inspection (extinguisher no longer exists)
-          if (!trackedExtIds.has(insp.extinguisherId)) {
+          // Orphaned inspections belong to soft-deleted extinguishers — bucket as __deleted__
+          const isOrphaned = !trackedExtIds.has(insp.extinguisherId);
+          const locId = isOrphaned ? '__deleted__' : (insp.locationId || '__unassigned__');
+          if (isOrphaned) {
             const stats = getStats(locId);
             stats.total += 1;
             stats.pending += 1;
@@ -289,8 +291,10 @@ export default function WorkspaceDetail() {
           trackedExtIdsLegacy.add(ext.id!);
         }
         for (const insp of inspections) {
-          const locId = nameToId.get(insp.section) ?? '__unassigned__';
-          if (!trackedExtIdsLegacy.has(insp.extinguisherId)) {
+          // Orphaned inspections belong to soft-deleted extinguishers — bucket as __deleted__
+          const isOrphanedLegacy = !trackedExtIdsLegacy.has(insp.extinguisherId);
+          const locId = isOrphanedLegacy ? '__deleted__' : (nameToId.get(insp.section) ?? '__unassigned__');
+          if (isOrphanedLegacy) {
             const stats = getStats(locId);
             stats.total += 1;
             stats.pending += 1;
@@ -480,12 +484,14 @@ export default function WorkspaceDetail() {
 
     if (!isArchived) {
       const extMap = new Map<string, Extinguisher>();
+      const trackedExtIds = new Set(extinguishers.map((e) => e.id!));
       for (const ext of extinguishers) {
         if (!ext.locationId) extMap.set(ext.id!, ext);
       }
       const handledExtIds = new Set<string>();
       for (const insp of inspections) {
-        if (!insp.locationId) {
+        // Skip orphaned inspections — they belong in the __deleted__ bucket, not unassigned
+        if (!insp.locationId && trackedExtIds.has(insp.extinguisherId)) {
           combined.push(insp);
           handledExtIds.add(insp.extinguisherId);
         }
@@ -523,6 +529,25 @@ export default function WorkspaceDetail() {
     return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
   }, [showUnassigned, inspections, extinguishers, filters, searchQuery, isArchived, workspaceId]);
 
+  // Deleted extinguisher list — orphaned inspections for soft-deleted extinguishers
+  const deletedInspections = useMemo(() => {
+    if (!showDeleted || isArchived) return [];
+    const trackedExtIds = new Set(extinguishers.map((e) => e.id!));
+    let combined = inspections.filter((insp) => !trackedExtIds.has(insp.extinguisherId));
+    if (filters.statuses.size > 0) {
+      combined = combined.filter((insp) => filters.statuses.has(insp.status));
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      combined = combined.filter((insp) =>
+        insp.assetId.toLowerCase().includes(q) ||
+        (insp.serial || '').toLowerCase().includes(q) ||
+        (insp.section || '').toLowerCase().includes(q),
+      );
+    }
+    return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
+  }, [showDeleted, isArchived, inspections, extinguishers, filters, searchQuery]);
+
   // Get sibling locations for filter panel (children of current's parent, or current's children)
   const filterSiblingLocations = useMemo(() => {
     if (!drillDown.isLeaf) return [];
@@ -556,7 +581,11 @@ export default function WorkspaceDetail() {
   }
 
   function handleBack() {
-    if (showUnassigned) {
+    if (showDeleted) {
+      setShowDeleted(false);
+      setSearchQuery('');
+      setFilters(createEmptyFilters());
+    } else if (showUnassigned) {
       setShowUnassigned(false);
       setSearchQuery('');
       setFilters(createEmptyFilters());
@@ -731,7 +760,7 @@ export default function WorkspaceDetail() {
       )}
 
       {/* ===== VIEW: Location Cards (drill-down, not at leaf) ===== */}
-      {!drillDown.isLeaf && !showUnassigned && (
+      {!drillDown.isLeaf && !showUnassigned && !showDeleted && (
         <>
           <h2 className="mb-3 text-lg font-semibold text-gray-900">
             {drillDown.isRoot ? 'Locations' : drillDown.currentLocation?.name ?? 'Locations'}
@@ -766,6 +795,16 @@ export default function WorkspaceDetail() {
                   locationType="other"
                   stats={locationStatsMap.get('__unassigned__')!}
                   onClick={() => setShowUnassigned(true)}
+                />
+              )}
+
+              {/* Show "Deleted" card for orphaned inspection records from soft-deleted extinguishers */}
+              {drillDown.isRoot && !isArchived && locationStatsMap.has('__deleted__') && (
+                <LocationCard
+                  name="Deleted"
+                  locationType="other"
+                  stats={locationStatsMap.get('__deleted__')!}
+                  onClick={() => setShowDeleted(true)}
                 />
               )}
             </div>
@@ -841,8 +880,74 @@ export default function WorkspaceDetail() {
         </>
       )}
 
+      {/* ===== VIEW: Deleted Extinguishers (orphaned inspection records) ===== */}
+      {showDeleted && !isArchived && (
+        <>
+          <h2 className="mb-1 text-lg font-semibold text-gray-900">Deleted Extinguishers</h2>
+          <p className="mb-4 text-sm text-gray-500">
+            These inspection records belong to extinguishers that have been soft-deleted.
+            They will be cleaned up automatically.
+          </p>
+
+          <div className="mb-4">
+            <FilterPanel filters={filters} onChange={setFilters} showStatus />
+          </div>
+
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filter by asset ID..."
+                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+              />
+            </div>
+          </div>
+
+          {deletedInspections.length === 0 ? (
+            <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
+              <p className="text-sm text-gray-500">No deleted extinguisher records match your filters.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-red-100 bg-white shadow-sm">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-red-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Asset ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Serial</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">Section</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {deletedInspections.map((insp) => {
+                    const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+                    const Icon = style.icon;
+                    return (
+                      <tr key={insp.id} className="opacity-60 hover:bg-gray-50">
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-500 line-through">{insp.assetId}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400">{insp.serial || '--'}</td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                            <Icon className="h-3 w-3" />
+                            {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-400 sm:table-cell">{insp.section || '--'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
       {/* ===== VIEW: Extinguisher List (leaf location selected) ===== */}
-      {drillDown.isLeaf && !showUnassigned && (
+      {drillDown.isLeaf && !showUnassigned && !showDeleted && (
         <>
           {/* Section Timer (feature-gated) */}
           {hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan) && timerSection && (

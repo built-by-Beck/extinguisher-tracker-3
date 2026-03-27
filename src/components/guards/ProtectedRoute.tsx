@@ -15,7 +15,7 @@ export function ProtectedRoute() {
   const { org, orgLoading, userOrgs, userOrgsLoading } = useOrg();
   const location = useLocation();
 
-  // Show loading while auth state resolves
+  // Show loading while auth state resolves (includes waiting for user profile snapshot)
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">

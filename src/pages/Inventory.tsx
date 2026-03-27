@@ -286,7 +286,7 @@ export default function Inventory() {
           cmp = getExtLocationPath(a).localeCompare(getExtLocationPath(b));
           break;
         case 'compliance':
-          cmp = (COMPLIANCE_SORT_ORDER[a.complianceStatus] ?? 99) - (COMPLIANCE_SORT_ORDER[b.complianceStatus] ?? 99);
+          cmp = (COMPLIANCE_SORT_ORDER[a.complianceStatus ?? ''] ?? 99) - (COMPLIANCE_SORT_ORDER[b.complianceStatus ?? ''] ?? 99);
           break;
         case 'nextInspection': {
           const dateA = a.nextMonthlyInspection ?? '';

@@ -1,11 +1,59 @@
 # EX3 Agent System -- Project State
 
-**Last Updated**: 2026-03-23
-**Updated By**: plan-agent (Opus 4.6) -- Phase 14 PLANNED
+**Last Updated**: 2026-03-26
+**Updated By**: review-agent (Opus 4.6) -- Phase 18 REVIEW COMPLETE
 
 ---
 
 ## Current Phase
+
+**Phase 18: InspectionPanel Component Extraction + ExtinguisherDetail Rebuild**
+Status: REVIEW COMPLETE
+
+### Phase 18 Build Summary (build-agent, 2026-03-26)
+
+**8 tasks completed (P18-01 through P18-08):**
+
+1. **P18-01**: Created `src/components/inspection/ChecklistRow.tsx` -- extracted ChecklistRow + CheckValue type (44 lines)
+2. **P18-02**: Created `src/components/inspection/GpsCapture.tsx` -- extracted GPS capture with altitude display (129 lines)
+3. **P18-03**: Created `src/components/inspection/PhotoCapture.tsx` -- extracted photo capture with URL cleanup (131 lines)
+4. **P18-04**: Created `src/components/inspection/InspectionPanel.tsx` -- main reusable component composing all sub-components (426 lines)
+5. **P18-05**: Rebuilt `src/pages/ExtinguisherDetail.tsx` -- removed all inline inspection logic, uses InspectionPanel (775 -> 468 lines)
+6. **P18-06**: Updated `src/pages/InspectionForm.tsx` -- removed inline logic, uses InspectionPanel (743 -> 280 lines)
+7. **P18-07**: Created `src/components/inspection/index.ts` -- barrel export
+8. **P18-08**: Build & lint verification -- zero new errors, zero new warnings
+
+**Key results:**
+- Total duplicated code eliminated: ~700+ lines of shared inspection logic consolidated into reusable components
+- ExtinguisherDetail is now THE complete inspection page (GPS + photos + checklist + notes + pass/fail)
+- "Full Inspection Form" link removed -- no longer needed
+- InspectionPanel uses CHECKLIST_SECTIONS (categorized) instead of flat CHECKLIST_ITEMS
+- Photo upload to Firebase Storage on save, GPS with altitude for multi-floor buildings
+- All lessons-learned rules followed (state reset in useEffect, useCallback for reset handler, object URL cleanup)
+
+### Phase 18 Review Summary (review-agent, 2026-03-26)
+
+**Result: 1 bug fixed. Build and lint pass with only pre-existing errors (3 TS errors in ImportExportBar.tsx + Inventory.tsx, 4 ESLint errors in test files + ImportExportBar.tsx).**
+
+**Bug found and fixed:**
+
+1. **`InspectionPanel.tsx` -- useEffect deps included object-valued fields causing spurious state resets**: The state re-sync useEffect depended on `inspection.checklistData`, `inspection.notes`, and `inspection.gps`. Since `checklistData` and `gps` are objects, any parent re-fetch (even returning identical data) would create new references, trigger the effect, and blow away the user's in-progress checklist/notes/GPS edits. **Fix**: Narrowed deps to `[inspection.id, inspection.status]` only, matching the plan specification. Added eslint-disable comment with explanatory block comment.
+
+**Items reviewed and found correct:**
+
+- ChecklistRow: pure component, correct props, no state/effects needed
+- GpsCapture: altitude displayed, optional onError callback, loading state, geolocation error handling
+- PhotoCapture: object URL cleanup on unmount via useEffect, cleanup on change in handlePhotoSelect, cleanup on remove in handleRemove. Safe double-revoke pattern (revokeObjectURL is a no-op on already-revoked URLs)
+- InspectionPanel: executeReset wrapped in useCallback with correct deps (orgId, inspectionId, onInspectionUpdated, onError, onSuccess). Photo upload to Firebase Storage on save. saveInspectionOfflineAware called with all required fields. CHECKLIST_SECTIONS used for categorized display.
+- ExtinguisherDetail: properly delegates to InspectionPanel, loads extinguisher + resolves workspace, refreshHistory called via handleInspectionUpdated. All unused imports removed. "Full Inspection Form" link removed.
+- InspectionForm: properly delegates to InspectionPanel, offline fallback via IndexedDB cache preserved, history section with expandable checklist retained. CHECKLIST_ITEMS used in history (correct -- flat list for read-only display).
+- Barrel export index.ts: correct exports matching plan spec
+- No circular imports detected
+- TypeScript types compatible (Inspection.gps is `unknown | null`, cast to GpsData in InspectionPanel)
+
+---
+
+## Previous Phase
 
 **Phase 14: Import UX Polish, Reports Generate Button, Data Organizer, Export Backup**
 Status: PLANNED -- ready for build-agent

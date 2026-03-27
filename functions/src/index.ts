@@ -45,6 +45,7 @@ export { retireExtinguisher } from './lifecycle/retireExtinguisher.js';
 
 // Lifecycle engine (Firestore trigger)
 export { onExtinguisherCreated } from './lifecycle/onExtinguisherWrite.js';
+export { onExtinguisherSoftDeleted } from './lifecycle/onExtinguisherSoftDeleted.js';
 
 // Notifications (callable)
 export { markNotificationRead } from './notifications/markRead.js';
