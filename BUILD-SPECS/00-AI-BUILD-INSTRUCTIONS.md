@@ -255,7 +255,7 @@ The AI must implement plan-based feature gating exactly as defined in `09-PLANS-
 
 - custom pricing
 - unlimited extinguishers
-- contact: help@beck-publishing.com
+- contact: info@extinguishertracker.com
 
 ### Required Plan Behavior
 

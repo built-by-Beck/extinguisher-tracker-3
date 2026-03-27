@@ -453,7 +453,7 @@ The product uses Stripe for:
 
 - custom pricing
 - unlimited extinguishers
-- contact: help@beck-publishing.com
+- contact: info@extinguishertracker.com
 
 ## Deployment Model
 

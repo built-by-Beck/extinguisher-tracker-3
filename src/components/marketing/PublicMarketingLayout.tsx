@@ -149,6 +149,18 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
                   Privacy Policy
                 </Link>
               </div>
+              <div className="flex flex-col gap-2">
+                <span className="font-medium text-gray-900">Contact</span>
+                <a href="mailto:help@extinguishertracker.com" className="text-gray-600 hover:text-red-600">
+                  Support
+                </a>
+                <a href="mailto:info@extinguishertracker.com" className="text-gray-600 hover:text-red-600">
+                  General Inquiries
+                </a>
+                <a href="mailto:billing@extinguishertracker.com" className="text-gray-600 hover:text-red-600">
+                  Billing
+                </a>
+              </div>
             </div>
           </div>
           <p className="mt-8 text-xs text-gray-500">

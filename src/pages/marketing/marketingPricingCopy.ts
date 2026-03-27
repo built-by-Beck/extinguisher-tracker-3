@@ -16,7 +16,7 @@ const basicPlan = PLANS.find((p) => p.name === 'basic')!;
 const proPlan = PLANS.find((p) => p.name === 'pro')!;
 const elitePlan = PLANS.find((p) => p.name === 'elite')!;
 
-export const CONTACT_SALES_EMAIL = 'sales@example.com';
+export const CONTACT_SALES_EMAIL = 'info@extinguishertracker.com';
 
 export const CONTACT_SALES_MAILTO = `mailto:${CONTACT_SALES_EMAIL}?subject=Extinguisher%20Tracker%20Enterprise`;
 

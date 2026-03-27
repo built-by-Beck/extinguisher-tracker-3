@@ -615,7 +615,7 @@ Each organization has:
 
 - custom pricing
 - unlimited extinguishers
-- contact: help@beck-publishing.com
+- contact: info@extinguishertracker.com
 
 ### Stripe Objects Used
 
