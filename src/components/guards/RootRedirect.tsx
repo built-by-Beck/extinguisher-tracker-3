@@ -13,7 +13,7 @@ export function RootRedirect() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { org, orgLoading, userOrgs, userOrgsLoading } = useOrg();
 
-  // Show loading while auth state resolves
+  // Show loading while auth state resolves (includes waiting for user profile snapshot)
   if (authLoading || userOrgsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">

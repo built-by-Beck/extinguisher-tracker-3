@@ -42,11 +42,20 @@ interface StatCardProps {
   value: string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
+  onClick?: () => void;
 }
 
-function StatCard({ label, value, icon: Icon, color }: StatCardProps) {
+function StatCard({ label, value, icon: Icon, color, onClick }: StatCardProps) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+    <div
+      className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow ${
+        onClick ? 'cursor-pointer hover:border-gray-300 hover:shadow-md' : ''
+      }`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+    >
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-500">{label}</p>
@@ -246,24 +255,36 @@ export default function Dashboard() {
           value={extCount.toString()}
           icon={Flame}
           color="bg-red-500"
+          onClick={() => navigate('/dashboard/inventory')}
         />
         <StatCard
           label="Pending Inspections"
-          value={activeWorkspace ? activeWorkspace.stats.pending.toString() : '0'}
+          value={activeWorkspace ? Math.max(0, activeWorkspace.stats.pending).toString() : '0'}
           icon={ClipboardList}
           color="bg-blue-500"
+          onClick={() =>
+            activeWorkspace
+              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}`)
+              : navigate('/dashboard/workspaces')
+          }
         />
         <StatCard
           label="Passed This Month"
-          value={activeWorkspace ? activeWorkspace.stats.passed.toString() : '--'}
+          value={activeWorkspace ? Math.max(0, activeWorkspace.stats.passed).toString() : '--'}
           icon={ShieldCheck}
           color="bg-green-500"
+          onClick={() =>
+            activeWorkspace
+              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}`)
+              : navigate('/dashboard/workspaces')
+          }
         />
         <StatCard
           label="Active Members"
           value={memberCount.toString()}
           icon={Users}
           color="bg-purple-500"
+          onClick={() => navigate('/dashboard/members')}
         />
       </div>
 
