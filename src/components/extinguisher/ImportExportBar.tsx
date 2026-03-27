@@ -7,7 +7,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Upload, Download, Loader2, FileJson, X, FileSpreadsheet } from 'lucide-react';
-import { read, utils } from 'xlsx';
+import ExcelJS from 'exceljs';
 import { functions } from '../../lib/firebase.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { ColumnMapperModal, TARGET_FIELDS } from './ColumnMapperModal.tsx';
@@ -77,12 +77,28 @@ function parseTXTToRows(content: string): Record<string, string>[] {
   return rows;
 }
 
-function parseExcelToRows(buffer: ArrayBuffer): Record<string, string>[] {
-  const workbook = read(buffer, { type: 'array' });
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) return [];
-  const sheet = workbook.Sheets[sheetName];
-  return utils.sheet_to_json<Record<string, string>>(sheet, { raw: false, defval: '' });
+async function parseExcelToRows(buffer: ArrayBuffer): Promise<Record<string, string>[]> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) return [];
+  const headers: string[] = [];
+  const rows: Record<string, string>[] = [];
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) {
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        headers.push(String(cell.value ?? ''));
+      });
+    } else {
+      const obj: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        const cell = row.getCell(idx + 1);
+        obj[header] = String(cell.value ?? '');
+      });
+      rows.push(obj);
+    }
+  });
+  return rows;
 }
 
 function applyMapping(
@@ -105,7 +121,7 @@ function columnsMatchExpected(columns: string[]): boolean {
   return required.every((key) => columns.includes(key));
 }
 
-const ACCEPTED_EXTENSIONS = '.csv,.xls,.xlsx,.json,.txt';
+const ACCEPTED_EXTENSIONS = '.csv,.xlsx,.json,.txt';
 
 export function ImportExportBar({ onImportJSON }: ImportExportBarProps) {
   const { userProfile } = useAuth();
@@ -162,9 +178,12 @@ export function ImportExportBar({ onImportJSON }: ImportExportBarProps) {
 
       let rows: Record<string, string>[];
 
-      if (ext === 'xls' || ext === 'xlsx') {
+      if (ext === 'xls') {
+        setError('Legacy .xls format is not supported. Please save the file as .xlsx and try again.');
+        return;
+      } else if (ext === 'xlsx') {
         const buffer = await file.arrayBuffer();
-        rows = parseExcelToRows(buffer);
+        rows = await parseExcelToRows(buffer);
       } else if (ext === 'txt') {
         const text = await file.text();
         rows = parseTXTToRows(text);
@@ -206,7 +225,7 @@ export function ImportExportBar({ onImportJSON }: ImportExportBarProps) {
     if (!file) return;
 
     const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-    const validExts = ['csv', 'xls', 'xlsx', 'json', 'txt'];
+    const validExts = ['csv', 'xlsx', 'json', 'txt'];
     if (!validExts.includes(ext)) {
       setError(`Unsupported file type: .${ext}. Use CSV, Excel, JSON, or TXT.`);
       return;
