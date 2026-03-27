@@ -243,6 +243,23 @@ export async function softDeleteExtinguisher(
 }
 
 /**
+ * Restore a soft-deleted extinguisher.
+ */
+export async function restoreExtinguisher(
+  orgId: string,
+  extId: string,
+): Promise<void> {
+  const ref = doc(db, 'org', orgId, 'extinguishers', extId);
+  await updateDoc(ref, {
+    lifecycleStatus: 'active',
+    deletedAt: null,
+    deletedBy: null,
+    deletionReason: null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
  * Batch soft-delete multiple extinguishers.
  * Chunks to 499 operations per batch.
  */

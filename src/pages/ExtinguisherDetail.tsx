@@ -23,12 +23,14 @@ import {
   WifiOff,
   Info,
   ShieldCheck,
+  Trash2,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { hasFeature } from '../lib/planConfig.ts';
 import { useOffline } from '../hooks/useOffline.ts';
-import { getExtinguisher, type Extinguisher } from '../services/extinguisherService.ts';
+import { getExtinguisher, restoreExtinguisher, type Extinguisher } from '../services/extinguisherService.ts';
 import {
   getInspectionForExtinguisherInWorkspace,
   getInspectionHistoryForExtinguisher,
@@ -200,6 +202,24 @@ export default function ExtinguisherDetail() {
     );
   }
 
+  const isDeleted = !!ext.deletedAt;
+  const [restoring, setRestoring] = useState(false);
+
+  async function handleRestore() {
+    if (!orgId || !extId) return;
+    setRestoring(true);
+    try {
+      await restoreExtinguisher(orgId, extId);
+      // Reload the extinguisher to reflect restored state
+      const updated = await getExtinguisher(orgId, extId);
+      if (updated) setExt(updated);
+    } catch {
+      // Silently fail — user can retry
+    } finally {
+      setRestoring(false);
+    }
+  }
+
   const nowDate = new Date();
   const currentMonthLabel = nowDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -219,6 +239,29 @@ export default function ExtinguisherDetail() {
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
           <WifiOff className="h-4 w-4 shrink-0" />
           You are offline. Some data may be cached.
+        </div>
+      )}
+
+      {/* Deleted banner */}
+      {isDeleted && (
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-red-700">
+            <Trash2 className="h-4 w-4 shrink-0" />
+            <span>
+              <span className="font-medium">This extinguisher has been deleted.</span>
+              {ext.deletionReason && <> Reason: {ext.deletionReason}</>}
+            </span>
+          </div>
+          {canEdit && (
+            <button
+              onClick={handleRestore}
+              disabled={restoring}
+              className="flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              {restoring ? 'Restoring...' : 'Restore'}
+            </button>
+          )}
         </div>
       )}
 
@@ -317,60 +360,64 @@ export default function ExtinguisherDetail() {
         <InfoRow label="Next Hydro Test" value={formatTimestamp(ext.nextHydroTest)} />
       </div>
 
-      {/* ---- Inspection section ---- */}
+      {/* ---- Inspection section (hidden for deleted extinguishers) ---- */}
 
-      {/* No active workspace case */}
-      {noActiveWorkspace && !workspaceId && (
-        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <div className="flex items-start gap-3">
-            <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />
-            <div>
-              <p className="text-sm font-medium text-blue-800">No active workspace for {currentMonthLabel}</p>
-              <p className="mt-1 text-sm text-blue-700">
-                Create a workspace to start inspecting extinguishers this month.
-              </p>
-              <button
-                onClick={() => navigate('/dashboard/workspaces')}
-                className="mt-2 text-sm font-medium text-blue-700 underline hover:text-blue-900"
-              >
-                Go to Workspaces
-              </button>
+      {!isDeleted && (
+        <>
+          {/* No active workspace case */}
+          {noActiveWorkspace && !workspaceId && (
+            <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-start gap-3">
+                <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />
+                <div>
+                  <p className="text-sm font-medium text-blue-800">No active workspace for {currentMonthLabel}</p>
+                  <p className="mt-1 text-sm text-blue-700">
+                    Create a workspace to start inspecting extinguishers this month.
+                  </p>
+                  <button
+                    onClick={() => navigate('/dashboard/workspaces')}
+                    className="mt-2 text-sm font-medium text-blue-700 underline hover:text-blue-900"
+                  >
+                    Go to Workspaces
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Extinguisher not in workspace */}
-      {!noActiveWorkspace && inspection === null && (
-        <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">
-            This extinguisher is not in the current workspace.
-          </p>
-        </div>
-      )}
+          {/* Extinguisher not in workspace */}
+          {!noActiveWorkspace && inspection === null && (
+            <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">
+                This extinguisher is not in the current workspace.
+              </p>
+            </div>
+          )}
 
-      {/* Inspection loading */}
-      {inspection === undefined && (
-        <div className="mb-6 flex items-center gap-2 text-sm text-gray-400">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading inspection...
-        </div>
-      )}
+          {/* Inspection loading */}
+          {inspection === undefined && (
+            <div className="mb-6 flex items-center gap-2 text-sm text-gray-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading inspection...
+            </div>
+          )}
 
-      {/* Inspection present — render InspectionPanel */}
-      {inspection !== undefined && inspection !== null && activeWorkspaceId && (
-        <InspectionPanel
-          orgId={orgId}
-          extId={extId!}
-          inspectionId={inspection.id!}
-          workspaceId={activeWorkspaceId}
-          inspection={inspection}
-          canInspect={canInspect}
-          canReset={canReset}
-          isOnline={isOnline}
-          inspectorName={user?.displayName ?? user?.email ?? 'Unknown'}
-          onInspectionUpdated={handleInspectionUpdated}
-        />
+          {/* Inspection present — render InspectionPanel */}
+          {inspection !== undefined && inspection !== null && activeWorkspaceId && (
+            <InspectionPanel
+              orgId={orgId}
+              extId={extId!}
+              inspectionId={inspection.id!}
+              workspaceId={activeWorkspaceId}
+              inspection={inspection}
+              canInspect={canInspect}
+              canReset={canReset}
+              isOnline={isOnline}
+              inspectorName={user?.displayName ?? user?.email ?? 'Unknown'}
+              onInspectionUpdated={handleInspectionUpdated}
+            />
+          )}
+        </>
       )}
 
       {/* ---- Inspection History ---- */}
