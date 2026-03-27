@@ -6,8 +6,27 @@
  * Author: built_by_Beck
  */
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { Camera, X } from 'lucide-react';
+
+/** Only allow blob: URLs (from createObjectURL) as preview src */
+function isSafeBlobUrl(url: string): boolean {
+  return url.startsWith('blob:');
+}
+
+/** Only allow known safe origins for existing photo URLs */
+function isSafePhotoUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === 'https:' &&
+      (parsed.hostname.endsWith('.googleapis.com') ||
+       parsed.hostname.endsWith('.firebasestorage.app'))
+    );
+  } catch {
+    return false;
+  }
+}
 
 interface PhotoCaptureProps {
   photoFile: File | null;
@@ -31,6 +50,16 @@ export function PhotoCapture({
   canInspect,
 }: PhotoCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sanitize URLs — only allow blob: for previews, trusted origins for existing photos
+  const safePreviewUrl = useMemo(
+    () => (photoPreview && isSafeBlobUrl(photoPreview) ? photoPreview : ''),
+    [photoPreview],
+  );
+  const safeExistingUrl = useMemo(
+    () => (existingPhotoUrl && isSafePhotoUrl(existingPhotoUrl) ? existingPhotoUrl : ''),
+    [existingPhotoUrl],
+  );
 
   // Cleanup object URL on unmount
   useEffect(() => {
@@ -101,29 +130,29 @@ export function PhotoCapture({
         </div>
       )}
 
-      {/* Photo preview (new photo) */}
-      {photoPreview && (
+      {/* Photo preview (new photo — only render blob: URLs) */}
+      {safePreviewUrl && (
         <div className="mt-3">
           <img
-            src={photoPreview}
+            src={safePreviewUrl}
             alt="Inspection photo preview"
             className="h-32 w-32 rounded-lg border border-gray-200 object-cover"
           />
         </div>
       )}
 
-      {/* Existing photo (completed inspection) */}
-      {!photoPreview && existingPhotoUrl && (
+      {/* Existing photo (completed inspection — only render trusted origins) */}
+      {!safePreviewUrl && safeExistingUrl && (
         <div className="mt-1">
           <img
-            src={existingPhotoUrl}
+            src={safeExistingUrl}
             alt="Inspection photo"
             className="h-32 w-32 rounded-lg border border-gray-200 object-cover"
           />
         </div>
       )}
 
-      {!photoPreview && !existingPhotoUrl && isCompleted && (
+      {!safePreviewUrl && !safeExistingUrl && isCompleted && (
         <p className="text-sm text-gray-400">No photo attached.</p>
       )}
     </div>
