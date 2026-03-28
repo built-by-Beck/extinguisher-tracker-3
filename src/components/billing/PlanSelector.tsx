@@ -162,7 +162,7 @@ export function PlanSelector() {
             <span className="font-semibold text-gray-900">Enterprise</span> plans with unlimited
             assets, AI access, and custom pricing are available.
           </p>
-          <p className="mt-1 text-sm text-gray-500">Contact us at help@beck-publishing.com</p>
+          <p className="mt-1 text-sm text-gray-500">Contact us at help@extinguishertracker.com</p>
         </div>
       )}
     </div>

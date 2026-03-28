@@ -134,7 +134,7 @@ Includes:
 
 Contact:
 
-help@beck-publishing.com
+info@extinguishertracker.com
 
 ---
 

@@ -114,7 +114,7 @@ extinguisher-tracker-3/
 
 All plans include core inventory and inspection features. Higher tiers unlock barcode scanning, GPS capture, inspection photos, AI assistant, route optimization, advanced analytics, lifecycle compliance tracking, and priority support.
 
-Contact: **help@beck-publishing.com**
+Contact: **info@extinguishertracker.com**
 
 ## Getting Started
 
@@ -306,4 +306,4 @@ The project includes emulator configuration for local development:
 
 ---
 
-Created and maintained by **[Beck-Publishing](https://beck-publishing.com)**
+Created and maintained by **[Beck-Publishing](https://extinguishertracker.com)**

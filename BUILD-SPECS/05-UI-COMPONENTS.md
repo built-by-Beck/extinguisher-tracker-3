@@ -178,7 +178,7 @@ Display plans and encourage signups.
 **Enterprise**
 
 - Contact Sales
-- help@beck-publishing.com
+- info@extinguishertracker.com
 
 ##### Pricing Page Requirements
 

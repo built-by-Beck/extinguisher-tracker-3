@@ -224,7 +224,38 @@ export async function updateExtinguisher(
   });
 }
 /**
+ * Remove all pending inspection records for given extinguisher IDs.
+ * Completed (pass/fail) inspections are preserved for audit history.
+ */
+async function removePendingInspections(orgId: string, extIds: string[]): Promise<void> {
+  // Firestore 'in' queries support max 30 values per clause
+  const chunkSize = 30;
+  for (let i = 0; i < extIds.length; i += chunkSize) {
+    const chunk = extIds.slice(i, i + chunkSize);
+    const q = query(
+      collection(db, 'org', orgId, 'inspections'),
+      where('extinguisherId', 'in', chunk),
+      where('status', '==', 'pending'),
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) continue;
+
+    // Delete in batches of 499
+    const docs = snap.docs;
+    for (let j = 0; j < docs.length; j += 499) {
+      const batch = writeBatch(db);
+      const batchDocs = docs.slice(j, j + 499);
+      for (const d of batchDocs) {
+        batch.delete(d.ref);
+      }
+      await batch.commit();
+    }
+  }
+}
+
+/**
  * Soft-delete an extinguisher.
+ * Also removes any pending inspection records for it.
  */
 export async function softDeleteExtinguisher(
   orgId: string,
@@ -240,10 +271,73 @@ export async function softDeleteExtinguisher(
     deletionReason: reason,
     updatedAt: serverTimestamp(),
   });
+  // Clean up pending inspections so they don't show in workspaces
+  await removePendingInspections(orgId, [extId]);
+}
+
+/**
+ * Clean up orphaned pending inspections for all deleted extinguishers.
+ * Use this to fix existing data where extinguishers were deleted
+ * before the inspection cleanup was added.
+ */
+export async function cleanupOrphanedPendingInspections(orgId: string): Promise<number> {
+  // Get all deleted extinguisher IDs
+  const deletedQuery = query(
+    collection(db, 'org', orgId, 'extinguishers'),
+    where('deletedAt', '!=', null),
+  );
+  const deletedSnap = await getDocs(deletedQuery);
+  if (deletedSnap.empty) return 0;
+
+  const deletedIds = deletedSnap.docs.map((d) => d.id);
+
+  // Find and remove their pending inspections
+  let totalRemoved = 0;
+  const chunkSize = 30;
+  for (let i = 0; i < deletedIds.length; i += chunkSize) {
+    const chunk = deletedIds.slice(i, i + chunkSize);
+    const q = query(
+      collection(db, 'org', orgId, 'inspections'),
+      where('extinguisherId', 'in', chunk),
+      where('status', '==', 'pending'),
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) continue;
+
+    const docs = snap.docs;
+    for (let j = 0; j < docs.length; j += 499) {
+      const batch = writeBatch(db);
+      const batchDocs = docs.slice(j, j + 499);
+      for (const d of batchDocs) {
+        batch.delete(d.ref);
+      }
+      await batch.commit();
+      totalRemoved += batchDocs.length;
+    }
+  }
+  return totalRemoved;
+}
+
+/**
+ * Restore a soft-deleted extinguisher.
+ */
+export async function restoreExtinguisher(
+  orgId: string,
+  extId: string,
+): Promise<void> {
+  const ref = doc(db, 'org', orgId, 'extinguishers', extId);
+  await updateDoc(ref, {
+    lifecycleStatus: 'active',
+    deletedAt: null,
+    deletedBy: null,
+    deletionReason: null,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /**
  * Batch soft-delete multiple extinguishers.
+ * Also removes any pending inspection records for them.
  * Chunks to 499 operations per batch.
  */
 export async function batchSoftDeleteExtinguishers(
@@ -268,6 +362,8 @@ export async function batchSoftDeleteExtinguishers(
     }
     await batch.commit();
   }
+  // Clean up pending inspections so they don't show in workspaces
+  await removePendingInspections(orgId, extIds);
 }
 
 /**

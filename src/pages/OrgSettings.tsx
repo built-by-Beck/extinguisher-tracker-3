@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { cleanupOrphanedPendingInspections } from '../services/extinguisherService.ts';
 import {
   Settings,
   Save,
@@ -40,6 +41,49 @@ const commonTimezones = [
   'Australia/Sydney',
   'UTC',
 ];
+
+function DataMaintenanceSection({ orgId }: { orgId: string }) {
+  const [cleaning, setCleaning] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  async function handleCleanup() {
+    setCleaning(true);
+    setResult(null);
+    try {
+      const removed = await cleanupOrphanedPendingInspections(orgId);
+      setResult(
+        removed > 0
+          ? `Removed ${removed} orphaned pending inspection${removed === 1 ? '' : 's'}.`
+          : 'No orphaned inspections found.',
+      );
+    } catch {
+      setResult('Failed to clean up. Please try again.');
+    } finally {
+      setCleaning(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-2 text-lg font-semibold text-gray-900">Data Maintenance</h2>
+      <p className="mb-4 text-sm text-gray-500">
+        Clean up pending inspections that belong to deleted extinguishers.
+        Completed inspections (pass/fail) are preserved for audit history.
+      </p>
+      <button
+        onClick={handleCleanup}
+        disabled={cleaning}
+        className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+      >
+        {cleaning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+        {cleaning ? 'Cleaning up...' : 'Clean Up Deleted Inspections'}
+      </button>
+      {result && (
+        <p className="mt-2 text-sm text-green-700">{result}</p>
+      )}
+    </div>
+  );
+}
 
 export default function OrgSettings() {
   const navigate = useNavigate();
@@ -465,6 +509,11 @@ export default function OrgSettings() {
             {saving ? 'Saving...' : 'Save Settings'}
           </button>
         </div>
+      )}
+
+      {/* Data Maintenance — owner only */}
+      {isOwner && (
+        <DataMaintenanceSection orgId={orgId} />
       )}
 
       {/* Danger zone - owner only */}
