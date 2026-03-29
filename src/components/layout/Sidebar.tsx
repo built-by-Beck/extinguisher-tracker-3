@@ -26,6 +26,7 @@ import {
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useOffline } from '../../hooks/useOffline.ts';
 import { SyncStatusIndicator } from '../offline/SyncStatusIndicator.tsx';
+import { hasFeature } from '../../lib/planConfig.ts';
 import type { OrgRole } from '../../types/index.ts';
 
 interface NavItem {
@@ -34,6 +35,7 @@ interface NavItem {
   icon: typeof LayoutDashboard;
   end: boolean;
   roles?: OrgRole[];
+  requiredFeature?: string;
 }
 
 const navItems: NavItem[] = [
@@ -42,7 +44,7 @@ const navItems: NavItem[] = [
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
   { to: '/dashboard/data-organizer', label: 'Data Organizer', icon: Wrench, end: false, roles: ['owner', 'admin'] },
   { to: '/dashboard/locations', label: 'Locations', icon: MapPin, end: false },
-  { to: '/dashboard/members', label: 'Members', icon: Users, end: false },
+  { to: '/dashboard/members', label: 'Members', icon: Users, end: false, requiredFeature: 'teamMembers' },
   { to: '/dashboard/notifications', label: 'Notifications', icon: Bell, end: false },
   { to: '/dashboard/sync-queue', label: 'Sync Queue', icon: RefreshCw, end: false },
   { to: '/dashboard/reports', label: 'Reports', icon: FileText, end: false },
@@ -63,11 +65,13 @@ interface SidebarProps {
 }
 
 export function Sidebar({ open, onClose }: SidebarProps) {
-  const { hasRole } = useOrg();
+  const { hasRole, org } = useOrg();
   const { pendingCount } = useOffline();
 
   const visibleNavItems = navItems.filter(
-    (item) => !item.roles || hasRole(item.roles),
+    (item) =>
+      (!item.roles || hasRole(item.roles)) &&
+      (!item.requiredFeature || hasFeature(org?.featureFlags, item.requiredFeature, org?.plan)),
   );
 
   return (

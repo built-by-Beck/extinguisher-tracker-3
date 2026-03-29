@@ -39,6 +39,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     inspectionRoutes: false,
     aiAssistant: false,
     guestAccess: false,
+    teamMembers: false,
   },
   pro: {
     manualBarcodeEntry: true,
@@ -54,6 +55,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     inspectionRoutes: true,
     aiAssistant: true,
     guestAccess: false,
+    teamMembers: false,
   },
   elite: {
     manualBarcodeEntry: true,
@@ -69,6 +71,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     inspectionRoutes: true,
     aiAssistant: true,
     guestAccess: true,
+    teamMembers: true,
   },
   enterprise: {
     manualBarcodeEntry: true,
@@ -84,6 +87,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     inspectionRoutes: true,
     aiAssistant: true,
     guestAccess: true,
+    teamMembers: true,
   },
 };
 
@@ -124,6 +128,7 @@ export const PLANS: PlanInfo[] = [
     assetLimit: ENV_LIMIT_ELITE,
     features: [
       `Up to ${ENV_LIMIT_ELITE} extinguishers`,
+      'Team members & invites',
       'Bulk tag printing',
       'Advanced data cleanup',
       'Priority help',
@@ -137,6 +142,7 @@ export const PLANS: PlanInfo[] = [
     assetLimit: null,
     features: [
       'Unlimited extinguishers',
+      'Team members & invites',
       'Custom setup & support',
       'Data recovery tools',
       'Everything in Elite',
