@@ -56,8 +56,10 @@ function DataMaintenanceSection({ orgId }: { orgId: string }) {
           ? `Removed ${removed} orphaned pending inspection${removed === 1 ? '' : 's'}.`
           : 'No orphaned inspections found.',
       );
-    } catch {
-      setResult('Failed to clean up. Please try again.');
+    } catch (err) {
+      console.error('Cleanup failed:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setResult(`Failed to clean up: ${msg}`);
     } finally {
       setCleaning(false);
     }
