@@ -130,7 +130,7 @@ export const createInvite = onCall<CreateInviteInput, Promise<CreateInviteOutput
     await batch.commit();
 
     // 10. Build and return invite URL
-    const appUrl = process.env.APP_URL || 'https://app.extinguishertracker.com';
+    const appUrl = process.env.APP_URL || 'https://extinguishertracker.com';
     const inviteUrl = `${appUrl}/invite/${rawToken}`;
 
     return {
