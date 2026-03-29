@@ -63,7 +63,12 @@ export const createInvite = onCall<CreateInviteInput, Promise<CreateInviteOutput
     }
     const orgData = orgSnap.data()!;
     const featureFlags = orgData.featureFlags as Record<string, boolean> | undefined;
-    if (!featureFlags?.teamMembers) {
+    const plan = orgData.plan as string | undefined;
+    const hasTeamMembers =
+      featureFlags?.teamMembers === true ||
+      plan === 'elite' ||
+      plan === 'enterprise';
+    if (!hasTeamMembers) {
       throwFailedPrecondition('Team members are only available on Elite and Enterprise plans.');
     }
 
