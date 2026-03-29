@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Mail, Send } from 'lucide-react';
+import { X, Mail, Send, Copy, Check } from 'lucide-react';
 import { callCreateInvite } from '../../services/memberService.ts';
 import type { OrgRole } from '../../types/index.ts';
 
@@ -21,6 +21,7 @@ export function InviteModal({ orgId, onClose, onSuccess }: InviteModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [inviteUrl, setInviteUrl] = useState('');
+  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -102,28 +103,63 @@ export function InviteModal({ orgId, onClose, onSuccess }: InviteModalProps) {
           )}
 
           {inviteUrl && (
-            <div className="mb-4 rounded-md bg-green-50 px-3 py-2">
+            <div className="mb-4 rounded-md bg-green-50 px-4 py-3">
               <p className="text-sm font-medium text-green-800">Invite created!</p>
-              <p className="mt-1 break-all text-xs text-green-700">{inviteUrl}</p>
+              <p className="mt-1 text-xs text-green-700">
+                Copy this link and send it to <span className="font-medium">{email}</span>. The link expires in 7 days.
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={inviteUrl}
+                  className="flex-1 rounded border border-green-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none"
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteUrl);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className="flex shrink-0 items-center gap-1 rounded bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+                >
+                  {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
             </div>
           )}
 
           <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-            >
-              <Send className="h-4 w-4" />
-              {loading ? 'Sending...' : 'Send Invite'}
-            </button>
+            {inviteUrl ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Done
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  <Send className="h-4 w-4" />
+                  {loading ? 'Creating...' : 'Create Invite'}
+                </button>
+              </>
+            )}
           </div>
         </form>
       </div>
