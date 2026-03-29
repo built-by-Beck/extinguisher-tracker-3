@@ -118,7 +118,10 @@ service cloud.firestore {
       match /inspections/{inspId} {
         allow read: if isMember(orgId);
         allow create, update: if hasRole(orgId, ['owner', 'admin', 'inspector']) && hasWritableSubscription(orgId);
-        allow delete: if false;
+        // Allow owners/admins to delete pending inspections (e.g. when extinguisher is deleted)
+        allow delete: if hasRole(orgId, ['owner', 'admin'])
+                      && hasWritableSubscription(orgId)
+                      && resource.data.status == 'pending';
       }
 
       match /inspectionEvents/{eventId} {

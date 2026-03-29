@@ -93,12 +93,21 @@ describe('hasFeature', () => {
     expect(hasFeature(null, 'cameraBarcodeScan', 'pro')).toBe(true);
   });
 
+  // Team members: only elite+
+  it('teamMembers: basic=false, pro=false, elite=true, enterprise=true', () => {
+    expect(hasFeature(null, 'teamMembers', 'basic')).toBe(false);
+    expect(hasFeature(null, 'teamMembers', 'pro')).toBe(false);
+    expect(hasFeature(null, 'teamMembers', 'elite')).toBe(true);
+    expect(hasFeature(null, 'teamMembers', 'enterprise')).toBe(true);
+  });
+
   // Enterprise has everything
   it('enterprise has all features enabled', () => {
     const features = [
       'manualBarcodeEntry', 'cameraBarcodeScan', 'qrScanning', 'gpsCapture',
       'photoUpload', 'complianceReports', 'inspectionReminders', 'sectionTimeTracking',
       'tagPrinting', 'bulkTagPrinting', 'inspectionRoutes', 'aiAssistant', 'guestAccess',
+      'teamMembers',
     ];
     for (const feature of features) {
       expect(hasFeature(null, feature, 'enterprise')).toBe(true);

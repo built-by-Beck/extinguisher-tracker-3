@@ -281,10 +281,10 @@ export async function softDeleteExtinguisher(
  * before the inspection cleanup was added.
  */
 export async function cleanupOrphanedPendingInspections(orgId: string): Promise<number> {
-  // Get all deleted extinguisher IDs
+  // Get all deleted extinguisher IDs using lifecycleStatus (avoids != query)
   const deletedQuery = query(
     collection(db, 'org', orgId, 'extinguishers'),
-    where('deletedAt', '!=', null),
+    where('lifecycleStatus', '==', 'deleted'),
   );
   const deletedSnap = await getDocs(deletedQuery);
   if (deletedSnap.empty) return 0;
@@ -292,6 +292,7 @@ export async function cleanupOrphanedPendingInspections(orgId: string): Promise<
   const deletedIds = deletedSnap.docs.map((d) => d.id);
 
   // Find and remove their pending inspections
+  // Firestore 'in' supports max 30 values per query
   let totalRemoved = 0;
   const chunkSize = 30;
   for (let i = 0; i < deletedIds.length; i += chunkSize) {
@@ -306,12 +307,12 @@ export async function cleanupOrphanedPendingInspections(orgId: string): Promise<
 
     const docs = snap.docs;
     for (let j = 0; j < docs.length; j += 499) {
-      const batch = writeBatch(db);
+      const b = writeBatch(db);
       const batchDocs = docs.slice(j, j + 499);
       for (const d of batchDocs) {
-        batch.delete(d.ref);
+        b.delete(d.ref);
       }
-      await batch.commit();
+      await b.commit();
       totalRemoved += batchDocs.length;
     }
   }
