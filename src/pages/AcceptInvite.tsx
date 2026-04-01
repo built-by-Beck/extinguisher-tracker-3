@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { CheckCircle, XCircle, Loader2, Flame, LogIn, UserPlus } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { callAcceptInvite } from '../services/memberService.ts';
 
@@ -51,9 +51,9 @@ export default function AcceptInvite() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md rounded-lg bg-white p-8 shadow">
         {/* Brand */}
-        <div className="mb-6 flex items-center justify-center gap-2">
-          <Flame className="h-7 w-7 text-red-600" />
-          <span className="text-xl font-bold text-gray-900">Extinguisher Tracker 3</span>
+        <div className="mb-6 flex flex-col items-center gap-2">
+          <img src="/logo.png" alt="Extinguisher Tracker" className="h-14 w-14 rounded-xl object-contain shadow" />
+          <span className="text-xl font-bold text-gray-900">Extinguisher Tracker</span>
         </div>
 
         {/* Loading auth */}

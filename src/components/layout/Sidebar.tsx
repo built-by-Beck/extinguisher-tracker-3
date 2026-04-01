@@ -12,7 +12,6 @@ import {
   Users,
   Settings,
   X,
-  Flame,
   Package,
   MapPin,
   ClipboardList,
@@ -90,10 +89,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         `}
       >
         {/* Brand header */}
-        <div className="flex h-16 items-center justify-between border-b border-gray-200 px-4">
-          <div className="flex items-center gap-2">
-            <Flame className="h-6 w-6 text-red-600" />
-            <span className="text-lg font-bold text-gray-900">Extinguisher Tracker 3</span>
+        <div className="flex h-16 items-center justify-between border-b border-gray-200 px-3">
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="Extinguisher Tracker" className="h-9 w-9 rounded-lg object-contain" />
+            <span className="text-base font-bold leading-tight text-gray-900">Extinguisher<br /><span className="text-red-600">Tracker</span></span>
           </div>
           <button
             onClick={onClose}

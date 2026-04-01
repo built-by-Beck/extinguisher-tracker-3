@@ -53,7 +53,7 @@ const ENTITY_TYPE_BADGE: Record<string, string> = {
   member: 'bg-blue-100 text-blue-700',
   extinguisher: 'bg-orange-100 text-orange-700',
   workspace: 'bg-green-100 text-green-700',
-  billing: 'bg-purple-100 text-purple-700',
+  billing: 'bg-blue-100 text-blue-700',
   data: 'bg-gray-100 text-gray-600',
   tag: 'bg-yellow-100 text-yellow-700',
   report: 'bg-teal-100 text-teal-700',
