@@ -46,6 +46,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       inspectionRoutes: false,
       aiAssistant: false,
       guestAccess: false,
+      teamMembers: false,
     },
   },
   pro: {
@@ -68,6 +69,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       inspectionRoutes: true,
       aiAssistant: true,
       guestAccess: false,
+      teamMembers: false,
     },
   },
   elite: {
@@ -90,6 +92,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       inspectionRoutes: true,
       aiAssistant: true,
       guestAccess: true,
+      teamMembers: true,
     },
   },
   enterprise: {
@@ -112,6 +115,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       inspectionRoutes: true,
       aiAssistant: true,
       guestAccess: true,
+      teamMembers: true,
     },
   },
 };

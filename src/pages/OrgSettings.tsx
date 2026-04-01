@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { cleanupOrphanedPendingInspections } from '../services/extinguisherService.ts';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../lib/firebase.ts';
 import {
   Settings,
   Save,
@@ -50,14 +51,21 @@ function DataMaintenanceSection({ orgId }: { orgId: string }) {
     setCleaning(true);
     setResult(null);
     try {
-      const removed = await cleanupOrphanedPendingInspections(orgId);
+      const fn = httpsCallable<{ orgId: string }, { removed: number }>(
+        functions,
+        'cleanupPendingInspections',
+      );
+      const res = await fn({ orgId });
+      const removed = res.data.removed;
       setResult(
         removed > 0
           ? `Removed ${removed} orphaned pending inspection${removed === 1 ? '' : 's'}.`
           : 'No orphaned inspections found.',
       );
-    } catch {
-      setResult('Failed to clean up. Please try again.');
+    } catch (err) {
+      console.error('Cleanup failed:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setResult(`Failed to clean up: ${msg}`);
     } finally {
       setCleaning(false);
     }

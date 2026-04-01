@@ -5,6 +5,7 @@ import type { GuestAccessConfig } from './guest.ts';
  * Cached feature flags derived from the organization's plan.
  */
 export interface OrgFeatureFlags {
+  [key: string]: boolean;
   manualBarcodeEntry: boolean;
   cameraBarcodeScan: boolean;
   qrScanning: boolean;
@@ -20,6 +21,8 @@ export interface OrgFeatureFlags {
   aiAssistant: boolean;
   /** Elite/Enterprise: Allow anonymous read-only guest access via share link or code */
   guestAccess: boolean;
+  /** Elite/Enterprise: Invite and manage team members */
+  teamMembers: boolean;
 }
 
 /**

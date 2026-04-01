@@ -95,7 +95,7 @@ export function PlanSelector() {
                   ? 'Best for small businesses replacing paper logs with easier inspections, reminders, and compliance reports.'
                   : plan.name === 'pro'
                     ? 'Adds camera barcode scanning, GPS capture, inspection photos, and the AI assistant.'
-                    : 'Everything in Pro, plus higher scale, advanced reporting, and priority support.'}
+                    : 'Everything in Pro, plus team members & invites, higher scale, and priority support.'}
               </p>
 
               <ul className="mt-4 space-y-2">

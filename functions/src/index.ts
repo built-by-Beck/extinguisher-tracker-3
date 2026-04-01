@@ -24,9 +24,10 @@ export { stripeWebhook } from './billing/stripeWebhook.js';
 // Asset tagging
 export { generateQRCode } from './tags/generateQRCode.js';
 
-// Data import/export
+// Data import/export/maintenance
 export { importExtinguishersCSV } from './data/importCSV.js';
 export { exportExtinguishersCSV } from './data/exportCSV.js';
+export { cleanupPendingInspections } from './data/cleanupPendingInspections.js';
 
 // Workspaces
 export { createWorkspace } from './workspaces/createWorkspace.js';

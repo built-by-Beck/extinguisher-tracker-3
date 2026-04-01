@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
-import { UserPlus, Users } from 'lucide-react';
+import { UserPlus, Users, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/firebase.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
+import { hasFeature } from '../lib/planConfig.ts';
 import { InviteModal } from '../components/members/InviteModal.tsx';
 import { MemberRow } from '../components/members/MemberRow.tsx';
 import type { OrgMember } from '../types/index.ts';
@@ -16,12 +18,37 @@ interface MemberEntry {
 export default function Members() {
   const { user, userProfile } = useAuth();
   const { org, hasRole } = useOrg();
+  const navigate = useNavigate();
   const [members, setMembers] = useState<MemberEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
 
   const canManage = hasRole(['owner', 'admin']);
   const orgId = userProfile?.activeOrgId ?? '';
+  const canAccessMembers = hasFeature(org?.featureFlags, 'teamMembers', org?.plan);
+
+  if (!canAccessMembers) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="max-w-md text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+            <Lock className="h-8 w-8 text-gray-400" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900">Team Members</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Invite and manage team members with Elite and Enterprise plans.
+            Upgrade to add inspectors, admins, and viewers to your organization.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard/settings')}
+            className="mt-6 rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-red-700"
+          >
+            View Plans & Upgrade
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Real-time listener for members
   useEffect(() => {

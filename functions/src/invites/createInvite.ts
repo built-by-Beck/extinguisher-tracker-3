@@ -56,7 +56,23 @@ export const createInvite = onCall<CreateInviteInput, Promise<CreateInviteOutput
     // 3. Validate caller has owner or admin role in the org
     await validateMembership(orgId, uid, ['owner', 'admin']);
 
-    // 4. Check for duplicate pending invites (same org + email)
+    // 4. Verify org plan supports team members (Elite/Enterprise only)
+    const orgSnap = await adminDb.doc(`org/${orgId}`).get();
+    if (!orgSnap.exists) {
+      throwInvalidArgument('Organization not found.');
+    }
+    const orgData = orgSnap.data()!;
+    const featureFlags = orgData.featureFlags as Record<string, boolean> | undefined;
+    const plan = orgData.plan as string | undefined;
+    const hasTeamMembers =
+      featureFlags?.teamMembers === true ||
+      plan === 'elite' ||
+      plan === 'enterprise';
+    if (!hasTeamMembers) {
+      throwFailedPrecondition('Team members are only available on Elite and Enterprise plans.');
+    }
+
+    // 5. Check for duplicate pending invites (same org + email)
     const duplicateQuery = await adminDb
       .collection('invite')
       .where('orgId', '==', orgId)
@@ -69,19 +85,14 @@ export const createInvite = onCall<CreateInviteInput, Promise<CreateInviteOutput
       throwFailedPrecondition('A pending invite already exists for this email in this organization.');
     }
 
-    // 5. Get org name for the invite record
-    const orgSnap = await adminDb.doc(`org/${orgId}`).get();
-    if (!orgSnap.exists) {
-      throwInvalidArgument('Organization not found.');
-    }
-    const orgData = orgSnap.data();
+    // 6. Get org name for the invite record (already fetched in step 4)
     const orgName = orgData?.name as string || 'Unknown Organization';
 
-    // 6. Generate secure token and hash it
+    // 7. Generate secure token and hash it
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = hashToken(rawToken);
 
-    // 7. Create invite document
+    // 8. Create invite document
     const now = FieldValue.serverTimestamp();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + INVITE_EXPIRY_DAYS);
@@ -106,7 +117,7 @@ export const createInvite = onCall<CreateInviteInput, Promise<CreateInviteOutput
       revokedAt: null,
     });
 
-    // 8. Write audit log
+    // 9. Write audit log
     const auditLogRef = adminDb.doc(`org/${orgId}`).collection('auditLogs').doc();
     batch.set(auditLogRef, {
       action: 'member.invited',
@@ -123,8 +134,8 @@ export const createInvite = onCall<CreateInviteInput, Promise<CreateInviteOutput
 
     await batch.commit();
 
-    // 9. Build and return invite URL
-    const appUrl = process.env.APP_URL || 'https://app.extinguishertracker.com';
+    // 10. Build and return invite URL
+    const appUrl = process.env.APP_URL || 'https://extinguishertracker.com';
     const inviteUrl = `${appUrl}/invite/${rawToken}`;
 
     return {
