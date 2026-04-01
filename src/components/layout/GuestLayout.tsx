@@ -42,11 +42,9 @@ export function GuestLayout() {
       <aside className="flex h-full w-56 shrink-0 flex-col border-r border-gray-200 bg-white">
         {/* Logo / brand */}
         <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500">
-            <Eye className="h-4 w-4 text-white" />
-          </div>
+          <img src="/logo.png" alt="Extinguisher Tracker" className="h-8 w-8 rounded-lg object-contain" />
           <div>
-            <p className="text-xs font-bold text-gray-900">Extinguisher Tracker 3</p>
+            <p className="text-xs font-bold text-gray-900">Extinguisher Tracker</p>
             <p className="text-xs text-amber-600 font-medium">Guest Access</p>
           </div>
         </div>
@@ -104,6 +102,13 @@ export function GuestLayout() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
+          <div className="bg-gray-900">
+            <img
+              src="/extinguisherTracker2.png"
+              alt="Extinguisher Tracker"
+              className="mx-auto block w-[96%] object-contain py-1"
+            />
+          </div>
           <Outlet />
         </main>
       </div>

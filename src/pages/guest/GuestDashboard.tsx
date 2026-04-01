@@ -128,7 +128,7 @@ export default function GuestDashboard() {
           label="Workspaces"
           value={workspaceCount}
           icon={FolderOpen}
-          color="bg-purple-500"
+          color="bg-blue-500"
         />
         <StatCard
           label="Compliant Assets"

@@ -45,9 +45,9 @@ export function PlanSelector() {
       )}
 
       {/* AI feature showcase */}
-      <div className="mb-6 rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-red-50 p-5">
+      <div className="mb-6 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-red-50 p-5">
         <div className="mb-3 flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-purple-600" />
+          <Sparkles className="h-5 w-5 text-blue-500" />
           <h3 className="text-sm font-bold text-gray-900">
             AI Compliance Assistant - included with Pro, Elite, and Enterprise
           </h3>
@@ -64,7 +64,7 @@ export function PlanSelector() {
             '"What does NFPA 10 require monthly?"',
           ].map((q) => (
             <div key={q} className="flex items-center gap-2 rounded-md bg-white/70 px-3 py-1.5 text-xs text-gray-700">
-              <Sparkles className="h-3 w-3 shrink-0 text-purple-500" />
+              <Sparkles className="h-3 w-3 shrink-0 text-blue-500" />
               {q}
             </div>
           ))}
@@ -107,12 +107,12 @@ export function PlanSelector() {
                       {isExcluded ? (
                         <XIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-300" />
                       ) : (
-                        <Check className={`mt-0.5 h-4 w-4 shrink-0 ${isAiFeature ? 'text-purple-500' : 'text-green-500'}`} />
+                        <Check className={`mt-0.5 h-4 w-4 shrink-0 ${isAiFeature ? 'text-blue-500' : 'text-green-500'}`} />
                       )}
-                      <span className={isAiFeature && !isExcluded ? 'font-medium text-purple-700' : ''}>
+                      <span className={isAiFeature && !isExcluded ? 'font-medium text-blue-700' : ''}>
                         {feature}
                         {isAiFeature && !isExcluded && (
-                          <Sparkles className="ml-1 inline h-3 w-3 text-purple-500" />
+                          <Sparkles className="ml-1 inline h-3 w-3 text-blue-500" />
                         )}
                       </span>
                     </li>

@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Flame, Loader2 } from 'lucide-react';
+import { Eye, Loader2 } from 'lucide-react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from '../../lib/firebase.ts';
 import { activateGuestSessionCall } from '../../services/guestService.ts';
@@ -64,10 +64,8 @@ export default function GuestCodeEntry() {
       <div className="w-full max-w-md">
         {/* Brand header */}
         <div className="mb-8 text-center">
-          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-red-600">
-            <Flame className="h-8 w-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Extinguisher Tracker 3</h1>
+          <img src="/logo.png" alt="Extinguisher Tracker" className="mx-auto mb-4 h-20 w-20 rounded-2xl object-contain shadow-lg" />
+          <h1 className="text-2xl font-bold text-gray-900">Extinguisher Tracker</h1>
           <p className="text-sm text-gray-500">Created by Beck-Publishing</p>
         </div>
 

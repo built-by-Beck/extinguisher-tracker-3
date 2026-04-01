@@ -119,7 +119,8 @@ export default function CreateOrg() {
       <div className="w-full max-w-md">
         {/* Branding */}
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-red-600">Extinguisher Tracker 3</h1>
+          <img src="/logo.png" alt="Extinguisher Tracker" className="mx-auto h-20 w-20 rounded-2xl object-contain shadow-lg" />
+          <h1 className="mt-4 text-2xl font-bold text-gray-900">Extinguisher Tracker</h1>
           <p className="mt-1 text-sm text-gray-500">Created by Beck-Publishing</p>
         </div>
 

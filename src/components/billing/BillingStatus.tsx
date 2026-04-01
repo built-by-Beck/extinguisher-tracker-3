@@ -12,6 +12,16 @@ const statusConfig: Record<string, { icon: typeof ShieldCheck; color: string; bg
 export function BillingStatus() {
   const { org } = useOrg();
 
+  // Enterprise plans have no Stripe subscription — show a dedicated badge
+  if (org?.plan === 'enterprise') {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border bg-blue-50 border-blue-200 px-2.5 py-0.5 text-xs font-medium text-blue-600">
+        <ShieldCheck className="h-3 w-3" />
+        Enterprise
+      </span>
+    );
+  }
+
   if (!org?.subscriptionStatus) return null;
 
   const config = statusConfig[org.subscriptionStatus] ?? statusConfig.canceled;

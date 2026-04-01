@@ -201,7 +201,7 @@ export function ScanSearchBar({
               </p>
               <ul className="mt-3 space-y-2 text-sm text-gray-700">
                 <li className="flex gap-2">
-                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-purple-600" aria-hidden />
+                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" aria-hidden />
                   <span>AI assistant for compliance questions and inventory insights</span>
                 </li>
                 <li className="flex gap-2">

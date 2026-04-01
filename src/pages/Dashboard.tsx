@@ -77,7 +77,7 @@ export default function Dashboard() {
   const orgId = userProfile?.activeOrgId ?? '';
   const isAdminOrOwner = hasRole(['owner', 'admin']);
   const hasPlan = !!org?.plan;
-  const subActive = org?.subscriptionStatus === 'active' || org?.subscriptionStatus === 'trialing';
+  const subActive = org?.subscriptionStatus === 'active' || org?.subscriptionStatus === 'trialing' || org?.plan === 'enterprise';
   const hasAiAccess = org?.featureFlags ? hasFeature(
     org.featureFlags as unknown as Record<string, boolean>,
     'aiAssistant',
@@ -166,8 +166,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Subscription banner */}
-      {!hasPlan && !orgLoading && (
+      {/* Subscription banner — only show when org is confirmed loaded with no plan */}
+      {org && !hasPlan && !orgLoading && (
         <div className="mb-6 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
           <div className="flex-1">
@@ -283,7 +283,7 @@ export default function Dashboard() {
           label="Active Members"
           value={memberCount.toString()}
           icon={Users}
-          color="bg-purple-500"
+          color="bg-blue-500"
           onClick={() => navigate('/dashboard/members')}
         />
       </div>

@@ -35,11 +35,11 @@ export function AiUpgradeCard() {
   const navigate = useNavigate();
 
   return (
-    <div className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-red-50 p-6 shadow-sm">
+    <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-red-50 p-6 shadow-sm">
       {/* Header */}
       <div className="mb-5 flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600 to-red-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-red-600">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -47,7 +47,7 @@ export function AiUpgradeCard() {
             <p className="text-sm text-gray-500">Built for faster inspections, fewer paper logs, and easier compliance</p>
           </div>
         </div>
-        <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
           Pro, Elite, Enterprise
         </span>
       </div>
@@ -66,8 +66,8 @@ export function AiUpgradeCard() {
             className="rounded-lg border border-gray-200 bg-white p-3.5 transition-shadow hover:shadow-md"
           >
             <div className="mb-2 flex items-center gap-2">
-              <Icon className="h-4 w-4 text-purple-600" />
-              <p className="text-xs font-semibold text-purple-700">Try asking</p>
+              <Icon className="h-4 w-4 text-blue-500" />
+              <p className="text-xs font-semibold text-blue-700">Try asking</p>
             </div>
             <p className="mb-1 text-sm font-medium text-gray-900">{question}</p>
             <p className="text-xs text-gray-500">{description}</p>
@@ -83,19 +83,19 @@ export function AiUpgradeCard() {
         </h3>
         <ul className="space-y-1.5 text-sm text-gray-600">
           <li className="flex items-start gap-2">
-            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" />
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
             Instant NFPA 10 compliance answers — no more Googling regulations
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" />
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
             Real-time inventory analysis that flags issues before inspectors arrive
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" />
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
             Maintenance schedule guidance for monthly, annual, 6-year, and hydrostatic testing
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" />
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
             Smart recommendations prioritized by urgency and risk
           </li>
         </ul>
@@ -109,7 +109,7 @@ export function AiUpgradeCard() {
       {/* CTA */}
       <button
         onClick={() => navigate('/dashboard/settings')}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-red-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg hover:from-purple-700 hover:to-red-700"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-red-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg hover:from-blue-700 hover:to-red-700"
       >
         Upgrade to Pro to Unlock AI
         <ArrowRight className="h-4 w-4" />

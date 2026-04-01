@@ -1,10 +1,20 @@
 import { useState, type ReactNode } from 'react';
-import { Link, NavLink } from 'react-router-dom';
-import { Flame, Menu, X } from 'lucide-react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
 import { PublicAdSlot } from '../ads/PublicAdSlot.tsx';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `text-sm font-medium ${isActive ? 'text-red-600' : 'text-gray-700 hover:text-red-600'}`;
+  `text-base font-semibold ${isActive ? 'text-red-600' : 'text-gray-700 hover:text-red-600'}`;
+
+const MARKETING_PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
+  '/': { title: 'Fire Extinguisher Tracking Made Simple', subtitle: 'Inspections. Records. Compliance. Organized.' },
+  '/features': { title: 'Features', subtitle: 'Everything your team needs to stay compliant' },
+  '/pricing': { title: 'Pricing', subtitle: 'Plans that scale with your program' },
+  '/how-it-works': { title: 'How It Works', subtitle: 'From signup to compliant in minutes' },
+  '/about': { title: 'About', subtitle: 'Built by safety-minded people for safety-focused teams' },
+  '/terms': { title: 'Terms of Service', subtitle: 'Usage terms and legal guidelines' },
+  '/privacy': { title: 'Privacy Policy', subtitle: 'How we collect, use, and protect your data' },
+};
 
 type PublicMarketingLayoutProps = {
   children: ReactNode;
@@ -12,17 +22,19 @@ type PublicMarketingLayoutProps = {
 
 export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+  const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? { title: 'Extinguisher Tracker', subtitle: '' };
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <Link to="/" className="flex items-center gap-2 text-red-600" onClick={() => setMobileOpen(false)}>
-            <Flame className="h-8 w-8 shrink-0" aria-hidden />
-            <span className="text-lg font-bold tracking-tight">Extinguisher Tracker</span>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-6 sm:px-6">
+          <Link to="/" className="flex items-center gap-3.5" onClick={() => setMobileOpen(false)}>
+            <img src="/logo.png" alt="Extinguisher Tracker" className="h-24 w-24 rounded-xl object-contain sm:h-28 sm:w-28" />
+            <span className="text-3xl font-bold tracking-tight text-gray-900">Extinguisher <span className="text-red-600">Tracker</span></span>
           </Link>
 
-          <nav className="hidden items-center gap-6 md:flex" aria-label="Primary">
+          <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
             <NavLink to="/" end className={navLinkClass}>
               Home
             </NavLink>
@@ -37,13 +49,13 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
             </NavLink>
             <Link
               to="/login"
-              className="text-sm font-medium text-gray-700 hover:text-red-600"
+              className="text-base font-semibold text-gray-700 hover:text-red-600"
             >
               Sign in
             </Link>
             <Link
               to="/signup"
-              className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              className="rounded-lg bg-red-600 px-5 py-2.5 text-base font-semibold text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
             >
               Get started
             </Link>
@@ -98,6 +110,27 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
         ) : null}
       </header>
 
+      {/* Hero banner with page title overlay */}
+      <div className="relative bg-gray-900">
+        <img
+          src="/extinguisherTracker2.png"
+          alt="Extinguisher Tracker — Fire Extinguisher Tracking Made Simple"
+          className="mx-auto block w-[96%] object-contain py-1"
+        />
+        <div className="absolute inset-0 flex items-end justify-center pb-4 sm:pb-6">
+          <div className="text-center">
+            <h2 className="text-2xl font-extrabold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] sm:text-3xl md:text-4xl">
+              {pageInfo.title}
+            </h2>
+            {pageInfo.subtitle && (
+              <p className="mt-1 text-sm font-medium text-gray-200 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] sm:text-base">
+                {pageInfo.subtitle}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Top ad banner — below header */}
       <PublicAdSlot format="banner" className="border-b border-gray-200 bg-white px-4 py-2" />
 
@@ -110,7 +143,10 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
           <div className="flex flex-col gap-8 sm:flex-row sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-red-600">Extinguisher Tracker</p>
+              <div className="flex items-center gap-2">
+                <img src="/logo.png" alt="Extinguisher Tracker" className="h-8 w-8 rounded-lg object-contain" />
+                <p className="text-sm font-semibold text-red-600">Extinguisher Tracker</p>
+              </div>
               <p className="mt-2 max-w-sm text-sm text-gray-600">
                 Inspection and compliance workflow software for teams responsible for fire extinguisher programs.
               </p>
