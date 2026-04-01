@@ -64,8 +64,8 @@ export default function GuestCodeEntry() {
       <div className="w-full max-w-md">
         {/* Brand header */}
         <div className="mb-8 text-center">
-          <img src="/logo.png" alt="Extinguisher Tracker" className="mx-auto mb-4 h-20 w-20 rounded-2xl object-contain shadow-lg" />
-          <h1 className="text-2xl font-bold text-gray-900">Extinguisher Tracker</h1>
+          <img src="/logo.png" alt="Extinguisher Tracker" className="mx-auto mb-4 h-44 w-44 rounded-3xl object-contain drop-shadow-xl sm:h-52 sm:w-52" />
+          <h1 className="text-3xl font-bold text-gray-900">Extinguisher Tracker</h1>
           <p className="text-sm text-gray-500">Created by Beck-Publishing</p>
         </div>
 

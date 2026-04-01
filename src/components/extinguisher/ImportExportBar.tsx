@@ -5,8 +5,9 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { httpsCallable } from 'firebase/functions';
-import { Upload, Download, Loader2, FileJson, X, FileSpreadsheet } from 'lucide-react';
+import { Upload, Download, Loader2, FileJson, X, FileSpreadsheet, HelpCircle } from 'lucide-react';
 import { read, utils } from 'xlsx';
 import { functions } from '../../lib/firebase.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
@@ -335,7 +336,16 @@ export function ImportExportBar({ onImportJSON }: ImportExportBarProps) {
       <div className="flex flex-col gap-3 sm:flex-row">
         {/* Import section */}
         <div className="flex-1 rounded-lg border border-gray-200 bg-white p-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Import</p>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Import</p>
+            <Link
+              to="/dashboard/import-guide"
+              className="flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-500"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              Import Guide &amp; Template
+            </Link>
+          </div>
 
           {/* Drag and drop zone */}
           <div
