@@ -75,8 +75,8 @@ export default function Signup() {
       <div className="w-full max-w-md">
         {/* Branding */}
         <div className="mb-8 text-center">
-          <img src="/logo.png" alt="Extinguisher Tracker" className="mx-auto h-20 w-20 rounded-2xl object-contain shadow-lg" />
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">Extinguisher Tracker</h1>
+          <img src="/logo.png" alt="Extinguisher Tracker" className="mx-auto h-44 w-44 rounded-3xl object-contain drop-shadow-xl sm:h-52 sm:w-52" />
+          <h1 className="mt-5 text-3xl font-bold text-gray-900">Extinguisher Tracker</h1>
           <p className="mt-1 text-sm text-gray-500">Created by Beck-Publishing</p>
         </div>
 

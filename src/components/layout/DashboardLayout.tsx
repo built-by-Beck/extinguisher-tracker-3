@@ -21,6 +21,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/settings': 'Organization Settings',
   '/dashboard/data-organizer': 'Data Organizer',
   '/dashboard/calculator': 'Fire Extinguisher Calculator',
+  '/dashboard/import-guide': 'Import Guide',
 };
 
 function getPageTitle(pathname: string): string {

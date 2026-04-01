@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, AlertTriangle, Save, CheckSquare, Wrench } from 'lucide-react';
+import { Loader2, AlertTriangle, Save, CheckSquare, Wrench, Download, FileSpreadsheet, HelpCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import {
@@ -228,8 +228,40 @@ export default function DataOrganizer() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Data Organizer</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Fix missing data from imports. Currently {incomplete.length} extinguishers need attention.
+            Fix missing data from imports. Currently {incomplete.length} extinguisher{incomplete.length !== 1 ? 's' : ''} need attention.
           </p>
+        </div>
+      </div>
+
+      {/* Import help banner */}
+      <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <FileSpreadsheet className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Importing extinguishers?</p>
+              <p className="mt-0.5 text-sm text-gray-600">
+                Use our template to get your columns right before you import. After import, come back here to fill in any missing fields.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <a
+              href="/extinguisher-import-template.csv"
+              download="extinguisher-import-template.csv"
+              className="flex items-center gap-1.5 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Template
+            </a>
+            <Link
+              to="/dashboard/import-guide"
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              Import Guide
+            </Link>
+          </div>
         </div>
       </div>
 
