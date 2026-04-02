@@ -1,6 +1,6 @@
 /**
  * ImportGuide — step-by-step instructions for importing extinguishers via CSV.
- * Includes a downloadable template and column reference table.
+ * Includes downloadable templates (basic + full) and column reference.
  *
  * Author: built_by_Beck
  */
@@ -15,21 +15,24 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
-const COLUMNS = [
-  { name: 'assetId', required: true, description: 'Unique ID for the extinguisher (e.g., EX-001, TAG-100). Must be unique — duplicates will be skipped.', example: 'EX-001' },
-  { name: 'serial', required: false, description: 'Manufacturer serial number printed on the label or nameplate.', example: 'SN-12345' },
-  { name: 'barcode', required: false, description: 'UPC, EAN, or any barcode value associated with the unit.', example: '012345678901' },
-  { name: 'manufacturer', required: false, description: 'Brand or manufacturer name (Kidde, Amerex, Badger, etc.).', example: 'Kidde' },
-  { name: 'extinguisherType', required: false, description: 'Type of extinguishing agent — ABC Dry Chemical, CO2, Water, Foam, Clean Agent, etc.', example: 'ABC Dry Chemical' },
-  { name: 'serviceClass', required: false, description: 'Fire rating/class from the label (e.g., 2-A:10-B:C, 4-A:60-B:C).', example: '2-A:10-B:C' },
-  { name: 'extinguisherSize', required: false, description: 'Weight or capacity of the unit (e.g., 5 lbs, 10 lbs, 2.5 gal).', example: '10 lbs' },
-  { name: 'category', required: false, description: 'Asset status. If left blank, defaults to "standard". Options: standard, spare, replaced, retired, out_of_service.', example: 'standard' },
-  { name: 'section', required: false, description: 'Zone, wing, floor, or department where the extinguisher is located.', example: 'Floor 1' },
-  { name: 'vicinity', required: false, description: 'Specific placement details — where exactly is it? (e.g., "Next to elevator", "Above fire blanket").', example: 'Next to elevator' },
-  { name: 'parentLocation', required: false, description: 'Building, facility, or site name. Groups extinguishers by location.', example: 'Building A' },
-  { name: 'locationId', required: false, description: 'Room number or location ID if your facility uses them.', example: 'RM-101' },
-  { name: 'manufactureYear', required: false, description: 'Four-digit year the extinguisher was manufactured. Used for lifecycle calculations.', example: '2021' },
-  { name: 'expirationYear', required: false, description: 'Four-digit year the extinguisher expires or reaches end of life.', example: '2033' },
+const REQUIRED_COLUMNS = [
+  { name: 'assetId', description: 'The unique ID or tag number for the extinguisher. Every row must have one — duplicates are skipped.', example: 'EX-001' },
+  { name: 'serial', description: 'The serial number printed on the extinguisher label or nameplate.', example: 'SN-12345' },
+  { name: 'parentLocation', description: 'The building, facility, or site the extinguisher is in. Think of this as the top-level location.', example: 'Building A' },
+  { name: 'vicinity', description: 'Where exactly is it? Describe the spot so someone can walk right to it.', example: 'By the exit door on 2nd floor' },
+];
+
+const OPTIONAL_COLUMNS = [
+  { name: 'section', description: 'Floor, wing, or zone — useful for large buildings with many extinguishers.', example: '2nd Floor' },
+  { name: 'barcode', description: 'UPC or barcode value if you have one.', example: '012345678901' },
+  { name: 'manufacturer', description: 'Brand name (Kidde, Amerex, Badger, etc.).', example: 'Kidde' },
+  { name: 'extinguisherType', description: 'Type of agent — ABC Dry Chemical, CO2, Water, Foam, etc.', example: 'ABC Dry Chemical' },
+  { name: 'serviceClass', description: 'Fire rating from the label.', example: '2-A:10-B:C' },
+  { name: 'extinguisherSize', description: 'Weight or capacity.', example: '10 lbs' },
+  { name: 'category', description: 'Defaults to "standard" if blank. Options: standard, spare, replaced, retired, out_of_service.', example: 'standard' },
+  { name: 'locationId', description: 'Room number or location ID if your facility uses them.', example: 'RM-101' },
+  { name: 'manufactureYear', description: 'Four-digit year manufactured.', example: '2021' },
+  { name: 'expirationYear', description: 'Four-digit year it expires.', example: '2033' },
 ];
 
 export default function ImportGuide() {
@@ -51,30 +54,75 @@ export default function ImportGuide() {
           <h1 className="text-2xl font-bold text-gray-900">How to Import Extinguishers</h1>
         </div>
         <p className="mt-2 text-gray-600">
-          Follow these steps to bulk-import your extinguisher inventory from a spreadsheet.
-          This works with CSV files, Excel files (.xlsx/.xls), and tab-delimited text files.
+          Import your extinguisher inventory from a spreadsheet in 4 easy steps.
+          You only need <strong>4 columns</strong> to get started.
         </p>
       </div>
 
-      {/* Download template */}
+      {/* What you need */}
+      <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-bold text-gray-900">What you need for each extinguisher</h2>
+        <p className="mt-2 text-sm text-gray-600">
+          Each row in your spreadsheet is one extinguisher. You only need these 4 things:
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+            <p className="font-semibold text-gray-900">assetId</p>
+            <p className="mt-1 text-sm text-gray-600">The unique tag or ID number</p>
+            <p className="mt-1 font-mono text-xs text-gray-400">e.g. EX-001</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+            <p className="font-semibold text-gray-900">serial</p>
+            <p className="mt-1 text-sm text-gray-600">Serial number from the label</p>
+            <p className="mt-1 font-mono text-xs text-gray-400">e.g. SN-12345</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+            <p className="font-semibold text-gray-900">parentLocation</p>
+            <p className="mt-1 text-sm text-gray-600">The building or facility name</p>
+            <p className="mt-1 font-mono text-xs text-gray-400">e.g. Building A, Main Hospital</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+            <p className="font-semibold text-gray-900">vicinity</p>
+            <p className="mt-1 text-sm text-gray-600">Exactly where it is — enough detail to find it</p>
+            <p className="mt-1 font-mono text-xs text-gray-400">e.g. By the exit door on 2nd floor</p>
+          </div>
+        </div>
+        <p className="mt-4 text-sm text-gray-500">
+          That&apos;s it. Everything else is optional — you can fill in more details later from within the app.
+        </p>
+      </div>
+
+      {/* Step 1: Download */}
       <div className="mb-8 rounded-xl border-2 border-dashed border-red-200 bg-red-50 p-6">
         <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
           <Download className="h-5 w-5 text-red-600" />
           Step 1: Download the Template
         </h2>
         <p className="mt-2 text-sm text-gray-600">
-          Start with our pre-formatted template. It has all the correct column headers and
-          5 example rows so you can see exactly how to fill it in. Delete the example rows
-          and replace them with your own data.
+          Download our template, delete the example rows, and fill in your own data.
         </p>
-        <a
-          href="/extinguisher-import-template.csv"
-          download="extinguisher-import-template.csv"
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-red-700"
-        >
-          <Download className="h-4 w-4" />
-          Download CSV Template
-        </a>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <a
+            href="/extinguisher-import-template.csv"
+            download="extinguisher-import-template.csv"
+            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-red-700"
+          >
+            <Download className="h-4 w-4" />
+            Basic Template (4 columns)
+          </a>
+          <a
+            href="/extinguisher-import-template-full.csv"
+            download="extinguisher-import-template-full.csv"
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+          >
+            <Download className="h-4 w-4" />
+            Full Template (all columns)
+          </a>
+        </div>
+        <p className="mt-3 text-xs text-gray-500">
+          Most people should start with the basic template. The full template includes
+          optional fields like manufacturer, type, size, and year.
+        </p>
       </div>
 
       {/* Step 2: Fill in */}
@@ -84,70 +132,66 @@ export default function ImportGuide() {
           Step 2: Fill In Your Data
         </h2>
         <p className="mt-2 text-sm text-gray-600">
-          Open the template in Excel, Google Sheets, or any spreadsheet app. Fill in one
-          row per extinguisher. Keep the header row exactly as-is.
+          Open the template in Excel, Google Sheets, or any spreadsheet app.
+          Fill in one row per extinguisher. Keep the header row exactly as-is.
         </p>
-        <div className="mt-4 space-y-3">
-          <div className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-            <p className="text-sm text-gray-700">
-              <strong>assetId is the only required column.</strong> Every row must have a unique
-              asset ID. Rows without one will be skipped.
-            </p>
-          </div>
-          <div className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-            <p className="text-sm text-gray-700">
-              All other columns are optional. Fill in what you have — you can always
-              add more details later from within the app.
-            </p>
-          </div>
-          <div className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-            <p className="text-sm text-gray-700">
-              <strong>Year fields</strong> should be 4-digit years (e.g., 2021, 2033) — not
-              full dates.
-            </p>
-          </div>
-          <div className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-            <p className="text-sm text-gray-700">
-              <strong>Category</strong> defaults to &quot;standard&quot; if left blank. Other
-              options: spare, replaced, retired, out_of_service.
-            </p>
-          </div>
+        <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="px-3 py-2 font-semibold text-gray-900">assetId</th>
+                <th className="px-3 py-2 font-semibold text-gray-900">serial</th>
+                <th className="px-3 py-2 font-semibold text-gray-900">parentLocation</th>
+                <th className="px-3 py-2 font-semibold text-gray-900">vicinity</th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-600">
+              <tr className="border-t border-gray-100">
+                <td className="px-3 py-2">EX-001</td>
+                <td className="px-3 py-2">SN-12345</td>
+                <td className="px-3 py-2">Building A</td>
+                <td className="px-3 py-2">By the exit door on 2nd floor</td>
+              </tr>
+              <tr className="border-t border-gray-100">
+                <td className="px-3 py-2">EX-002</td>
+                <td className="px-3 py-2">SN-67890</td>
+                <td className="px-3 py-2">Main Hospital</td>
+                <td className="px-3 py-2">Lobby entrance next to front desk</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Step 3: Save as CSV */}
+      {/* Step 3: Save */}
       <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
           <Info className="h-5 w-5 text-red-600" />
           Step 3: Save Your File
         </h2>
         <p className="mt-2 text-sm text-gray-600">
-          When you are done entering your data, save the file. We accept these formats:
+          Save as one of these formats:
         </p>
         <ul className="mt-3 space-y-2 text-sm text-gray-700">
           <li className="flex items-start gap-2">
             <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-            <span><strong>CSV</strong> (.csv) — best compatibility, works everywhere</span>
+            <span><strong>CSV</strong> (.csv) — best compatibility</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-            <span><strong>Excel</strong> (.xlsx or .xls) — save directly from Excel or Google Sheets</span>
+            <span><strong>Excel</strong> (.xlsx or .xls)</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-            <span><strong>Text</strong> (.txt) — tab-delimited or pipe-delimited</span>
+            <span><strong>Text</strong> (.txt) — tab or pipe delimited</span>
           </li>
         </ul>
-        <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
           <p className="flex items-start gap-2 text-sm text-amber-800">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             <span>
-              If saving from Google Sheets, go to <strong>File → Download → Comma Separated Values (.csv)</strong>.
-              If saving from Excel, go to <strong>File → Save As</strong> and choose <strong>CSV (Comma delimited)</strong>.
+              <strong>Google Sheets:</strong> File → Download → Comma Separated Values (.csv).
+              <strong> Excel:</strong> File → Save As → CSV (Comma delimited).
             </span>
           </p>
         </div>
@@ -157,111 +201,87 @@ export default function ImportGuide() {
       <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
           <CheckCircle2 className="h-5 w-5 text-red-600" />
-          Step 4: Upload to Extinguisher Tracker
+          Step 4: Upload
         </h2>
         <ol className="mt-3 space-y-3 text-sm text-gray-700">
           <li className="flex items-start gap-3">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">1</span>
-            <span>Go to the <Link to="/dashboard/inventory" className="font-medium text-red-600 hover:text-red-500">Inventory</Link> page.</span>
+            <span>Go to <Link to="/dashboard/inventory" className="font-medium text-red-600 hover:text-red-500">Inventory</Link>.</span>
           </li>
           <li className="flex items-start gap-3">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">2</span>
-            <span>Click the <strong>Import</strong> button (or drag and drop your file onto the page).</span>
+            <span>Select a <strong>default location</strong> from the dropdown, then click <strong>Browse</strong> or drag and drop your file.</span>
           </li>
           <li className="flex items-start gap-3">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">3</span>
-            <span>Select your CSV, Excel, or text file.</span>
+            <span>If your column names don&apos;t match exactly, a Column Mapper will appear — just match each column and click Import.</span>
           </li>
           <li className="flex items-start gap-3">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">4</span>
-            <span>
-              If your column names match the template, the import starts automatically. If
-              they don&apos;t match exactly, a <strong>Column Mapper</strong> screen will appear — just
-              match each of your columns to the correct field and click Import.
-            </span>
-          </li>
-          <li className="flex items-start gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">5</span>
-            <span>
-              You will see a summary showing how many were imported, how many were skipped
-              (duplicates), and any errors.
-            </span>
+            <span>Done! You&apos;ll see how many were imported and if any were skipped.</span>
           </li>
         </ol>
       </div>
 
-      {/* Column reference table */}
-      <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-bold text-gray-900">Column Reference</h2>
-        <p className="mb-4 text-sm text-gray-600">
-          Here is every column we accept, what it means, and an example value.
-          Your CSV column names don&apos;t have to match exactly — the system recognizes
-          common variations (e.g., &quot;Asset ID&quot;, &quot;asset_id&quot;, &quot;Tag&quot;, &quot;Unit ID&quot; all map
-          to <strong>assetId</strong>).
-        </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold text-gray-900">Column</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold text-gray-900">Required</th>
-                <th className="px-3 py-2.5 font-semibold text-gray-900">Description</th>
-                <th className="whitespace-nowrap px-3 py-2.5 font-semibold text-gray-900">Example</th>
-              </tr>
-            </thead>
-            <tbody>
-              {COLUMNS.map((col) => (
-                <tr key={col.name} className="border-b border-gray-100">
-                  <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs font-semibold text-gray-900">
-                    {col.name}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    {col.required ? (
-                      <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                        Required
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-400">Optional</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 text-gray-600">{col.description}</td>
-                  <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-gray-500">
-                    {col.example}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Tips */}
+      {/* Large orgs tip */}
       <div className="mb-8 rounded-xl border border-blue-200 bg-blue-50 p-6">
         <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
           <Info className="h-5 w-5 text-blue-600" />
-          Tips
+          Large Facilities?
         </h2>
-        <ul className="mt-3 space-y-2 text-sm text-gray-700">
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-            <span>You can import up to <strong>499 extinguishers at a time</strong>. For larger inventories, split your file and import in batches.</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-            <span>If an asset ID already exists in your organization, that row is skipped — your existing data is never overwritten.</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-            <span>Extra columns in your file are ignored, so you don&apos;t have to remove them.</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-            <span>You can always edit any extinguisher after import to add more details, photos, or location assignments.</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-            <span>Don&apos;t have all the data? That&apos;s fine. Import what you have now and fill in the rest later.</span>
-          </li>
+        <p className="mt-2 text-sm text-gray-700">
+          If your building has multiple floors or wings, add a <strong>section</strong> column
+          to your spreadsheet (e.g. &quot;1st Floor&quot;, &quot;2nd Floor&quot;, &quot;West Wing&quot;). This is included in the full template.
+        </p>
+      </div>
+
+      {/* Optional columns reference */}
+      <details className="mb-8 rounded-xl border border-gray-200 bg-white shadow-sm">
+        <summary className="cursor-pointer px-6 py-4 text-lg font-bold text-gray-900 hover:bg-gray-50">
+          All available columns (optional)
+        </summary>
+        <div className="border-t border-gray-200 px-6 py-4">
+          <p className="mb-4 text-sm text-gray-600">
+            These columns are all optional. Your file doesn&apos;t need to match exactly —
+            the system recognizes common names like &quot;Asset ID&quot;, &quot;Serial Number&quot;,
+            &quot;Building&quot;, &quot;Location&quot;, etc.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold text-gray-900">Column</th>
+                  <th className="px-3 py-2.5 font-semibold text-gray-900">Description</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 font-semibold text-gray-900">Example</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...REQUIRED_COLUMNS, ...OPTIONAL_COLUMNS].map((col) => (
+                  <tr key={col.name} className="border-b border-gray-100">
+                    <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs font-semibold text-gray-900">
+                      {col.name}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-600">{col.description}</td>
+                    <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-gray-500">{col.example}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      {/* Tips */}
+      <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900">
+          <Info className="h-4 w-4 text-gray-500" />
+          Good to know
+        </h2>
+        <ul className="mt-3 space-y-2 text-sm text-gray-600">
+          <li>You can import up to <strong>499 extinguishers at a time</strong>. For larger lists, split the file and import in batches.</li>
+          <li>If an asset ID already exists, that row is skipped — your existing data is never overwritten.</li>
+          <li>Extra columns in your file are ignored, so you don&apos;t need to remove them.</li>
+          <li>Don&apos;t have all the data? Import what you have now and use the <Link to="/dashboard/data-organizer" className="font-medium text-red-600 hover:text-red-500">Data Organizer</Link> to fill in the rest later.</li>
         </ul>
       </div>
 
@@ -269,7 +289,7 @@ export default function ImportGuide() {
       <div className="rounded-xl bg-gray-900 px-6 py-8 text-center">
         <h2 className="text-xl font-bold text-white">Ready to import?</h2>
         <p className="mt-2 text-sm text-gray-300">
-          Head to the Inventory page and click Import, or drag and drop your file.
+          Head to Inventory and click Import, or drag and drop your file.
         </p>
         <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
