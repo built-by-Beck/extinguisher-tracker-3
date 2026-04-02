@@ -46,6 +46,7 @@ export const AD_ALLOWED_DASHBOARD_PAGES = new Set([
   'calculator',
   'audit-logs',
   'notifications',
+  'import-guide',
 ]);
 
 /**

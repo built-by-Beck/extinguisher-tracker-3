@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Sidebar } from './Sidebar.tsx';
 import { Topbar } from './Topbar.tsx';
 import { OfflineBanner } from '../offline/OfflineBanner.tsx';
 import { AiAssistantPanel } from '../ai/AiAssistantPanel.tsx';
 import { DashboardAdBanner } from '../ads/DashboardAdBanner.tsx';
+import { AdSlot } from '../ads/AdSlot.tsx';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { hasFeature } from '../../lib/planConfig.ts';
+
+const BANNER_PREF_KEY = 'ex3-hide-banner';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -39,10 +43,19 @@ function getPageTitle(pathname: string): string {
 
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [bannerHidden, setBannerHidden] = useState(() => localStorage.getItem(BANNER_PREF_KEY) === '1');
   const location = useLocation();
   const { org } = useOrg();
-  const hideHeroBanner = location.pathname.endsWith('/calculator');
+  const isCalculatorPage = location.pathname.endsWith('/calculator');
   const pageTitle = getPageTitle(location.pathname);
+
+  const toggleBanner = useCallback(() => {
+    setBannerHidden((prev) => {
+      const next = !prev;
+      localStorage.setItem(BANNER_PREF_KEY, next ? '1' : '0');
+      return next;
+    });
+  }, []);
   const hasAiAccess = org?.featureFlags ? hasFeature(
     org.featureFlags as unknown as Record<string, boolean>,
     'aiAssistant',
@@ -67,7 +80,7 @@ export function DashboardLayout() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
-          {!hideHeroBanner && (
+          {!isCalculatorPage && !bannerHidden && (
             <div className="relative bg-gray-900">
               <img
                 src="/extinguisherTracker2.png"
@@ -79,9 +92,35 @@ export function DashboardLayout() {
                   {pageTitle}
                 </h2>
               </div>
+              <button
+                onClick={toggleBanner}
+                className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-black/50 px-2 py-1 text-xs font-medium text-white/80 backdrop-blur hover:bg-black/70 hover:text-white"
+              >
+                <ChevronUp className="h-3.5 w-3.5" />
+                Hide
+              </button>
             </div>
           )}
-          {hideHeroBanner && (
+          {!isCalculatorPage && bannerHidden && (
+            <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-2.5">
+              <h2 className="text-lg font-bold text-gray-900">{pageTitle}</h2>
+              <button
+                onClick={toggleBanner}
+                className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+                Show banner
+              </button>
+            </div>
+          )}
+          {!isCalculatorPage && bannerHidden && (
+            <AdSlot
+              format="banner"
+              minTier="minimal"
+              className="border-b border-gray-200 bg-gray-50 px-4 py-2"
+            />
+          )}
+          {isCalculatorPage && (
             <div className="border-b border-gray-200 bg-white px-6 py-3">
               <h2 className="text-lg font-bold text-gray-900">{pageTitle}</h2>
             </div>

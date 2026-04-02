@@ -1,0 +1,4 @@
+assetId,serial,parentLocation,vicinity,section,barcode,manufacturer,extinguisherType,serviceClass,extinguisherSize,category,locationId,manufactureYear,expirationYear
+EX-001,SN-12345,Building A,By the exit door,2nd Floor,012345678901,Kidde,ABC Dry Chemical,2-A:10-B:C,10 lbs,standard,,2021,2033
+EX-002,SN-67890,Building A,Break room hallway,1st Floor,,Amerex,CO2,10-B:C,15 lbs,standard,,2020,2032
+EX-003,SN-11111,Warehouse B,Behind loading dock,,012345678902,Badger,ABC Dry Chemical,4-A:60-B:C,20 lbs,standard,,2019,2031
