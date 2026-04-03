@@ -16,6 +16,8 @@ import {
   FileText,
   PlayCircle,
   AlertTriangle,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import {
   collection,
@@ -25,7 +27,8 @@ import {
   limit as fbLimit,
   onSnapshot,
 } from 'firebase/firestore';
-import { db } from '../lib/firebase.ts';
+import { db, functions } from '../lib/firebase.ts';
+import { httpsCallable } from 'firebase/functions';
 import { useOrg } from '../hooks/useOrg.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { hasFeature } from '../lib/planConfig.ts';
@@ -88,6 +91,8 @@ export default function Dashboard() {
   const [memberCount, setMemberCount] = useState(0);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [allExtinguishers, setAllExtinguishers] = useState<Extinguisher[]>([]);
+  const [cleaningUp, setCleaningUp] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<string | null>(null);
 
   // Real-time extinguisher count + compliance data
   useEffect(() => {
@@ -221,6 +226,44 @@ export default function Dashboard() {
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
             Upgrade Plan
+          </button>
+        </div>
+      )}
+
+      {/* Orphaned inspections cleanup banner */}
+      {isAdminOrOwner && activeWorkspace && extCount === 0 && activeWorkspace.stats.pending > 0 && (
+        <div className="mb-6 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <Trash2 className="h-5 w-5 shrink-0 text-red-600" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-800">
+              {activeWorkspace.stats.pending} orphaned inspection{activeWorkspace.stats.pending !== 1 ? 's' : ''} found
+            </p>
+            <p className="text-sm text-red-700">
+              You have pending inspections but no extinguishers. Clean up these orphaned records.
+            </p>
+            {cleanupResult && (
+              <p className="mt-1 text-sm font-medium text-green-700">{cleanupResult}</p>
+            )}
+          </div>
+          <button
+            onClick={async () => {
+              setCleaningUp(true);
+              setCleanupResult(null);
+              try {
+                const cleanup = httpsCallable<{ orgId: string }, { removed: number }>(functions, 'cleanupPendingInspections');
+                const result = await cleanup({ orgId });
+                setCleanupResult(`Removed ${result.data.removed} orphaned inspection${result.data.removed !== 1 ? 's' : ''}.`);
+              } catch {
+                setCleanupResult('Cleanup failed. Please try again.');
+              } finally {
+                setCleaningUp(false);
+              }
+            }}
+            disabled={cleaningUp}
+            className="flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {cleaningUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            {cleaningUp ? 'Cleaning...' : 'Clean Up'}
           </button>
         </div>
       )}

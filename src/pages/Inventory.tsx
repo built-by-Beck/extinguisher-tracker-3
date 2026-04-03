@@ -862,7 +862,7 @@ export default function Inventory() {
                   )}
                   {visibleColumns.category && (
                     <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 md:table-cell">
-                      {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                      {(ext.category ?? 'standard').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                     </td>
                   )}
                   {visibleColumns.compliance && (
@@ -1013,7 +1013,7 @@ export default function Inventory() {
                     <p><span className="font-medium text-gray-600">Vicinity:</span> {ext.vicinity}</p>
                   )}
                   {visibleColumns.category && (
-                    <p><span className="font-medium text-gray-600">Category:</span> {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
+                    <p><span className="font-medium text-gray-600">Category:</span> {(ext.category ?? 'standard').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
                   )}
                   {visibleColumns.nextInspection && (
                     <p><span className="font-medium text-gray-600">Next Inspection:</span> {formatDueDate(ext.nextMonthlyInspection)}</p>
@@ -1042,6 +1042,9 @@ export default function Inventory() {
               <option value={25}>25</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
+              <option value={250}>250</option>
+              <option value={500}>500</option>
+              <option value={999999}>All</option>
             </select>
             <span>per page</span>
             <span className="ml-2 text-gray-400">|</span>

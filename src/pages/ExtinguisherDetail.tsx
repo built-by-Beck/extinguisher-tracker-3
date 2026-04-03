@@ -93,6 +93,7 @@ export default function ExtinguisherDetail() {
   const [ext, setExt] = useState<Extinguisher | null>(null);
   const [extLoading, setExtLoading] = useState(true);
   const [extError, setExtError] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   // State for current inspection
   const [inspection, setInspection] = useState<Inspection | null | undefined>(undefined);
@@ -170,6 +171,20 @@ export default function ExtinguisherDetail() {
     refreshHistory();
   }, [loadInspection, refreshHistory]);
 
+  async function handleRestore() {
+    if (!orgId || !extId) return;
+    setRestoring(true);
+    try {
+      await restoreExtinguisher(orgId, extId);
+      const updated = await getExtinguisher(orgId, extId);
+      if (updated) setExt(updated);
+    } catch {
+      // Silently fail — user can retry
+    } finally {
+      setRestoring(false);
+    }
+  }
+
   function handleBack() {
     if (workspaceId) {
       navigate(`/dashboard/workspaces/${workspaceId}`);
@@ -203,22 +218,6 @@ export default function ExtinguisherDetail() {
   }
 
   const isDeleted = !!ext.deletedAt;
-  const [restoring, setRestoring] = useState(false);
-
-  async function handleRestore() {
-    if (!orgId || !extId) return;
-    setRestoring(true);
-    try {
-      await restoreExtinguisher(orgId, extId);
-      // Reload the extinguisher to reflect restored state
-      const updated = await getExtinguisher(orgId, extId);
-      if (updated) setExt(updated);
-    } catch {
-      // Silently fail — user can retry
-    } finally {
-      setRestoring(false);
-    }
-  }
 
   const nowDate = new Date();
   const currentMonthLabel = nowDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -311,7 +310,7 @@ export default function ExtinguisherDetail() {
         <InfoRow label="Type" value={ext.extinguisherType} />
         <InfoRow label="Service Class" value={ext.serviceClass} />
         <InfoRow label="Size" value={ext.extinguisherSize} />
-        <InfoRow label="Category" value={ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())} />
+        <InfoRow label="Category" value={(ext.category ?? 'standard').replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())} />
       </div>
 
       {/* Dates section */}

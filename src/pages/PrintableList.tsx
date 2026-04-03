@@ -91,7 +91,7 @@ export default function PrintableList() {
     const unsub = subscribeToExtinguishers(orgId, (data) => {
       setItems(data);
       setLoading(false);
-    }, { noLimit: true });
+    });
     return unsub;
   }, [orgId, org, canPrint, navigate]);
 

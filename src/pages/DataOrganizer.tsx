@@ -81,7 +81,7 @@ export default function DataOrganizer() {
         setExtinguishers(data);
         setLoading(false);
       },
-      { noLimit: true },
+      {},
     );
     return () => {
       unsubLocs();
