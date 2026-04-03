@@ -32,7 +32,7 @@ export default function PrivacyPage() {
       <PublicMarketingLayout>
         <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6 sm:py-16">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900">Privacy Policy</h1>
-          <p className="mt-2 text-sm text-gray-500">Last Updated: March 22, 2026</p>
+          <p className="mt-2 text-sm text-gray-500">Last Updated: March 29, 2026</p>
 
           <div className="mt-10">
             <Section num={1} title="Introduction">
@@ -186,7 +186,51 @@ export default function PrivacyPage() {
               </p>
             </Section>
 
-            <Section num={11} title="Changes to This Privacy Policy">
+            <Section num={11} title="California Privacy Rights">
+              <p>
+                If you are a California resident, you have specific rights under the California Consumer
+                Privacy Act (CCPA), including:
+              </p>
+              <ul className="list-disc space-y-1 pl-6">
+                <li>The right to know what personal information is collected, used, and shared</li>
+                <li>The right to delete personal information held by businesses</li>
+                <li>The right to opt-out of the sale of personal information (we do not sell personal information)</li>
+                <li>The right to non-discrimination for exercising your CCPA rights</li>
+              </ul>
+            </Section>
+
+            <Section num={12} title="GDPR Compliance (EU Users)">
+              <p>
+                If you are located in the European Economic Area (EEA), you have rights under the General
+                Data Protection Regulation (GDPR). We process your data based on the following legal
+                grounds:
+              </p>
+              <ul className="list-disc space-y-1 pl-6">
+                <li>Your consent (which you can withdraw at any time)</li>
+                <li>The performance of a contract with you</li>
+                <li>Compliance with legal obligations</li>
+                <li>Our legitimate interests (where not overridden by your rights)</li>
+              </ul>
+            </Section>
+
+            <Section num={13} title="Do Not Track Signals">
+              <p>
+                We do not currently respond to &quot;Do Not Track&quot; signals from web browsers.
+                Third-party services we use may track browsing activities across different websites.
+              </p>
+            </Section>
+
+            <Section num={14} title="Multi-Tenant Data Isolation">
+              <p>
+                Extinguisher Tracker is a multi-tenant platform. Each organization&apos;s data is
+                logically isolated and accessible only to authorized members of that organization. We
+                enforce strict access controls at the database level to prevent cross-organization data
+                access. Organization owners control member access and permissions within their
+                organization.
+              </p>
+            </Section>
+
+            <Section num={15} title="Changes to This Privacy Policy">
               <p>
                 We may update our Privacy Policy from time to time. We will notify you of any changes by
                 posting the new Privacy Policy on this page and updating the &quot;Last Updated&quot;
@@ -194,7 +238,7 @@ export default function PrivacyPage() {
               </p>
             </Section>
 
-            <Section num={12} title="Contact Us">
+            <Section num={16} title="Contact Us">
               <p>
                 If you have any questions about this Privacy Policy or our data practices, please
                 contact us through the contact information provided on our website.

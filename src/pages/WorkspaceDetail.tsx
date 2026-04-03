@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -79,6 +79,7 @@ const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; 
 export default function WorkspaceDetail() {
   const navigate = useNavigate();
   const { workspaceId } = useParams<{ workspaceId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, userProfile } = useAuth();
   const { org, hasRole } = useOrg();
 
@@ -93,7 +94,27 @@ export default function WorkspaceDetail() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [report, setReport] = useState<Report | null | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<FilterState>(createEmptyFilters);
+
+  // Initialize filters from URL query params (e.g. ?status=pass)
+  const [filters, setFilters] = useState<FilterState>(() => {
+    const initial = createEmptyFilters();
+    const statusParam = searchParams.get('status');
+    if (statusParam && ['pass', 'fail', 'pending'].includes(statusParam)) {
+      initial.statuses.add(statusParam);
+    }
+    return initial;
+  });
+
+  // Clear the URL param after initial read so it doesn't persist on navigation
+  useEffect(() => {
+    if (searchParams.has('status')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('status');
+      setSearchParams(next, { replace: true });
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
   const [showUnassigned, setShowUnassigned] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);

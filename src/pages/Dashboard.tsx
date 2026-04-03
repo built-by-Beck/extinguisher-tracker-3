@@ -16,6 +16,7 @@ import {
   FileText,
   PlayCircle,
   AlertTriangle,
+  XCircle,
 } from 'lucide-react';
 import {
   collection,
@@ -249,7 +250,7 @@ export default function Dashboard() {
       )}
 
       {/* Stat cards */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
           label="Total Extinguishers"
           value={extCount.toString()}
@@ -261,10 +262,10 @@ export default function Dashboard() {
           label="Pending Inspections"
           value={activeWorkspace ? Math.max(0, activeWorkspace.stats.pending).toString() : '0'}
           icon={ClipboardList}
-          color="bg-blue-500"
+          color="bg-amber-500"
           onClick={() =>
             activeWorkspace
-              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}`)
+              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}?status=pending`)
               : navigate('/dashboard/workspaces')
           }
         />
@@ -275,7 +276,18 @@ export default function Dashboard() {
           color="bg-green-500"
           onClick={() =>
             activeWorkspace
-              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}`)
+              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}?status=pass`)
+              : navigate('/dashboard/workspaces')
+          }
+        />
+        <StatCard
+          label="Failed This Month"
+          value={activeWorkspace ? Math.max(0, activeWorkspace.stats.failed).toString() : '--'}
+          icon={XCircle}
+          color="bg-red-600"
+          onClick={() =>
+            activeWorkspace
+              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}?status=fail`)
               : navigate('/dashboard/workspaces')
           }
         />
