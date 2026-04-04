@@ -90,6 +90,15 @@ export default function Reports() {
         </p>
       </div>
 
+      {/* Page description */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        <p>
+          Compliance reports are generated from archived workspaces. Each report includes
+          pass/fail counts, inspector details, and a full breakdown by location — ready to
+          hand to a fire marshal or keep on file for your records.
+        </p>
+      </div>
+
       {/* Generate Report Card */}
       {!loading && reports.length > 0 && (
         <div className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">

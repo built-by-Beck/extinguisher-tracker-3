@@ -36,6 +36,7 @@ import MarketingPricingPage from '../pages/marketing/MarketingPricingPage.tsx';
 import MarketingHowItWorksPage from '../pages/marketing/MarketingHowItWorksPage.tsx';
 import Calculator from '../pages/Calculator.tsx';
 import ImportGuide from '../pages/ImportGuide.tsx';
+import DataOrganizerGuide from '../pages/DataOrganizerGuide.tsx';
 import PrintableList from '../pages/PrintableList.tsx';
 import PrintTags from '../pages/PrintTags.tsx';
 import QRLanding from '../pages/QRLanding.tsx';
@@ -100,6 +101,7 @@ export function AppRoutes() {
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="calculator" element={<Calculator />} />
           <Route path="import-guide" element={<ImportGuide />} />
+          <Route path="data-organizer-guide" element={<DataOrganizerGuide />} />
           <Route path="inventory/print" element={<PrintableList />} />
           <Route path="inventory/print-tags" element={<PrintTags />} />
         </Route>

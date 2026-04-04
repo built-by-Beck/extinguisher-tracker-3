@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   Plus,
   Search,
@@ -453,6 +453,23 @@ export default function Inventory() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Page description */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        <p>
+          This is your full extinguisher inventory. You can add extinguishers one at a time, or
+          import them in bulk from a spreadsheet using the import bar below. After importing, use
+          the{' '}
+          <Link to="/dashboard/data-organizer" className="font-medium text-red-600 hover:text-red-500">
+            Data Organizer
+          </Link>{' '}
+          to fix any missing fields. Need help formatting your spreadsheet?{' '}
+          <Link to="/dashboard/data-organizer-guide" className="font-medium text-red-600 hover:text-red-500">
+            See the Data Organizer Guide
+          </Link>{' '}
+          for column names and a downloadable example file.
+        </p>
       </div>
 
       {/* Asset limit bar */}
