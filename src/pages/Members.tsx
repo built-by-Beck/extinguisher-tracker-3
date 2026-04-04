@@ -120,6 +120,15 @@ export default function Members() {
         )}
       </div>
 
+      {/* Page description */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        <p>
+          Manage who has access to your organization. Invite team members by email and assign
+          them a role — Owners and Admins can manage settings and data, Inspectors can perform
+          inspections in the field, and Viewers have read-only access for audits or oversight.
+        </p>
+      </div>
+
       {/* Members table */}
       <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
         <table className="w-full min-w-[640px]">

@@ -120,6 +120,15 @@ export default function AuditLogs() {
         </p>
       </div>
 
+      {/* Page description */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        <p>
+          Every significant action in your organization is logged here — member changes, extinguisher
+          updates, workspace events, and more. Use the filter to narrow down by entity type.
+          Audit logs are read-only and cannot be edited or deleted.
+        </p>
+      </div>
+
       {/* Filter */}
       <div className="mb-4 flex flex-wrap gap-3">
         <select

@@ -234,6 +234,16 @@ export default function Locations() {
         )}
       </div>
 
+      {/* Page description */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        <p>
+          Locations define where your extinguishers live. Build a hierarchy — for example,
+          a building at the top, then floors or wings, then individual rooms. When you assign
+          extinguishers to locations, they automatically group by location during inspections
+          so your inspectors can work floor by floor.
+        </p>
+      </div>
+
       {/* Tree view */}
       {locations.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
