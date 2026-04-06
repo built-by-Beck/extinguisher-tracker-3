@@ -49,6 +49,8 @@ import {
 import { getActiveWorkspaceForCurrentMonth, createWorkspaceCall } from '../services/workspaceService.ts';
 import { InspectionPanel } from '../components/inspection/InspectionPanel.tsx';
 import { ReplaceExtinguisherModal } from '../components/extinguisher/ReplaceExtinguisherModal.tsx';
+import { PromptModal } from '../components/ui/PromptModal.tsx';
+import { softDeleteExtinguisher } from '../services/extinguisherService.ts';
 
 function formatTimestamp(ts: unknown): string {
   if (!ts) return '--';
@@ -117,6 +119,10 @@ export default function ExtinguisherDetail() {
 
   // Replace modal
   const [replaceOpen, setReplaceOpen] = useState(false);
+
+  // Delete modal
+  const [deletePromptOpen, setDeletePromptOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Inspection history
   const [history, setHistory] = useState<Inspection[]>([]);
@@ -244,6 +250,18 @@ export default function ExtinguisherDetail() {
     }
   }
 
+  async function handleDelete(reason: string) {
+    if (!orgId || !extId || !user) return;
+    setDeleting(true);
+    try {
+      await softDeleteExtinguisher(orgId, extId, user.uid, reason);
+      setDeletePromptOpen(false);
+      navigate('/dashboard/inventory');
+    } catch {
+      setDeleting(false);
+    }
+  }
+
   // ---- Render states ----
 
   if (extLoading) {
@@ -359,6 +377,15 @@ export default function ExtinguisherDetail() {
               <Edit2 className="h-4 w-4" />
               Edit
             </Link>
+          )}
+          {canEdit && extId && !isDeleted && (
+            <button
+              onClick={() => setDeletePromptOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </button>
           )}
         </div>
       </div>
@@ -634,6 +661,19 @@ export default function ExtinguisherDetail() {
           </div>
         )}
       </div>
+
+      {/* Delete Extinguisher Modal */}
+      <PromptModal
+        open={deletePromptOpen}
+        title="Delete Extinguisher"
+        message={`Are you sure you want to delete Asset #${ext.assetId}? This can be undone by an admin.`}
+        placeholder="Reason for deletion (optional)"
+        inputLabel="Reason"
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setDeletePromptOpen(false)}
+        loading={deleting}
+      />
 
       {/* Replace Extinguisher Modal */}
       {replaceOpen && orgId && extId && (
