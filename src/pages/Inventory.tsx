@@ -111,11 +111,12 @@ export default function Inventory() {
   const [totalCount, setTotalCount] = useState(0);
   const [showDeleted, setShowDeleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') ?? '');
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
   const [complianceFilter, setComplianceFilter] = useState(
     searchParams.get('compliance') ?? '',
   );
+  const [expiringFilter, setExpiringFilter] = useState(searchParams.get('expiring') ?? '');
   const [deleteTarget, setDeleteTarget] = useState<Extinguisher | null>(null);
 
   // View mode & sorting — persisted per org
@@ -252,6 +253,12 @@ export default function Inventory() {
         if (ext.locationId !== locationFilter) return false;
       }
       if (complianceFilter && ext.complianceStatus !== complianceFilter) return false;
+      if (expiringFilter) {
+        const thisYear = new Date().getFullYear();
+        if (expiringFilter === 'thisYear' && ext.expirationYear !== thisYear) return false;
+        if (expiringFilter === 'nextYear' && ext.expirationYear !== thisYear + 1) return false;
+        if (expiringFilter === 'expired' && (ext.expirationYear == null || ext.expirationYear >= thisYear)) return false;
+      }
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const locationPath = getExtLocationPath(ext).toLowerCase();
@@ -268,7 +275,7 @@ export default function Inventory() {
       }
       return true;
     });
-  }, [items, categoryFilter, locationFilter, complianceFilter, searchQuery, getExtLocationPath]);
+  }, [items, categoryFilter, locationFilter, complianceFilter, expiringFilter, searchQuery, getExtLocationPath]);
 
   // Sorted list
   const sorted = useMemo(() => {
@@ -304,7 +311,7 @@ export default function Inventory() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
-  }, [categoryFilter, locationFilter, complianceFilter, searchQuery, showDeleted]);
+  }, [categoryFilter, locationFilter, complianceFilter, expiringFilter, searchQuery, showDeleted]);
 
   // Pagination slice
   const paginatedItems = useMemo(() => {
@@ -410,10 +417,11 @@ export default function Inventory() {
     setCategoryFilter('');
     setLocationFilter(null);
     setComplianceFilter('');
+    setExpiringFilter('');
     setShowDeleted(false);
   }
 
-  const hasActiveFilters = searchQuery || categoryFilter || locationFilter || complianceFilter || showDeleted;
+  const hasActiveFilters = searchQuery || categoryFilter || locationFilter || complianceFilter || expiringFilter || showDeleted;
 
   return (
     <div className="p-6">
@@ -581,6 +589,18 @@ export default function Inventory() {
           <option value="hydro_due">Hydro Due</option>
           <option value="overdue">Overdue</option>
           <option value="missing_data">Missing Data</option>
+        </select>
+
+        {/* Expiration filter */}
+        <select
+          value={expiringFilter}
+          onChange={(e) => setExpiringFilter(e.target.value)}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+        >
+          <option value="">All Expirations</option>
+          <option value="expired">Already Expired</option>
+          <option value="thisYear">Expiring This Year</option>
+          <option value="nextYear">Expiring Next Year</option>
         </select>
 
         {/* Overdue quick-filter */}
@@ -879,7 +899,7 @@ export default function Inventory() {
                   )}
                   {visibleColumns.category && (
                     <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 md:table-cell">
-                      {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                      {(ext.category ?? 'standard').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                     </td>
                   )}
                   {visibleColumns.compliance && (
@@ -1030,7 +1050,7 @@ export default function Inventory() {
                     <p><span className="font-medium text-gray-600">Vicinity:</span> {ext.vicinity}</p>
                   )}
                   {visibleColumns.category && (
-                    <p><span className="font-medium text-gray-600">Category:</span> {ext.category.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
+                    <p><span className="font-medium text-gray-600">Category:</span> {(ext.category ?? 'standard').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
                   )}
                   {visibleColumns.nextInspection && (
                     <p><span className="font-medium text-gray-600">Next Inspection:</span> {formatDueDate(ext.nextMonthlyInspection)}</p>
@@ -1059,6 +1079,9 @@ export default function Inventory() {
               <option value={25}>25</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
+              <option value={250}>250</option>
+              <option value={500}>500</option>
+              <option value={999999}>All</option>
             </select>
             <span>per page</span>
             <span className="ml-2 text-gray-400">|</span>

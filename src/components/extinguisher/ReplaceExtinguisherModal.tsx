@@ -28,7 +28,7 @@ export function ReplaceExtinguisherModal({
 }: ReplaceExtinguisherModalProps) {
   const navigate = useNavigate();
 
-  const [assetId, setAssetId] = useState('');
+  const [assetId, setAssetId] = useState(oldAssetId);
   const [serial, setSerial] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [extinguisherType, setExtinguisherType] = useState('');
@@ -52,10 +52,10 @@ export function ReplaceExtinguisherModal({
 
     setSubmitting(true);
     try {
-      // Validate new assetId uniqueness
-      const taken = await isAssetIdTaken(orgId, assetId.trim());
+      // Validate new assetId uniqueness (exclude the old extinguisher being replaced)
+      const taken = await isAssetIdTaken(orgId, assetId.trim(), oldExtinguisherId);
       if (taken) {
-        setError(`Asset ID "${assetId.trim()}" is already in use.`);
+        setError(`Asset ID "${assetId.trim()}" is already in use by another extinguisher.`);
         setSubmitting(false);
         return;
       }

@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
-import type { Location } from '../../services/locationService.ts';
+import { getLocationTypeLabel, type Location } from '../../services/locationService.ts';
 
 export interface FilterState {
   statuses: Set<string>;
@@ -241,7 +241,9 @@ export function FilterPanel({
                       />
                       <span className="text-gray-700">
                         {loc.name}
-                        <span className="ml-1 text-xs text-gray-400 capitalize">({loc.locationType})</span>
+                        <span className="ml-1 text-xs text-gray-400">
+                          ({getLocationTypeLabel(loc.locationType)})
+                        </span>
                       </span>
                     </label>
                   ))}
