@@ -25,6 +25,13 @@ import {
   ShieldCheck,
   Trash2,
   RotateCcw,
+  Plus,
+  CheckCircle2,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  Camera,
+  Navigation,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -34,10 +41,14 @@ import { getExtinguisher, restoreExtinguisher, type Extinguisher } from '../serv
 import {
   getInspectionForExtinguisherInWorkspace,
   getInspectionHistoryForExtinguisher,
+  createSingleInspection,
+  CHECKLIST_SECTIONS,
   type Inspection,
+  type ChecklistData,
 } from '../services/inspectionService.ts';
-import { getActiveWorkspaceForCurrentMonth } from '../services/workspaceService.ts';
+import { getActiveWorkspaceForCurrentMonth, createWorkspaceCall } from '../services/workspaceService.ts';
 import { InspectionPanel } from '../components/inspection/InspectionPanel.tsx';
+import { ReplaceExtinguisherModal } from '../components/extinguisher/ReplaceExtinguisherModal.tsx';
 
 function formatTimestamp(ts: unknown): string {
   if (!ts) return '--';
@@ -100,9 +111,17 @@ export default function ExtinguisherDetail() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [noActiveWorkspace, setNoActiveWorkspace] = useState(false);
 
+  // Workspace creation state (for one-click create)
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+  const [wsCreateError, setWsCreateError] = useState<string | null>(null);
+
+  // Replace modal
+  const [replaceOpen, setReplaceOpen] = useState(false);
+
   // Inspection history
   const [history, setHistory] = useState<Inspection[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   // Load extinguisher
   useEffect(() => {
@@ -121,7 +140,9 @@ export default function ExtinguisherDetail() {
       .finally(() => setExtLoading(false));
   }, [orgId, extId]);
 
-  // Load inspection (and resolve workspace if needed)
+  // Load inspection (and resolve workspace if needed).
+  // Auto-creates a pending inspection if the extinguisher exists in the workspace
+  // but has no inspection record (e.g., added after workspace creation).
   const loadInspection = useCallback(async () => {
     if (!orgId || !extId) return;
 
@@ -130,22 +151,33 @@ export default function ExtinguisherDetail() {
     setNoActiveWorkspace(false);
     setActiveWorkspaceId(null);
 
-    if (workspaceId) {
-      setActiveWorkspaceId(workspaceId);
-      const insp = await getInspectionForExtinguisherInWorkspace(orgId, extId, workspaceId);
-      setInspection(insp);
-    } else {
-      const ws = await getActiveWorkspaceForCurrentMonth(orgId);
-      if (ws) {
-        setActiveWorkspaceId(ws.id);
-        const insp = await getInspectionForExtinguisherInWorkspace(orgId, extId, ws.id);
-        setInspection(insp);
-      } else {
-        setNoActiveWorkspace(true);
-        setInspection(null);
-      }
+    const resolvedWsId = workspaceId ?? (await getActiveWorkspaceForCurrentMonth(orgId))?.id ?? null;
+
+    if (!resolvedWsId) {
+      setNoActiveWorkspace(true);
+      setInspection(null);
+      return;
     }
-  }, [orgId, extId, workspaceId]);
+
+    setActiveWorkspaceId(resolvedWsId);
+    const insp = await getInspectionForExtinguisherInWorkspace(orgId, extId, resolvedWsId);
+
+    if (insp) {
+      setInspection(insp);
+    } else if (ext && !ext.deletedAt && ext.category === 'standard') {
+      // Auto-create pending inspection for this extinguisher
+      const created = await createSingleInspection(orgId, extId, resolvedWsId, {
+        assetId: ext.assetId,
+        parentLocation: ext.parentLocation,
+        section: ext.section,
+        serial: ext.serial,
+        locationId: ext.locationId,
+      });
+      setInspection(created);
+    } else {
+      setInspection(null);
+    }
+  }, [orgId, extId, workspaceId, ext]);
 
   useEffect(() => {
     loadInspection().catch(() => setInspection(null));
@@ -190,6 +222,25 @@ export default function ExtinguisherDetail() {
       navigate(`/dashboard/workspaces/${workspaceId}`);
     } else {
       navigate('/dashboard/inventory');
+    }
+  }
+
+  async function handleCreateWorkspaceAndInspect() {
+    if (!orgId) return;
+    setCreatingWorkspace(true);
+    setWsCreateError(null);
+    try {
+      const now = new Date();
+      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      await createWorkspaceCall(orgId, monthYear);
+      setNoActiveWorkspace(false);
+      // Reload inspection — workspace now exists and inspection was seeded (or will be auto-created)
+      await loadInspection();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create workspace.';
+      setWsCreateError(msg);
+    } finally {
+      setCreatingWorkspace(false);
     }
   }
 
@@ -291,6 +342,15 @@ export default function ExtinguisherDetail() {
               Print Tag
             </button>
           )}
+          {canEdit && extId && !isDeleted && (
+            <button
+              onClick={() => setReplaceOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-orange-300 px-3 py-2 text-sm font-medium text-orange-700 hover:bg-orange-50"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Replace
+            </button>
+          )}
           {canEdit && extId && (
             <Link
               to={`/dashboard/inventory/${extId}/edit`}
@@ -363,22 +423,37 @@ export default function ExtinguisherDetail() {
 
       {!isDeleted && (
         <>
-          {/* No active workspace case */}
+          {/* No active workspace — one-click create or permission message */}
           {noActiveWorkspace && !workspaceId && (
-            <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-5">
               <div className="flex items-start gap-3">
                 <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />
-                <div>
-                  <p className="text-sm font-medium text-blue-800">No active workspace for {currentMonthLabel}</p>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-900">Start {currentMonthLabel} Inspections</p>
                   <p className="mt-1 text-sm text-blue-700">
-                    Create a workspace to start inspecting extinguishers this month.
+                    Create this month&apos;s workspace to begin inspecting extinguishers.
                   </p>
-                  <button
-                    onClick={() => navigate('/dashboard/workspaces')}
-                    className="mt-2 text-sm font-medium text-blue-700 underline hover:text-blue-900"
-                  >
-                    Go to Workspaces
-                  </button>
+                  {wsCreateError && (
+                    <p className="mt-2 text-sm text-red-600">{wsCreateError}</p>
+                  )}
+                  {hasRole(['owner', 'admin']) ? (
+                    <button
+                      onClick={handleCreateWorkspaceAndInspect}
+                      disabled={creatingWorkspace}
+                      className="mt-3 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {creatingWorkspace ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      {creatingWorkspace ? 'Creating...' : 'Create Workspace & Start Inspecting'}
+                    </button>
+                  ) : (
+                    <p className="mt-2 text-sm text-blue-600">
+                      Ask your admin to create this month&apos;s workspace.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -437,36 +512,138 @@ export default function ExtinguisherDetail() {
           <p className="text-sm text-gray-500">No inspection history available.</p>
         ) : (
           <div className="divide-y divide-gray-100">
-            {history.map((h) => (
-              <div
-                key={h.id}
-                className="flex items-start justify-between py-3 cursor-pointer hover:bg-gray-50 -mx-5 px-5 rounded-lg"
-                onClick={() => h.id && navigate(`/dashboard/workspaces/${h.workspaceId}/inspect/${h.id}`)}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">
-                    {formatWorkspaceLabel(h.workspaceId)}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {h.inspectedByEmail ?? 'Unknown inspector'}
-                    {!!h.inspectedAt && <> · {formatTimestamp(h.inspectedAt)}</>}
-                  </p>
-                  {h.notes && (
-                    <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{h.notes}</p>
+            {history.map((h) => {
+              const isExpanded = expandedHistoryId === h.id;
+              const hChecklist = h.checklistData as ChecklistData | null;
+              const hGps = h.gps as { lat?: number; lng?: number; altitude?: number } | null;
+
+              return (
+                <div key={h.id} className="py-3 -mx-5 px-5">
+                  {/* Header row */}
+                  <div
+                    className="flex items-start justify-between cursor-pointer hover:bg-gray-50 rounded-lg"
+                    onClick={() => setExpandedHistoryId(isExpanded ? null : h.id ?? null)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {h.status === 'pass' ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 shrink-0 text-red-600" />
+                        )}
+                        <p className="text-sm font-medium text-gray-900">
+                          {formatWorkspaceLabel(h.workspaceId)}
+                        </p>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          h.status === 'pass'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {h.status.toUpperCase()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5 ml-6">
+                        {h.inspectedByEmail ?? 'Unknown inspector'}
+                        {!!h.inspectedAt && <> · {formatTimestamp(h.inspectedAt)}</>}
+                      </p>
+                      {h.notes && (
+                        <p className="text-xs text-gray-400 mt-0.5 ml-6 truncate max-w-xs">{h.notes}</p>
+                      )}
+                    </div>
+                    <button className="ml-2 shrink-0 p-1 text-gray-400 hover:text-gray-600">
+                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                  </div>
+
+                  {/* Expanded details */}
+                  {isExpanded && (
+                    <div className="mt-3 ml-6 space-y-4">
+                      {/* Checklist details */}
+                      {hChecklist && (
+                        <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Checklist</p>
+                          {CHECKLIST_SECTIONS.map((section) => (
+                            <div key={section.title} className="mb-3 last:mb-0">
+                              <p className="mb-1 text-xs font-medium text-gray-500">{section.title}</p>
+                              {section.items.map((item) => {
+                                const val = hChecklist[item.key];
+                                return (
+                                  <div key={item.key} className="flex items-center gap-2 py-0.5">
+                                    {val === 'pass' ? (
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                                    ) : val === 'fail' ? (
+                                      <XCircle className="h-3.5 w-3.5 text-red-500" />
+                                    ) : (
+                                      <span className="h-3.5 w-3.5 rounded-full border border-gray-300" />
+                                    )}
+                                    <span className={`text-xs ${val === 'fail' ? 'text-red-700 font-medium' : 'text-gray-600'}`}>
+                                      {item.label}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Photo */}
+                      {h.photoUrl && (
+                        <div className="flex items-start gap-2">
+                          <Camera className="h-4 w-4 shrink-0 text-gray-400 mt-0.5" />
+                          <a
+                            href={h.photoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <img
+                              src={h.photoUrl}
+                              alt="Inspection photo"
+                              className="h-24 w-24 rounded-lg border border-gray-200 object-cover"
+                            />
+                          </a>
+                        </div>
+                      )}
+
+                      {/* GPS */}
+                      {hGps && hGps.lat != null && hGps.lng != null && (
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <Navigation className="h-3.5 w-3.5 shrink-0" />
+                          <span>{hGps.lat.toFixed(6)}, {hGps.lng.toFixed(6)}</span>
+                          {hGps.altitude != null && (
+                            <span className="text-gray-400">· {hGps.altitude.toFixed(1)}m alt</span>
+                          )}
+                          <a
+                            href={`https://www.google.com/maps?q=${hGps.lat},${hGps.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Open in Maps
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-                <span className={`ml-3 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  h.status === 'pass'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
-                }`}>
-                  {h.status.toUpperCase()}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
+
+      {/* Replace Extinguisher Modal */}
+      {replaceOpen && orgId && extId && (
+        <ReplaceExtinguisherModal
+          orgId={orgId}
+          oldExtinguisherId={extId}
+          oldAssetId={ext.assetId}
+          onClose={() => setReplaceOpen(false)}
+        />
+      )}
 
       {/* ---- Replacement History ---- */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">

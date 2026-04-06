@@ -1,245 +1,174 @@
 # Plan -- extinguisher-tracker-3
 
-**Current Phase**: 18 -- InspectionPanel Component Extraction + ExtinguisherDetail Rebuild
-**Last Updated**: 2026-03-26
+**Current Phase**: 19 -- Inspection Flow: Click-to-Inspect, Scan-to-Inspect, Auto-Create Inspections
+**Last Updated**: 2026-04-06
 **Author**: built_by_Beck
 
 ---
 
 ## Current Objective
 
-Extract a reusable `<InspectionPanel />` component from the duplicated inspection logic in `ExtinguisherDetail.tsx` and `InspectionForm.tsx`. The ExtinguisherDetail page becomes THE complete inspection page: extinguisher info (top) + InspectionPanel with GPS, photos, checklist, notes, pass/fail buttons (middle) + inspection/replacement history (bottom).
+Make inspections actually work end-to-end. Right now, clicking an extinguisher from inventory or scanning a barcode does NOT reliably show Pass/Fail buttons because:
+
+1. **No auto-creation of inspection records**: If no workspace exists for the current month, the user sees a dead-end "No active workspace" message. If a workspace exists but the extinguisher wasn't in it when created (e.g., added after workspace creation), they see "This extinguisher is not in the current workspace."
+2. **No direct inspection path from scan**: Scanning from inventory navigates to detail view, but doesn't go through the workspace-aware inspection flow.
+3. **Already-inspected extinguishers**: When an extinguisher has already been inspected this month, clicking it shows the InspectionPanel in read-only mode with the checklist locked — but the history section at the bottom doesn't show expandable checklist details per inspection like the original Fire-Extinguisher-Tracker does.
+
+The goal: A user clicks or scans any extinguisher and IMMEDIATELY gets the inspection page. If it needs inspecting → show checklist + Pass/Fail buttons. If already inspected → show read-only details + full history with expandable checklist data per entry.
 
 ---
 
 ## Background / Analysis
 
-**Current state**: Two large files with heavily duplicated code:
-- `src/pages/ExtinguisherDetail.tsx` (775 lines) — has checklist, notes, pass/fail, history, but MISSING GPS capture and photo capture.
-- `src/pages/InspectionForm.tsx` (743 lines) — has checklist, notes, pass/fail, GPS, photos, history, but accessed via a different route and has NO extinguisher info.
+### How Fire-Extinguisher-Tracker does it (reference implementation)
 
-**Shared patterns already duplicated in both files**:
-- `ChecklistRow` component (identical in both)
-- `CheckValue` type (identical)
-- `GpsData` interface (only in InspectionForm)
-- `updateChecklist` function (identical)
-- Checklist rendering (ExtinguisherDetail uses flat `CHECKLIST_ITEMS`; InspectionForm uses categorized `CHECKLIST_SECTIONS` — prefer sections)
-- Notes textarea (identical)
-- Attestation notice (identical)
-- Pass/Fail buttons (nearly identical — ExtinguisherDetail has larger buttons)
-- Photo capture/preview/remove logic (only in InspectionForm)
-- GPS capture/display/clear logic (only in InspectionForm)
-- Reset logic (both, slightly different)
+- `ExtinguisherDetailView.jsx` loads by asset ID
+- If `status === 'pending'`: shows full 13-point checklist with Pass/Fail buttons
+- If `status === 'pass' | 'fail'`: shows read-only status, notes, GPS, photos, and a "Reset to Pending" button
+- **Inspection history** shows ALL past inspections with expandable checklist details per entry
+- **Barcode scan** → searches by assetId/serial → navigates to detail view → immediate inspection
+- No workspace concept required — inspections are per-extinguisher in a single collection
 
-**Key service facts**:
-- `saveInspectionOfflineAware` already accepts `photoUrl`, `photoPath`, and `gps` fields.
-- `CHECKLIST_SECTIONS` in `inspectionService.ts` has 4 categorized sections (preferred over flat list).
-- Photo upload uses Firebase Storage (`ref`, `uploadBytes`, `getDownloadURL`).
+### How EX3 currently works
 
-**The "Full Inspection Form" link in ExtinguisherDetail currently links to InspectionForm** — after this work, that link is removed because ExtinguisherDetail IS the full form.
+- Workspaces create inspection records in bulk (seeded from `createWorkspace` Cloud Function)
+- `ExtinguisherDetail.tsx` looks up inspection record via `getInspectionForExtinguisherInWorkspace()`
+- If no workspace or no inspection doc → shows info message, NO pass/fail buttons
+- `InspectionPanel.tsx` already has complete checklist, pass/fail, photo, GPS, attestation
+- `WorkspaceDetail.tsx` lists extinguishers by location and navigates to inspect-ext route
+
+### Root cause of "no pass/fail buttons"
+
+1. Accessing from **Inventory** page (`/dashboard/inventory/:extId`) auto-detects workspace. If none exists for current month → dead end.
+2. Extinguishers **added after workspace creation** have no inspection record → dead end.
+3. Scanning from inventory calls `onExtinguisherFound` which navigates to `/dashboard/inventory/:extId` (not workspace-aware).
+
+### Solution approach
+
+- **Auto-create inspection on demand**: When ExtinguisherDetail loads and finds no inspection record but an active workspace exists, automatically create a pending inspection record for that extinguisher. This is a client-side Firestore write (not a Cloud Function call) for speed.
+- **Auto-create workspace if none exists**: When no active workspace exists for the current month, auto-create one OR show a one-click "Start inspections for [Month]" button that creates the workspace + seeds the clicked extinguisher's inspection. For MVP, use a prominent one-click create button.
+- **Scan → inspection flow**: Ensure scan from inventory navigates to workspace-aware inspection route when possible.
+- **Expandable history**: Add expandable checklist details to each inspection history entry.
 
 ---
 
-## Tasks for This Round (Phase 18)
+## Tasks for This Round (Phase 19)
 
-### P18-01: Create `<ChecklistRow />` shared component
-**File**: `src/components/inspection/ChecklistRow.tsx` (CREATE)
+### P19-01: Add `createSingleInspection` service function
+**File**: `src/services/inspectionService.ts` (MODIFY)
 **What**:
-- Extract the `ChecklistRow` component and `CheckValue` type from the duplicated code.
-- Props: `{ label: string; value: CheckValue; onChange: (v: CheckValue) => void; disabled: boolean }`
-- Export both `ChecklistRow` and `CheckValue` type.
-- This is a pure presentational component — no state, no side effects.
+- Add a function `createSingleInspection(orgId, extId, workspaceId, extData)` that creates a single pending inspection document in `org/{orgId}/inspections`.
+- Document structure matches what `createWorkspace` Cloud Function seeds (see `functions/src/workspaces/createWorkspace.ts` lines 94-114).
+- Fields: `extinguisherId`, `workspaceId`, `assetId`, `parentLocation`, `section`, `serial`, `locationId`, `status: 'pending'`, `inspectedAt: null`, `inspectedBy: null`, `inspectedByEmail: null`, `checklistData: null`, `notes: ''`, `photoUrl: null`, `photoPath: null`, `gps: null`, `attestation: null`, `createdAt: serverTimestamp()`, `updatedAt: serverTimestamp()`.
+- Returns the created Inspection object (with id).
+- This is a direct Firestore `addDoc` — no Cloud Function needed for creating a pending record.
 
-### P18-02: Create `<GpsCapture />` component
-**File**: `src/components/inspection/GpsCapture.tsx` (CREATE)
+### P19-02: Auto-create inspection in ExtinguisherDetail when missing
+**File**: `src/pages/ExtinguisherDetail.tsx` (MODIFY)
 **What**:
-- Extract the GPS capture logic from `InspectionForm.tsx` (lines 230-255 for logic, 537-592 for UI).
-- Export the `GpsData` interface from this file.
-- Props: `{ gps: GpsData | null; onGpsChange: (gps: GpsData | null) => void; disabled: boolean; isCompleted: boolean; canInspect: boolean }`
-- Encapsulates: `captureGps()` function, loading state, error handling, GPS display with lat/lng/altitude/accuracy, "Open in Maps" link, "Clear" button.
-- Show altitude when available (important for multi-floor hospital buildings): display as "Floor elevation: {altitude}m" or similar.
-- Error state exposed via optional `onError?: (msg: string) => void` callback.
+- In the `loadInspection` function, after the workspace is found but `getInspectionForExtinguisherInWorkspace` returns `null`:
+  - If the extinguisher is a standard, non-deleted extinguisher → call `createSingleInspection()` to create a pending inspection on the fly.
+  - Set the newly created inspection as the active inspection.
+- This eliminates the "This extinguisher is not in the current workspace" dead end.
+- The existing path where `noActiveWorkspace` is true stays as-is but gets enhanced in P19-03.
 
-### P18-03: Create `<PhotoCapture />` component
-**File**: `src/components/inspection/PhotoCapture.tsx` (CREATE)
+### P19-03: One-click workspace creation from ExtinguisherDetail
+**File**: `src/pages/ExtinguisherDetail.tsx` (MODIFY)
 **What**:
-- Extract photo capture logic from `InspectionForm.tsx` (lines 209-228 for logic, 474-535 for UI).
-- Props: `{ photoFile: File | null; photoPreview: string; existingPhotoUrl?: string | null; onPhotoSelect: (file: File, preview: string) => void; onPhotoRemove: () => void; disabled: boolean; isCompleted: boolean; canInspect: boolean }`
-- Encapsulates: file input ref, `handlePhotoSelect`, `removePhoto`, photo preview display, existing photo display.
-- The parent manages `photoFile` and `photoPreview` state because the parent needs `photoFile` for upload during save.
-- Must include cleanup of object URLs (revoke on unmount and on change).
+- Replace the "No active workspace" info box with a prominent action card:
+  - Title: "Start {Month Year} Inspections"
+  - Body: "Create this month's workspace to begin inspecting extinguishers."
+  - Button: "Create Workspace & Start Inspecting" (calls `createWorkspaceCall`)
+  - After workspace is created, reload the inspection (which will now auto-create via P19-02).
+- Only show the create button for users with `hasRole(['owner', 'admin'])`.
+- For inspectors/viewers without create permission, show: "Ask your admin to create this month's workspace."
+- Add loading/error states for the creation process.
 
-### P18-04: Create `<InspectionPanel />` component
-**File**: `src/components/inspection/InspectionPanel.tsx` (CREATE)
+### P19-04: Scan-to-inspect navigation from Inventory
+**File**: `src/pages/Inventory.tsx` (MODIFY)
 **What**:
-This is the main reusable component that composes ChecklistRow, GpsCapture, and PhotoCapture.
+- Currently `onExtinguisherFound` navigates to `/dashboard/inventory/${ext.id}` which is the detail view.
+- This actually already goes to ExtinguisherDetail which will auto-create inspections (after P19-02).
+- Verify this flow works end-to-end. No code change may be needed here if P19-02 handles auto-creation.
+- If the Inventory page has a ScanSearchBar, confirm `onExtinguisherFound` navigates to the detail page.
 
-**Props interface** (`InspectionPanelProps`):
-```typescript
-interface InspectionPanelProps {
-  // Identifiers
-  orgId: string;
-  extId: string;
-  inspectionId: string;
-  workspaceId: string;
-
-  // Initial data
-  inspection: Inspection;
-
-  // Permissions
-  canInspect: boolean;
-  canReset: boolean;
-  isOnline: boolean;
-
-  // User info (for attestation)
-  inspectorName: string;
-
-  // Callbacks
-  onInspectionUpdated: (updated: Inspection | null) => void;
-  onError?: (msg: string) => void;
-  onSuccess?: (msg: string) => void;
-}
-```
-
-**Internal state managed by InspectionPanel**:
-- `checklist: ChecklistData` (initialized from `inspection.checklistData`)
-- `notes: string` (initialized from `inspection.notes`)
-- `gps: GpsData | null` (initialized from `inspection.gps`)
-- `photoFile: File | null` + `photoPreview: string`
-- `saving: boolean`, `resetting: boolean`
-- `confirmResetOpen: boolean`
-- `quickFailOpen: boolean`
-- `actionError: string`, `successMsg: string`
-
-**Renders (in order)**:
-1. Status messages (error/success)
-2. Inspection status header with reset button
-3. NFPA 13-point checklist using `CHECKLIST_SECTIONS` (categorized, not flat)
-4. Notes textarea
-5. `<PhotoCapture />`
-6. `<GpsCapture />`
-7. Attestation notice
-8. Large PASS and FAIL buttons
-9. Completed-by info (when completed)
-10. `<QuickFailModal />`
-11. `<ConfirmModal />` for reset
-
-**Save logic**: Photo upload to Firebase Storage + `saveInspectionOfflineAware` with all fields (checklist, notes, photoUrl, photoPath, gps, attestation). After save, calls `onInspectionUpdated` with refreshed data.
-
-**Reset logic**: `resetInspectionCall` + state reset + `onInspectionUpdated`.
-
-**Important**: When `inspection` prop changes (e.g., parent reloads after save), reset internal state from new props. Use a `useEffect` keyed on `inspection.id` + `inspection.status` to re-sync.
-
-### P18-05: Rebuild `ExtinguisherDetail.tsx` to use `<InspectionPanel />`
-**File**: `src/pages/ExtinguisherDetail.tsx` (MODIFY — major refactor)
+### P19-05: Expandable checklist in inspection history
+**File**: `src/pages/ExtinguisherDetail.tsx` (MODIFY)
 **What**:
-- Remove all inline inspection logic (checklist state, notes state, save handler, reset handler, ChecklistRow, etc.).
-- Keep: extinguisher loading, extinguisher info sections (Identity, Dates, Compliance/Lifecycle), back button, header with Edit/Print Tag buttons, offline banner, no-active-workspace notice, inspection history, replacement history.
-- Where the current checklist/notes/buttons section lives, replace with:
-  ```tsx
-  <InspectionPanel
-    orgId={orgId}
-    extId={extId!}
-    inspectionId={inspection.id!}
-    workspaceId={activeWorkspaceId}
-    inspection={inspection}
-    canInspect={canInspect}
-    canReset={canReset}
-    isOnline={isOnline}
-    inspectorName={user?.displayName ?? user?.email ?? 'Unknown'}
-    onInspectionUpdated={(updated) => {
-      setInspection(updated);
-      refreshHistory();
-    }}
-  />
-  ```
-- Remove the "Full Inspection Form" link — this page IS the full inspection form now.
-- Remove these imports that are no longer needed: `CheckCircle2`, `XCircle`, `ShieldCheck` (unless used elsewhere), `QuickFailModal`, `CHECKLIST_ITEMS`, `EMPTY_CHECKLIST`, `saveInspectionOfflineAware`, `resetInspectionCall`.
-- Keep `ConfirmModal` only if still used for something else on the page (it is not — remove it).
-- **Expected line count reduction**: ~775 lines down to ~350-400 lines.
+- Each inspection history entry currently shows workspace label, inspector, date, status, and notes.
+- Add an expandable section showing the 13-point checklist data (checklistData from each history entry).
+- Use `CHECKLIST_SECTIONS` for categorized display (import from inspectionService).
+- Each checklist item shows its pass/fail status with green/red indicators.
+- Expand/collapse with a "View Checklist" / "Hide Checklist" toggle.
+- Also show the inspection photo thumbnail if `photoUrl` exists.
+- Also show GPS coordinates with "Open in Maps" link if `gps` exists.
+- Match the pattern from Fire-Extinguisher-Tracker's `ExtinguisherDetailView.jsx` (lines 1046-1143).
 
-### P18-06: Update `InspectionForm.tsx` to use `<InspectionPanel />`
-**File**: `src/pages/InspectionForm.tsx` (MODIFY — major refactor)
+### P19-06: Firestore security rule for client-side inspection creation
+**File**: `firestore.rules` (MODIFY)
 **What**:
-- InspectionForm is accessed from workspace routes (`/dashboard/workspaces/:workspaceId/inspect/:inspectionId`). Keep this route working.
-- Remove all inline checklist/notes/GPS/photo/save/reset logic.
-- Keep: inspection loading, header (back button, title, status), offline banner, inspection history at bottom.
-- Replace the middle section with `<InspectionPanel />`.
-- Remove `ChecklistRow` (now imported from shared component or used via InspectionPanel).
-- **Expected line count reduction**: ~743 lines down to ~200-250 lines.
+- Currently inspections are only created by Cloud Functions (workspace creation).
+- Add a rule allowing `owner`, `admin`, and `inspector` roles to create inspection documents with `status == 'pending'` only.
+- Rule: `allow create: if isMember(orgId) && hasRole(orgId, ['owner', 'admin', 'inspector']) && request.resource.data.status == 'pending'`
+- Ensure the existing write rules for `saveInspection` (updates) still work through Cloud Functions.
+- Check the existing rules structure first — there may already be a rule block for inspections that needs modification.
 
-### P18-07: Create barrel export for inspection components
-**File**: `src/components/inspection/index.ts` (CREATE)
-**What**:
-```typescript
-export { ChecklistRow, type CheckValue } from './ChecklistRow';
-export { GpsCapture, type GpsData } from './GpsCapture';
-export { PhotoCapture } from './PhotoCapture';
-export { InspectionPanel } from './InspectionPanel';
-```
-
-### P18-08: Build & lint verification
+### P19-07: Build & lint verification
 **Commands**: `pnpm build`, `cd functions && npm run build`, `pnpm lint`
-**What**: Verify everything compiles clean. Fix any TypeScript errors, unused imports, or ESLint violations.
+**What**: Verify everything compiles clean. Fix any TypeScript errors, unused imports, or ESLint violations introduced in this phase.
 
 ---
 
 ## Build Order
 
 ```
-P18-01 (ChecklistRow)
-  └─> P18-02 (GpsCapture)     ── can be parallel with P18-01
-  └─> P18-03 (PhotoCapture)   ── can be parallel with P18-01, P18-02
-      └─> P18-04 (InspectionPanel) ── depends on P18-01, P18-02, P18-03
-          ├─> P18-05 (Rebuild ExtinguisherDetail) ── depends on P18-04
-          ├─> P18-06 (Update InspectionForm) ── depends on P18-04
-          └─> P18-07 (Barrel export) ── depends on P18-01..04
-              └─> P18-08 (Build & lint) ── last
+P19-01 (createSingleInspection service)
+  └─> P19-06 (Firestore rules for client-side create) ── parallel with P19-01
+      └─> P19-02 (Auto-create inspection in ExtinguisherDetail) ── depends on P19-01
+          ├─> P19-03 (One-click workspace creation) ── depends on P19-02
+          ├─> P19-04 (Verify scan-to-inspect flow) ── depends on P19-02
+          └─> P19-05 (Expandable history checklist) ── independent, can parallel with P19-02
+              └─> P19-07 (Build & lint) ── last
 ```
 
-**Recommended execution**: P18-01 + P18-02 + P18-03 (parallel) → P18-04 → P18-05 + P18-06 + P18-07 (parallel) → P18-08
+**Recommended execution**: P19-01 + P19-06 (parallel) → P19-02 → P19-03 + P19-04 + P19-05 (parallel) → P19-07
 
 ---
 
 ## Key Decisions
 
-1. **CHECKLIST_SECTIONS over CHECKLIST_ITEMS**: The InspectionPanel uses the categorized `CHECKLIST_SECTIONS` (4 sections with headers) instead of the flat `CHECKLIST_ITEMS` list. This provides better UX grouping.
+1. **Client-side inspection creation (not Cloud Function)**: Creating a pending inspection is a simple document write with no business logic. Using `addDoc` instead of a callable Cloud Function avoids latency and works offline. The security rule ensures only pending records can be created client-side.
 
-2. **InspectionPanel manages its own state**: Checklist, notes, GPS, photo, saving, and reset state all live inside InspectionPanel. The parent only provides the initial `Inspection` object and callbacks for when things change. This keeps the parent page clean.
+2. **Auto-create on demand, not bulk-reseed**: Instead of retroactively seeding ALL missing extinguishers when one is missing, we create only the one needed. This is fast and avoids race conditions.
 
-3. **Photo state split**: `photoFile` and `photoPreview` state live in InspectionPanel (not PhotoCapture) because InspectionPanel needs the file for upload during save. PhotoCapture is a controlled component.
+3. **Keep workspace model**: We don't abandon the workspace concept (it's core to the multi-tenant compliance model). Instead we make it frictionless — auto-create workspaces and auto-create inspection records so the user never hits a dead end.
 
-4. **GpsData interface exported from GpsCapture.tsx**: The interface is co-located with the component that uses it most, but exported for use by InspectionPanel and the service layer.
+4. **Expandable history matching FET pattern**: The Fire-Extinguisher-Tracker shows expandable checklist details per history entry. This is the UX benchmark.
 
-5. **Keep InspectionForm route alive**: The workspace-based `/inspect/:inspectionId` route still works but now uses InspectionPanel internally, drastically reducing code duplication.
-
-6. **No QuickFailModal change**: QuickFailModal stays as-is; InspectionPanel uses it the same way ExtinguisherDetail currently does.
-
-7. **Altitude display**: GPS section explicitly shows altitude when captured, labeled clearly for multi-floor building use cases (hospitals, warehouses with mezzanines).
+5. **Inspection auto-creation only for standard, non-deleted extinguishers**: Spare, replaced, retired, and soft-deleted extinguishers should NOT get auto-created inspections.
 
 ---
 
 ## Lessons Learned References (Relevant to This Phase)
 
-- **useEffect with async data must reset state when dependencies change** (2026-03-19): InspectionPanel must reset internal state when `inspection.id` changes.
-- **Derived data lists must be refreshed after mutations** (2026-03-19): Parent's `refreshHistory()` called via `onInspectionUpdated` callback.
-- **Replacing window.confirm requires useCallback** (2026-03-22): Reset handler in InspectionPanel must use `useCallback`.
-- **React Compiler preserve-manual-memoization requires full object deps** (2026-03-22): Use full objects in useCallback deps, not property accessors.
-- **Conditionally-rendered elements need a render flush before ref access** (2026-03-20): PhotoCapture's file input ref is always rendered (hidden), so this shouldn't be an issue, but keep in mind.
-- **Cleanup photo preview object URL** (from InspectionForm): PhotoCapture must revoke object URLs on unmount and on change.
+- **useEffect with async data must reset state when dependencies change** (2026-03-19): loadInspection already does this correctly.
+- **Derived data lists must be refreshed after mutations** (2026-03-19): After auto-creating inspection, set it directly — no need to re-fetch.
+- **Firestore batch limits** (from lessons): Not relevant here since we create one doc at a time.
+- **Never call DocumentReference.update() without confirming doc exists** (2026-03-18): Use addDoc for creation, not update.
 
 ---
 
 ## Handoff to build-agent
 
-Read this plan in full. Start with P18-01, P18-02, P18-03 (these are independent — do them in any order or parallel). Then P18-04 (the main component). Then P18-05 and P18-06 (the page refactors). Then P18-07 (barrel export). Finish with P18-08 (build/lint).
+Read this plan in full. Start with P19-01 and P19-06 (independent). Then P19-02 (core logic). Then P19-03, P19-04, P19-05 (can be parallel). Finish with P19-07 (build/lint).
 
 Key files to reference:
-- `src/pages/ExtinguisherDetail.tsx` — current 775-line page being refactored
-- `src/pages/InspectionForm.tsx` — current 743-line page being refactored (source of GPS + photo code)
-- `src/services/inspectionService.ts` — CHECKLIST_ITEMS, CHECKLIST_SECTIONS, EMPTY_CHECKLIST, saveInspectionOfflineAware, resetInspectionCall
-- `src/components/scanner/QuickFailModal.tsx` — used by InspectionPanel for fail-without-notes flow
-- `src/components/ui/ConfirmModal.tsx` — used by InspectionPanel for reset confirmation
-- `src/lib/firebase.ts` — `storage` export for photo upload
+- `src/pages/ExtinguisherDetail.tsx` — main page being enhanced
+- `src/services/inspectionService.ts` — where createSingleInspection goes
+- `src/services/workspaceService.ts` — createWorkspaceCall for one-click creation
+- `src/services/extinguisherService.ts` — Extinguisher type definition
+- `functions/src/workspaces/createWorkspace.ts` — reference for inspection document structure
+- `firestore.rules` — needs rule addition for client-side inspection creation
+- `Fire-Extinguisher-Tracker/src/components/ExtinguisherDetailView.jsx` — reference for expandable history UI
 
 All commits must include "built_by_Beck" in the message.
