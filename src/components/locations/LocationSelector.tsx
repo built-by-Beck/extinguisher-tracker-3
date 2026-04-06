@@ -10,6 +10,7 @@ import { useAuth } from '../../hooks/useAuth.ts';
 import {
   subscribeToLocations,
   buildLocationTree,
+  getLocationTypeLabel,
   type Location,
   type LocationTreeNode,
 } from '../../services/locationService.ts';
@@ -62,7 +63,9 @@ export function LocationSelector({ value, onChange }: LocationSelectorProps) {
       <option value="">-- All Locations --</option>
       {flattened.map(({ loc, depth }) => (
         <option key={loc.id} value={loc.id}>
-          {'  '.repeat(depth)}{depth > 0 ? '└ ' : ''}{loc.name} ({loc.locationType})
+          {'  '.repeat(depth)}
+          {depth > 0 ? '└ ' : ''}
+          {loc.name} ({getLocationTypeLabel(loc.locationType)})
         </option>
       ))}
     </select>

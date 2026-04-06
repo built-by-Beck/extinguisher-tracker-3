@@ -28,17 +28,78 @@ export interface Location {
   deletedAt: unknown | null;
 }
 
-export const LOCATION_TYPES = [
-  'campus',
-  'building',
-  'floor',
-  'wing',
-  'zone',
-  'room',
-  'mechanical',
-  'outdoor',
-  'other',
+/** [stored value, label shown in UI] — values are stable for Firestore; labels can change. */
+export const LOCATION_TYPE_ENTRIES = [
+  // Structural (common hierarchy)
+  ['campus', 'Campus'],
+  ['building', 'Building'],
+  ['floor', 'Floor'],
+  ['wing', 'Wing'],
+  ['zone', 'Zone'],
+  // Alphabetical by label
+  ['apartment', 'Apartment'],
+  ['attic', 'Attic'],
+  ['basement', 'Basement'],
+  ['boiler_room', 'Boiler room'],
+  ['break_room', 'Break room'],
+  ['cafeteria', 'Cafeteria'],
+  ['classroom', 'Classroom'],
+  ['closet', 'Closet'],
+  ['conference_room', 'Conference room'],
+  ['courtyard', 'Courtyard'],
+  ['dining_room', 'Dining room'],
+  ['driveway', 'Driveway'],
+  ['electrical_room', 'Electrical room'],
+  ['elevator_lobby', 'Elevator lobby'],
+  ['entrance', 'Entrance'],
+  ['exam_room', 'Exam room'],
+  ['exit', 'Exit'],
+  ['fence_line', 'Fence line'],
+  ['gate', 'Gate'],
+  ['generator_room', 'Generator room'],
+  ['hallway', 'Hallway'],
+  ['icu', 'ICU'],
+  ['kitchen', 'Kitchen'],
+  ['lab', 'Lab'],
+  ['loading_dock', 'Loading dock'],
+  ['lobby', 'Lobby'],
+  ['maintenance_room', 'Maintenance room'],
+  ['mechanical', 'Mechanical'],
+  ['mechanical_room', 'Mechanical room'],
+  ['nurse_station', 'Nurse station'],
+  ['office', 'Office'],
+  ['operating_room', 'Operating room'],
+  ['outdoor', 'Outdoor'],
+  ['outdoor_walkway', 'Outdoor walkway'],
+  ['parking_deck', 'Parking deck'],
+  ['parking_lot', 'Parking lot'],
+  ['patient_room', 'Patient room'],
+  ['reception_area', 'Reception area'],
+  ['restroom', 'Restroom'],
+  ['roof', 'Roof'],
+  ['room', 'Room'],
+  ['security_office', 'Security office'],
+  ['server_room', 'Server room'],
+  ['shop', 'Shop'],
+  ['stairwell', 'Stairwell'],
+  ['storage_room', 'Storage room'],
+  ['suite', 'Suite'],
+  ['utility_area', 'Utility area'],
+  ['waiting_area', 'Waiting area'],
+  ['warehouse', 'Warehouse'],
+  ['other', 'Other'],
 ] as const;
+
+export const LOCATION_TYPES = LOCATION_TYPE_ENTRIES.map((e) => e[0]);
+
+export function getLocationTypeLabel(value: string): string {
+  const found = LOCATION_TYPE_ENTRIES.find((e) => e[0] === value);
+  if (found) return found[1];
+  return value
+    .split('_')
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(' ');
+}
 
 function locationsRef(orgId: string) {
   return collection(db, 'org', orgId, 'locations');

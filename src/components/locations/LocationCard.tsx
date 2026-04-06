@@ -6,6 +6,7 @@
  */
 
 import { MapPin, Building2, Layers, CheckCircle2, XCircle, Clock, Flame } from 'lucide-react';
+import { getLocationTypeLabel } from '../../services/locationService.ts';
 
 export interface LocationCardStats {
   total: number;
@@ -52,8 +53,8 @@ export function LocationCard({ name, locationType, stats, onClick }: LocationCar
           <h3 className="font-semibold text-gray-900 group-hover:text-red-600">{name}</h3>
         </div>
         {locationType && (
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 capitalize">
-            {locationType}
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+            {getLocationTypeLabel(locationType)}
           </span>
         )}
       </div>
