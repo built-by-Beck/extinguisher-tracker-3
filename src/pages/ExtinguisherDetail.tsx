@@ -15,7 +15,6 @@ import {
   ArrowLeft,
   Loader2,
   MapPin,
-  Calendar,
   History,
   RefreshCw,
   Edit2,
@@ -333,123 +332,144 @@ export default function ExtinguisherDetail() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Asset #{ext.assetId}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
-            {ext.serial && <span>Serial: <span className="font-medium text-gray-700">{ext.serial}</span></span>}
-            {ext.barcode && <span>Barcode: <span className="font-medium text-gray-700">{ext.barcode}</span></span>}
-          </div>
-          {(ext.section || ext.parentLocation || ext.vicinity) && (
-            <div className="mt-1.5 flex items-center gap-1.5 text-sm text-gray-500">
-              <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
-              <span>
-                {[ext.section, ext.parentLocation, ext.vicinity].filter(Boolean).join(' — ')}
-              </span>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {hasFeature(org?.featureFlags as Record<string, boolean> | null | undefined, 'tagPrinting', org?.plan) && extId && (
-            <button
-              onClick={() => navigate(`/dashboard/inventory/print-tags?ids=${extId}`)}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Printer className="h-4 w-4" />
-              Print Tag
-            </button>
-          )}
-          {canEdit && extId && !isDeleted && (
-            <button
-              onClick={() => setReplaceOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-orange-300 px-3 py-2 text-sm font-medium text-orange-700 hover:bg-orange-50"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Replace
-            </button>
-          )}
-          {canEdit && extId && (
-            <Link
-              to={`/dashboard/inventory/${extId}/edit`}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Edit2 className="h-4 w-4" />
-              Edit
-            </Link>
-          )}
-          {canEdit && extId && !isDeleted && (
-            <button
-              onClick={() => setDeletePromptOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete
-            </button>
-          )}
-        </div>
+      {/* Action buttons row */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {hasFeature(org?.featureFlags as Record<string, boolean> | null | undefined, 'tagPrinting', org?.plan) && extId && (
+          <button
+            onClick={() => navigate(`/dashboard/inventory/print-tags?ids=${extId}`)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Printer className="h-4 w-4" />
+            Print Tag
+          </button>
+        )}
+        {canEdit && extId && !isDeleted && (
+          <button
+            onClick={() => setReplaceOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-orange-300 px-3 py-2 text-sm font-medium text-orange-700 hover:bg-orange-50"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Replace
+          </button>
+        )}
+        {canEdit && extId && (
+          <Link
+            to={`/dashboard/inventory/${extId}/edit`}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Edit2 className="h-4 w-4" />
+            Edit
+          </Link>
+        )}
+        {canEdit && extId && !isDeleted && (
+          <button
+            onClick={() => setDeletePromptOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </button>
+        )}
       </div>
 
-      {/* Identity section */}
-      <div className="mb-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Identity</h2>
-        <InfoRow label="Manufacturer" value={ext.manufacturer} />
-        <InfoRow label="Type" value={ext.extinguisherType} />
-        <InfoRow label="Service Class" value={ext.serviceClass} />
-        <InfoRow label="Size" value={ext.extinguisherSize} />
-        <InfoRow label="Category" value={(ext.category ?? 'standard').replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())} />
-      </div>
-
-      {/* Dates section */}
-      <div className="mb-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-gray-400" />
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Dates</h2>
-        </div>
-        <InfoRow label="Manufacture Date" value={formatTimestamp(ext.manufactureDate)} />
-        <InfoRow label="Install Date" value={formatTimestamp(ext.installDate)} />
-        <InfoRow label="In-Service Date" value={formatTimestamp(ext.inServiceDate)} />
-        <InfoRow label="Expiration Year" value={ext.expirationYear?.toString()} />
-      </div>
-
-      {/* Compliance / Lifecycle section */}
+      {/* ---- Asset Information Card ---- */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-gray-400" />
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Compliance &amp; Lifecycle</h2>
+        {/* Prominent Asset # and Serial # */}
+        <div className="mb-4 grid grid-cols-2 gap-4">
+          <div className="rounded-lg bg-gray-50 p-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Asset #</p>
+            <p className="mt-0.5 text-2xl font-bold text-gray-900">{ext.assetId}</p>
+          </div>
+          <div className="rounded-lg bg-red-50 p-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Serial #</p>
+            <p className="mt-0.5 text-2xl font-bold text-red-700 break-all">{ext.serial || '--'}</p>
+          </div>
         </div>
-        <div className="mb-3 flex flex-wrap gap-2">
-          {ext.complianceStatus && (
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-              ext.complianceStatus === 'compliant'
-                ? 'bg-green-100 text-green-700'
-                : ext.complianceStatus === 'overdue'
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-amber-100 text-amber-700'
-            }`}>
-              {ext.complianceStatus.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-            </span>
-          )}
-          {ext.overdueFlags?.map((flag) => (
-            <span key={flag} className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-600">
-              {flag}
-            </span>
-          ))}
+
+        {/* Location fields */}
+        {(ext.parentLocation || ext.section || ext.vicinity || ext.locationId) && (
+          <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/50 p-3">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <MapPin className="h-4 w-4 text-blue-500" />
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-500">Location</p>
+            </div>
+            {ext.parentLocation && (
+              <div className="flex items-start justify-between gap-4 py-1">
+                <span className="text-sm text-gray-500">Building / Parent Location</span>
+                <span className="text-sm font-medium text-gray-900 text-right">{ext.parentLocation}</span>
+              </div>
+            )}
+            {ext.section && (
+              <div className="flex items-start justify-between gap-4 py-1">
+                <span className="text-sm text-gray-500">Section / Floor</span>
+                <span className="text-sm font-medium text-gray-900 text-right">{ext.section}</span>
+              </div>
+            )}
+            {ext.vicinity && (
+              <div className="flex items-start justify-between gap-4 py-1">
+                <span className="text-sm text-gray-500">Vicinity</span>
+                <span className="text-sm font-medium text-gray-900 text-right">{ext.vicinity}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Key specs: mfg year, exp year, type, size */}
+        <div className="grid grid-cols-2 gap-x-6">
+          <InfoRow label="Mfg. Year" value={ext.manufactureYear?.toString()} />
+          <InfoRow label="Exp. Year" value={ext.expirationYear?.toString()} />
+          <InfoRow label="Type" value={ext.extinguisherType} />
+          <InfoRow label="Size" value={ext.extinguisherSize} />
+          <InfoRow label="Manufacturer" value={ext.manufacturer} />
+          <InfoRow label="Service Class" value={ext.serviceClass} />
         </div>
-        <InfoRow label="Last Monthly Inspection" value={formatTimestamp(ext.lastMonthlyInspection)} />
-        <InfoRow label="Next Monthly Inspection" value={formatTimestamp(ext.nextMonthlyInspection)} />
-        <InfoRow label="Last Annual Inspection" value={formatTimestamp(ext.lastAnnualInspection)} />
-        <InfoRow label="Next Annual Inspection" value={formatTimestamp(ext.nextAnnualInspection)} />
-        <InfoRow label="Last Six-Year Maintenance" value={formatTimestamp(ext.lastSixYearMaintenance)} />
-        <InfoRow label="Next Six-Year Maintenance" value={formatTimestamp(ext.nextSixYearMaintenance)} />
-        <InfoRow label="Last Hydro Test" value={formatTimestamp(ext.lastHydroTest)} />
-        <InfoRow label="Next Hydro Test" value={formatTimestamp(ext.nextHydroTest)} />
+
+        {/* Compliance badges */}
+        {(ext.complianceStatus || (ext.overdueFlags && ext.overdueFlags.length > 0)) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {ext.complianceStatus && (
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                ext.complianceStatus === 'compliant'
+                  ? 'bg-green-100 text-green-700'
+                  : ext.complianceStatus === 'overdue'
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-amber-100 text-amber-700'
+              }`}>
+                {ext.complianceStatus.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+              </span>
+            )}
+            {ext.overdueFlags?.map((flag) => (
+              <span key={flag} className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-600">
+                {flag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* ---- Inspection section (hidden for deleted extinguishers) ---- */}
+      {/* ---- INSPECTION SECTION ---- */}
 
       {!isDeleted && (
         <>
+          {/* Big Inspection header */}
+          <div className="mb-4 mt-2 border-b-2 border-red-600 pb-2">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <ShieldCheck className="h-6 w-6 text-red-600" />
+              Inspection
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-400">
+              For a complete list of inspection items, see{' '}
+              <a
+                href="https://www.nfpa.org/codes-and-standards/nfpa-10-standard-development/10"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                NFPA 10 Section 7.2.2 — Inspection Procedures for Portable Fire Extinguishers
+              </a>.
+            </p>
+          </div>
+
           {/* No active workspace — one-click create or permission message */}
           {noActiveWorkspace && !workspaceId && (
             <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-5">
@@ -515,13 +535,15 @@ export default function ExtinguisherDetail() {
               canReset={canReset}
               isOnline={isOnline}
               inspectorName={user?.displayName ?? user?.email ?? 'Unknown'}
+              previousNotes={history.find((h) => (h.status === 'pass' || h.status === 'fail') && h.notes)?.notes}
+              previousPhotoUrl={history.find((h) => (h.status === 'pass' || h.status === 'fail') && h.photoUrl)?.photoUrl}
               onInspectionUpdated={handleInspectionUpdated}
             />
           )}
         </>
       )}
 
-      {/* ---- Inspection History ---- */}
+      {/* ---- Inspection History (past year) ---- */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <History className="h-5 w-5 text-gray-400" />
@@ -685,18 +707,15 @@ export default function ExtinguisherDetail() {
         />
       )}
 
-      {/* ---- Replacement History ---- */}
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
-          <RefreshCw className="h-5 w-5 text-gray-400" />
-          <h2 className="text-base font-semibold text-gray-900">
-            Replacement History ({ext.replacementHistory?.length ?? 0})
-          </h2>
-        </div>
-
-        {(!ext.replacementHistory || ext.replacementHistory.length === 0) ? (
-          <p className="text-sm text-gray-500">No replacement history.</p>
-        ) : (
+      {/* ---- Replacement History (only if applicable) ---- */}
+      {ext.replacementHistory && ext.replacementHistory.length > 0 && (
+        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <RefreshCw className="h-5 w-5 text-gray-400" />
+            <h2 className="text-base font-semibold text-gray-900">
+              Replacement History ({ext.replacementHistory.length})
+            </h2>
+          </div>
           <div className="divide-y divide-gray-100">
             {ext.replacementHistory.map((r, idx) => (
               <div key={idx} className="py-3">
@@ -724,7 +743,25 @@ export default function ExtinguisherDetail() {
               </div>
             ))}
           </div>
-        )}
+        </div>
+      )}
+
+      {/* ---- Compliance & Lifecycle Details ---- */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-gray-400" />
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Compliance &amp; Lifecycle</h2>
+        </div>
+        <InfoRow label="Last Monthly Inspection" value={formatTimestamp(ext.lastMonthlyInspection)} />
+        <InfoRow label="Next Monthly Inspection" value={formatTimestamp(ext.nextMonthlyInspection)} />
+        <InfoRow label="Last Annual Inspection" value={formatTimestamp(ext.lastAnnualInspection)} />
+        <InfoRow label="Next Annual Inspection" value={formatTimestamp(ext.nextAnnualInspection)} />
+        <InfoRow label="Last Six-Year Maintenance" value={formatTimestamp(ext.lastSixYearMaintenance)} />
+        <InfoRow label="Next Six-Year Maintenance" value={formatTimestamp(ext.nextSixYearMaintenance)} />
+        <InfoRow label="Last Hydro Test" value={formatTimestamp(ext.lastHydroTest)} />
+        <InfoRow label="Next Hydro Test" value={formatTimestamp(ext.nextHydroTest)} />
+        <InfoRow label="Install Date" value={formatTimestamp(ext.installDate)} />
+        <InfoRow label="In-Service Date" value={formatTimestamp(ext.inServiceDate)} />
       </div>
     </div>
   );
