@@ -230,11 +230,14 @@ export default function Inventory() {
     return () => unsub();
   }, [orgId, showDeleted]);
 
-  // Get total count for asset limit bar
+  // Get total count for asset limit bar — count non-deleted items from snapshot
   useEffect(() => {
     if (!orgId) return;
-    getActiveExtinguisherCount(orgId).then(setTotalCount);
-  }, [orgId, items]);
+    const activeCount = showDeleted
+      ? items.filter((e) => !e.deletedAt).length
+      : items.length;
+    setTotalCount(activeCount);
+  }, [orgId, items, showDeleted]);
 
   // Helper: get location path for an extinguisher
   const getExtLocationPath = useCallback(
