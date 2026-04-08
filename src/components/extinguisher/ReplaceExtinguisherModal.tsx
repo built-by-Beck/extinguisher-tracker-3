@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Loader2 } from 'lucide-react';
-import { isAssetIdTaken } from '../../services/extinguisherService.ts';
+import { isSerialTaken } from '../../services/extinguisherService.ts';
 import { replaceExtinguisher } from '../../services/lifecycleService.ts';
 
 interface ReplaceExtinguisherModalProps {
@@ -52,10 +52,10 @@ export function ReplaceExtinguisherModal({
 
     setSubmitting(true);
     try {
-      // Validate new assetId uniqueness (exclude the old extinguisher being replaced)
-      const taken = await isAssetIdTaken(orgId, assetId.trim(), oldExtinguisherId);
-      if (taken) {
-        setError(`Asset ID "${assetId.trim()}" is already in use by another extinguisher.`);
+      // Validate serial number uniqueness — serial must be different from any active extinguisher
+      const serialInUse = await isSerialTaken(orgId, serial.trim());
+      if (serialInUse) {
+        setError(`Serial number "${serial.trim()}" is already in use by another extinguisher.`);
         setSubmitting(false);
         return;
       }

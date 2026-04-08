@@ -63,14 +63,14 @@ export const replaceExtinguisher = onCall(async (request) => {
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
 
-  // Validate new assetId is unique (must be outside transaction)
-  const duplicateCheck = await adminDb.collection(`org/${orgId}/extinguishers`)
-    .where('assetId', '==', newExtinguisherData.assetId)
+  // Validate serial number is unique (must be outside transaction)
+  const serialCheck = await adminDb.collection(`org/${orgId}/extinguishers`)
+    .where('serial', '==', newExtinguisherData.serial)
     .where('deletedAt', '==', null)
     .limit(1)
     .get();
-  if (!duplicateCheck.empty) {
-    throwFailedPrecondition(`Asset ID "${newExtinguisherData.assetId}" is already in use.`);
+  if (!serialCheck.empty) {
+    throwFailedPrecondition(`Serial number "${newExtinguisherData.serial}" is already in use by another extinguisher.`);
   }
 
   return await adminDb.runTransaction(async (tx) => {
