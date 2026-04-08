@@ -411,7 +411,7 @@ export default function Dashboard() {
           <h2 className="mb-4 text-lg font-semibold text-gray-900">Quick Lists</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <button
-              onClick={() => navigate(`/dashboard/workspaces/${activeWorkspace?.id ?? ''}`)}
+              onClick={() => activeWorkspace?.id ? navigate(`/dashboard/workspaces/${activeWorkspace.id}`) : navigate('/dashboard/workspaces')}
               className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3 text-left hover:bg-green-100"
             >
               <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
@@ -421,7 +421,7 @@ export default function Dashboard() {
               </div>
             </button>
             <button
-              onClick={() => navigate(`/dashboard/workspaces/${activeWorkspace?.id ?? ''}`)}
+              onClick={() => activeWorkspace?.id ? navigate(`/dashboard/workspaces/${activeWorkspace.id}`) : navigate('/dashboard/workspaces')}
               className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-left hover:bg-red-100"
             >
               <XCircle className="h-5 w-5 shrink-0 text-red-600" />

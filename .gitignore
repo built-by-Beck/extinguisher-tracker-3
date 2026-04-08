@@ -9,8 +9,13 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+.env.local.md
 functions/.env
 functions/.env.secret
+
+# Personal notes
+TODO/
+info-about-problems.txt
 
 # IDE
 .vscode/

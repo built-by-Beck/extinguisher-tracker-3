@@ -257,6 +257,8 @@ export default function ExtinguisherDetail() {
       setDeletePromptOpen(false);
       navigate('/dashboard/inventory');
     } catch {
+      // keep modal open so user can retry
+    } finally {
       setDeleting(false);
     }
   }
