@@ -283,6 +283,59 @@ export function InspectionPanel({
         )}
       </div>
 
+      {/* Attestation notice */}
+      {canInspect && isPending && (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <p className="text-xs text-blue-700">
+            By marking this inspection as Pass or Fail, you certify that this inspection was
+            performed according to NFPA 10 standards.
+          </p>
+        </div>
+      )}
+
+      {/* Pass / Fail buttons — placed prominently near the top */}
+      {canInspect && isPending && (
+        <div className="mb-6 flex items-center gap-3">
+          <button
+            onClick={handlePassClick}
+            disabled={saving}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-600 px-6 py-5 text-lg font-bold text-white shadow-md hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-7 w-7" />
+            )}
+            PASS
+          </button>
+          <button
+            onClick={handleFailClick}
+            disabled={saving}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-5 text-lg font-bold text-white shadow-md hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : (
+              <XCircle className="h-7 w-7" />
+            )}
+            FAIL
+          </button>
+        </div>
+      )}
+
+      {/* Completed info */}
+      {isCompleted && inspection.inspectedByEmail && (
+        <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p className="text-sm text-gray-600">
+            Inspected by{' '}
+            <span className="font-medium">{inspection.inspectedByEmail}</span>
+            {!!inspection.inspectedAt && (
+              <> on {formatTimestamp(inspection.inspectedAt)}</>
+            )}
+          </p>
+        </div>
+      )}
+
       {/* EX3 NFPA 10 Inspection Checklist */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-1 flex items-center gap-2">
@@ -369,59 +422,6 @@ export function InspectionPanel({
           canInspect={canInspect}
         />
       </div>
-
-      {/* Attestation notice */}
-      {canInspect && isPending && (
-        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <p className="text-xs text-blue-700">
-            By marking this inspection as Pass or Fail, you certify that this inspection was
-            performed according to NFPA 10 standards.
-          </p>
-        </div>
-      )}
-
-      {/* Pass / Fail buttons */}
-      {canInspect && isPending && (
-        <div className="mb-6 flex items-center gap-3">
-          <button
-            onClick={handlePassClick}
-            disabled={saving}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-600 px-6 py-5 text-lg font-bold text-white shadow-md hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving ? (
-              <Loader2 className="h-6 w-6 animate-spin" />
-            ) : (
-              <CheckCircle2 className="h-7 w-7" />
-            )}
-            PASS
-          </button>
-          <button
-            onClick={handleFailClick}
-            disabled={saving}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-5 text-lg font-bold text-white shadow-md hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving ? (
-              <Loader2 className="h-6 w-6 animate-spin" />
-            ) : (
-              <XCircle className="h-7 w-7" />
-            )}
-            FAIL
-          </button>
-        </div>
-      )}
-
-      {/* Completed info */}
-      {isCompleted && inspection.inspectedByEmail && (
-        <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <p className="text-sm text-gray-600">
-            Inspected by{' '}
-            <span className="font-medium">{inspection.inspectedByEmail}</span>
-            {!!inspection.inspectedAt && (
-              <> on {formatTimestamp(inspection.inspectedAt)}</>
-            )}
-          </p>
-        </div>
-      )}
 
       {/* Quick fail modal */}
       <QuickFailModal

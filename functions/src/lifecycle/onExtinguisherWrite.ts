@@ -107,6 +107,19 @@ export const onExtinguisherCreated = onDocumentCreated(
         const workspaceTxSnap = await tx.get(workspaceDoc.ref);
 
         if (workspaceTxSnap.exists && workspaceTxSnap.data()?.status === 'active') {
+          // Check if an inspection already exists (e.g., seeded by CSV import)
+          const existingInspSnap = await adminDb
+            .collection(`org/${orgId}/inspections`)
+            .where('extinguisherId', '==', extId)
+            .where('workspaceId', '==', workspaceId)
+            .limit(1)
+            .get();
+
+          if (!existingInspSnap.empty) {
+            // Inspection already seeded — skip to avoid duplicates
+            return;
+          }
+
           let section = (currentExtData.section as string | null) ?? '';
           const locationId = (currentExtData.locationId as string | null) ?? null;
 
