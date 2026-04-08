@@ -29,7 +29,29 @@ export const deleteWorkspace = onCall(async (request) => {
     throwNotFound('Workspace not found.');
   }
 
-  // Recursively delete the workspace and all its subcollections (like inspections)
+  // Delete all inspection documents linked to this workspace
+  const inspSnap = await adminDb.collection(`org/${orgId}/inspections`)
+    .where('workspaceId', '==', workspaceId)
+    .get();
+
+  if (!inspSnap.empty) {
+    let batch = adminDb.batch();
+    let batchCount = 0;
+    for (const doc of inspSnap.docs) {
+      batch.delete(doc.ref);
+      batchCount++;
+      if (batchCount >= 499) {
+        await batch.commit();
+        batch = adminDb.batch();
+        batchCount = 0;
+      }
+    }
+    if (batchCount > 0) {
+      await batch.commit();
+    }
+  }
+
+  // Delete the workspace document (and any subcollections)
   await adminDb.recursiveDelete(wsRef);
 
   // Also delete the associated report, if any

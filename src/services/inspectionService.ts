@@ -9,6 +9,8 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  updateDoc,
+  increment,
   serverTimestamp,
   type QueryConstraint,
 } from 'firebase/firestore';
@@ -349,6 +351,17 @@ export async function createSingleInspection(
   };
 
   const ref = await addDoc(collection(db, 'org', orgId, 'inspections'), inspData);
+
+  // Update workspace stats to reflect the newly seeded inspection
+  const wsRef = doc(db, 'org', orgId, 'workspaces', workspaceId);
+  await updateDoc(wsRef, {
+    'stats.total': increment(1),
+    'stats.pending': increment(1),
+    'stats.lastUpdated': serverTimestamp(),
+  }).catch(() => {
+    // Non-critical — stats will be recalculated on archive
+  });
+
   return { id: ref.id, ...inspData } as Inspection;
 }
 
