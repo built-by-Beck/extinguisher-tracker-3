@@ -7,13 +7,46 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Bot, X, Send, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { askAssistant, type AiMessage } from '../../services/aiService.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
+import { useOffline } from '../../hooks/useOffline.ts';
 import { db } from '../../lib/firebase.ts';
 import type { Extinguisher } from '../../services/extinguisherService.ts';
+
+/** Map a route pathname to a human-readable page label for the AI context. */
+function describeRoute(pathname: string): string {
+  const routeLabels: Array<[RegExp, string]> = [
+    [/^\/dashboard\/?$/, 'Dashboard'],
+    [/^\/dashboard\/inventory\/new/, 'Create Extinguisher form'],
+    [/^\/dashboard\/inventory\/print-tags/, 'Print Tags'],
+    [/^\/dashboard\/inventory\/print/, 'Printable Inventory List'],
+    [/^\/dashboard\/inventory\/[^/]+\/edit/, 'Edit Extinguisher form'],
+    [/^\/dashboard\/inventory\/[^/]+$/, 'Extinguisher Detail'],
+    [/^\/dashboard\/inventory/, 'Inventory'],
+    [/^\/dashboard\/data-organizer/, 'Data Organizer'],
+    [/^\/dashboard\/locations/, 'Locations'],
+    [/^\/dashboard\/workspaces\/[^/]+\/inspect-ext\/[^/]+/, 'Inspection (Extinguisher Detail view)'],
+    [/^\/dashboard\/workspaces\/[^/]+\/inspect\/[^/]+/, 'Inspection Form'],
+    [/^\/dashboard\/workspaces\/[^/]+$/, 'Workspace Detail'],
+    [/^\/dashboard\/workspaces/, 'Inspections (Workspaces list)'],
+    [/^\/dashboard\/members/, 'Members'],
+    [/^\/dashboard\/notifications/, 'Notifications'],
+    [/^\/dashboard\/sync-queue/, 'Sync Queue'],
+    [/^\/dashboard\/reports/, 'Reports'],
+    [/^\/dashboard\/calculator/, 'NFPA Calculator'],
+    [/^\/dashboard\/audit-logs/, 'Audit Logs'],
+    [/^\/dashboard\/settings/, 'Settings'],
+    [/^\/dashboard\/import-guide/, 'Import Guide'],
+  ];
+  for (const [re, label] of routeLabels) {
+    if (re.test(pathname)) return label;
+  }
+  return 'Unknown page';
+}
 
 interface AiAssistantPanelProps {
   extinguishers?: Extinguisher[];
@@ -52,8 +85,10 @@ function buildComplianceSummary(extinguishers: Extinguisher[]): Record<string, n
 }
 
 export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssistantPanelProps) {
-  const { org } = useOrg();
+  const { org, membership } = useOrg();
   const { user, userProfile } = useAuth();
+  const { pendingCount } = useOffline();
+  const location = useLocation();
   const orgId = userProfile?.activeOrgId ?? '';
 
   const [open, setOpen] = useState(false);
@@ -112,6 +147,14 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
     try {
       const response = await askAssistant(updatedMessages, {
         orgName: org?.name,
+        plan: org?.plan ?? null,
+        userRole: membership?.role ?? null,
+        userName: user?.displayName ?? null,
+        currentPage: {
+          path: location.pathname,
+          label: describeRoute(location.pathname),
+        },
+        pendingSyncCount: pendingCount,
         extinguishers: resolvedExtinguishers,
         complianceSummary: resolvedComplianceSummary,
       });
