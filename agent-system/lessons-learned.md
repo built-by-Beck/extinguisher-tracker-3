@@ -1,6 +1,6 @@
 # EX3 Lessons Learned
 
-**Last Updated**: 2026-03-22
+**Last Updated**: 2026-04-13
 
 This file tracks lessons learned during development. The review-agent updates this after reviewing completed work. Build-agent and plan-agent should consult this before starting new tasks.
 
@@ -19,6 +19,12 @@ Each entry follows this structure:
 ---
 
 ## Entries
+
+### 2026-04-13 -- Dashboard "Left to check" collapsed with many extinguishers
+- **Context**: Workspace had ~794 units with only ~9 pass/fail completions; Dashboard still showed a tiny "left to check" count.
+- **Issue**: `buildLocationStatsMap` subtracted `pending` once per **inspection document** with status pass/fail. Duplicate Firestore rows for the same extinguisher (re-saves, offline sync, imports, retries) each decremented `pending`, so totals could collapse toward zero while the UI row list still looked correct (it effectively keys by extinguisher).
+- **Resolution**: De-dupe inspections by `extinguisherId` using the chronologically latest row (`updatedAt` / `inspectedAt` / `createdAt`) before applying pass/fail bucket adjustments; use `getStats(locId)` when applying pass/fail so missing buckets do not throw.
+- **Rule**: Workspace inspection **aggregate** counts must be **per extinguisher**, not per inspection document, unless the product explicitly counts events. Always reconcile with how list UIs dedupe rows.
 
 ### 2026-03-21 -- ESLint flat config and marketing verify
 - **Context**: Running `pnpm lint` after public marketing pages; repo had failures in `functions/lib` (generated `.d.ts`), strict `react-hooks/set-state-in-effect`, `react-refresh/only-export-components`, `AuditLogRow` dynamic icon, and unused pdf footer args.
