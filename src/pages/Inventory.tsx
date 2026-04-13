@@ -53,6 +53,7 @@ import {
 import { formatDueDate } from '../utils/compliance.ts';
 import { cacheExtinguishersForWorkspace } from '../services/offlineCacheService.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
+import { WorkspaceInspectionSummaryCards } from '../components/workspace/WorkspaceInspectionSummaryCards.tsx';
 import { LocationSelector } from '../components/locations/LocationSelector.tsx';
 import {
   subscribeToLocations,
@@ -465,6 +466,13 @@ export default function Inventory() {
           )}
         </div>
       </div>
+
+      {/* Active workspace inspection progress (same stats as Inspections / Dashboard) */}
+      {orgId && (
+        <div className="mb-6">
+          <WorkspaceInspectionSummaryCards orgId={orgId} />
+        </div>
+      )}
 
       {/* Page description */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">

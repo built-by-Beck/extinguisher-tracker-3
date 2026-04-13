@@ -14,6 +14,9 @@ export const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
 export const stripePriceIdBasic = defineString('STRIPE_PRICE_ID_BASIC', { default: '' });
 export const stripePriceIdPro = defineString('STRIPE_PRICE_ID_PRO', { default: '' });
 export const stripePriceIdElite = defineString('STRIPE_PRICE_ID_ELITE', { default: '' });
+export const stripePriceIdBasicYearly = defineString('STRIPE_PRICE_ID_BASIC_YEARLY', { default: '' });
+export const stripePriceIdProYearly = defineString('STRIPE_PRICE_ID_PRO_YEARLY', { default: '' });
+export const stripePriceIdEliteYearly = defineString('STRIPE_PRICE_ID_ELITE_YEARLY', { default: '' });
 
 export type { StripePriceIds };
 
@@ -22,5 +25,8 @@ export function getStripePriceIds(): StripePriceIds {
     basic: stripePriceIdBasic.value(),
     pro: stripePriceIdPro.value(),
     elite: stripePriceIdElite.value(),
+    basicYearly: stripePriceIdBasicYearly.value(),
+    proYearly: stripePriceIdProYearly.value(),
+    eliteYearly: stripePriceIdEliteYearly.value(),
   };
 }

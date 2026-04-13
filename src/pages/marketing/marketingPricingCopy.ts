@@ -5,7 +5,7 @@
  * Change .env → rebuild → marketing page updates automatically.
  */
 
-import { PLANS } from '../../lib/planConfig.ts';
+import { PLANS, yearlyTotalFromMonthly, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
 
 function formatPrice(price: number | null): string {
   if (price === null) return 'Custom';
@@ -28,6 +28,8 @@ export type MarketingPlanCard = {
   name: string;
   priceLabel: string;
   priceDetail: string;
+  /** Shown under the headline price for paid tiers (yearly prepay). */
+  annualBillingNote?: string;
   blurb: string;
   bullets: string[];
   ctaLabel: string;
@@ -41,6 +43,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Basic',
     priceLabel: formatPrice(basicPlan.monthlyPrice),
     priceDetail: 'per month',
+    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(basicPlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
     blurb: 'Small sites that want to ditch paper and get faster checks.',
     bullets: [
       'Fast search by barcode',
@@ -56,6 +59,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Pro',
     priceLabel: formatPrice(proPlan.monthlyPrice),
     priceDetail: 'per month',
+    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(proPlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
     blurb: 'Growing teams that need lightning fast scanning and AI help.',
     bullets: [
       'Everything in Basic',
@@ -72,6 +76,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Elite',
     priceLabel: formatPrice(elitePlan.monthlyPrice),
     priceDetail: 'per month',
+    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(elitePlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
     blurb: 'Large programs that need advanced data tools and priority help.',
     bullets: [
       'Everything in Pro',
@@ -117,5 +122,9 @@ export const marketingFaq: MarketingFaqItem[] = [
   {
     q: 'What about Enterprise pricing?',
     a: 'Enterprise is tailored to contract terms, seat counts, and rollout needs. Use Contact sales and we will align with your procurement process.',
+  },
+  {
+    q: 'Is there a discount for paying annually?',
+    a: 'Yes. When you choose yearly billing in the app, you prepay for 12 months at 10% less than twelve separate monthly payments. The exact total matches the yearly option at checkout.',
   },
 ];

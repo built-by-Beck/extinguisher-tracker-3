@@ -2,13 +2,20 @@ import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Check, Loader2, Sparkles, X as XIcon } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
-import { PLANS, type PlanName } from '../../lib/planConfig.ts';
+import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
+
+type BillingIntervalUi = 'month' | 'year';
+
+function formatUsd(amount: number): string {
+  return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
+}
 
 export function PlanSelector() {
   const { org } = useOrg();
   const { userProfile } = useAuth();
+  const [billingInterval, setBillingInterval] = useState<BillingIntervalUi>('month');
   const [loading, setLoading] = useState<PlanName | null>(null);
   const [error, setError] = useState('');
 
@@ -22,11 +29,15 @@ export function PlanSelector() {
 
     try {
       const createCheckoutSession = httpsCallable<
-        { orgId: string; plan: string },
+        { orgId: string; plan: string; billingInterval?: BillingIntervalUi },
         { url: string }
       >(functions, 'createCheckoutSession');
 
-      const result = await createCheckoutSession({ orgId, plan });
+      const result = await createCheckoutSession({
+        orgId,
+        plan,
+        ...(billingInterval === 'year' ? { billingInterval: 'year' as const } : {}),
+      });
       if (result.data.url) {
         window.location.href = result.data.url;
       }
@@ -43,6 +54,34 @@ export function PlanSelector() {
       {error && (
         <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
+
+      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-medium text-gray-900">Billing</p>
+        <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+          <button
+            type="button"
+            onClick={() => setBillingInterval('month')}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              billingInterval === 'month'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setBillingInterval('year')}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              billingInterval === 'year'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Yearly (save {Math.round(YEARLY_DISCOUNT_FRACTION * 100)}%)
+          </button>
+        </div>
+      </div>
 
       {/* AI feature showcase */}
       <div className="mb-6 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-red-50 p-5">
@@ -86,10 +125,23 @@ export function PlanSelector() {
               }`}
             >
               <h3 className="text-lg font-bold text-gray-900">{plan.displayName}</h3>
-              <p className="mt-1 text-3xl font-bold text-gray-900">
-                ${plan.monthlyPrice}
-                <span className="text-sm font-normal text-gray-500">/mo</span>
-              </p>
+              {billingInterval === 'month' ? (
+                <p className="mt-1 text-3xl font-bold text-gray-900">
+                  {formatUsd(plan.monthlyPrice!)}
+                  <span className="text-sm font-normal text-gray-500">/mo</span>
+                </p>
+              ) : (
+                <>
+                  <p className="mt-1 text-3xl font-bold text-gray-900">
+                    {formatUsd(plan.yearlyTotalPrice!)}
+                    <span className="text-sm font-normal text-gray-500">/yr</span>
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {formatUsd(plan.monthlyPrice! * 12)} if paid monthly — you save{' '}
+                    {formatUsd(plan.monthlyPrice! * 12 - plan.yearlyTotalPrice!)} per year
+                  </p>
+                </>
+              )}
               <p className="mt-2 text-sm text-gray-500">
                 {plan.name === 'basic'
                   ? 'Best for small businesses replacing paper logs with easier inspections, reminders, and compliance reports.'

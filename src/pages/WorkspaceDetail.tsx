@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, type NavigateFunction } from 'react-router-dom';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -22,6 +22,7 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   SkipForward,
   X,
 } from 'lucide-react';
@@ -76,6 +77,98 @@ const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; 
   pending: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100' },
 };
 
+function sortInspectionsForTable(
+  list: Inspection[],
+  sortKey: string,
+  sortDir: 'asc' | 'desc',
+): Inspection[] {
+  return [...list].sort((a, b) => {
+    const valA = (a[sortKey as keyof Inspection] || '').toString().toLowerCase();
+    const valB = (b[sortKey as keyof Inspection] || '').toString().toLowerCase();
+    return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+  });
+}
+
+interface LeafExtinguisherTableProps {
+  inspections: Inspection[];
+  sortKey: string;
+  sortDir: 'asc' | 'desc';
+  onToggleSort: (key: string) => void;
+  workspaceId: string;
+  navigate: NavigateFunction;
+}
+
+function LeafExtinguisherTable({
+  inspections,
+  sortKey,
+  sortDir,
+  onToggleSort,
+  workspaceId,
+  navigate,
+}: LeafExtinguisherTableProps) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="sticky top-0 z-10 bg-gray-50">
+          <tr>
+            <SortableTableHeader label="Asset ID" sortKey="assetId" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
+            <SortableTableHeader label="Serial" sortKey="serial" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
+            <SortableTableHeader label="Status" sortKey="status" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
+            <SortableTableHeader label="Location" sortKey="section" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
+            <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">
+              Inspected By
+            </th>
+            <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">
+              Notes
+            </th>
+            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Action
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {inspections.map((insp) => {
+            const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+            const Icon = style.icon;
+            return (
+              <tr
+                key={insp.id}
+                className="cursor-pointer hover:bg-gray-50"
+                onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)}
+              >
+                <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                  {insp.assetId}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                  {insp.serial || '--'}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3">
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                    <Icon className="h-3 w-3" />
+                    {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                  </span>
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                  {insp.section || '--'}
+                </td>
+                <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 sm:table-cell">
+                  {insp.inspectedByEmail || '--'}
+                </td>
+                <td className="hidden max-w-[200px] truncate px-4 py-3 text-sm text-gray-400 italic md:table-cell">
+                  {insp.notes || '--'}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-600">
+                  Inspect
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function WorkspaceDetail() {
   const navigate = useNavigate();
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -101,6 +194,8 @@ export default function WorkspaceDetail() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [leafPage, setLeafPage] = useState(1);
   const [leafPageSize, setLeafPageSize] = useState(25);
+  const [floorShowPassed, setFloorShowPassed] = useState(false);
+  const [floorShowFailed, setFloorShowFailed] = useState(false);
 
   function toggleSort(key: string) {
     if (sortKey === key) {
@@ -369,7 +464,8 @@ export default function WorkspaceDetail() {
 
   // ========== EXTINGUISHER LIST FOR LEAF VIEW ==========
 
-  const leafInspections = useMemo(() => {
+  /** Leaf rows for this location: search + location filters only (no status filter). */
+  const leafInspectionsBase = useMemo(() => {
     if (!drillDown.isLeaf) return [];
 
     const relevantLocIds = drillDown.currentLocationAndDescendants;
@@ -425,10 +521,6 @@ export default function WorkspaceDetail() {
       }
     }
 
-    // Apply filters
-    if (filters.statuses.size > 0) {
-      combined = combined.filter((insp) => filters.statuses.has(insp.status));
-    }
     if (filters.locationIds.size > 0) {
       combined = combined.filter((insp) => {
         const locId = insp.locationId || '__unassigned__';
@@ -451,19 +543,36 @@ export default function WorkspaceDetail() {
     drillDown.currentLocationAndDescendants,
     inspections,
     extinguishers,
-    filters,
+    filters.locationIds,
     searchQuery,
     isArchived,
     workspaceId,
   ]);
 
-  // Sorted leaf inspections (memoized)
+  /** When status checkboxes are used, keep a single combined list (classic table + pagination). */
+  const leafInspections = useMemo(() => {
+    if (filters.statuses.size === 0) return leafInspectionsBase;
+    return leafInspectionsBase.filter((insp) => filters.statuses.has(insp.status));
+  }, [leafInspectionsBase, filters.statuses]);
+
+  const floorScanGrouped = filters.statuses.size === 0;
+
+  const sortedLeafPending = useMemo(
+    () => sortInspectionsForTable(leafInspectionsBase.filter((i) => i.status === 'pending'), sortKey, sortDir),
+    [leafInspectionsBase, sortKey, sortDir],
+  );
+  const sortedLeafPassed = useMemo(
+    () => sortInspectionsForTable(leafInspectionsBase.filter((i) => i.status === 'pass'), sortKey, sortDir),
+    [leafInspectionsBase, sortKey, sortDir],
+  );
+  const sortedLeafFailed = useMemo(
+    () => sortInspectionsForTable(leafInspectionsBase.filter((i) => i.status === 'fail'), sortKey, sortDir),
+    [leafInspectionsBase, sortKey, sortDir],
+  );
+
+  // Sorted leaf inspections (memoized) — classic filtered mode
   const sortedLeafInspections = useMemo(() => {
-    return [...leafInspections].sort((a, b) => {
-      const valA = (a[sortKey as keyof Inspection] || '').toString().toLowerCase();
-      const valB = (b[sortKey as keyof Inspection] || '').toString().toLowerCase();
-      return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    });
+    return sortInspectionsForTable(leafInspections, sortKey, sortDir);
   }, [leafInspections, sortKey, sortDir]);
 
   const leafTotalPages = Math.ceil(sortedLeafInspections.length / leafPageSize);
@@ -476,6 +585,11 @@ export default function WorkspaceDetail() {
   useEffect(() => {
     setLeafPage(1);
   }, [searchQuery, filters, drillDown.currentLocationId]);
+
+  useEffect(() => {
+    setFloorShowPassed(false);
+    setFloorShowFailed(false);
+  }, [drillDown.currentLocationId]);
 
   // Unassigned extinguisher list
   const unassignedInspections = useMemo(() => {
@@ -654,7 +768,7 @@ export default function WorkspaceDetail() {
             <p className="mt-1 text-sm text-gray-500">
               {currentViewStats.total} extinguisher{currentViewStats.total !== 1 ? 's' : ''}
               {drillDown.isLeaf && (hasActiveFilters(filters) || searchQuery)
-                ? ` (${leafInspections.length} matching filters)`
+                ? ` (${(floorScanGrouped ? leafInspectionsBase : leafInspections).length} matching filters)`
                 : ''}
               {isArchived && ' (archived — read only)'}
             </p>
@@ -1011,10 +1125,10 @@ export default function WorkspaceDetail() {
               )}
             </div>
             {/* Next Pending button */}
-            {!isArchived && leafInspections.some((i) => i.status === 'pending') && (
+            {!isArchived && sortedLeafPending.length > 0 && (
               <button
                 onClick={() => {
-                  const first = leafInspections.find((i) => i.status === 'pending');
+                  const first = sortedLeafPending[0];
                   if (first) {
                     navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${first.extinguisherId}`);
                   }
@@ -1029,12 +1143,19 @@ export default function WorkspaceDetail() {
 
           {searchQuery && (
             <p className="mb-3 text-xs text-gray-500">
-              Showing {leafInspections.length} result{leafInspections.length !== 1 ? 's' : ''}
+              Showing {(floorScanGrouped ? leafInspectionsBase : leafInspections).length} result
+              {(floorScanGrouped ? leafInspectionsBase : leafInspections).length !== 1 ? 's' : ''}
             </p>
           )}
 
-          {/* Extinguisher list table */}
-          {leafInspections.length === 0 ? (
+          {!floorScanGrouped && (
+            <p className="mb-3 text-xs text-gray-600">
+              Status filters are on — showing a single list. Clear status filters to split into To inspect, Passed, and Failed.
+            </p>
+          )}
+
+          {/* Extinguisher list: grouped by status (default) or classic filtered table */}
+          {(floorScanGrouped ? leafInspectionsBase : leafInspections).length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
               <p className="text-sm text-gray-500">No extinguishers match your filters.</p>
               {searchQuery && (
@@ -1047,69 +1168,113 @@ export default function WorkspaceDetail() {
                 </button>
               )}
             </div>
+          ) : floorScanGrouped ? (
+            <div className="space-y-6">
+              <section>
+                <h3 className="mb-2 flex flex-wrap items-center gap-2 text-base font-semibold text-gray-900">
+                  <span>To inspect</span>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                    {sortedLeafPending.length}
+                  </span>
+                </h3>
+                {sortedLeafPending.length === 0 ? (
+                  <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-6 text-center text-sm text-green-800">
+                    All extinguishers in this view are checked. Open Passed or Failed below if you need to revisit one.
+                  </div>
+                ) : (
+                  <LeafExtinguisherTable
+                    inspections={sortedLeafPending}
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onToggleSort={toggleSort}
+                    workspaceId={workspaceId!}
+                    navigate={navigate}
+                  />
+                )}
+              </section>
+
+              <section className="rounded-lg border border-gray-200 bg-gray-50/80">
+                <button
+                  type="button"
+                  onClick={() => setFloorShowPassed((v) => !v)}
+                  className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+                >
+                  <span className="flex items-center gap-2 font-semibold text-gray-900">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    Checked — passed
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">
+                      {sortedLeafPassed.length}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={`h-5 w-5 shrink-0 text-gray-500 transition-transform ${floorShowPassed ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                {floorShowPassed && (
+                  <div className="border-t border-gray-200 bg-white px-2 pb-4 pt-2">
+                    {sortedLeafPassed.length === 0 ? (
+                      <p className="px-2 py-4 text-center text-sm text-gray-500">No passed inspections in this view yet.</p>
+                    ) : (
+                      <LeafExtinguisherTable
+                        inspections={sortedLeafPassed}
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onToggleSort={toggleSort}
+                        workspaceId={workspaceId!}
+                        navigate={navigate}
+                      />
+                    )}
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-lg border border-gray-200 bg-gray-50/80">
+                <button
+                  type="button"
+                  onClick={() => setFloorShowFailed((v) => !v)}
+                  className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+                >
+                  <span className="flex items-center gap-2 font-semibold text-gray-900">
+                    <XCircle className="h-4 w-4 text-red-600" />
+                    Checked — failed
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">
+                      {sortedLeafFailed.length}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={`h-5 w-5 shrink-0 text-gray-500 transition-transform ${floorShowFailed ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                {floorShowFailed && (
+                  <div className="border-t border-gray-200 bg-white px-2 pb-4 pt-2">
+                    {sortedLeafFailed.length === 0 ? (
+                      <p className="px-2 py-4 text-center text-sm text-gray-500">No failed inspections in this view yet.</p>
+                    ) : (
+                      <LeafExtinguisherTable
+                        inspections={sortedLeafFailed}
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onToggleSort={toggleSort}
+                        workspaceId={workspaceId!}
+                        navigate={navigate}
+                      />
+                    )}
+                  </div>
+                )}
+              </section>
+            </div>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
-                    <tr>
-                      <SortableTableHeader label="Asset ID" sortKey="assetId" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={toggleSort} />
-                      <SortableTableHeader label="Serial" sortKey="serial" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={toggleSort} />
-                      <SortableTableHeader label="Status" sortKey="status" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={toggleSort} />
-                      <SortableTableHeader label="Location" sortKey="section" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={toggleSort} />
-                      <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">
-                        Inspected By
-                      </th>
-                      <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">
-                        Notes
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {paginatedLeafInspections.map((insp) => {
-                      const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
-                      const Icon = style.icon;
-                      return (
-                        <tr
-                          key={insp.id}
-                          className="cursor-pointer hover:bg-gray-50"
-                          onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)}
-                        >
-                          <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                            {insp.assetId}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                            {insp.serial || '--'}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
-                              <Icon className="h-3 w-3" />
-                              {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                            {insp.section || '--'}
-                          </td>
-                          <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 sm:table-cell">
-                            {insp.inspectedByEmail || '--'}
-                          </td>
-                          <td className="hidden max-w-[200px] truncate px-4 py-3 text-sm text-gray-400 italic md:table-cell">
-                            {insp.notes || '--'}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-600">
-                            Inspect
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <LeafExtinguisherTable
+                inspections={paginatedLeafInspections}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggleSort={toggleSort}
+                workspaceId={workspaceId!}
+                navigate={navigate}
+              />
 
-              {/* Leaf pagination */}
+              {/* Leaf pagination (classic filtered mode only) */}
               {leafTotalPages > 1 && (
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
