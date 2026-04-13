@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PLANS, hasFeature } from './planConfig.ts';
+import { PLANS, hasFeature, yearlyTotalFromMonthly } from './planConfig.ts';
 
 describe('PLANS configuration', () => {
   it('has 4 plans: basic, pro, elite, enterprise', () => {
@@ -16,7 +16,16 @@ describe('PLANS configuration', () => {
   it('enterprise has null price and null limit', () => {
     const enterprise = PLANS.find((p) => p.name === 'enterprise')!;
     expect(enterprise.monthlyPrice).toBeNull();
+    expect(enterprise.yearlyTotalPrice).toBeNull();
     expect(enterprise.assetLimit).toBeNull();
+  });
+
+  it('yearly prepay is 10% off 12 months of monthly', () => {
+    expect(yearlyTotalFromMonthly(100)).toBe(1080);
+    const basic = PLANS.find((p) => p.name === 'basic')!;
+    expect(basic.yearlyTotalPrice).toBe(
+      Math.round((basic.monthlyPrice ?? 0) * 12 * 0.9 * 100) / 100,
+    );
   });
 
   it('plan limits increase: basic < pro < elite', () => {

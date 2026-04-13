@@ -124,7 +124,12 @@ export type StripePriceIds = {
   basic: string;
   pro: string;
   elite: string;
+  basicYearly: string;
+  proYearly: string;
+  eliteYearly: string;
 };
+
+export type BillingInterval = 'month' | 'year';
 
 /**
  * Resolve a Stripe price ID to a plan name (compare against deployed price IDs).
@@ -133,15 +138,36 @@ export function planFromPriceId(priceId: string, prices: StripePriceIds): PlanNa
   if (priceId && priceId === prices.basic) return 'basic';
   if (priceId && priceId === prices.pro) return 'pro';
   if (priceId && priceId === prices.elite) return 'elite';
+  if (priceId && priceId === prices.basicYearly) return 'basic';
+  if (priceId && priceId === prices.proYearly) return 'pro';
+  if (priceId && priceId === prices.eliteYearly) return 'elite';
   return null;
 }
 
 /**
- * Get the Stripe price ID for a plan name.
+ * Get the Stripe price ID for a plan name and billing interval.
  */
-export function priceIdForPlan(plan: PlanName, prices: StripePriceIds): string | null {
+export function priceIdForPlan(
+  plan: PlanName,
+  prices: StripePriceIds,
+  interval: BillingInterval = 'month',
+): string | null {
   const config = PLAN_CONFIGS[plan];
   if (!config.priceEnvVar) return null;
+
+  if (interval === 'year') {
+    switch (plan) {
+      case 'basic':
+        return prices.basicYearly || null;
+      case 'pro':
+        return prices.proYearly || null;
+      case 'elite':
+        return prices.eliteYearly || null;
+      default:
+        return null;
+    }
+  }
+
   switch (plan) {
     case 'basic':
       return prices.basic || null;

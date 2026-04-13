@@ -4,7 +4,7 @@ import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { throwInvalidArgument, throwFailedPrecondition } from '../utils/errors.js';
 import { stripeSecretKey, getStripePriceIds } from '../config/params.js';
-import { priceIdForPlan, type PlanName } from './planConfig.js';
+import { priceIdForPlan, type BillingInterval, type PlanName } from './planConfig.js';
 import { getStripe } from './stripeClient.js';
 import { ensureOrgStripeCustomer } from './stripeOrgCustomer.js';
 import { writeAuditLog } from '../utils/auditLog.js';
@@ -13,7 +13,11 @@ export const createCheckoutSession = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
     const { uid, email } = validateAuth(request);
-    const { orgId, plan } = request.data as { orgId: string; plan: string };
+    const { orgId, plan, billingInterval: rawInterval } = request.data as {
+      orgId: string;
+      plan: string;
+      billingInterval?: string;
+    };
 
     if (!orgId || typeof orgId !== 'string') {
       throwInvalidArgument('orgId is required.');
@@ -22,14 +26,21 @@ export const createCheckoutSession = onCall(
       throwInvalidArgument('plan must be one of: basic, pro, elite.');
     }
 
+    const billingInterval: BillingInterval =
+      rawInterval === 'year' ? 'year' : 'month';
+
     // Only owner can manage billing
     await validateMembership(orgId, uid, ['owner']);
 
     const planName = plan as PlanName;
     const prices = getStripePriceIds();
-    const priceId = priceIdForPlan(planName, prices);
+    const priceId = priceIdForPlan(planName, prices, billingInterval);
     if (!priceId) {
-      throwFailedPrecondition(`Stripe price not configured for plan: ${plan}`);
+      throwFailedPrecondition(
+        billingInterval === 'year'
+          ? `Stripe yearly price not configured for plan: ${plan}. Add STRIPE_PRICE_ID_*_YEARLY in functions env.`
+          : `Stripe price not configured for plan: ${plan}`,
+      );
     }
 
     // Load org to get or create Stripe customer
@@ -68,7 +79,7 @@ export const createCheckoutSession = onCall(
       performedByEmail: email,
       entityType: 'billing',
       entityId: orgId,
-      details: { plan: planName, sessionId: session.id },
+      details: { plan: planName, billingInterval, sessionId: session.id },
     });
 
     return { url: session.url };

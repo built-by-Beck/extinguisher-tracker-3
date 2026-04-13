@@ -31,6 +31,7 @@ import {
 } from '../services/inspectionService.ts';
 import { getCachedInspectionsForWorkspace } from '../services/offlineCacheService.ts';
 import { InspectionPanel } from '../components/inspection/InspectionPanel.tsx';
+import { WorkspaceInspectionSummaryCards } from '../components/workspace/WorkspaceInspectionSummaryCards.tsx';
 
 function formatDate(timestamp: unknown): string {
   if (!timestamp) return 'Unknown';
@@ -158,6 +159,12 @@ export default function InspectionForm() {
           </div>
         </div>
       </div>
+
+      {orgId && workspaceId && (
+        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <WorkspaceInspectionSummaryCards orgId={orgId} workspaceId={workspaceId} />
+        </div>
+      )}
 
       {/* Offline banner */}
       {!isOnline && (
