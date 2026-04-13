@@ -6,6 +6,7 @@
  * Author: built_by_Beck
  */
 
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -21,10 +22,12 @@ import {
   RefreshCw,
   Calculator,
   Wrench,
+  Calendar,
 } from 'lucide-react';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useOffline } from '../../hooks/useOffline.ts';
 import { SyncStatusIndicator } from '../offline/SyncStatusIndicator.tsx';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher.tsx';
 import { hasFeature } from '../../lib/planConfig.ts';
 import type { OrgRole } from '../../types/index.ts';
 
@@ -66,6 +69,7 @@ interface SidebarProps {
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { hasRole, org } = useOrg();
   const { pendingCount } = useOffline();
+  const [showSwitcher, setShowSwitcher] = useState(false);
 
   const visibleNavItems = navItems.filter(
     (item) =>
@@ -107,6 +111,17 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </button>
         </div>
 
+        {/* Workspace quick-switch */}
+        <div className="border-b border-gray-200 px-3 py-3">
+          <button
+            onClick={() => setShowSwitcher(true)}
+            className="flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-100"
+          >
+            <Calendar className="h-4 w-4 text-red-500" />
+            <span className="truncate">Switch Inspection Month</span>
+          </button>
+        </div>
+
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
           {visibleNavItems.map((item) => (
@@ -141,6 +156,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           <p className="text-xs text-gray-400">Created by Beck-Publishing</p>
         </div>
       </aside>
+
+      <WorkspaceSwitcher open={showSwitcher} onClose={() => setShowSwitcher(false)} />
     </>
   );
 }

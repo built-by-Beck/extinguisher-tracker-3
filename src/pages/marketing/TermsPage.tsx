@@ -32,7 +32,7 @@ export default function TermsPage() {
       <PublicMarketingLayout>
         <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6 sm:py-16">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900">Terms of Service</h1>
-          <p className="mt-2 text-sm text-gray-500">Last Updated: March 22, 2026</p>
+          <p className="mt-2 text-sm text-gray-500">Last Updated: March 29, 2026</p>
 
           <div className="mt-10">
             <Section num={1} title="Acceptance of Terms">
@@ -68,7 +68,21 @@ export default function TermsPage() {
               </ul>
             </Section>
 
-            <Section num={4} title="Subscription and Payment">
+            <Section num={4} title="Organizations and Teams">
+              <p>
+                The Service operates on a multi-tenant organization model. When you create or join an
+                organization:
+              </p>
+              <ul className="list-disc space-y-1 pl-6">
+                <li>Organization owners are responsible for managing members and their access levels</li>
+                <li>Data entered into an organization belongs to that organization</li>
+                <li>Members may only access data within organizations they belong to</li>
+                <li>Removing a member revokes their access to all organization data immediately</li>
+                <li>Organization owners may delete the organization and all associated data</li>
+              </ul>
+            </Section>
+
+            <Section num={5} title="Subscription and Payment">
               <p>Access to the Service requires a paid subscription. By subscribing, you agree to:</p>
               <ul className="list-disc space-y-1 pl-6">
                 <li>Pay all fees associated with your chosen subscription plan</li>
@@ -76,9 +90,12 @@ export default function TermsPage() {
                 <li>That all fees are non-refundable except as required by law</li>
                 <li>Price changes with 30 days advance notice</li>
               </ul>
+              <p>
+                Payments are processed securely by Stripe. We do not store your payment card details.
+              </p>
             </Section>
 
-            <Section num={5} title="User Conduct">
+            <Section num={6} title="User Conduct">
               <p>You agree not to use the Service to:</p>
               <ul className="list-disc space-y-1 pl-6">
                 <li>Violate any laws or regulations</li>
@@ -90,7 +107,7 @@ export default function TermsPage() {
               </ul>
             </Section>
 
-            <Section num={6} title="Data and Privacy">
+            <Section num={7} title="Data and Privacy">
               <p>
                 Your use of the Service is also governed by our{' '}
                 <Link to="/privacy" className="font-medium text-red-600 hover:text-red-500">
@@ -101,7 +118,7 @@ export default function TermsPage() {
               </p>
             </Section>
 
-            <Section num={7} title="Intellectual Property">
+            <Section num={8} title="Intellectual Property">
               <p>
                 The Service, including all content, features, and functionality, is owned by
                 Extinguisher Tracker and is protected by copyright, trademark, and other intellectual
@@ -110,7 +127,7 @@ export default function TermsPage() {
               </p>
             </Section>
 
-            <Section num={8} title="Disclaimers and Limitations of Liability">
+            <Section num={9} title="Disclaimers and Limitations of Liability">
               <p className="uppercase">
                 The Service is provided &quot;as is&quot; and &quot;as available&quot; without
                 warranties of any kind, either express or implied. We do not warrant that the Service
@@ -123,7 +140,7 @@ export default function TermsPage() {
               </p>
             </Section>
 
-            <Section num={9} title="Compliance Disclaimer">
+            <Section num={10} title="Compliance Disclaimer">
               <p>
                 While Extinguisher Tracker is designed to help you meet NFPA 10 and OSHA fire safety
                 requirements, you are solely responsible for ensuring compliance with all applicable
@@ -132,7 +149,7 @@ export default function TermsPage() {
               </p>
             </Section>
 
-            <Section num={10} title="Termination">
+            <Section num={11} title="Termination">
               <p>
                 We reserve the right to suspend or terminate your account and access to the Service at
                 any time, with or without notice, for conduct that we believe violates these Terms of
@@ -145,7 +162,7 @@ export default function TermsPage() {
               </p>
             </Section>
 
-            <Section num={11} title="Changes to Terms">
+            <Section num={12} title="Changes to Terms">
               <p>
                 We reserve the right to modify these Terms of Service at any time. We will notify you
                 of any material changes by email or through the Service. Your continued use of the
@@ -153,7 +170,7 @@ export default function TermsPage() {
               </p>
             </Section>
 
-            <Section num={12} title="Governing Law">
+            <Section num={13} title="Governing Law">
               <p>
                 These Terms of Service shall be governed by and construed in accordance with the laws
                 of the jurisdiction in which Extinguisher Tracker operates, without regard to its
@@ -161,7 +178,7 @@ export default function TermsPage() {
               </p>
             </Section>
 
-            <Section num={13} title="Contact Information">
+            <Section num={14} title="Contact Information">
               <p>
                 If you have any questions about these Terms of Service, please contact us through the
                 contact information provided on our website.
