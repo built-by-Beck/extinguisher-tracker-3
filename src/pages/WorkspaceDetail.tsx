@@ -9,7 +9,12 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  useNavigate,
+  useParams,
+  useSearchParams,
+  type NavigateFunction,
+} from 'react-router-dom';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -47,13 +52,20 @@ import {
   getCachedInspectionsForWorkspace,
   getCachedWorkspace,
 } from '../services/offlineCacheService.ts';
-import {
-  subscribeToLocations,
-  getAllDescendantIds,
-  type Location,
-} from '../services/locationService.ts';
+import { subscribeToLocations, type Location } from '../services/locationService.ts';
 import { useLocationDrillDown } from '../hooks/useLocationDrillDown.ts';
 import { LocationCard, type LocationCardStats } from '../components/locations/LocationCard.tsx';
+import { WorkspaceInspectionScopeCards } from '../components/workspace/WorkspaceInspectionScopeCards.tsx';
+import type { WorkspaceScopeCardFilter } from '../components/workspace/WorkspaceInspectionScopeCards.tsx';
+import {
+  aggregateStatsForLocationSubtree,
+  buildLocationStatsMap,
+  collectInspectionRowsForScope,
+  detectHasLocationIdData,
+  filterRowsByStatusList,
+  sumAllBucketStats,
+  type WorkspaceInspectionBucketStats,
+} from '../utils/workspaceInspectionStats.ts';
 import { LocationBreadcrumb } from '../components/locations/LocationBreadcrumb.tsx';
 import {
   FilterPanel,
@@ -192,7 +204,10 @@ export default function WorkspaceDetail() {
   const [filters, setFilters] = useState<FilterState>(() => {
     const initial = createEmptyFilters();
     const statusParam = searchParams.get('status');
-    if (statusParam && ['pass', 'fail', 'pending'].includes(statusParam)) {
+    if (statusParam === 'checked') {
+      initial.statuses.add('pass');
+      initial.statuses.add('fail');
+    } else if (statusParam && ['pass', 'fail', 'pending'].includes(statusParam)) {
       initial.statuses.add(statusParam);
     }
     return initial;
@@ -217,6 +232,15 @@ export default function WorkspaceDetail() {
   const [leafPageSize, setLeafPageSize] = useState(25);
   const [floorShowPassed, setFloorShowPassed] = useState(false);
   const [floorShowFailed, setFloorShowFailed] = useState(false);
+  /** Non-leaf: show filtered extinguisher list for the current location scope. */
+  const [scopeListFilter, setScopeListFilter] = useState<WorkspaceScopeCardFilter | null>(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam === 'checked') return 'checked';
+    if (statusParam === 'pending' || statusParam === 'pass' || statusParam === 'fail') {
+      return statusParam;
+    }
+    return null;
+  });
 
   function toggleSort(key: string) {
     if (sortKey === key) {
@@ -233,9 +257,10 @@ export default function WorkspaceDetail() {
   const drillDown = useLocationDrillDown(locations);
 
   // Detect if we have locationId on inspections (new data) or only section strings (legacy)
-  const hasLocationIdData = useMemo(() => {
-    return inspections.some((insp) => insp.locationId) || extinguishers.some((ext) => ext.locationId);
-  }, [inspections, extinguishers]);
+  const hasLocationIdData = useMemo(
+    () => detectHasLocationIdData(inspections, extinguishers),
+    [inspections, extinguishers],
+  );
 
   // Subscribe to live extinguishers (only if workspace is active)
   useEffect(() => {
@@ -336,152 +361,112 @@ export default function WorkspaceDetail() {
 
   // ========== STATS COMPUTATION BY LOCATION ID ==========
 
-  // Build location stats map: locationId → { total, passed, failed, pending, percentage }
   const locationStatsMap = useMemo(() => {
-    const map = new Map<string, LocationCardStats>();
-
-    // Helper to init/get a stats entry
-    function getStats(id: string): LocationCardStats {
-      if (!map.has(id)) {
-        map.set(id, { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 });
-      }
-      return map.get(id)!;
-    }
-
-    if (hasLocationIdData) {
-      // Modern path: use locationId
-      if (!isArchived) {
-        // Active workspace: extinguishers are source of truth for totals
-        const trackedExtIds = new Set<string>();
-        for (const ext of extinguishers) {
-          const locId = ext.locationId || '__unassigned__';
-          const stats = getStats(locId);
-          stats.total += 1;
-          stats.pending += 1;
-          trackedExtIds.add(ext.id!);
-        }
-        // Apply inspection results
-        for (const insp of inspections) {
-          // Orphaned inspections belong to soft-deleted extinguishers — bucket as __deleted__
-          const isOrphaned = !trackedExtIds.has(insp.extinguisherId);
-          const locId = isOrphaned ? '__deleted__' : (insp.locationId || '__unassigned__');
-          if (isOrphaned) {
-            const stats = getStats(locId);
-            stats.total += 1;
-            stats.pending += 1;
-          }
-          const stats = map.get(locId)!;
-          if (insp.status === 'pass') {
-            stats.passed += 1;
-            stats.pending = Math.max(0, stats.pending - 1);
-          } else if (insp.status === 'fail') {
-            stats.failed += 1;
-            stats.pending = Math.max(0, stats.pending - 1);
-          }
-        }
-      } else {
-        // Archived: strictly from inspections
-        for (const insp of inspections) {
-          const locId = insp.locationId || '__unassigned__';
-          const stats = getStats(locId);
-          stats.total += 1;
-          if (insp.status === 'pass') stats.passed += 1;
-          else if (insp.status === 'fail') stats.failed += 1;
-          else stats.pending += 1;
-        }
-      }
-    } else {
-      // Legacy path: use section string, map to location name
-      const nameToId = new Map<string, string>();
-      for (const loc of locations) {
-        nameToId.set(loc.name, loc.id!);
-      }
-
-      if (!isArchived) {
-        const trackedExtIdsLegacy = new Set<string>();
-        for (const ext of extinguishers) {
-          const locId = nameToId.get(ext.section) ?? '__unassigned__';
-          const stats = getStats(locId);
-          stats.total += 1;
-          stats.pending += 1;
-          trackedExtIdsLegacy.add(ext.id!);
-        }
-        for (const insp of inspections) {
-          // Orphaned inspections belong to soft-deleted extinguishers — bucket as __deleted__
-          const isOrphanedLegacy = !trackedExtIdsLegacy.has(insp.extinguisherId);
-          const locId = isOrphanedLegacy ? '__deleted__' : (nameToId.get(insp.section) ?? '__unassigned__');
-          if (isOrphanedLegacy) {
-            const stats = getStats(locId);
-            stats.total += 1;
-            stats.pending += 1;
-          }
-          const stats = map.get(locId)!;
-          if (insp.status === 'pass') {
-            stats.passed += 1;
-            stats.pending = Math.max(0, stats.pending - 1);
-          } else if (insp.status === 'fail') {
-            stats.failed += 1;
-            stats.pending = Math.max(0, stats.pending - 1);
-          }
-        }
-      } else {
-        for (const insp of inspections) {
-          const locId = nameToId.get(insp.section) ?? '__unassigned__';
-          const stats = getStats(locId);
-          stats.total += 1;
-          if (insp.status === 'pass') stats.passed += 1;
-          else if (insp.status === 'fail') stats.failed += 1;
-          else stats.pending += 1;
-        }
-      }
-    }
-
-    // Calculate percentages
-    for (const stats of map.values()) {
-      stats.percentage = stats.total > 0 ? Math.round(((stats.passed + stats.failed) / stats.total) * 100) : 0;
-    }
-
-    return map;
+    return buildLocationStatsMap({
+      inspections,
+      extinguishers,
+      locations,
+      isArchived: !!isArchived,
+      hasLocationIdData,
+    }) as Map<string, LocationCardStats>;
   }, [inspections, extinguishers, locations, isArchived, hasLocationIdData]);
 
   // Aggregate stats for a location + all its descendants (for parent cards)
   const getAggregatedStats = useCallback(
-    (locationId: string): LocationCardStats => {
-      const descendants = getAllDescendantIds(locations, locationId);
-      const allIds = [locationId, ...descendants];
-      const agg: LocationCardStats = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
-
-      for (const id of allIds) {
-        const stats = locationStatsMap.get(id);
-        if (stats) {
-          agg.total += stats.total;
-          agg.passed += stats.passed;
-          agg.failed += stats.failed;
-          agg.pending += stats.pending;
-        }
-      }
-      agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed) / agg.total) * 100) : 0;
-      return agg;
-    },
+    (locationId: string): LocationCardStats =>
+      aggregateStatsForLocationSubtree(
+        locationStatsMap as Map<string, WorkspaceInspectionBucketStats>,
+        locations,
+        locationId,
+      ) as LocationCardStats,
     [locations, locationStatsMap],
   );
 
   // Overall stats for current view (header display)
   const currentViewStats = useMemo(() => {
     if (drillDown.isRoot) {
-      // Sum of all
-      const agg: LocationCardStats = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
-      for (const stats of locationStatsMap.values()) {
-        agg.total += stats.total;
-        agg.passed += stats.passed;
-        agg.failed += stats.failed;
-        agg.pending += stats.pending;
-      }
-      agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed) / agg.total) * 100) : 0;
-      return agg;
+      return sumAllBucketStats(locationStatsMap as Map<string, WorkspaceInspectionBucketStats>) as LocationCardStats;
     }
     return getAggregatedStats(drillDown.currentLocationId!);
   }, [drillDown.isRoot, drillDown.currentLocationId, locationStatsMap, getAggregatedStats]);
+
+  /** Stats for the scope card row (matches current drill level). */
+  const scopeCardStats = currentViewStats;
+
+  const scopeListRows = useMemo(() => {
+    if (
+      drillDown.isLeaf ||
+      showUnassigned ||
+      showDeleted ||
+      !scopeListFilter ||
+      !workspaceId
+    ) {
+      return [] as Inspection[];
+    }
+    const anchor = drillDown.isRoot ? null : drillDown.currentLocationId;
+    const base = collectInspectionRowsForScope({
+      extinguishers,
+      inspections,
+      workspaceId,
+      isArchived: !!isArchived,
+      hasLocationIdData,
+      locations,
+      anchorLocationId: anchor,
+    });
+    return filterRowsByStatusList(base, scopeListFilter);
+  }, [
+    drillDown.isLeaf,
+    drillDown.isRoot,
+    drillDown.currentLocationId,
+    showUnassigned,
+    showDeleted,
+    scopeListFilter,
+    workspaceId,
+    extinguishers,
+    inspections,
+    isArchived,
+    hasLocationIdData,
+    locations,
+  ]);
+
+  const leafCardActiveFilter = useMemo((): WorkspaceScopeCardFilter | null => {
+    if (filters.statuses.size === 0) return null;
+    if (filters.statuses.has('pending') && filters.statuses.size === 1) return 'pending';
+    if (filters.statuses.has('pass') && filters.statuses.has('fail') && filters.statuses.size === 2) {
+      return 'checked';
+    }
+    if (filters.statuses.has('pass') && filters.statuses.size === 1) return 'pass';
+    if (filters.statuses.has('fail') && filters.statuses.size === 1) return 'fail';
+    return null;
+  }, [filters.statuses]);
+
+  function handleScopeCardSelect(filter: WorkspaceScopeCardFilter | null) {
+    if (drillDown.isLeaf) {
+      setScopeListFilter(null);
+      if (filter === null) {
+        setFilters(createEmptyFilters());
+        return;
+      }
+      const next = createEmptyFilters();
+      if (filter === 'checked') {
+        next.statuses.add('pass');
+        next.statuses.add('fail');
+      } else {
+        next.statuses.add(filter);
+      }
+      setFilters(next);
+      return;
+    }
+    setScopeListFilter((prev) => (prev === filter ? null : filter));
+  }
+
+  useEffect(() => {
+    if (drillDown.isLeaf) setScopeListFilter(null);
+  }, [drillDown.isLeaf]);
+
+  useEffect(() => {
+    if (showUnassigned || showDeleted) setScopeListFilter(null);
+  }, [showUnassigned, showDeleted]);
 
   // ========== EXTINGUISHER LIST FOR LEAF VIEW ==========
 
@@ -720,14 +705,17 @@ export default function WorkspaceDetail() {
       setShowDeleted(false);
       setSearchQuery('');
       setFilters(createEmptyFilters());
+      setScopeListFilter(null);
     } else if (showUnassigned) {
       setShowUnassigned(false);
       setSearchQuery('');
       setFilters(createEmptyFilters());
+      setScopeListFilter(null);
     } else if (drillDown.isLeaf || !drillDown.isRoot) {
       drillDown.navigateUp();
       setSearchQuery('');
       setFilters(createEmptyFilters());
+      setScopeListFilter(null);
     } else {
       navigate('/dashboard/workspaces');
     }
@@ -773,43 +761,26 @@ export default function WorkspaceDetail() {
                 drillDown.navigateToBreadcrumb(id);
                 setSearchQuery('');
                 setFilters(createEmptyFilters());
+                setScopeListFilter(null);
               }}
               rootLabel={workspace.label}
             />
           </div>
         )}
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {drillDown.isRoot
-                ? workspace.label
-                : drillDown.currentLocation?.name ?? workspace.label}
-            </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {currentViewStats.total} extinguisher{currentViewStats.total !== 1 ? 's' : ''}
-              {drillDown.isLeaf && (hasActiveFilters(filters) || searchQuery)
-                ? ` (${(floorScanGrouped ? leafInspectionsBase : leafInspections).length} matching filters)`
-                : ''}
-              {isArchived && ' (archived — read only)'}
-            </p>
-          </div>
-
-          {/* Stats badges */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span className="text-sm font-semibold text-green-700">{currentViewStats.passed}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <XCircle className="h-4 w-4 text-red-500" />
-              <span className="text-sm font-semibold text-red-700">{currentViewStats.failed}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Clock className="h-4 w-4 text-gray-400" />
-              <span className="text-sm font-semibold text-gray-600">{currentViewStats.pending}</span>
-            </div>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {drillDown.isRoot
+              ? workspace.label
+              : drillDown.currentLocation?.name ?? workspace.label}
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {currentViewStats.total} extinguisher{currentViewStats.total !== 1 ? 's' : ''} in this view
+            {drillDown.isLeaf && (hasActiveFilters(filters) || searchQuery)
+              ? ` (${(floorScanGrouped ? leafInspectionsBase : leafInspections).length} matching filters)`
+              : ''}
+            {isArchived && ' (archived — read only)'}
+          </p>
         </div>
 
         {/* Progress bar */}
@@ -827,6 +798,19 @@ export default function WorkspaceDetail() {
             </div>
           )}
         </div>
+
+        {!showUnassigned && !showDeleted && (
+          <div className="mt-5">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+              This location — tap a card to list extinguishers
+            </p>
+            <WorkspaceInspectionScopeCards
+              stats={scopeCardStats as WorkspaceInspectionBucketStats}
+              activeFilter={drillDown.isLeaf ? leafCardActiveFilter : scopeListFilter}
+              onSelectFilter={handleScopeCardSelect}
+            />
+          </div>
+        )}
       </div>
 
       {/* Scan/Search bar */}
@@ -840,6 +824,42 @@ export default function WorkspaceDetail() {
             plan={org?.plan}
             placeholder="Scan or type barcode, serial, or asset ID..."
           />
+        </div>
+      )}
+
+      {/* Scoped list (non-leaf): all floors/buildings under current drill level */}
+      {!drillDown.isLeaf && !showUnassigned && !showDeleted && scopeListFilter && workspaceId && (
+        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-gray-900">
+              {scopeListFilter === 'pending' && 'Left to check'}
+              {scopeListFilter === 'checked' && 'Already checked'}
+              {scopeListFilter === 'pass' && 'Passed'}
+              {scopeListFilter === 'fail' && 'Failed'}
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                ({scopeListRows.length} in this area)
+              </span>
+            </h2>
+            <button
+              type="button"
+              onClick={() => setScopeListFilter(null)}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Clear list
+            </button>
+          </div>
+          {scopeListRows.length === 0 ? (
+            <p className="text-sm text-gray-500">Nothing in this category for this location scope.</p>
+          ) : (
+            <LeafExtinguisherTable
+              inspections={sortInspectionsForTable(scopeListRows, sortKey, sortDir)}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onToggleSort={toggleSort}
+              workspaceId={workspaceId}
+              navigate={navigate}
+            />
+          )}
         </div>
       )}
 

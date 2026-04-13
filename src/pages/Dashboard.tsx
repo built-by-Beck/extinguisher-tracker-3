@@ -5,11 +5,12 @@
  * Author: built_by_Beck
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
   ClipboardList,
+  ListChecks,
   Users,
   Flame,
   Plus,
@@ -17,6 +18,13 @@ import {
   PlayCircle,
   AlertTriangle,
   XCircle,
+  CheckCircle2,
+  Package,
+  RefreshCw,
+  Clock,
+  CalendarClock,
+  Loader2,
+  Trash2,
 } from 'lucide-react';
 import {
   collection,
@@ -36,6 +44,13 @@ import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
 import { ComplianceSummaryCard } from '../components/compliance/ComplianceSummaryCard.tsx';
 import type { Workspace } from '../services/workspaceService.ts';
 import type { Extinguisher } from '../services/extinguisherService.ts';
+import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
+import { subscribeToLocations, type Location } from '../services/locationService.ts';
+import {
+  buildLocationStatsMap,
+  detectHasLocationIdData,
+  sumAllBucketStats,
+} from '../utils/workspaceInspectionStats.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 import { AiUpgradeCard } from '../components/ai/AiUpgradeCard.tsx';
 
@@ -90,6 +105,8 @@ export default function Dashboard() {
   const [memberCount, setMemberCount] = useState(0);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [allExtinguishers, setAllExtinguishers] = useState<Extinguisher[]>([]);
+  const [dashInspections, setDashInspections] = useState<Inspection[]>([]);
+  const [dashLocations, setDashLocations] = useState<Location[]>([]);
   const [cleaningUp, setCleaningUp] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<string | null>(null);
 
@@ -135,6 +152,36 @@ export default function Dashboard() {
       }
     });
   }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId) return;
+    return subscribeToLocations(orgId, setDashLocations);
+  }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId || !activeWorkspace?.id) {
+      setDashInspections([]);
+      return;
+    }
+    return subscribeToInspections(orgId, activeWorkspace.id, setDashInspections);
+  }, [orgId, activeWorkspace?.id]);
+
+  const inspectionScopeStats = useMemo(() => {
+    if (!activeWorkspace?.id) {
+      return { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+    }
+    const hasLocationIdData = detectHasLocationIdData(dashInspections, allExtinguishers);
+    const map = buildLocationStatsMap({
+      inspections: dashInspections,
+      extinguishers: allExtinguishers,
+      locations: dashLocations,
+      isArchived: false,
+      hasLocationIdData,
+    });
+    return sumAllBucketStats(map);
+  }, [activeWorkspace?.id, dashInspections, allExtinguishers, dashLocations]);
+
+  const checkedInspectionCount = inspectionScopeStats.passed + inspectionScopeStats.failed;
 
   // Compliance counts (client-side grouping from real-time snapshot)
   const activeExts = allExtinguishers.filter((e) => e.lifecycleStatus === 'active');
@@ -246,12 +293,12 @@ export default function Dashboard() {
       )}
 
       {/* Orphaned inspections cleanup banner */}
-      {isAdminOrOwner && activeWorkspace && extCount === 0 && activeWorkspace.stats.pending > 0 && (
+      {isAdminOrOwner && activeWorkspace && extCount === 0 && inspectionScopeStats.pending > 0 && (
         <div className="mb-6 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
           <Trash2 className="h-5 w-5 shrink-0 text-red-600" />
           <div className="flex-1">
             <p className="text-sm font-medium text-red-800">
-              {activeWorkspace.stats.pending} orphaned inspection{activeWorkspace.stats.pending !== 1 ? 's' : ''} found
+              {inspectionScopeStats.pending} orphaned inspection{inspectionScopeStats.pending !== 1 ? 's' : ''} found
             </p>
             <p className="text-sm text-red-700">
               You have pending inspections but no extinguishers. Clean up these orphaned records.
@@ -306,8 +353,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stat cards */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {/* Stat cards — inspection counts match workspace drill-down (live extinguishers + inspections) */}
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard
           label="Total Extinguishers"
           value={extCount.toString()}
@@ -316,8 +363,8 @@ export default function Dashboard() {
           onClick={() => navigate('/dashboard/inventory')}
         />
         <StatCard
-          label="Pending Inspections"
-          value={activeWorkspace ? Math.max(0, activeWorkspace.stats.pending).toString() : '0'}
+          label="Left to check"
+          value={activeWorkspace ? Math.max(0, inspectionScopeStats.pending).toString() : '--'}
           icon={ClipboardList}
           color="bg-amber-500"
           onClick={() =>
@@ -327,8 +374,19 @@ export default function Dashboard() {
           }
         />
         <StatCard
-          label="Passed This Month"
-          value={activeWorkspace ? Math.max(0, activeWorkspace.stats.passed).toString() : '--'}
+          label="Already checked"
+          value={activeWorkspace ? Math.max(0, checkedInspectionCount).toString() : '--'}
+          icon={ListChecks}
+          color="bg-slate-600"
+          onClick={() =>
+            activeWorkspace
+              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}?status=checked`)
+              : navigate('/dashboard/workspaces')
+          }
+        />
+        <StatCard
+          label="Passed"
+          value={activeWorkspace ? Math.max(0, inspectionScopeStats.passed).toString() : '--'}
           icon={ShieldCheck}
           color="bg-green-500"
           onClick={() =>
@@ -338,8 +396,8 @@ export default function Dashboard() {
           }
         />
         <StatCard
-          label="Failed This Month"
-          value={activeWorkspace ? Math.max(0, activeWorkspace.stats.failed).toString() : '--'}
+          label="Failed"
+          value={activeWorkspace ? Math.max(0, inspectionScopeStats.failed).toString() : '--'}
           icon={XCircle}
           color="bg-red-600"
           onClick={() =>
@@ -415,22 +473,30 @@ export default function Dashboard() {
           <h2 className="mb-4 text-lg font-semibold text-gray-900">Quick Lists</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <button
-              onClick={() => activeWorkspace?.id ? navigate(`/dashboard/workspaces/${activeWorkspace.id}`) : navigate('/dashboard/workspaces')}
+              onClick={() =>
+                activeWorkspace?.id
+                  ? navigate(`/dashboard/workspaces/${activeWorkspace.id}?status=pass`)
+                  : navigate('/dashboard/workspaces')
+              }
               className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3 text-left hover:bg-green-100"
             >
               <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
               <div>
-                <p className="text-lg font-bold text-green-700">{activeWorkspace?.stats.passed ?? 0}</p>
+                <p className="text-lg font-bold text-green-700">{inspectionScopeStats.passed}</p>
                 <p className="text-xs text-green-600">Passed</p>
               </div>
             </button>
             <button
-              onClick={() => activeWorkspace?.id ? navigate(`/dashboard/workspaces/${activeWorkspace.id}`) : navigate('/dashboard/workspaces')}
+              onClick={() =>
+                activeWorkspace?.id
+                  ? navigate(`/dashboard/workspaces/${activeWorkspace.id}?status=fail`)
+                  : navigate('/dashboard/workspaces')
+              }
               className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-left hover:bg-red-100"
             >
               <XCircle className="h-5 w-5 shrink-0 text-red-600" />
               <div>
-                <p className="text-lg font-bold text-red-700">{activeWorkspace?.stats.failed ?? 0}</p>
+                <p className="text-lg font-bold text-red-700">{inspectionScopeStats.failed}</p>
                 <p className="text-xs text-red-600">Failed</p>
               </div>
             </button>
