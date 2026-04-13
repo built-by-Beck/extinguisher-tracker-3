@@ -8,6 +8,10 @@ import {
   doc,
   getDoc,
   getDocs,
+  addDoc,
+  updateDoc,
+  increment,
+  serverTimestamp,
   type QueryConstraint,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -305,6 +309,60 @@ export async function getInspectionHistoryForExtinguisher(
   );
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Inspection));
+}
+
+/**
+ * Create a single pending inspection for an extinguisher in a workspace.
+ * Used when an extinguisher is opened for inspection but has no inspection
+ * record yet (e.g., added after workspace creation).
+ */
+export async function createSingleInspection(
+  orgId: string,
+  extId: string,
+  workspaceId: string,
+  extData: {
+    assetId: string;
+    parentLocation?: string;
+    section?: string;
+    serial?: string;
+    locationId?: string | null;
+  },
+): Promise<Inspection> {
+  const inspData = {
+    extinguisherId: extId,
+    workspaceId,
+    assetId: extData.assetId ?? '',
+    parentLocation: extData.parentLocation ?? '',
+    section: extData.section ?? '',
+    serial: extData.serial ?? '',
+    locationId: extData.locationId ?? null,
+    status: 'pending',
+    inspectedAt: null,
+    inspectedBy: null,
+    inspectedByEmail: null,
+    checklistData: null,
+    notes: '',
+    photoUrl: null,
+    photoPath: null,
+    gps: null,
+    attestation: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  const ref = await addDoc(collection(db, 'org', orgId, 'inspections'), inspData);
+
+  // Update workspace stats to reflect the newly seeded inspection
+  const wsRef = doc(db, 'org', orgId, 'workspaces', workspaceId);
+  await updateDoc(wsRef, {
+    'stats.total': increment(1),
+    'stats.pending': increment(1),
+    'stats.lastUpdated': serverTimestamp(),
+  }).catch(() => {
+    // Non-critical — stats will be recalculated on archive
+  });
+
+  return { id: ref.id, ...inspData } as Inspection;
 }
 
 /**

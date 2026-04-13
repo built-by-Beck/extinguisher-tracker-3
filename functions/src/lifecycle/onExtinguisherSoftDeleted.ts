@@ -10,7 +10,7 @@
  */
 
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, DocumentReference } from 'firebase-admin/firestore';
 import { adminDb } from '../utils/admin.js';
 
 export const onExtinguisherSoftDeleted = onDocumentUpdated(
@@ -28,49 +28,59 @@ export const onExtinguisherSoftDeleted = onDocumentUpdated(
 
     const { orgId, extId } = event.params;
 
-    // Query for active workspace outside transaction (queries not allowed in tx)
-    const activeWorkspaceSnap = await adminDb
-      .collection(`org/${orgId}/workspaces`)
-      .where('status', '==', 'active')
-      .limit(1)
+    // Find ALL pending/pass/fail inspections for this extinguisher (not just active workspace)
+    const inspSnap = await adminDb
+      .collection(`org/${orgId}/inspections`)
+      .where('extinguisherId', '==', extId)
       .get();
 
-    if (activeWorkspaceSnap.empty) return;
+    if (inspSnap.empty) return;
 
-    const workspaceDoc = activeWorkspaceSnap.docs[0];
-    const workspaceId = workspaceDoc.id;
-    const inspectionRef = adminDb.doc(`org/${orgId}/inspections/${workspaceId}_${extId}`);
+    // Group inspections by workspaceId so we can update each workspace's stats
+    const byWorkspace = new Map<string, { ref: DocumentReference; status: string }[]>();
+    for (const doc of inspSnap.docs) {
+      const data = doc.data();
+      const wsId = data.workspaceId as string;
+      if (!byWorkspace.has(wsId)) byWorkspace.set(wsId, []);
+      byWorkspace.get(wsId)!.push({ ref: doc.ref, status: data.status as string });
+    }
 
-    await adminDb.runTransaction(async (tx) => {
-      const [workspaceTxSnap, inspectionTxSnap] = await Promise.all([
-        tx.get(workspaceDoc.ref),
-        tx.get(inspectionRef),
-      ]);
+    // Process each workspace's inspections
+    for (const [wsId, inspections] of byWorkspace) {
+      const wsRef = adminDb.doc(`org/${orgId}/workspaces/${wsId}`);
 
-      // No inspection record means this extinguisher was never seeded — nothing to decrement
-      if (!inspectionTxSnap.exists) return;
-      if (!workspaceTxSnap.exists || workspaceTxSnap.data()?.status !== 'active') return;
+      await adminDb.runTransaction(async (tx) => {
+        const wsSnap = await tx.get(wsRef);
+        // Only update stats for active workspaces; still delete inspections regardless
+        const isActive = wsSnap.exists && wsSnap.data()?.status === 'active';
 
-      const inspData = inspectionTxSnap.data()!;
-      const inspStatus = inspData.status as string;
+        if (isActive) {
+          const serverTimestamp = FieldValue.serverTimestamp();
+          const statsUpdate: Record<string, unknown> = {
+            'stats.total': FieldValue.increment(-inspections.length),
+            'stats.lastUpdated': serverTimestamp,
+          };
 
-      const serverTimestamp = FieldValue.serverTimestamp();
-      const statsUpdate: Record<string, unknown> = {
-        'stats.total': FieldValue.increment(-1),
-        'stats.lastUpdated': serverTimestamp,
-      };
+          let passCount = 0;
+          let failCount = 0;
+          let pendingCount = 0;
+          for (const insp of inspections) {
+            if (insp.status === 'pass') passCount++;
+            else if (insp.status === 'fail') failCount++;
+            else pendingCount++;
+          }
 
-      if (inspStatus === 'pass') {
-        statsUpdate['stats.passed'] = FieldValue.increment(-1);
-      } else if (inspStatus === 'fail') {
-        statsUpdate['stats.failed'] = FieldValue.increment(-1);
-      } else {
-        // 'pending' or anything unrecognized
-        statsUpdate['stats.pending'] = FieldValue.increment(-1);
-      }
+          if (passCount > 0) statsUpdate['stats.passed'] = FieldValue.increment(-passCount);
+          if (failCount > 0) statsUpdate['stats.failed'] = FieldValue.increment(-failCount);
+          if (pendingCount > 0) statsUpdate['stats.pending'] = FieldValue.increment(-pendingCount);
 
-      tx.update(workspaceDoc.ref, statsUpdate);
-      tx.delete(inspectionRef);
-    });
+          tx.update(wsRef, statsUpdate);
+        }
+
+        for (const insp of inspections) {
+          tx.delete(insp.ref);
+        }
+      });
+    }
   },
 );

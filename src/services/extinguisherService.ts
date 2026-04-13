@@ -133,6 +133,23 @@ export async function isAssetIdTaken(orgId: string, assetId: string, excludeId?:
 }
 
 /**
+ * Check if a serial number is already in use by an active extinguisher.
+ */
+export async function isSerialTaken(orgId: string, serial: string, excludeId?: string): Promise<boolean> {
+  const q = query(
+    extinguishersRef(orgId),
+    where('serial', '==', serial),
+    where('deletedAt', '==', null),
+    limit(2),
+  );
+  const snap = await getDocs(q);
+  if (excludeId) {
+    return snap.docs.some((d) => d.id !== excludeId);
+  }
+  return !snap.empty;
+}
+
+/**
  * Generate a unique asset ID for extinguisher records created directly from a scan.
  */
 export async function generateScannedAssetId(orgId: string, code: string): Promise<string> {
@@ -488,7 +505,7 @@ export async function getAllActiveExtinguishers(orgId: string): Promise<Extingui
 export function subscribeToExtinguishers(
   orgId: string,
   callback: (items: Extinguisher[]) => void,
-  options: { showDeleted?: boolean; noLimit?: boolean } = {},
+  options: { showDeleted?: boolean; limit?: number } = {},
 ): () => void {
   const constraints: QueryConstraint[] = [];
 
@@ -499,8 +516,8 @@ export function subscribeToExtinguishers(
   }
 
   constraints.push(orderBy('createdAt', 'desc'));
-  if (!options.noLimit) {
-    constraints.push(limit(100));
+  if (options.limit) {
+    constraints.push(limit(options.limit));
   }
 
   const q = query(extinguishersRef(orgId), ...constraints);

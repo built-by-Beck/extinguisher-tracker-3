@@ -46,6 +46,9 @@ export default function MarketingPricingPage() {
                     <span className="text-sm text-gray-500"> {plan.priceDetail}</span>
                   ) : null}
                 </p>
+                {plan.annualBillingNote ? (
+                  <p className="mt-2 text-xs leading-relaxed text-gray-500">{plan.annualBillingNote}</p>
+                ) : null}
                 <p className="mt-3 text-sm text-gray-600">{plan.blurb}</p>
                 <ul className="mt-6 flex-1 space-y-3 text-sm text-gray-700">
                   {plan.bullets.map((b) => (

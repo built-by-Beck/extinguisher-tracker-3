@@ -23,6 +23,7 @@ import {
   type Workspace,
 } from '../services/workspaceService.ts';
 import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
+import { WorkspaceInspectionSummaryCards } from '../components/workspace/WorkspaceInspectionSummaryCards.tsx';
 
 function getNextMonthYear(): string {
   const now = new Date();
@@ -160,6 +161,21 @@ export default function Workspaces() {
             Create Workspace
           </button>
         )}
+      </div>
+
+      {orgId && (
+        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <WorkspaceInspectionSummaryCards orgId={orgId} />
+        </div>
+      )}
+
+      {/* Page description */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        <p>
+          A workspace represents one month of inspections. Create a new workspace each month, then
+          open it to walk through your extinguishers location by location. When the month is done,
+          archive the workspace to lock in the results and generate a compliance report.
+        </p>
       </div>
 
       {error && (

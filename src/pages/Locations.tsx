@@ -19,7 +19,8 @@ import {
   softDeleteLocation,
   buildLocationTree,
   isLocationNameTaken,
-  LOCATION_TYPES,
+  LOCATION_TYPE_ENTRIES,
+  getLocationTypeLabel,
   type Location,
   type LocationTreeNode,
 } from '../services/locationService.ts';
@@ -62,7 +63,7 @@ function TreeNode({
             Level {depth + 1}
           </span>
         </div>
-        <span className="text-xs text-gray-400">{node.locationType}</span>
+        <span className="text-xs text-gray-400">{getLocationTypeLabel(node.locationType)}</span>
 
         {canEdit && (
           <div className="flex items-center gap-1">
@@ -234,6 +235,16 @@ export default function Locations() {
         )}
       </div>
 
+      {/* Page description */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        <p>
+          Locations define where your extinguishers live. Build a hierarchy — for example,
+          a building at the top, then floors or wings, then individual rooms. When you assign
+          extinguishers to locations, they automatically group by location during inspections
+          so your inspectors can work floor by floor.
+        </p>
+      </div>
+
       {/* Tree view */}
       {locations.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
@@ -303,9 +314,12 @@ export default function Locations() {
                   onChange={(e) => setFormType(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
                 >
-                  {LOCATION_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {!LOCATION_TYPE_ENTRIES.some(([v]) => v === formType) && formType ? (
+                    <option value={formType}>{getLocationTypeLabel(formType)}</option>
+                  ) : null}
+                  {LOCATION_TYPE_ENTRIES.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
                     </option>
                   ))}
                 </select>
@@ -323,7 +337,7 @@ export default function Locations() {
                     .filter((l) => l.id !== editingLoc?.id)
                     .map((l) => (
                       <option key={l.id} value={l.id}>
-                        {l.name} ({l.locationType})
+                        {l.name} ({getLocationTypeLabel(l.locationType)})
                       </option>
                     ))}
                 </select>

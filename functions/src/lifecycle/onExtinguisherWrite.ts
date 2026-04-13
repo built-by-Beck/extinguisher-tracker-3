@@ -101,13 +101,25 @@ export const onExtinguisherCreated = onDocumentCreated(
       if (!activeWorkspaceSnap.empty) {
         const workspaceDoc = activeWorkspaceSnap.docs[0];
         const workspaceId = workspaceDoc.id;
-        const inspectionRef = adminDb.doc(`org/${orgId}/inspections/${workspaceId}_${extId}`);
-        const [workspaceTxSnap, inspectionTxSnap] = await Promise.all([
-          tx.get(workspaceDoc.ref),
-          tx.get(inspectionRef),
-        ]);
 
-        if (!inspectionTxSnap.exists && workspaceTxSnap.exists && workspaceTxSnap.data()?.status === 'active') {
+        // Check if an inspection already exists for this extinguisher in this workspace
+        // (query outside tx was not possible, so we read by workspace ref inside tx)
+        const workspaceTxSnap = await tx.get(workspaceDoc.ref);
+
+        if (workspaceTxSnap.exists && workspaceTxSnap.data()?.status === 'active') {
+          // Check if an inspection already exists (e.g., seeded by CSV import)
+          const existingInspSnap = await adminDb
+            .collection(`org/${orgId}/inspections`)
+            .where('extinguisherId', '==', extId)
+            .where('workspaceId', '==', workspaceId)
+            .limit(1)
+            .get();
+
+          if (!existingInspSnap.empty) {
+            // Inspection already seeded — skip to avoid duplicates
+            return;
+          }
+
           let section = (currentExtData.section as string | null) ?? '';
           const locationId = (currentExtData.locationId as string | null) ?? null;
 
@@ -119,10 +131,14 @@ export const onExtinguisherCreated = onDocumentCreated(
             }
           }
 
+          // Use auto-generated ID to match createWorkspace seeding pattern
+          const inspectionRef = adminDb.collection(`org/${orgId}/inspections`).doc();
           tx.set(inspectionRef, {
             extinguisherId: extId,
             workspaceId,
             assetId: (currentExtData.assetId as string | null) ?? '',
+            parentLocation: (currentExtData.parentLocation as string | null) ?? '',
+            serial: (currentExtData.serial as string | null) ?? '',
             section,
             locationId: locationId ?? null,
             status: 'pending',

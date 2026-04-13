@@ -1,11 +1,38 @@
 # EX3 Agent System -- Project State
 
-**Last Updated**: 2026-03-26
-**Updated By**: review-agent (Opus 4.6) -- Phase 18 REVIEW COMPLETE
+**Last Updated**: 2026-04-06
+**Updated By**: built_by_Beck (Opus 4.6) -- Phase 19 BUILD + REVIEW COMPLETE
 
 ---
 
 ## Current Phase
+
+**Phase 19: Inspection Flow — Click-to-Inspect, Auto-Create Inspections, Expandable History**
+Status: BUILD + REVIEW COMPLETE
+
+### Phase 19 Build Summary (2026-04-06)
+
+**6 tasks completed (P19-01 through P19-07):**
+
+1. **P19-01**: Added `createSingleInspection()` to `inspectionService.ts` — creates a pending inspection doc on-demand via client-side Firestore `addDoc`.
+2. **P19-02**: Updated `ExtinguisherDetail.tsx` `loadInspection` to auto-create pending inspections when an extinguisher has no inspection record in the active workspace. Eliminates the "not in workspace" dead end.
+3. **P19-03**: Replaced "No active workspace" dead-end with one-click "Create Workspace & Start Inspecting" button. Owner/admin can create workspace directly from the detail page. Inspectors see a message to ask their admin.
+4. **P19-04**: Verified scan-to-inspect flow works end-to-end. Inventory scan navigates to ExtinguisherDetail which auto-creates inspections via P19-02.
+5. **P19-05**: Added expandable inspection history with full checklist details (categorized by section), photo thumbnails, GPS coordinates with "Open in Maps" link. Each entry has a chevron toggle.
+6. **P19-06**: Verified Firestore rules already allow `create` for inspections by owner/admin/inspector roles. No rule change needed.
+7. **P19-07**: Build & lint verification — zero new errors, zero new warnings (4 pre-existing errors unchanged).
+
+**Key results:**
+- Users can now click any extinguisher and immediately see Pass/Fail buttons (auto-creates inspection if needed)
+- One-click workspace creation from the extinguisher detail page
+- Expandable inspection history shows full 13-point checklist, photos, and GPS per entry
+- Scan from inventory → detail page → auto-created inspection → ready to inspect
+
+**Files changed:**
+- `src/services/inspectionService.ts` — added `createSingleInspection()`, added `addDoc` and `serverTimestamp` imports
+- `src/pages/ExtinguisherDetail.tsx` — auto-create logic, one-click workspace creation, expandable history with checklist/photo/GPS
+
+### Previous Phase
 
 **Phase 18: InspectionPanel Component Extraction + ExtinguisherDetail Rebuild**
 Status: REVIEW COMPLETE

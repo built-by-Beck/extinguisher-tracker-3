@@ -50,6 +50,10 @@ export interface InspectionPanelProps {
   // User info (for attestation)
   inspectorName: string;
 
+  // Previous inspection data
+  previousNotes?: string | null;
+  previousPhotoUrl?: string | null;
+
   // Callbacks
   onInspectionUpdated: (updated: Inspection | null) => void;
   onError?: (msg: string) => void;
@@ -66,6 +70,8 @@ export function InspectionPanel({
   canReset,
   isOnline,
   inspectorName,
+  previousNotes,
+  previousPhotoUrl,
   onInspectionUpdated,
   onError,
   onSuccess,
@@ -277,12 +283,68 @@ export function InspectionPanel({
         )}
       </div>
 
-      {/* NFPA 13-Point Checklist — Categorized Sections */}
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-red-500" />
-          <h2 className="text-lg font-semibold text-gray-900">NFPA 10 Inspection Checklist</h2>
+      {/* Attestation notice */}
+      {canInspect && isPending && (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <p className="text-xs text-blue-700">
+            By marking this inspection as Pass or Fail, you certify that this inspection was
+            performed according to NFPA 10 standards.
+          </p>
         </div>
+      )}
+
+      {/* Pass / Fail buttons — placed prominently near the top */}
+      {canInspect && isPending && (
+        <div className="mb-6 flex items-center gap-3">
+          <button
+            onClick={handlePassClick}
+            disabled={saving}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-600 px-6 py-5 text-lg font-bold text-white shadow-md hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-7 w-7" />
+            )}
+            PASS
+          </button>
+          <button
+            onClick={handleFailClick}
+            disabled={saving}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-5 text-lg font-bold text-white shadow-md hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : (
+              <XCircle className="h-7 w-7" />
+            )}
+            FAIL
+          </button>
+        </div>
+      )}
+
+      {/* Completed info */}
+      {isCompleted && inspection.inspectedByEmail && (
+        <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p className="text-sm text-gray-600">
+            Inspected by{' '}
+            <span className="font-medium">{inspection.inspectedByEmail}</span>
+            {!!inspection.inspectedAt && (
+              <> on {formatTimestamp(inspection.inspectedAt)}</>
+            )}
+          </p>
+        </div>
+      )}
+
+      {/* EX3 NFPA 10 Inspection Checklist */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mb-1 flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5 text-red-500" />
+          <h2 className="text-lg font-semibold text-gray-900">EX3 NFPA 10 Inspection Checklist</h2>
+        </div>
+        <p className="mb-4 text-xs text-gray-400">
+          Based on NFPA 10 Section 7.2.2 — Standard for Portable Fire Extinguishers
+        </p>
 
         {CHECKLIST_SECTIONS.map((section) => (
           <div key={section.title} className="mb-5 last:mb-0">
@@ -302,9 +364,9 @@ export function InspectionPanel({
         ))}
       </div>
 
-      {/* Notes */}
+      {/* Inspection Notes */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-3 text-base font-semibold text-gray-900">Notes</h2>
+        <h2 className="mb-3 text-base font-semibold text-gray-900">Inspection Notes</h2>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -313,19 +375,15 @@ export function InspectionPanel({
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-gray-100"
           placeholder="Add inspection notes..."
         />
-      </div>
 
-      {/* Photo Capture */}
-      <PhotoCapture
-        photoFile={photoFile}
-        photoPreview={photoPreview}
-        existingPhotoUrl={inspection.photoUrl}
-        onPhotoSelect={handlePhotoSelect}
-        onPhotoRemove={handlePhotoRemove}
-        disabled={isCompleted || !canInspect}
-        isCompleted={isCompleted}
-        canInspect={canInspect}
-      />
+        {/* Previous Inspection Notes */}
+        {previousNotes && (
+          <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Previous Inspection Notes</p>
+            <p className="text-sm text-gray-600 whitespace-pre-wrap">{previousNotes}</p>
+          </div>
+        )}
+      </div>
 
       {/* GPS Capture */}
       <GpsCapture
@@ -337,58 +395,33 @@ export function InspectionPanel({
         onError={handleGpsError}
       />
 
-      {/* Attestation notice */}
-      {canInspect && isPending && (
-        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <p className="text-xs text-blue-700">
-            By marking this inspection as Pass or Fail, you certify that this inspection was
-            performed according to NFPA 10 standards.
-          </p>
-        </div>
-      )}
-
-      {/* Pass / Fail buttons */}
-      {canInspect && isPending && (
-        <div className="mb-6 flex items-center gap-3">
-          <button
-            onClick={handlePassClick}
-            disabled={saving}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-4 text-base font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <CheckCircle2 className="h-6 w-6" />
-            )}
-            Pass
-          </button>
-          <button
-            onClick={handleFailClick}
-            disabled={saving}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-6 py-4 text-base font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <XCircle className="h-6 w-6" />
-            )}
-            Fail
-          </button>
-        </div>
-      )}
-
-      {/* Completed info */}
-      {isCompleted && inspection.inspectedByEmail && (
-        <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <p className="text-sm text-gray-600">
-            Inspected by{' '}
-            <span className="font-medium">{inspection.inspectedByEmail}</span>
-            {!!inspection.inspectedAt && (
-              <> on {formatTimestamp(inspection.inspectedAt)}</>
-            )}
-          </p>
-        </div>
-      )}
+      {/* Photo Capture — shows previous photos + capture button */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-3 text-base font-semibold text-gray-900">Inspection Photos</h2>
+        {/* Show previous inspection photo if available */}
+        {previousPhotoUrl && (
+          <div className="mb-4">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Previous Inspection Photo</p>
+            <a href={previousPhotoUrl} target="_blank" rel="noopener noreferrer">
+              <img
+                src={previousPhotoUrl}
+                alt="Previous inspection"
+                className="h-28 w-28 rounded-lg border border-gray-200 object-cover hover:opacity-80"
+              />
+            </a>
+          </div>
+        )}
+        <PhotoCapture
+          photoFile={photoFile}
+          photoPreview={photoPreview}
+          existingPhotoUrl={inspection.photoUrl}
+          onPhotoSelect={handlePhotoSelect}
+          onPhotoRemove={handlePhotoRemove}
+          disabled={isCompleted || !canInspect}
+          isCompleted={isCompleted}
+          canInspect={canInspect}
+        />
+      </div>
 
       {/* Quick fail modal */}
       <QuickFailModal

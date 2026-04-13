@@ -10,6 +10,7 @@ import { useGuest } from '../../hooks/useGuest.ts';
 import {
   subscribeToLocations,
   buildLocationTree,
+  getLocationTypeLabel,
   type Location,
   type LocationTreeNode,
 } from '../../services/locationService.ts';
@@ -42,7 +43,7 @@ function ReadOnlyTreeNode({ node, depth }: { node: LocationTreeNode; depth: numb
             Level {depth + 1}
           </span>
         </div>
-        <span className="text-xs text-gray-400">{node.locationType}</span>
+        <span className="text-xs text-gray-400">{getLocationTypeLabel(node.locationType)}</span>
         {node.description && (
           <span className="max-w-xs truncate text-xs text-gray-400">{node.description}</span>
         )}

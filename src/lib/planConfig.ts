@@ -16,10 +16,19 @@ const ENV_LIMIT_BASIC = Number(import.meta.env.VITE_LIMIT_BASIC) || 50;
 const ENV_LIMIT_PRO = Number(import.meta.env.VITE_LIMIT_PRO) || 250;
 const ENV_LIMIT_ELITE = Number(import.meta.env.VITE_LIMIT_ELITE) || 500;
 
+/** Annual prepay discount (must match Stripe yearly price amounts). */
+export const YEARLY_DISCOUNT_FRACTION = 0.1;
+
+export function yearlyTotalFromMonthly(monthly: number): number {
+  return Math.round(monthly * 12 * (1 - YEARLY_DISCOUNT_FRACTION) * 100) / 100;
+}
+
 export interface PlanInfo {
   name: PlanName;
   displayName: string;
   monthlyPrice: number | null;
+  /** Prepay total for one year at 10% off (display only; Stripe enforces actual charge). */
+  yearlyTotalPrice: number | null;
   assetLimit: number | null;
   features: string[];
 }
@@ -96,6 +105,7 @@ export const PLANS: PlanInfo[] = [
     name: 'basic',
     displayName: 'Basic',
     monthlyPrice: ENV_PRICE_BASIC,
+    yearlyTotalPrice: yearlyTotalFromMonthly(ENV_PRICE_BASIC),
     assetLimit: ENV_LIMIT_BASIC,
     features: [
       `Up to ${ENV_LIMIT_BASIC} extinguishers`,
@@ -110,6 +120,7 @@ export const PLANS: PlanInfo[] = [
     name: 'pro',
     displayName: 'Pro',
     monthlyPrice: ENV_PRICE_PRO,
+    yearlyTotalPrice: yearlyTotalFromMonthly(ENV_PRICE_PRO),
     assetLimit: ENV_LIMIT_PRO,
     features: [
       `Up to ${ENV_LIMIT_PRO} extinguishers`,
@@ -125,6 +136,7 @@ export const PLANS: PlanInfo[] = [
     name: 'elite',
     displayName: 'Elite',
     monthlyPrice: ENV_PRICE_ELITE,
+    yearlyTotalPrice: yearlyTotalFromMonthly(ENV_PRICE_ELITE),
     assetLimit: ENV_LIMIT_ELITE,
     features: [
       `Up to ${ENV_LIMIT_ELITE} extinguishers`,
@@ -139,6 +151,7 @@ export const PLANS: PlanInfo[] = [
     name: 'enterprise',
     displayName: 'Enterprise',
     monthlyPrice: null,
+    yearlyTotalPrice: null,
     assetLimit: null,
     features: [
       'Unlimited extinguishers',
