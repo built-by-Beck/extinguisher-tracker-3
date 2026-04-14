@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 import { jest, describe, it, expect } from '@jest/globals';
 import { adminDb } from '../utils/admin.js';

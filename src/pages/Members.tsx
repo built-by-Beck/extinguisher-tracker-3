@@ -27,32 +27,9 @@ export default function Members() {
   const orgId = userProfile?.activeOrgId ?? '';
   const canAccessMembers = hasFeature(org?.featureFlags, 'teamMembers', org?.plan);
 
-  if (!canAccessMembers) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <div className="max-w-md text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-            <Lock className="h-8 w-8 text-gray-400" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900">Team Members</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Invite and manage team members with Elite and Enterprise plans.
-            Upgrade to add inspectors, admins, and viewers to your organization.
-          </p>
-          <button
-            onClick={() => navigate('/dashboard/settings')}
-            className="mt-6 rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-red-700"
-          >
-            View Plans & Upgrade
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // Real-time listener for members
   useEffect(() => {
-    if (!user || !orgId) {
+    if (!canAccessMembers || !user || !orgId) {
       setMembers([]);
       setLoading(false);
       return;
@@ -86,7 +63,30 @@ export default function Members() {
     );
 
     return () => unsub();
-  }, [user, orgId]);
+  }, [canAccessMembers, user, orgId]);
+
+  if (!canAccessMembers) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="max-w-md text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+            <Lock className="h-8 w-8 text-gray-400" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900">Team Members</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Invite and manage team members with Elite and Enterprise plans.
+            Upgrade to add inspectors, admins, and viewers to your organization.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard/settings')}
+            className="mt-6 rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-red-700"
+          >
+            View Plans & Upgrade
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

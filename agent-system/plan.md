@@ -6,6 +6,42 @@
 
 ---
 
+## Phase 20 Addendum -- AI Assistant Notes MVP
+
+### Objective
+Enable the AI helper to persist operational notes from natural language (for example: "take a note that all exit signs in Building B room 626 need replaced"), then let teams view and update note status.
+
+### Scope (MVP)
+1. Create notes via AI helper and explicit "save as note" action.
+2. Show recent org-scoped notes in the AI panel.
+3. Support status updates (`open`, `in_progress`, `resolved`) for authorized roles.
+
+### Implementation Map
+- **Frontend**
+  - `src/components/ai/AiAssistantPanel.tsx`
+  - `src/services/aiNotesService.ts`
+  - `src/types/aiNote.ts`
+- **Backend**
+  - `functions/src/ai/createAiNote.ts`
+  - `functions/src/ai/updateAiNoteStatus.ts`
+  - `functions/src/index.ts`
+- **Security**
+  - `firestore.rules` (`aiNotes`, `aiNoteEvents` read-only from client)
+
+### Security and tenancy constraints
+- All writes happen through callable Cloud Functions only.
+- All note operations are scoped to `org/{orgId}` with active membership checks.
+- Only `owner`, `admin`, and `inspector` can create/update notes.
+- Guests cannot read AI notes.
+
+### Verification checklist
+- `npm --prefix functions run build`
+- `npm run build`
+- `npm run test`
+- `npm run lint` (repository has pre-existing lint issues outside this scope)
+
+---
+
 ## Current Objective
 
 Make inspections actually work end-to-end. Right now, clicking an extinguisher from inventory or scanning a barcode does NOT reliably show Pass/Fail buttons because:

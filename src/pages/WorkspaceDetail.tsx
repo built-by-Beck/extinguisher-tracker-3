@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
+  useLocation,
   useNavigate,
   useParams,
   useSearchParams,
@@ -107,6 +108,7 @@ interface LeafExtinguisherTableProps {
   sortDir: 'asc' | 'desc';
   onToggleSort: (key: string) => void;
   workspaceId: string;
+  returnTo: string;
   navigate: NavigateFunction;
 }
 
@@ -116,6 +118,7 @@ function LeafExtinguisherTable({
   sortDir,
   onToggleSort,
   workspaceId,
+  returnTo,
   navigate,
 }: LeafExtinguisherTableProps) {
   return (
@@ -146,7 +149,7 @@ function LeafExtinguisherTable({
               <tr
                 key={insp.id}
                 className="cursor-pointer hover:bg-gray-50"
-                onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)}
+                onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`, { state: { returnTo } })}
               >
                 <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
                   {insp.assetId}
@@ -183,6 +186,7 @@ function LeafExtinguisherTable({
 
 export default function WorkspaceDetail() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, userProfile } = useAuth();
@@ -241,6 +245,7 @@ export default function WorkspaceDetail() {
     }
     return null;
   });
+  const returnTo = location.pathname + location.search;
 
   function toggleSort(key: string) {
     if (sortKey === key) {
@@ -681,7 +686,7 @@ export default function WorkspaceDetail() {
 
   function handleExtinguisherFound(ext: Extinguisher) {
     if (ext.id) {
-      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${ext.id}`);
+      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${ext.id}`, { state: { returnTo } });
     }
   }
 
@@ -857,6 +862,7 @@ export default function WorkspaceDetail() {
               sortDir={sortDir}
               onToggleSort={toggleSort}
               workspaceId={workspaceId}
+              returnTo={returnTo}
               navigate={navigate}
             />
           )}
@@ -1013,7 +1019,7 @@ export default function WorkspaceDetail() {
                       <tr
                         key={insp.id}
                         className="cursor-pointer hover:bg-gray-50"
-                        onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`)}
+                        onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`, { state: { returnTo } })}
                       >
                         <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{insp.assetId}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{insp.serial || '--'}</td>
@@ -1171,7 +1177,7 @@ export default function WorkspaceDetail() {
                 onClick={() => {
                   const first = sortedLeafPending[0];
                   if (first) {
-                    navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${first.extinguisherId}`);
+                    navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${first.extinguisherId}`, { state: { returnTo } });
                   }
                 }}
                 className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
@@ -1229,6 +1235,7 @@ export default function WorkspaceDetail() {
                     sortDir={sortDir}
                     onToggleSort={toggleSort}
                     workspaceId={workspaceId!}
+                    returnTo={returnTo}
                     navigate={navigate}
                   />
                 )}
@@ -1262,6 +1269,7 @@ export default function WorkspaceDetail() {
                         sortDir={sortDir}
                         onToggleSort={toggleSort}
                         workspaceId={workspaceId!}
+                        returnTo={returnTo}
                         navigate={navigate}
                       />
                     )}
@@ -1297,6 +1305,7 @@ export default function WorkspaceDetail() {
                         sortDir={sortDir}
                         onToggleSort={toggleSort}
                         workspaceId={workspaceId!}
+                        returnTo={returnTo}
                         navigate={navigate}
                       />
                     )}
@@ -1312,6 +1321,7 @@ export default function WorkspaceDetail() {
                 sortDir={sortDir}
                 onToggleSort={toggleSort}
                 workspaceId={workspaceId!}
+                returnTo={returnTo}
                 navigate={navigate}
               />
 

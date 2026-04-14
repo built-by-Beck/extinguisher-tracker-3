@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   Loader2,
@@ -37,12 +37,15 @@ import { formatShortDate, formatDueDate, isOverdue } from '../utils/compliance.t
 
 export default function ExtinguisherEdit() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { extId } = useParams<{ extId: string }>();
   const { userProfile } = useAuth();
   const { hasRole } = useOrg();
 
   const orgId = userProfile?.activeOrgId ?? '';
   const canEdit = hasRole(['owner', 'admin']);
+  const stateReturnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+  const returnTo = stateReturnTo || '/dashboard/inventory';
 
   const [extinguisher, setExtinguisher] = useState<Extinguisher | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
@@ -75,7 +78,7 @@ export default function ExtinguisherEdit() {
 
     try {
       await updateExtinguisher(orgId, extId, data);
-      navigate('/dashboard/inventory');
+      navigate(returnTo);
     } finally {
       setSaving(false);
     }
@@ -87,7 +90,7 @@ export default function ExtinguisherEdit() {
     setRetireError('');
     try {
       await retireExtinguisher(orgId, extId, retireReason.trim());
-      navigate('/dashboard/inventory');
+      navigate(returnTo);
     } catch (err) {
       setRetireError(err instanceof Error ? err.message : 'Failed to retire extinguisher.');
       setRetiring(false);
@@ -126,11 +129,11 @@ export default function ExtinguisherEdit() {
     <div className="mx-auto max-w-4xl p-6">
       <div className="mb-6">
         <button
-          onClick={() => navigate('/dashboard/inventory')}
+          onClick={() => navigate(returnTo)}
           className="mb-3 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Inventory
+          Back
         </button>
         <div className="flex items-center justify-between">
           <div>

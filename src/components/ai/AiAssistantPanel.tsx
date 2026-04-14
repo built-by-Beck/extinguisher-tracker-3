@@ -7,13 +7,19 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, Loader2, Sparkles, Trash2 } from 'lucide-react';
+import { Bot, X, Send, Loader2, Sparkles, Trash2, NotebookPen } from 'lucide-react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { askAssistant, type AiMessage } from '../../services/aiService.ts';
+import {
+  createAiNoteCall,
+  subscribeToAiNotes,
+  updateAiNoteStatusCall,
+} from '../../services/aiNotesService.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { db } from '../../lib/firebase.ts';
 import type { Extinguisher } from '../../services/extinguisherService.ts';
+import type { AiNote, AiNoteStatus } from '../../types/aiNote.ts';
 
 interface AiAssistantPanelProps {
   extinguishers?: Extinguisher[];
@@ -27,6 +33,20 @@ const SUGGESTED_PROMPTS = [
   'What does NFPA 10 require monthly?',
   'Which extinguishers need hydrostatic testing?',
 ];
+
+const NOTE_INTENT_PATTERN = /\b(take|save|create|add|make)\s+(?:a\s+)?note\b/i;
+
+function extractNoteContent(message: string): string | null {
+  if (!NOTE_INTENT_PATTERN.test(message)) {
+    return null;
+  }
+
+  const content = message
+    .replace(/^.*?\bnote\b(?:\s+that)?[\s:,-]*/i, '')
+    .trim();
+
+  return content || null;
+}
 
 function buildComplianceSummary(extinguishers: Extinguisher[]): Record<string, number> {
   const activeExts = extinguishers.filter((e) => e.lifecycleStatus === 'active');
@@ -52,7 +72,7 @@ function buildComplianceSummary(extinguishers: Extinguisher[]): Record<string, n
 }
 
 export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssistantPanelProps) {
-  const { org } = useOrg();
+  const { org, hasRole } = useOrg();
   const { user, userProfile } = useAuth();
   const orgId = userProfile?.activeOrgId ?? '';
 
@@ -62,6 +82,8 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orgExtinguishers, setOrgExtinguishers] = useState<Extinguisher[]>([]);
+  const [notes, setNotes] = useState<AiNote[]>([]);
+  const [noteBusyId, setNoteBusyId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -84,6 +106,39 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
   const resolvedExtinguishers = extinguishers ?? orgExtinguishers;
   const resolvedComplianceSummary =
     complianceSummary ?? buildComplianceSummary(resolvedExtinguishers);
+  const canManageNotes = hasRole(['owner', 'admin', 'inspector']);
+
+  useEffect(() => {
+    if (!orgId) {
+      setNotes([]);
+      return;
+    }
+
+    return subscribeToAiNotes(orgId, setNotes, 8);
+  }, [orgId]);
+
+  async function saveNoteFromText(content: string, source: 'manual' | 'ai_suggested' = 'manual') {
+    if (!orgId) return;
+    try {
+      await createAiNoteCall({ orgId, content, source });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to save note';
+      setError(msg);
+    }
+  }
+
+  async function handleNoteStatusChange(noteId: string, status: AiNoteStatus) {
+    if (!orgId || !canManageNotes) return;
+    setNoteBusyId(noteId);
+    try {
+      await updateAiNoteStatusCall({ orgId, noteId, status });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update note status';
+      setError(msg);
+    } finally {
+      setNoteBusyId(null);
+    }
+  }
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -110,6 +165,19 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
     setLoading(true);
 
     try {
+      const noteContent = extractNoteContent(messageText);
+      if (noteContent && canManageNotes) {
+        await saveNoteFromText(noteContent, 'ai_suggested');
+        setMessages([
+          ...updatedMessages,
+          {
+            role: 'assistant',
+            content: `Saved note: "${noteContent}"\n\nI added it to your org notes with status **open**.`,
+          },
+        ]);
+        return;
+      }
+
       const response = await askAssistant(updatedMessages, {
         orgName: org?.name,
         extinguishers: resolvedExtinguishers,
@@ -157,6 +225,9 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <div className="rounded bg-red-50 px-2 py-1 text-[10px] font-medium text-red-700">
+                {notes.length} notes
+              </div>
               {messages.length > 0 && (
                 <button
                   onClick={handleClear}
@@ -179,6 +250,37 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            {notes.length > 0 && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-600">
+                  <NotebookPen className="h-3.5 w-3.5" />
+                  Recent notes
+                </div>
+                <div className="space-y-2">
+                  {notes.slice(0, 3).map((note) => (
+                    <div key={note.id} className="rounded border border-gray-200 bg-white p-2">
+                      <p className="text-xs text-gray-700 line-clamp-2">{note.content}</p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-[10px] text-gray-500">Status</span>
+                        <select
+                          value={note.status}
+                          disabled={!canManageNotes || noteBusyId === note.id}
+                          onChange={(e) =>
+                            void handleNoteStatusChange(note.id, e.target.value as AiNoteStatus)
+                          }
+                          className="rounded border border-gray-300 px-1.5 py-0.5 text-[10px] text-gray-700 disabled:opacity-60"
+                        >
+                          <option value="open">Open</option>
+                          <option value="in_progress">In progress</option>
+                          <option value="resolved">Resolved</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {messages.length === 0 && !loading && (
               <div className="space-y-4">
                 <div className="text-center py-4">
@@ -211,7 +313,7 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
 
             {messages.map((msg, i) => (
               <div
-                key={i}
+                key={`${msg.role}-${i}-${msg.content.slice(0, 24)}`}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
@@ -222,6 +324,16 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                   }`}
                 >
                   <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                  {msg.role === 'user' && canManageNotes && (
+                    <button
+                      type="button"
+                      onClick={() => void saveNoteFromText(msg.content)}
+                      className="mt-2 inline-flex items-center gap-1 rounded border border-white/30 px-2 py-0.5 text-[10px] text-white hover:bg-white/10"
+                    >
+                      <NotebookPen className="h-3 w-3" />
+                      Save as note
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

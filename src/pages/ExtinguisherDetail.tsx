@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   Loader2,
@@ -92,6 +92,7 @@ function InfoRow({ label, value }: InfoRowProps) {
 
 export default function ExtinguisherDetail() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { extId, workspaceId } = useParams<{ extId: string; workspaceId?: string }>();
   const { user, userProfile } = useAuth();
   const { org, hasRole } = useOrg();
@@ -101,6 +102,8 @@ export default function ExtinguisherDetail() {
   const canInspect = hasRole(['owner', 'admin', 'inspector']);
   const canReset = hasRole(['owner', 'admin']);
   const canEdit = hasRole(['owner', 'admin']);
+  const stateReturnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+  const returnTo = stateReturnTo || (workspaceId ? `/dashboard/workspaces/${workspaceId}` : '/dashboard/inventory');
 
   // State for extinguisher data
   const [ext, setExt] = useState<Extinguisher | null>(null);
@@ -224,10 +227,12 @@ export default function ExtinguisherDetail() {
   }
 
   function handleBack() {
-    if (workspaceId) {
-      navigate(`/dashboard/workspaces/${workspaceId}`);
-    } else {
-      navigate('/dashboard/inventory');
+    navigate(returnTo);
+  }
+
+  function handleInspectionSaved(status: 'pass' | 'fail') {
+    if (status === 'pass' || status === 'fail') {
+      navigate(returnTo);
     }
   }
 
@@ -367,6 +372,7 @@ export default function ExtinguisherDetail() {
         {canEdit && extId && (
           <Link
             to={`/dashboard/inventory/${extId}/edit`}
+            state={{ returnTo: location.pathname + location.search }}
             className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             <Edit2 className="h-4 w-4" />
@@ -550,6 +556,7 @@ export default function ExtinguisherDetail() {
               previousNotes={history.find((h) => (h.status === 'pass' || h.status === 'fail') && h.notes)?.notes}
               previousPhotoUrl={history.find((h) => (h.status === 'pass' || h.status === 'fail') && h.photoUrl)?.photoUrl}
               onInspectionUpdated={handleInspectionUpdated}
+              onInspectionSaved={handleInspectionSaved}
             />
           )}
         </>

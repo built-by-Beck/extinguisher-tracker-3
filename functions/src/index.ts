@@ -58,6 +58,10 @@ export { overdueDetectionJob } from './notifications/detectOverdue.js';
 // Reports
 export { generateReport } from './reports/generateReport.js';
 
+// AI assistant
+export { createAiNote } from './ai/createAiNote.js';
+export { updateAiNoteStatus } from './ai/updateAiNoteStatus.js';
+
 // Guest access
 export { toggleGuestAccess } from './guest/toggleGuestAccess.js';
 export { activateGuestSession } from './guest/activateGuestSession.js';
