@@ -56,6 +56,7 @@ export interface InspectionPanelProps {
 
   // Callbacks
   onInspectionUpdated: (updated: Inspection | null) => void;
+  onInspectionSaved?: (status: 'pass' | 'fail') => void;
   onError?: (msg: string) => void;
   onSuccess?: (msg: string) => void;
 }
@@ -73,6 +74,7 @@ export function InspectionPanel({
   previousNotes,
   previousPhotoUrl,
   onInspectionUpdated,
+  onInspectionSaved,
   onError,
   onSuccess,
 }: InspectionPanelProps) {
@@ -172,6 +174,7 @@ export function InspectionPanel({
 
       // Notify parent to reload inspection + history
       onInspectionUpdated(null);
+      onInspectionSaved?.(status);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save inspection.';
       setActionError(msg);

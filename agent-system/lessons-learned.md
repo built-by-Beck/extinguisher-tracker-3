@@ -20,6 +20,12 @@ Each entry follows this structure:
 
 ## Entries
 
+### 2026-04-14 -- Release pipeline blocked by pre-existing lint failures
+- **Context**: Running full release checks before commit/push/deploy for AI notes and scan/edit/pass-fail workflow improvements.
+- **Issue**: `npm run lint` failed on repository-wide pre-existing issues (`@ts-nocheck` in function tests and a conditional hook pattern in `src/pages/Members.tsx`), which blocked deployment by process rules.
+- **Resolution**: Removed `@ts-nocheck` headers from affected test files and refactored `Members` so `useEffect` is always called unconditionally with access checks inside the effect.
+- **Rule**: Before release commits, run lint early and fix global blockers immediately; avoid `@ts-nocheck` in test files and never gate hook calls behind early returns.
+
 ### 2026-04-13 -- Dashboard "Left to check" collapsed with many extinguishers
 - **Context**: Workspace had ~794 units with only ~9 pass/fail completions; Dashboard still showed a tiny "left to check" count.
 - **Issue**: `buildLocationStatsMap` subtracted `pending` once per **inspection document** with status pass/fail. Duplicate Firestore rows for the same extinguisher (re-saves, offline sync, imports, retries) each decremented `pending`, so totals could collapse toward zero while the UI row list still looked correct (it effectively keys by extinguisher).

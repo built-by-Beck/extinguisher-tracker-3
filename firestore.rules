@@ -153,6 +153,16 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      match /aiNotes/{noteId} {
+        allow read: if isMember(orgId) && !isGuest(orgId);
+        allow write: if false;
+      }
+
+      match /aiNoteEvents/{eventId} {
+        allow read: if hasRole(orgId, ['owner', 'admin']);
+        allow write: if false;
+      }
+
       match /reports/{reportId} {
         allow read: if isMember(orgId) && !isGuest(orgId);
         allow write: if false;

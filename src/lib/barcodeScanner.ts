@@ -41,6 +41,10 @@ interface StreamRequestOptions {
   allowOppositeFallback?: boolean;
 }
 
+type MediaTrackCapabilitiesWithFocus = MediaTrackCapabilities & {
+  focusMode?: string[];
+};
+
 export function createBarcodeScanner(opts: ScannerOptions): Scanner {
   const {
     video,
@@ -105,9 +109,15 @@ export function createBarcodeScanner(opts: ScannerOptions): Scanner {
   ) => {
     const { allowOppositeFallback = true } = options;
     const opposite: FacingMode = desired === 'environment' ? 'user' : 'environment';
+    const preferredResolutions = [
+      { width: 1280, height: 720 },
+      { width: 1920, height: 1080 },
+    ];
     const tries: MediaStreamConstraints[] = [
-      { video: { facingMode: { exact: desired }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
-      { video: { facingMode: { ideal: desired }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
+      ...preferredResolutions.flatMap(({ width, height }) => ([
+        { video: { facingMode: { exact: desired }, width: { ideal: width }, height: { ideal: height } }, audio: false },
+        { video: { facingMode: { ideal: desired }, width: { ideal: width }, height: { ideal: height } }, audio: false },
+      ])),
     ];
 
     if (allowOppositeFallback) {
@@ -127,6 +137,27 @@ export function createBarcodeScanner(opts: ScannerOptions): Scanner {
       }
     }
     throw lastErr ?? new Error('Unable to acquire camera');
+  };
+
+  const applyPreferredTrackConstraints = async (track: MediaStreamTrack) => {
+    const withCapabilities = track as MediaStreamTrack & { getCapabilities?: () => MediaTrackCapabilitiesWithFocus };
+    const capabilities = withCapabilities.getCapabilities?.() as MediaTrackCapabilitiesWithFocus | undefined;
+    const focusModes = capabilities?.focusMode ?? [];
+    const mode = focusModes.includes('continuous')
+      ? 'continuous'
+      : focusModes.includes('single-shot')
+        ? 'single-shot'
+        : null;
+
+    if (!mode) return;
+
+    try {
+      await track.applyConstraints({
+        advanced: [{ focusMode: mode } as unknown as MediaTrackConstraintSet],
+      });
+    } catch {
+      // Focus constraints are not consistently supported across browsers/devices.
+    }
   };
 
   const attachVideo = async (s: MediaStream) => {
@@ -240,6 +271,7 @@ export function createBarcodeScanner(opts: ScannerOptions): Scanner {
       const track = stream.getVideoTracks()[0];
       const facing = (track.getSettings?.().facingMode as FacingMode | undefined);
       if (facing) lastFacingMode = facing;
+      await applyPreferredTrackConstraints(track);
       await attachVideo(stream);
       startLoop();
     },
@@ -263,6 +295,7 @@ export function createBarcodeScanner(opts: ScannerOptions): Scanner {
       const track = stream.getVideoTracks()[0];
       const facing = (track.getSettings?.().facingMode as FacingMode | undefined);
       if (facing) lastFacingMode = facing;
+      await applyPreferredTrackConstraints(track);
       await attachVideo(stream);
       startLoop();
     },

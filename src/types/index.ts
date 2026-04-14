@@ -24,3 +24,6 @@ export type { AuditLog, AuditLogAction } from './auditLog.ts';
 
 // Guest access
 export type { GuestAccessConfig, GuestActivationResult } from './guest.ts';
+
+// AI notes
+export type { AiNote, AiNoteStatus } from './aiNote.ts';
