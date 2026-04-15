@@ -41,10 +41,6 @@ export function ReplaceExtinguisherModal({
     e.preventDefault();
     setError('');
 
-    if (!assetId.trim()) {
-      setError('New Asset ID is required.');
-      return;
-    }
     if (!serial.trim()) {
       setError('New Serial Number is required.');
       return;
@@ -64,7 +60,8 @@ export function ReplaceExtinguisherModal({
         orgId,
         oldExtinguisherId,
         {
-          assetId: assetId.trim(),
+          // Keep original asset ID by default if user leaves the field blank.
+          assetId: assetId.trim() || oldAssetId,
           serial: serial.trim(),
           manufacturer: manufacturer.trim() || null,
           extinguisherType: extinguisherType || null,
@@ -104,7 +101,7 @@ export function ReplaceExtinguisherModal({
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              New Asset ID <span className="text-red-500">*</span>
+              Asset ID (prefilled from current unit)
             </label>
             <input
               type="text"
@@ -112,8 +109,10 @@ export function ReplaceExtinguisherModal({
               onChange={(e) => setAssetId(e.target.value)}
               placeholder="e.g., EXT-1001"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-              required
             />
+            <p className="mt-1 text-xs text-gray-500">
+              Keep this the same in most replacements, or edit it if needed.
+            </p>
           </div>
 
           <div>

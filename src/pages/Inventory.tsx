@@ -8,6 +8,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit as fbLimit,
+  onSnapshot,
+} from 'firebase/firestore';
+import {
   Plus,
   Search,
   Edit2,
@@ -60,6 +68,8 @@ import {
   getLocationPath,
   type Location,
 } from '../services/locationService.ts';
+import { db } from '../lib/firebase.ts';
+import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
 
 type SortKey = 'assetId' | 'serial' | 'location' | 'compliance' | 'nextInspection';
 type ViewMode = 'table' | 'cards';
@@ -159,6 +169,8 @@ export default function Inventory() {
   const [scanAddLoading, setScanAddLoading] = useState(false);
   const [scanAddError, setScanAddError] = useState('');
   const [locations, setLocations] = useState<Location[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
+  const [activeWorkspaceInspections, setActiveWorkspaceInspections] = useState<Inspection[]>([]);
 
   const flags = org?.featureFlags as Record<string, boolean> | null | undefined;
   const canScan = hasFeature(flags, 'cameraBarcodeScan', org?.plan) || hasFeature(flags, 'qrScanning', org?.plan);
@@ -217,6 +229,40 @@ export default function Inventory() {
     return subscribeToLocations(orgId, setLocations);
   }, [orgId]);
 
+  // Subscribe to latest active workspace (for check status context on filtered inventory lists)
+  useEffect(() => {
+    if (!orgId) {
+      setActiveWorkspaceId(null);
+      return;
+    }
+    const q = query(
+      collection(db, 'org', orgId, 'workspaces'),
+      where('status', '==', 'active'),
+      orderBy('monthYear', 'desc'),
+      fbLimit(1),
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        if (snap.empty) {
+          setActiveWorkspaceId(null);
+          return;
+        }
+        setActiveWorkspaceId(snap.docs[0].id);
+      },
+      () => setActiveWorkspaceId(null),
+    );
+  }, [orgId]);
+
+  // Subscribe to inspections for latest active workspace.
+  useEffect(() => {
+    if (!orgId || !activeWorkspaceId) {
+      setActiveWorkspaceInspections([]);
+      return;
+    }
+    return subscribeToInspections(orgId, activeWorkspaceId, setActiveWorkspaceInspections);
+  }, [orgId, activeWorkspaceId]);
+
   // Subscribe to extinguishers — cache on read
   useEffect(() => {
     if (!orgId) return;
@@ -259,9 +305,11 @@ export default function Inventory() {
       if (complianceFilter && ext.complianceStatus !== complianceFilter) return false;
       if (expiringFilter) {
         const thisYear = new Date().getFullYear();
+        const isMarkedExpired =
+          (ext.expirationYear != null && ext.expirationYear < thisYear) || ext.isExpired === true;
         if (expiringFilter === 'thisYear' && ext.expirationYear !== thisYear) return false;
         if (expiringFilter === 'nextYear' && ext.expirationYear !== thisYear + 1) return false;
-        if (expiringFilter === 'expired' && (ext.expirationYear == null || ext.expirationYear >= thisYear)) return false;
+        if (expiringFilter === 'expired' && !isMarkedExpired) return false;
       }
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -324,6 +372,37 @@ export default function Inventory() {
   }, [sorted, currentPage, pageSize]);
 
   const totalPages = Math.ceil(sorted.length / pageSize);
+
+  const activeStatusByExtinguisherId = useMemo(() => {
+    const map = new Map<string, Inspection['status']>();
+    for (const insp of activeWorkspaceInspections) {
+      map.set(insp.extinguisherId, insp.status);
+    }
+    return map;
+  }, [activeWorkspaceInspections]);
+
+  const scopeCheckStats = useMemo(() => {
+    let passed = 0;
+    let failed = 0;
+    let unchecked = 0;
+    for (const ext of sorted) {
+      if (!ext.id) {
+        unchecked += 1;
+        continue;
+      }
+      const status = activeStatusByExtinguisherId.get(ext.id) ?? 'pending';
+      if (status === 'pass') passed += 1;
+      else if (status === 'fail') failed += 1;
+      else unchecked += 1;
+    }
+    return {
+      passed,
+      failed,
+      unchecked,
+      checked: passed + failed,
+      total: sorted.length,
+    };
+  }, [sorted, activeStatusByExtinguisherId]);
 
   function toggleSelectAll() {
     if (selectedIds.size === paginatedItems.length && paginatedItems.length > 0) {
@@ -818,11 +897,11 @@ export default function Inventory() {
                     onToggle={toggleSort}
                   />
                 )}
+                {visibleColumns.vicinity && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Vicinity</th>
+                )}
                 {visibleColumns.building && (
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Building</th>
-                )}
-                {visibleColumns.vicinity && (
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 lg:table-cell">Vicinity</th>
                 )}
                 {visibleColumns.type && (
                   <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">Type</th>
@@ -893,14 +972,14 @@ export default function Inventory() {
                       </span>
                     </td>
                   )}
+                  {visibleColumns.vicinity && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {ext.vicinity || '--'}
+                    </td>
+                  )}
                   {visibleColumns.building && (
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
                       {ext.parentLocation || '--'}
-                    </td>
-                  )}
-                  {visibleColumns.vicinity && (
-                    <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 lg:table-cell">
-                      {ext.vicinity || '--'}
                     </td>
                   )}
                   {visibleColumns.type && (
@@ -1045,6 +1124,9 @@ export default function Inventory() {
                   {visibleColumns.serial && ext.serial && (
                     <p><span className="font-medium text-gray-600">Serial:</span> {ext.serial}</p>
                   )}
+                  {visibleColumns.vicinity && (
+                    <p><span className="font-medium text-gray-600">Vicinity:</span> {ext.vicinity || '--'}</p>
+                  )}
                   {visibleColumns.type && (
                     <p><span className="font-medium text-gray-600">Type:</span> {ext.extinguisherType ?? '--'}</p>
                   )}
@@ -1056,9 +1138,6 @@ export default function Inventory() {
                   )}
                   {visibleColumns.building && ext.parentLocation && (
                     <p><span className="font-medium text-gray-600">Building:</span> {ext.parentLocation}</p>
-                  )}
-                  {visibleColumns.vicinity && ext.vicinity && (
-                    <p><span className="font-medium text-gray-600">Vicinity:</span> {ext.vicinity}</p>
                   )}
                   {visibleColumns.category && (
                     <p><span className="font-medium text-gray-600">Category:</span> {(ext.category ?? 'standard').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
@@ -1121,6 +1200,32 @@ export default function Inventory() {
               Next
               <ChevronRight className="h-4 w-4" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {sorted.length > 0 && (
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Checked</p>
+            <p className="mt-1 text-2xl font-bold text-blue-950">{scopeCheckStats.checked}</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-md bg-green-100/90 px-3 py-2">
+                <p className="text-xs font-medium text-green-700">Passed</p>
+                <p className="text-lg font-semibold text-green-900">{scopeCheckStats.passed}</p>
+              </div>
+              <div className="rounded-md bg-red-100/90 px-3 py-2">
+                <p className="text-xs font-medium text-red-700">Failed</p>
+                <p className="text-lg font-semibold text-red-900">{scopeCheckStats.failed}</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Unchecked</p>
+            <p className="mt-1 text-2xl font-bold text-amber-950">{scopeCheckStats.unchecked}</p>
+            <p className="mt-2 text-xs text-amber-800/90">
+              Counts follow the currently visible scope ({scopeCheckStats.total} shown by current filters).
+            </p>
           </div>
         </div>
       )}

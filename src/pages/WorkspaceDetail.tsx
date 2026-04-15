@@ -130,6 +130,40 @@ interface LeafExtinguisherTableProps {
   navigate: NavigateFunction;
 }
 
+function ScopeStatusCards({
+  passed,
+  failed,
+  unchecked,
+}: {
+  passed: number;
+  failed: number;
+  unchecked: number;
+}) {
+  const checked = passed + failed;
+  return (
+    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Checked</p>
+        <p className="mt-1 text-2xl font-bold text-blue-950">{checked}</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-green-100/90 px-3 py-2">
+            <p className="text-xs font-medium text-green-700">Passed</p>
+            <p className="text-lg font-semibold text-green-900">{passed}</p>
+          </div>
+          <div className="rounded-md bg-red-100/90 px-3 py-2">
+            <p className="text-xs font-medium text-red-700">Failed</p>
+            <p className="text-lg font-semibold text-red-900">{failed}</p>
+          </div>
+        </div>
+      </div>
+      <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Unchecked</p>
+        <p className="mt-1 text-2xl font-bold text-amber-950">{unchecked}</p>
+      </div>
+    </div>
+  );
+}
+
 function LeafExtinguisherTable({
   inspections,
   vicinityByExtinguisherId,
@@ -147,8 +181,8 @@ function LeafExtinguisherTable({
           <tr>
             <SortableTableHeader label="Asset ID" sortKey="assetId" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
             <SortableTableHeader label="Serial" sortKey="serial" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
-            <SortableTableHeader label="Status" sortKey="status" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
             <SortableTableHeader label="Vicinity" sortKey="vicinity" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
+            <SortableTableHeader label="Status" sortKey="status" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
             <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">
               Inspected By
             </th>
@@ -176,17 +210,17 @@ function LeafExtinguisherTable({
                 <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
                   {insp.serial || '--'}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
-                    <Icon className="h-3 w-3" />
-                    {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
-                  </span>
-                </td>
                 <td
                   className="max-w-[min(24rem,55vw)] truncate px-4 py-3 text-sm text-gray-600"
                   title={vicinityByExtinguisherId.get(insp.extinguisherId) || insp.section || undefined}
                 >
                   {vicinityByExtinguisherId.get(insp.extinguisherId) || insp.section || '--'}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3">
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                    <Icon className="h-3 w-3" />
+                    {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                  </span>
                 </td>
                 <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 sm:table-cell">
                   {insp.inspectedByEmail || '--'}
@@ -472,6 +506,15 @@ export default function WorkspaceDetail() {
     return null;
   }, [filters.statuses]);
 
+  const scopeListStats = useMemo(
+    () => ({
+      passed: currentViewStats.passed,
+      failed: currentViewStats.failed,
+      unchecked: currentViewStats.pending,
+    }),
+    [currentViewStats],
+  );
+
   function handleScopeCardSelect(filter: WorkspaceScopeCardFilter | null) {
     if (drillDown.isLeaf) {
       setScopeListFilter(null);
@@ -611,6 +654,14 @@ export default function WorkspaceDetail() {
     () => sortInspectionsForTable(leafInspectionsBase.filter((i) => i.status === 'fail'), sortKey, sortDir, extinguishers),
     [leafInspectionsBase, sortKey, sortDir, extinguishers],
   );
+  const leafScopeStats = useMemo(
+    () => ({
+      passed: sortedLeafPassed.length,
+      failed: sortedLeafFailed.length,
+      unchecked: sortedLeafPending.length,
+    }),
+    [sortedLeafPassed.length, sortedLeafFailed.length, sortedLeafPending.length],
+  );
 
   // Sorted leaf inspections (memoized) — classic filtered mode
   const sortedLeafInspections = useMemo(() => {
@@ -689,6 +740,17 @@ export default function WorkspaceDetail() {
     }
     return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
   }, [showUnassigned, inspections, extinguishers, filters, searchQuery, isArchived, workspaceId]);
+  const unassignedScopeStats = useMemo(() => {
+    let passed = 0;
+    let failed = 0;
+    let unchecked = 0;
+    for (const insp of unassignedInspections) {
+      if (insp.status === 'pass') passed += 1;
+      else if (insp.status === 'fail') failed += 1;
+      else unchecked += 1;
+    }
+    return { passed, failed, unchecked };
+  }, [unassignedInspections]);
 
   // Deleted extinguisher list — orphaned inspections for soft-deleted extinguishers
   const deletedInspections = useMemo(() => {
@@ -713,6 +775,17 @@ export default function WorkspaceDetail() {
     }
     return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
   }, [showDeleted, isArchived, inspections, extinguishers, filters, searchQuery]);
+  const deletedScopeStats = useMemo(() => {
+    let passed = 0;
+    let failed = 0;
+    let unchecked = 0;
+    for (const insp of deletedInspections) {
+      if (insp.status === 'pass') passed += 1;
+      else if (insp.status === 'fail') failed += 1;
+      else unchecked += 1;
+    }
+    return { passed, failed, unchecked };
+  }, [deletedInspections]);
 
   // Get sibling locations for filter panel (children of current's parent, or current's children)
   const filterSiblingLocations = useMemo(() => {
@@ -908,6 +981,11 @@ export default function WorkspaceDetail() {
               navigate={navigate}
             />
           )}
+          <ScopeStatusCards
+            passed={scopeListStats.passed}
+            failed={scopeListStats.failed}
+            unchecked={scopeListStats.unchecked}
+          />
         </div>
       )}
 
@@ -1048,8 +1126,8 @@ export default function WorkspaceDetail() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Asset ID</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Serial</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
                     <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">Vicinity</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Action</th>
                   </tr>
                 </thead>
@@ -1066,13 +1144,13 @@ export default function WorkspaceDetail() {
                       >
                         <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{insp.assetId}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{insp.serial || '--'}</td>
+                        <td className="hidden max-w-xs truncate px-4 py-3 text-sm text-gray-600 sm:table-cell" title={vic || insp.section || undefined}>{vic || insp.section || '--'}</td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
                             <Icon className="h-3 w-3" />
                             {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
                           </span>
                         </td>
-                        <td className="hidden max-w-xs truncate px-4 py-3 text-sm text-gray-600 sm:table-cell" title={vic || insp.section || undefined}>{vic || insp.section || '--'}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-600">Inspect</td>
                       </tr>
                     );
@@ -1081,6 +1159,11 @@ export default function WorkspaceDetail() {
               </table>
             </div>
           )}
+          <ScopeStatusCards
+            passed={unassignedScopeStats.passed}
+            failed={unassignedScopeStats.failed}
+            unchecked={unassignedScopeStats.unchecked}
+          />
         </>
       )}
 
@@ -1121,8 +1204,8 @@ export default function WorkspaceDetail() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Asset ID</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Serial</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
                     <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">Vicinity</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1134,13 +1217,13 @@ export default function WorkspaceDetail() {
                       <tr key={insp.id} className="opacity-60 hover:bg-gray-50">
                         <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-500 line-through">{insp.assetId}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400">{insp.serial || '--'}</td>
+                        <td className="hidden max-w-xs truncate px-4 py-3 text-sm text-gray-400 sm:table-cell" title={vic || undefined}>{vic || '--'}</td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
                             <Icon className="h-3 w-3" />
                             {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
                           </span>
                         </td>
-                        <td className="hidden max-w-xs truncate px-4 py-3 text-sm text-gray-400 sm:table-cell" title={vic || undefined}>{vic || '--'}</td>
                       </tr>
                     );
                   })}
@@ -1148,6 +1231,11 @@ export default function WorkspaceDetail() {
               </table>
             </div>
           )}
+          <ScopeStatusCards
+            passed={deletedScopeStats.passed}
+            failed={deletedScopeStats.failed}
+            unchecked={deletedScopeStats.unchecked}
+          />
         </>
       )}
 
@@ -1414,6 +1502,11 @@ export default function WorkspaceDetail() {
               )}
             </>
           )}
+          <ScopeStatusCards
+            passed={leafScopeStats.passed}
+            failed={leafScopeStats.failed}
+            unchecked={leafScopeStats.unchecked}
+          />
         </>
       )}
     </div>
