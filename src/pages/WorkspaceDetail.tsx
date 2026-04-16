@@ -918,6 +918,20 @@ export default function WorkspaceDetail() {
           )}
         </div>
 
+        {/* Scan/Search bar — directly under location title so cards + list read top-to-bottom */}
+        {!isArchived && orgId && (
+          <div className="mt-5">
+            <ScanSearchBar
+              orgId={orgId}
+              onExtinguisherFound={handleExtinguisherFound}
+              onNotFound={handleScanNotFound}
+              featureFlags={featureFlags}
+              plan={org?.plan}
+              placeholder="Scan or type barcode, serial, or asset ID..."
+            />
+          </div>
+        )}
+
         {!showUnassigned && !showDeleted && (
           <div className="mt-5">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
@@ -931,20 +945,6 @@ export default function WorkspaceDetail() {
           </div>
         )}
       </div>
-
-      {/* Scan/Search bar */}
-      {!isArchived && orgId && (
-        <div className="mb-6">
-          <ScanSearchBar
-            orgId={orgId}
-            onExtinguisherFound={handleExtinguisherFound}
-            onNotFound={handleScanNotFound}
-            featureFlags={featureFlags}
-            plan={org?.plan}
-            placeholder="Scan or type barcode, serial, or asset ID..."
-          />
-        </div>
-      )}
 
       {/* Scoped list (non-leaf): all floors/buildings under current drill level */}
       {!drillDown.isLeaf && !showUnassigned && !showDeleted && scopeListFilter && workspaceId && (
@@ -1242,37 +1242,6 @@ export default function WorkspaceDetail() {
       {/* ===== VIEW: Extinguisher List (leaf location selected) ===== */}
       {drillDown.isLeaf && !showUnassigned && !showDeleted && (
         <>
-          {/* Section Timer (feature-gated) */}
-          {hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan) && timerSection && (
-            <div className="mb-4">
-              <SectionTimer
-                section={timerSection}
-                activeSection={timerActiveSection}
-                totalTime={getTotalTime(timerSection)}
-                onStart={startTimer}
-                onPause={pauseTimer}
-                onStop={stopTimer}
-                disabled={isArchived}
-                formatTime={formatTime}
-              />
-            </div>
-          )}
-
-          {/* Section Notes */}
-          {timerSection && (
-            <div className="mb-4">
-              <SectionNotes
-                section={timerSection}
-                notes={sectionNotes[timerSection]?.notes ?? ''}
-                saveForNextMonth={sectionNotes[timerSection]?.saveForNextMonth ?? false}
-                lastUpdated={sectionNotes[timerSection]?.lastUpdated ?? null}
-                allNotes={sectionNotes}
-                onSave={handleSaveNote}
-                disabled={isArchived}
-              />
-            </div>
-          )}
-
           {/* Filter Panel */}
           <div className="mb-4">
             <FilterPanel
@@ -1502,6 +1471,38 @@ export default function WorkspaceDetail() {
               )}
             </>
           )}
+
+          {/* Section Timer (feature-gated) */}
+          {hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan) && timerSection && (
+            <div className="mb-4">
+              <SectionTimer
+                section={timerSection}
+                activeSection={timerActiveSection}
+                totalTime={getTotalTime(timerSection)}
+                onStart={startTimer}
+                onPause={pauseTimer}
+                onStop={stopTimer}
+                disabled={isArchived}
+                formatTime={formatTime}
+              />
+            </div>
+          )}
+
+          {/* Section Notes */}
+          {timerSection && (
+            <div className="mb-4">
+              <SectionNotes
+                section={timerSection}
+                notes={sectionNotes[timerSection]?.notes ?? ''}
+                saveForNextMonth={sectionNotes[timerSection]?.saveForNextMonth ?? false}
+                lastUpdated={sectionNotes[timerSection]?.lastUpdated ?? null}
+                allNotes={sectionNotes}
+                onSave={handleSaveNote}
+                disabled={isArchived}
+              />
+            </div>
+          )}
+
           <ScopeStatusCards
             passed={leafScopeStats.passed}
             failed={leafScopeStats.failed}

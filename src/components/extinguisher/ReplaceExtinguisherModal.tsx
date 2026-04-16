@@ -56,17 +56,19 @@ export function ReplaceExtinguisherModal({
         return;
       }
 
+      const newExtinguisherData = {
+        // Keep original asset ID by default if user leaves the field blank.
+        assetId: assetId.trim() || oldAssetId,
+        serial: serial.trim(),
+        manufacturer: manufacturer.trim() || null,
+        extinguisherType: extinguisherType || null,
+        notes: notes.trim() || null,
+      };
+
       const result = await replaceExtinguisher(
         orgId,
         oldExtinguisherId,
-        {
-          // Keep original asset ID by default if user leaves the field blank.
-          assetId: assetId.trim() || oldAssetId,
-          serial: serial.trim(),
-          manufacturer: manufacturer.trim() || null,
-          extinguisherType: extinguisherType || null,
-          notes: notes.trim() || null,
-        },
+        newExtinguisherData,
         reason.trim() || undefined,
       );
 
