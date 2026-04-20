@@ -62,6 +62,7 @@ export { generateReport } from './reports/generateReport.js';
 // AI assistant
 export { createAiNote } from './ai/createAiNote.js';
 export { updateAiNoteStatus } from './ai/updateAiNoteStatus.js';
+export { queryAiMemory } from './ai/queryAiMemory.js';
 
 // Guest access
 export { toggleGuestAccess } from './guest/toggleGuestAccess.js';
