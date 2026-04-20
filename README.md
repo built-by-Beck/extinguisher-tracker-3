@@ -18,6 +18,8 @@
 
 ## Overview
 
+For AI-assisted development, see [docs/AI_WORKFLOW.md](docs/AI_WORKFLOW.md) (Plan → Build → Review) and keep inspection list/count logic in `src/utils/workspaceInspectionStats.ts`.
+
 Extinguisher Tracker 3 replaces paper binders and disconnected spreadsheets with a real-time, audit-ready inspection platform. It is designed for hospitals, schools, warehouses, manufacturing facilities, property management companies, and fire protection service providers.
 
 The system is **organization-centric** — all operational data belongs to the organization, not individual users. Multiple team members collaborate within a shared dataset governed by role-based permissions.

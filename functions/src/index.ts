@@ -38,6 +38,7 @@ export { deleteWorkspace } from './workspaces/deleteWorkspace.js';
 // Inspections
 export { saveInspection } from './inspections/saveInspection.js';
 export { resetInspection } from './inspections/resetInspection.js';
+export { recalculateWorkspaceInspectionStats } from './inspections/recalculateWorkspaceStats.js';
 
 // Lifecycle engine (callable)
 export { recalculateExtinguisherLifecycle } from './lifecycle/recalculateLifecycle.js';

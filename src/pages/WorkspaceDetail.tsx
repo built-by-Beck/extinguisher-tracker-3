@@ -64,6 +64,7 @@ import {
   collectInspectionRowsForScope,
   detectHasLocationIdData,
   filterRowsByStatusList,
+  dedupeInspectionsByExtinguisherLatest,
   sumAllBucketStats,
   type WorkspaceInspectionBucketStats,
 } from '../utils/workspaceInspectionStats.ts';
@@ -547,60 +548,17 @@ export default function WorkspaceDetail() {
 
   /** Leaf rows for this location: search + location filters only (no status filter). */
   const leafInspectionsBase = useMemo(() => {
-    if (!drillDown.isLeaf) return [];
+    if (!drillDown.isLeaf || !workspaceId || !drillDown.currentLocationId) return [];
 
-    const relevantLocIds = drillDown.currentLocationAndDescendants;
-    let combined: Inspection[] = [];
-
-    if (!isArchived) {
-      // Build map of extinguishers at this location
-      const extMap = new Map<string, Extinguisher>();
-      for (const ext of extinguishers) {
-        const extLocId = ext.locationId || '__unassigned__';
-        if (relevantLocIds.has(extLocId)) {
-          extMap.set(ext.id!, ext);
-        }
-      }
-
-      const handledExtIds = new Set<string>();
-
-      // Add inspections at this location
-      for (const insp of inspections) {
-        const inspLocId = insp.locationId || '__unassigned__';
-        if (relevantLocIds.has(inspLocId)) {
-          combined.push(insp);
-          handledExtIds.add(insp.extinguisherId);
-        }
-      }
-
-      // Add dummy inspections for extinguishers without one
-      for (const ext of extMap.values()) {
-        if (!handledExtIds.has(ext.id!)) {
-          combined.push({
-            id: `dummy-${ext.id}`,
-            extinguisherId: ext.id!,
-            workspaceId: workspaceId!,
-            assetId: ext.assetId,
-            status: 'pending',
-            inspectedAt: null,
-            inspectedBy: null,
-            section: ext.section || '',
-            locationId: ext.locationId || null,
-            qrCodeValue: ext.qrCodeValue,
-            barcode: ext.barcode,
-            serial: ext.serial,
-          } as unknown as Inspection);
-        }
-      }
-    } else {
-      // Archived: filter inspections
-      for (const insp of inspections) {
-        const inspLocId = insp.locationId || '__unassigned__';
-        if (relevantLocIds.has(inspLocId)) {
-          combined.push(insp);
-        }
-      }
-    }
+    let combined = collectInspectionRowsForScope({
+      extinguishers,
+      inspections,
+      workspaceId,
+      isArchived: !!isArchived,
+      hasLocationIdData,
+      locations,
+      anchorLocationId: drillDown.currentLocationId,
+    });
 
     if (filters.locationIds.size > 0) {
       combined = combined.filter((insp) => {
@@ -625,13 +583,15 @@ export default function WorkspaceDetail() {
     return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
   }, [
     drillDown.isLeaf,
-    drillDown.currentLocationAndDescendants,
+    drillDown.currentLocationId,
     inspections,
     extinguishers,
     filters.locationIds,
     searchQuery,
     isArchived,
     workspaceId,
+    hasLocationIdData,
+    locations,
   ]);
 
   /** When status checkboxes are used, keep a single combined list (classic table + pagination). */
@@ -654,14 +614,35 @@ export default function WorkspaceDetail() {
     () => sortInspectionsForTable(leafInspectionsBase.filter((i) => i.status === 'fail'), sortKey, sortDir, extinguishers),
     [leafInspectionsBase, sortKey, sortDir, extinguishers],
   );
-  const leafScopeStats = useMemo(
-    () => ({
+  /** Match locationStatsMap aggregate when list is not narrowed by search or extra location chips. */
+  const leafScopeStats = useMemo(() => {
+    const map = locationStatsMap as Map<string, WorkspaceInspectionBucketStats>;
+    const anchorLoc = drillDown.currentLocationId;
+    const useAggregate =
+      drillDown.isLeaf &&
+      anchorLoc != null &&
+      !searchQuery &&
+      filters.locationIds.size === 0;
+    if (useAggregate) {
+      const agg = aggregateStatsForLocationSubtree(map, locations, anchorLoc);
+      return { passed: agg.passed, failed: agg.failed, unchecked: agg.pending };
+    }
+    return {
       passed: sortedLeafPassed.length,
       failed: sortedLeafFailed.length,
       unchecked: sortedLeafPending.length,
-    }),
-    [sortedLeafPassed.length, sortedLeafFailed.length, sortedLeafPending.length],
-  );
+    };
+  }, [
+    drillDown.isLeaf,
+    drillDown.currentLocationId,
+    searchQuery,
+    filters.locationIds.size,
+    locationStatsMap,
+    locations,
+    sortedLeafPassed.length,
+    sortedLeafFailed.length,
+    sortedLeafPending.length,
+  ]);
 
   // Sorted leaf inspections (memoized) — classic filtered mode
   const sortedLeafInspections = useMemo(() => {
@@ -718,6 +699,7 @@ export default function WorkspaceDetail() {
           } as unknown as Inspection);
         }
       }
+      combined = dedupeInspectionsByExtinguisherLatest(combined);
     } else {
       combined = inspections.filter((insp) => !insp.locationId);
     }
@@ -756,7 +738,9 @@ export default function WorkspaceDetail() {
   const deletedInspections = useMemo(() => {
     if (!showDeleted || isArchived) return [];
     const trackedExtIds = new Set(extinguishers.map((e) => e.id!));
-    let combined = inspections.filter((insp) => !trackedExtIds.has(insp.extinguisherId));
+    let combined = dedupeInspectionsByExtinguisherLatest(
+      inspections.filter((insp) => !trackedExtIds.has(insp.extinguisherId)),
+    );
     if (filters.statuses.size > 0) {
       combined = combined.filter((insp) => filters.statuses.has(insp.status));
     }

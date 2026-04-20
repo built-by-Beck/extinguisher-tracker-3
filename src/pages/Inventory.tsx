@@ -70,6 +70,7 @@ import {
 } from '../services/locationService.ts';
 import { db } from '../lib/firebase.ts';
 import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
+import { dedupeInspectionsByExtinguisherLatest } from '../utils/workspaceInspectionStats.ts';
 
 type SortKey = 'assetId' | 'serial' | 'location' | 'compliance' | 'nextInspection';
 type ViewMode = 'table' | 'cards';
@@ -375,7 +376,7 @@ export default function Inventory() {
 
   const activeStatusByExtinguisherId = useMemo(() => {
     const map = new Map<string, Inspection['status']>();
-    for (const insp of activeWorkspaceInspections) {
+    for (const insp of dedupeInspectionsByExtinguisherLatest(activeWorkspaceInspections)) {
       map.set(insp.extinguisherId, insp.status);
     }
     return map;
@@ -1205,7 +1206,12 @@ export default function Inventory() {
       )}
 
       {sorted.length > 0 && (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="mt-6">
+          <p className="mb-2 text-xs font-medium text-gray-500">
+            Inspection counts below are for the <span className="font-semibold text-gray-700">filtered inventory table only</span>
+            ({scopeCheckStats.total} row{scopeCheckStats.total !== 1 ? 's' : ''}). Org-wide monthly progress is in the workspace strip above.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Checked</p>
             <p className="mt-1 text-2xl font-bold text-blue-950">{scopeCheckStats.checked}</p>
@@ -1224,8 +1230,9 @@ export default function Inventory() {
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Unchecked</p>
             <p className="mt-1 text-2xl font-bold text-amber-950">{scopeCheckStats.unchecked}</p>
             <p className="mt-2 text-xs text-amber-800/90">
-              Counts follow the currently visible scope ({scopeCheckStats.total} shown by current filters).
+              Not the full-org “left to check” for the month; clear filters to widen this slice.
             </p>
+          </div>
           </div>
         </div>
       )}
