@@ -44,6 +44,7 @@ export const resetInspection = onCall(async (request) => {
     // 4. Apply updates
     tx.update(inspRef, {
       status: 'pending',
+      isExpired: false,
       inspectedAt: null,
       inspectedBy: null,
       inspectedByEmail: null,
@@ -66,6 +67,7 @@ export const resetInspection = onCall(async (request) => {
       action: 'reset_to_pending',
       previousStatus,
       newStatus: 'pending',
+      isExpired: false,
       checklistData: null,
       notes: null,
       photoUrl: null,

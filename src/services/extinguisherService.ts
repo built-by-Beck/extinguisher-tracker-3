@@ -37,6 +37,7 @@ export interface Extinguisher {
   installDate: unknown | null;
   inServiceDate: unknown | null;
   expirationYear: number | null;
+  isExpired: boolean | null;
   vicinity: string;
   parentLocation: string;
   section: string;
@@ -190,6 +191,7 @@ export async function createExtinguisher(
     installDate: data.installDate ?? null,
     inServiceDate: data.inServiceDate ?? null,
     expirationYear: data.expirationYear ?? null,
+    isExpired: data.isExpired ?? false,
     vicinity: data.vicinity ?? '',
     parentLocation: data.parentLocation ?? '',
     section: data.section ?? '',

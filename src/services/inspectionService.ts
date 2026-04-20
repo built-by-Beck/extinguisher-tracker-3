@@ -117,6 +117,7 @@ export interface Inspection {
   serial?: string;
   locationId: string | null;
   status: string; // pending, pass, fail
+  isExpired?: boolean;
   inspectedAt: unknown | null;
   inspectedBy: string | null;
   inspectedByEmail: string | null;
@@ -181,6 +182,7 @@ export async function saveInspectionCall(
   inspectionId: string,
   data: {
     status: 'pass' | 'fail';
+    isExpired?: boolean;
     checklistData?: ChecklistData;
     notes?: string;
     photoUrl?: string | null;
@@ -217,6 +219,7 @@ export async function saveInspectionOfflineAware(
   workspaceId: string,
   data: {
     status: 'pass' | 'fail';
+    isExpired?: boolean;
     checklistData: ChecklistData;
     notes: string;
     photoUrl?: string | null;
@@ -259,6 +262,7 @@ export async function saveInspectionOfflineAware(
     extinguisherId,
     workspaceId,
     status: data.status,
+    isExpired: data.isExpired ?? false,
     checklistData: data.checklistData,
     notes: data.notes,
     photoUrl: data.photoUrl ?? null,
@@ -337,6 +341,7 @@ export async function createSingleInspection(
     serial: extData.serial ?? '',
     locationId: extData.locationId ?? null,
     status: 'pending',
+    isExpired: false,
     inspectedAt: null,
     inspectedBy: null,
     inspectedByEmail: null,

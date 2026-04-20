@@ -83,6 +83,7 @@ export function InspectionPanel({
     inspection.checklistData ? { ...inspection.checklistData } : { ...EMPTY_CHECKLIST },
   );
   const [notes, setNotes] = useState(() => inspection.notes ?? '');
+  const [isExpired, setIsExpired] = useState(() => inspection.isExpired ?? false);
   const [gps, setGps] = useState<GpsData | null>(() => (inspection.gps as GpsData) ?? null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState('');
@@ -103,6 +104,7 @@ export function InspectionPanel({
   useEffect(() => {
     setChecklist(inspection.checklistData ? { ...inspection.checklistData } : { ...EMPTY_CHECKLIST });
     setNotes(inspection.notes ?? '');
+    setIsExpired(inspection.isExpired ?? false);
     setGps((inspection.gps as GpsData) ?? null);
     setPhotoFile(null);
     setPhotoPreview('');
@@ -146,6 +148,7 @@ export function InspectionPanel({
         workspaceId,
         {
           status,
+          isExpired,
           checklistData: checklist,
           notes: finalNotes,
           photoUrl,
@@ -297,6 +300,23 @@ export function InspectionPanel({
       )}
 
       {/* Pass / Fail buttons — placed prominently near the top */}
+      {canInspect && isPending && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-red-800">
+            <input
+              type="checkbox"
+              checked={isExpired}
+              onChange={(e) => setIsExpired(e.target.checked)}
+              className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-500"
+            />
+            Mark this extinguisher as expired
+          </label>
+          <p className="mt-1 text-xs text-red-700">
+            Use this when the unit is already expired so dashboard expiration analytics stay accurate.
+          </p>
+        </div>
+      )}
+
       {canInspect && isPending && (
         <div className="mb-6 flex items-center gap-3">
           <button

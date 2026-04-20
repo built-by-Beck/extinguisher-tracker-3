@@ -33,6 +33,7 @@ interface SaveInspectionData {
   orgId: string;
   inspectionId: string;
   status: 'pass' | 'fail';
+  isExpired?: boolean;
   checklistData?: ChecklistData;
   notes?: string;
   photoUrl?: string | null;
@@ -54,6 +55,9 @@ export const saveInspection = onCall(async (request) => {
   if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
   if (!inspectionId || typeof inspectionId !== 'string') throwInvalidArgument('inspectionId is required.');
   if (!['pass', 'fail'].includes(status)) throwInvalidArgument('status must be "pass" or "fail".');
+  if (data.isExpired !== undefined && typeof data.isExpired !== 'boolean') {
+    throwInvalidArgument('isExpired must be a boolean when provided.');
+  }
 
   await validateMembership(orgId, uid, ['owner', 'admin', 'inspector']);
 
@@ -86,6 +90,7 @@ export const saveInspection = onCall(async (request) => {
     // 4. Prepare updates
     const updateData: Record<string, unknown> = {
       status,
+      isExpired: data.isExpired ?? false,
       inspectedAt: serverTimestamp,
       inspectedBy: uid,
       inspectedByEmail: email,
@@ -121,6 +126,7 @@ export const saveInspection = onCall(async (request) => {
       action: 'inspected',
       previousStatus,
       newStatus: status,
+      isExpired: data.isExpired ?? false,
       checklistData: data.checklistData ?? null,
       notes: data.notes ?? null,
       photoUrl: data.photoUrl ?? null,
@@ -179,6 +185,7 @@ export const saveInspection = onCall(async (request) => {
       const { complianceStatus, overdueFlags } = calculateComplianceStatus(calcInput);
 
       tx.update(extRef, {
+        isExpired: data.isExpired ?? false,
         lastMonthlyInspection: now,
         nextMonthlyInspection,
         complianceStatus,

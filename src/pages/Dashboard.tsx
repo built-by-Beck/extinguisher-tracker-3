@@ -208,8 +208,10 @@ export default function Dashboard() {
 
   // Expiration counts
   const thisYear = new Date().getFullYear();
+  const isMarkedExpired = (e: Extinguisher) =>
+    (e.expirationYear != null && e.expirationYear < thisYear) || e.isExpired === true;
   const expiredCount = allExtinguishers.filter(
-    (e) => e.expirationYear != null && e.expirationYear < thisYear && !e.deletedAt,
+    (e) => isMarkedExpired(e) && !e.deletedAt,
   ).length;
   const expiringThisYearCount = allExtinguishers.filter(
     (e) => e.expirationYear === thisYear && !e.deletedAt,

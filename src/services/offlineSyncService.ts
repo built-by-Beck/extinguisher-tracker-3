@@ -64,6 +64,7 @@ export async function processQueue(
     try {
       await saveInspectionCall(record.orgId, record.inspectionId, {
         status: record.status,
+        isExpired: record.isExpired,
         checklistData: record.checklistData,
         notes: record.notes,
         attestation: record.attestation,
