@@ -28,6 +28,7 @@ export { generateQRCode } from './tags/generateQRCode.js';
 export { importExtinguishersCSV } from './data/importCSV.js';
 export { exportExtinguishersCSV } from './data/exportCSV.js';
 export { cleanupPendingInspections } from './data/cleanupPendingInspections.js';
+export { backfillExpiredFromInspectionNotes } from './data/backfillExpiredFromInspectionNotes.js';
 
 // Workspaces
 export { createWorkspace } from './workspaces/createWorkspace.js';

@@ -25,6 +25,7 @@ export interface QueuedInspection {
   extinguisherId: string;
   workspaceId: string;
   status: 'pass' | 'fail';
+  isExpired: boolean;
   checklistData: ChecklistData;
   notes: string;
   attestation: {

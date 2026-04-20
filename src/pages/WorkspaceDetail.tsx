@@ -90,20 +90,38 @@ const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; 
   pending: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100' },
 };
 
+function extinguisherVicinityById(extinguishers: Extinguisher[]): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const e of extinguishers) {
+    if (e.id) m.set(e.id, (e.vicinity ?? '').trim());
+  }
+  return m;
+}
+
 function sortInspectionsForTable(
   list: Inspection[],
   sortKey: string,
   sortDir: 'asc' | 'desc',
+  extinguishers: Extinguisher[],
 ): Inspection[] {
+  const vicByExt = sortKey === 'vicinity' ? extinguisherVicinityById(extinguishers) : null;
   return [...list].sort((a, b) => {
-    const valA = (a[sortKey as keyof Inspection] || '').toString().toLowerCase();
-    const valB = (b[sortKey as keyof Inspection] || '').toString().toLowerCase();
+    let valA: string;
+    let valB: string;
+    if (vicByExt) {
+      valA = (vicByExt.get(a.extinguisherId) || a.section || '').toLowerCase();
+      valB = (vicByExt.get(b.extinguisherId) || b.section || '').toLowerCase();
+    } else {
+      valA = (a[sortKey as keyof Inspection] || '').toString().toLowerCase();
+      valB = (b[sortKey as keyof Inspection] || '').toString().toLowerCase();
+    }
     return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
   });
 }
 
 interface LeafExtinguisherTableProps {
   inspections: Inspection[];
+  vicinityByExtinguisherId: ReadonlyMap<string, string>;
   sortKey: string;
   sortDir: 'asc' | 'desc';
   onToggleSort: (key: string) => void;
@@ -112,8 +130,43 @@ interface LeafExtinguisherTableProps {
   navigate: NavigateFunction;
 }
 
+function ScopeStatusCards({
+  passed,
+  failed,
+  unchecked,
+}: {
+  passed: number;
+  failed: number;
+  unchecked: number;
+}) {
+  const checked = passed + failed;
+  return (
+    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Checked</p>
+        <p className="mt-1 text-2xl font-bold text-blue-950">{checked}</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-green-100/90 px-3 py-2">
+            <p className="text-xs font-medium text-green-700">Passed</p>
+            <p className="text-lg font-semibold text-green-900">{passed}</p>
+          </div>
+          <div className="rounded-md bg-red-100/90 px-3 py-2">
+            <p className="text-xs font-medium text-red-700">Failed</p>
+            <p className="text-lg font-semibold text-red-900">{failed}</p>
+          </div>
+        </div>
+      </div>
+      <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Unchecked</p>
+        <p className="mt-1 text-2xl font-bold text-amber-950">{unchecked}</p>
+      </div>
+    </div>
+  );
+}
+
 function LeafExtinguisherTable({
   inspections,
+  vicinityByExtinguisherId,
   sortKey,
   sortDir,
   onToggleSort,
@@ -128,8 +181,8 @@ function LeafExtinguisherTable({
           <tr>
             <SortableTableHeader label="Asset ID" sortKey="assetId" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
             <SortableTableHeader label="Serial" sortKey="serial" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
+            <SortableTableHeader label="Vicinity" sortKey="vicinity" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
             <SortableTableHeader label="Status" sortKey="status" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
-            <SortableTableHeader label="Location" sortKey="section" activeSortKey={sortKey} activeSortDir={sortDir} onToggle={onToggleSort} />
             <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">
               Inspected By
             </th>
@@ -157,14 +210,17 @@ function LeafExtinguisherTable({
                 <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
                   {insp.serial || '--'}
                 </td>
+                <td
+                  className="max-w-[min(24rem,55vw)] truncate px-4 py-3 text-sm text-gray-600"
+                  title={vicinityByExtinguisherId.get(insp.extinguisherId) || insp.section || undefined}
+                >
+                  {vicinityByExtinguisherId.get(insp.extinguisherId) || insp.section || '--'}
+                </td>
                 <td className="whitespace-nowrap px-4 py-3">
                   <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
                     <Icon className="h-3 w-3" />
                     {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
                   </span>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                  {insp.section || '--'}
                 </td>
                 <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-500 sm:table-cell">
                   {insp.inspectedByEmail || '--'}
@@ -265,6 +321,11 @@ export default function WorkspaceDetail() {
   const hasLocationIdData = useMemo(
     () => detectHasLocationIdData(inspections, extinguishers),
     [inspections, extinguishers],
+  );
+
+  const vicinityByExtinguisherId = useMemo(
+    () => extinguisherVicinityById(extinguishers),
+    [extinguishers],
   );
 
   // Subscribe to live extinguishers (only if workspace is active)
@@ -445,6 +506,15 @@ export default function WorkspaceDetail() {
     return null;
   }, [filters.statuses]);
 
+  const scopeListStats = useMemo(
+    () => ({
+      passed: currentViewStats.passed,
+      failed: currentViewStats.failed,
+      unchecked: currentViewStats.pending,
+    }),
+    [currentViewStats],
+  );
+
   function handleScopeCardSelect(filter: WorkspaceScopeCardFilter | null) {
     if (drillDown.isLeaf) {
       setScopeListFilter(null);
@@ -540,12 +610,16 @@ export default function WorkspaceDetail() {
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      combined = combined.filter(
-        (insp) =>
+      const vicMap = extinguisherVicinityById(extinguishers);
+      combined = combined.filter((insp) => {
+        const vic = (vicMap.get(insp.extinguisherId) ?? '').toLowerCase();
+        return (
           insp.assetId.toLowerCase().includes(q) ||
           (insp.serial || '').toLowerCase().includes(q) ||
-          (insp.section || '').toLowerCase().includes(q),
-      );
+          (insp.section || '').toLowerCase().includes(q) ||
+          vic.includes(q)
+        );
+      });
     }
 
     return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
@@ -569,22 +643,30 @@ export default function WorkspaceDetail() {
   const floorScanGrouped = filters.statuses.size === 0;
 
   const sortedLeafPending = useMemo(
-    () => sortInspectionsForTable(leafInspectionsBase.filter((i) => i.status === 'pending'), sortKey, sortDir),
-    [leafInspectionsBase, sortKey, sortDir],
+    () => sortInspectionsForTable(leafInspectionsBase.filter((i) => i.status === 'pending'), sortKey, sortDir, extinguishers),
+    [leafInspectionsBase, sortKey, sortDir, extinguishers],
   );
   const sortedLeafPassed = useMemo(
-    () => sortInspectionsForTable(leafInspectionsBase.filter((i) => i.status === 'pass'), sortKey, sortDir),
-    [leafInspectionsBase, sortKey, sortDir],
+    () => sortInspectionsForTable(leafInspectionsBase.filter((i) => i.status === 'pass'), sortKey, sortDir, extinguishers),
+    [leafInspectionsBase, sortKey, sortDir, extinguishers],
   );
   const sortedLeafFailed = useMemo(
-    () => sortInspectionsForTable(leafInspectionsBase.filter((i) => i.status === 'fail'), sortKey, sortDir),
-    [leafInspectionsBase, sortKey, sortDir],
+    () => sortInspectionsForTable(leafInspectionsBase.filter((i) => i.status === 'fail'), sortKey, sortDir, extinguishers),
+    [leafInspectionsBase, sortKey, sortDir, extinguishers],
+  );
+  const leafScopeStats = useMemo(
+    () => ({
+      passed: sortedLeafPassed.length,
+      failed: sortedLeafFailed.length,
+      unchecked: sortedLeafPending.length,
+    }),
+    [sortedLeafPassed.length, sortedLeafFailed.length, sortedLeafPending.length],
   );
 
   // Sorted leaf inspections (memoized) — classic filtered mode
   const sortedLeafInspections = useMemo(() => {
-    return sortInspectionsForTable(leafInspections, sortKey, sortDir);
-  }, [leafInspections, sortKey, sortDir]);
+    return sortInspectionsForTable(leafInspections, sortKey, sortDir, extinguishers);
+  }, [leafInspections, sortKey, sortDir, extinguishers]);
 
   const leafTotalPages = Math.ceil(sortedLeafInspections.length / leafPageSize);
   const paginatedLeafInspections = useMemo(() => {
@@ -645,14 +727,30 @@ export default function WorkspaceDetail() {
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      combined = combined.filter((insp) =>
-        insp.assetId.toLowerCase().includes(q) ||
-        (insp.serial || '').toLowerCase().includes(q) ||
-        (insp.section || '').toLowerCase().includes(q),
-      );
+      const vicMap = extinguisherVicinityById(extinguishers);
+      combined = combined.filter((insp) => {
+        const vic = (vicMap.get(insp.extinguisherId) ?? '').toLowerCase();
+        return (
+          insp.assetId.toLowerCase().includes(q) ||
+          (insp.serial || '').toLowerCase().includes(q) ||
+          (insp.section || '').toLowerCase().includes(q) ||
+          vic.includes(q)
+        );
+      });
     }
     return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
   }, [showUnassigned, inspections, extinguishers, filters, searchQuery, isArchived, workspaceId]);
+  const unassignedScopeStats = useMemo(() => {
+    let passed = 0;
+    let failed = 0;
+    let unchecked = 0;
+    for (const insp of unassignedInspections) {
+      if (insp.status === 'pass') passed += 1;
+      else if (insp.status === 'fail') failed += 1;
+      else unchecked += 1;
+    }
+    return { passed, failed, unchecked };
+  }, [unassignedInspections]);
 
   // Deleted extinguisher list — orphaned inspections for soft-deleted extinguishers
   const deletedInspections = useMemo(() => {
@@ -664,14 +762,30 @@ export default function WorkspaceDetail() {
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      combined = combined.filter((insp) =>
-        insp.assetId.toLowerCase().includes(q) ||
-        (insp.serial || '').toLowerCase().includes(q) ||
-        (insp.section || '').toLowerCase().includes(q),
-      );
+      const vicMap = extinguisherVicinityById(extinguishers);
+      combined = combined.filter((insp) => {
+        const vic = (vicMap.get(insp.extinguisherId) ?? '').toLowerCase();
+        return (
+          insp.assetId.toLowerCase().includes(q) ||
+          (insp.serial || '').toLowerCase().includes(q) ||
+          (insp.section || '').toLowerCase().includes(q) ||
+          vic.includes(q)
+        );
+      });
     }
     return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
   }, [showDeleted, isArchived, inspections, extinguishers, filters, searchQuery]);
+  const deletedScopeStats = useMemo(() => {
+    let passed = 0;
+    let failed = 0;
+    let unchecked = 0;
+    for (const insp of deletedInspections) {
+      if (insp.status === 'pass') passed += 1;
+      else if (insp.status === 'fail') failed += 1;
+      else unchecked += 1;
+    }
+    return { passed, failed, unchecked };
+  }, [deletedInspections]);
 
   // Get sibling locations for filter panel (children of current's parent, or current's children)
   const filterSiblingLocations = useMemo(() => {
@@ -804,6 +918,20 @@ export default function WorkspaceDetail() {
           )}
         </div>
 
+        {/* Scan/Search bar — directly under location title so cards + list read top-to-bottom */}
+        {!isArchived && orgId && (
+          <div className="mt-5">
+            <ScanSearchBar
+              orgId={orgId}
+              onExtinguisherFound={handleExtinguisherFound}
+              onNotFound={handleScanNotFound}
+              featureFlags={featureFlags}
+              plan={org?.plan}
+              placeholder="Scan or type barcode, serial, or asset ID..."
+            />
+          </div>
+        )}
+
         {!showUnassigned && !showDeleted && (
           <div className="mt-5">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
@@ -817,20 +945,6 @@ export default function WorkspaceDetail() {
           </div>
         )}
       </div>
-
-      {/* Scan/Search bar */}
-      {!isArchived && orgId && (
-        <div className="mb-6">
-          <ScanSearchBar
-            orgId={orgId}
-            onExtinguisherFound={handleExtinguisherFound}
-            onNotFound={handleScanNotFound}
-            featureFlags={featureFlags}
-            plan={org?.plan}
-            placeholder="Scan or type barcode, serial, or asset ID..."
-          />
-        </div>
-      )}
 
       {/* Scoped list (non-leaf): all floors/buildings under current drill level */}
       {!drillDown.isLeaf && !showUnassigned && !showDeleted && scopeListFilter && workspaceId && (
@@ -857,7 +971,8 @@ export default function WorkspaceDetail() {
             <p className="text-sm text-gray-500">Nothing in this category for this location scope.</p>
           ) : (
             <LeafExtinguisherTable
-              inspections={sortInspectionsForTable(scopeListRows, sortKey, sortDir)}
+              inspections={sortInspectionsForTable(scopeListRows, sortKey, sortDir, extinguishers)}
+              vicinityByExtinguisherId={vicinityByExtinguisherId}
               sortKey={sortKey}
               sortDir={sortDir}
               onToggleSort={toggleSort}
@@ -866,6 +981,11 @@ export default function WorkspaceDetail() {
               navigate={navigate}
             />
           )}
+          <ScopeStatusCards
+            passed={scopeListStats.passed}
+            failed={scopeListStats.failed}
+            unchecked={scopeListStats.unchecked}
+          />
         </div>
       )}
 
@@ -989,7 +1109,7 @@ export default function WorkspaceDetail() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filter by asset ID..."
+                placeholder="Filter by asset ID, serial, vicinity..."
                 className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               />
             </div>
@@ -1006,8 +1126,8 @@ export default function WorkspaceDetail() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Asset ID</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Serial</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">Vicinity</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">Section</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Action</th>
                   </tr>
                 </thead>
@@ -1015,6 +1135,7 @@ export default function WorkspaceDetail() {
                   {unassignedInspections.map((insp) => {
                     const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
                     const Icon = style.icon;
+                    const vic = vicinityByExtinguisherId.get(insp.extinguisherId) || '';
                     return (
                       <tr
                         key={insp.id}
@@ -1023,13 +1144,13 @@ export default function WorkspaceDetail() {
                       >
                         <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{insp.assetId}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{insp.serial || '--'}</td>
+                        <td className="hidden max-w-xs truncate px-4 py-3 text-sm text-gray-600 sm:table-cell" title={vic || insp.section || undefined}>{vic || insp.section || '--'}</td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
                             <Icon className="h-3 w-3" />
                             {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
                           </span>
                         </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 sm:table-cell">{insp.section || '--'}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-600">Inspect</td>
                       </tr>
                     );
@@ -1038,6 +1159,11 @@ export default function WorkspaceDetail() {
               </table>
             </div>
           )}
+          <ScopeStatusCards
+            passed={unassignedScopeStats.passed}
+            failed={unassignedScopeStats.failed}
+            unchecked={unassignedScopeStats.unchecked}
+          />
         </>
       )}
 
@@ -1061,7 +1187,7 @@ export default function WorkspaceDetail() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filter by asset ID..."
+                placeholder="Filter by asset ID, serial, vicinity..."
                 className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               />
             </div>
@@ -1078,25 +1204,26 @@ export default function WorkspaceDetail() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Asset ID</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Serial</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">Vicinity</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">Section</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {deletedInspections.map((insp) => {
                     const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
                     const Icon = style.icon;
+                    const vic = vicinityByExtinguisherId.get(insp.extinguisherId) || insp.section || '';
                     return (
                       <tr key={insp.id} className="opacity-60 hover:bg-gray-50">
                         <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-500 line-through">{insp.assetId}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400">{insp.serial || '--'}</td>
+                        <td className="hidden max-w-xs truncate px-4 py-3 text-sm text-gray-400 sm:table-cell" title={vic || undefined}>{vic || '--'}</td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
                             <Icon className="h-3 w-3" />
                             {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
                           </span>
                         </td>
-                        <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-400 sm:table-cell">{insp.section || '--'}</td>
                       </tr>
                     );
                   })}
@@ -1104,43 +1231,17 @@ export default function WorkspaceDetail() {
               </table>
             </div>
           )}
+          <ScopeStatusCards
+            passed={deletedScopeStats.passed}
+            failed={deletedScopeStats.failed}
+            unchecked={deletedScopeStats.unchecked}
+          />
         </>
       )}
 
       {/* ===== VIEW: Extinguisher List (leaf location selected) ===== */}
       {drillDown.isLeaf && !showUnassigned && !showDeleted && (
         <>
-          {/* Section Timer (feature-gated) */}
-          {hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan) && timerSection && (
-            <div className="mb-4">
-              <SectionTimer
-                section={timerSection}
-                activeSection={timerActiveSection}
-                totalTime={getTotalTime(timerSection)}
-                onStart={startTimer}
-                onPause={pauseTimer}
-                onStop={stopTimer}
-                disabled={isArchived}
-                formatTime={formatTime}
-              />
-            </div>
-          )}
-
-          {/* Section Notes */}
-          {timerSection && (
-            <div className="mb-4">
-              <SectionNotes
-                section={timerSection}
-                notes={sectionNotes[timerSection]?.notes ?? ''}
-                saveForNextMonth={sectionNotes[timerSection]?.saveForNextMonth ?? false}
-                lastUpdated={sectionNotes[timerSection]?.lastUpdated ?? null}
-                allNotes={sectionNotes}
-                onSave={handleSaveNote}
-                disabled={isArchived}
-              />
-            </div>
-          )}
-
           {/* Filter Panel */}
           <div className="mb-4">
             <FilterPanel
@@ -1159,7 +1260,7 @@ export default function WorkspaceDetail() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by asset ID, serial, or location..."
+                placeholder="Search by asset ID, serial, vicinity, or section..."
                 className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-10 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               />
               {searchQuery && (
@@ -1231,6 +1332,7 @@ export default function WorkspaceDetail() {
                 ) : (
                   <LeafExtinguisherTable
                     inspections={sortedLeafPending}
+                    vicinityByExtinguisherId={vicinityByExtinguisherId}
                     sortKey={sortKey}
                     sortDir={sortDir}
                     onToggleSort={toggleSort}
@@ -1265,6 +1367,7 @@ export default function WorkspaceDetail() {
                     ) : (
                       <LeafExtinguisherTable
                         inspections={sortedLeafPassed}
+                        vicinityByExtinguisherId={vicinityByExtinguisherId}
                         sortKey={sortKey}
                         sortDir={sortDir}
                         onToggleSort={toggleSort}
@@ -1301,6 +1404,7 @@ export default function WorkspaceDetail() {
                     ) : (
                       <LeafExtinguisherTable
                         inspections={sortedLeafFailed}
+                        vicinityByExtinguisherId={vicinityByExtinguisherId}
                         sortKey={sortKey}
                         sortDir={sortDir}
                         onToggleSort={toggleSort}
@@ -1317,6 +1421,7 @@ export default function WorkspaceDetail() {
             <>
               <LeafExtinguisherTable
                 inspections={paginatedLeafInspections}
+                vicinityByExtinguisherId={vicinityByExtinguisherId}
                 sortKey={sortKey}
                 sortDir={sortDir}
                 onToggleSort={toggleSort}
@@ -1366,6 +1471,43 @@ export default function WorkspaceDetail() {
               )}
             </>
           )}
+
+          {/* Section Timer (feature-gated) */}
+          {hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan) && timerSection && (
+            <div className="mb-4">
+              <SectionTimer
+                section={timerSection}
+                activeSection={timerActiveSection}
+                totalTime={getTotalTime(timerSection)}
+                onStart={startTimer}
+                onPause={pauseTimer}
+                onStop={stopTimer}
+                disabled={isArchived}
+                formatTime={formatTime}
+              />
+            </div>
+          )}
+
+          {/* Section Notes */}
+          {timerSection && (
+            <div className="mb-4">
+              <SectionNotes
+                section={timerSection}
+                notes={sectionNotes[timerSection]?.notes ?? ''}
+                saveForNextMonth={sectionNotes[timerSection]?.saveForNextMonth ?? false}
+                lastUpdated={sectionNotes[timerSection]?.lastUpdated ?? null}
+                allNotes={sectionNotes}
+                onSave={handleSaveNote}
+                disabled={isArchived}
+              />
+            </div>
+          )}
+
+          <ScopeStatusCards
+            passed={leafScopeStats.passed}
+            failed={leafScopeStats.failed}
+            unchecked={leafScopeStats.unchecked}
+          />
         </>
       )}
     </div>
