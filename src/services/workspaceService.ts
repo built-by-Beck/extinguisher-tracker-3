@@ -129,3 +129,25 @@ export async function deleteWorkspaceCall(
   const result = await fn({ orgId, workspaceId });
   return result.data;
 }
+
+/**
+ * Recompute workspace.stats from live inspections + extinguishers (owner/admin).
+ * Use when counters have drifted; logic matches dashboard-derived totals.
+ */
+export async function recalculateWorkspaceInspectionStatsCall(
+  orgId: string,
+  workspaceId: string,
+): Promise<{
+  workspaceId: string;
+  stats: { total: number; passed: number; failed: number; pending: number; percentage: number };
+}> {
+  const fn = httpsCallable<
+    { orgId: string; workspaceId: string },
+    {
+      workspaceId: string;
+      stats: { total: number; passed: number; failed: number; pending: number; percentage: number };
+    }
+  >(functions, 'recalculateWorkspaceInspectionStats');
+  const result = await fn({ orgId, workspaceId });
+  return result.data;
+}
