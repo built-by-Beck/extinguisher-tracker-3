@@ -27,11 +27,11 @@ interface AiAssistantPanelProps {
 }
 
 const SUGGESTED_PROMPTS = [
+  'Show all notes from this month',
+  'Show extinguishers expiring next year',
+  'How many extinguishers did we replace last month?',
   'What inspections are overdue?',
-  'Explain the 6-year maintenance rule',
   'Summarize my compliance status',
-  'What does NFPA 10 require monthly?',
-  'Which extinguishers need hydrostatic testing?',
 ];
 
 const NOTE_INTENT_PATTERN = /\b(take|save|create|add|make)\s+(?:a\s+)?note\b/i;
@@ -179,6 +179,7 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
       }
 
       const response = await askAssistant(updatedMessages, {
+        orgId,
         orgName: org?.name,
         extinguishers: resolvedExtinguishers,
         complianceSummary: resolvedComplianceSummary,
