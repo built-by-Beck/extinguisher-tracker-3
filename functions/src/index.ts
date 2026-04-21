@@ -38,6 +38,7 @@ export { deleteWorkspace } from './workspaces/deleteWorkspace.js';
 // Inspections
 export { saveInspection } from './inspections/saveInspection.js';
 export { resetInspection } from './inspections/resetInspection.js';
+export { recalculateWorkspaceInspectionStats } from './inspections/recalculateWorkspaceStats.js';
 
 // Lifecycle engine (callable)
 export { recalculateExtinguisherLifecycle } from './lifecycle/recalculateLifecycle.js';
@@ -62,6 +63,7 @@ export { generateReport } from './reports/generateReport.js';
 // AI assistant
 export { createAiNote } from './ai/createAiNote.js';
 export { updateAiNoteStatus } from './ai/updateAiNoteStatus.js';
+export { queryAiMemory } from './ai/queryAiMemory.js';
 
 // Guest access
 export { toggleGuestAccess } from './guest/toggleGuestAccess.js';

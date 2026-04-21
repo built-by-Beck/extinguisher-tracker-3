@@ -36,7 +36,7 @@ function firestoreLikeToMillis(v: unknown): number {
 /**
  * One row per extinguisher: the chronologically latest inspection wins (handles duplicate docs / re-saves).
  */
-function latestInspectionPerExtinguisher(inspections: Inspection[]): Inspection[] {
+export function dedupeInspectionsByExtinguisherLatest(inspections: Inspection[]): Inspection[] {
   const sorted = [...inspections].sort((a, b) => inspectionActivityMs(b) - inspectionActivityMs(a));
   const seen = new Set<string>();
   const out: Inspection[] = [];
@@ -92,7 +92,7 @@ export function buildLocationStatsMap(params: {
       }
       // De-dupe by extinguisher so duplicate pass/fail docs (re-saves, sync, imports) do not
       // each subtract from pending — that was collapsing "left to check" toward zero.
-      for (const insp of latestInspectionPerExtinguisher(inspections)) {
+      for (const insp of dedupeInspectionsByExtinguisherLatest(inspections)) {
         const isOrphaned = !trackedExtIds.has(insp.extinguisherId);
         const locId = isOrphaned ? '__deleted__' : (insp.locationId || '__unassigned__');
         if (isOrphaned) {
@@ -136,7 +136,7 @@ export function buildLocationStatsMap(params: {
         stats.pending += 1;
         trackedExtIdsLegacy.add(ext.id!);
       }
-      for (const insp of latestInspectionPerExtinguisher(inspections)) {
+      for (const insp of dedupeInspectionsByExtinguisherLatest(inspections)) {
         const isOrphanedLegacy = !trackedExtIdsLegacy.has(insp.extinguisherId);
         const locId = isOrphanedLegacy ? '__deleted__' : (nameToId.get(insp.section) ?? '__unassigned__');
         if (isOrphanedLegacy) {
@@ -225,8 +225,13 @@ function dummyInspection(ext: Extinguisher, workspaceId: string): Inspection {
   } as unknown as Inspection;
 }
 
+function inspectionBelongsToWorkspace(insp: Inspection, workspaceId: string): boolean {
+  return !insp.workspaceId || insp.workspaceId === workspaceId;
+}
+
 /**
  * Rows for a workspace scope: whole org view (anchor null) or one location subtree.
+ * Active workspaces: one row per extinguisher (latest inspection doc wins).
  */
 export function collectInspectionRowsForScope(params: {
   extinguishers: Extinguisher[];
@@ -269,12 +274,15 @@ export function collectInspectionRowsForScope(params: {
       if (relevant && !relevant.has(locId)) continue;
       combined.push(insp);
     }
-    return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
+    return combined;
   }
+
+  const inWs = (insp: Inspection) => inspectionBelongsToWorkspace(insp, workspaceId);
 
   if (hasLocationIdData) {
     if (anchorLocationId === null) {
-      for (const insp of inspections) {
+      const deduped = dedupeInspectionsByExtinguisherLatest(inspections.filter(inWs));
+      for (const insp of deduped) {
         const isOrphaned = !trackedExtIds.has(insp.extinguisherId);
         combined.push(insp);
         if (!isOrphaned) handledExtIds.add(insp.extinguisherId);
@@ -294,11 +302,14 @@ export function collectInspectionRowsForScope(params: {
           extMap.set(ext.id!, ext);
         }
       }
-      for (const insp of inspections) {
-        const isOrphaned = !trackedExtIds.has(insp.extinguisherId);
-        if (isOrphaned) continue;
+      const filtered = inspections.filter((insp) => {
+        if (!inWs(insp)) return false;
+        if (!trackedExtIds.has(insp.extinguisherId)) return false;
         const inspLocId = insp.locationId || '__unassigned__';
-        if (!relevantLocIds.has(inspLocId)) continue;
+        return relevantLocIds.has(inspLocId);
+      });
+      const deduped = dedupeInspectionsByExtinguisherLatest(filtered);
+      for (const insp of deduped) {
         combined.push(insp);
         handledExtIds.add(insp.extinguisherId);
       }
@@ -333,29 +344,41 @@ export function collectInspectionRowsForScope(params: {
       }
     }
 
-    for (const insp of inspections) {
-      const isOrphaned = !trackedLegacy.has(insp.extinguisherId);
-      if (isOrphaned) {
-        if (anchorLocationId !== null) continue;
+    if (anchorLocationId === null) {
+      const deduped = dedupeInspectionsByExtinguisherLatest(inspections.filter(inWs));
+      for (const insp of deduped) {
+        const isOrphaned = !trackedLegacy.has(insp.extinguisherId);
         combined.push(insp);
-        continue;
+        if (!isOrphaned) handledExtIds.add(insp.extinguisherId);
       }
-      const inspLocId = nameToId.get(insp.section) ?? '__unassigned__';
-      if (!relevantLocIds.has(inspLocId)) continue;
-      combined.push(insp);
-      handledExtIds.add(insp.extinguisherId);
-    }
-
-    const dummySource =
-      anchorLocationId === null ? extinguishers.filter((e) => trackedLegacy.has(e.id!)) : [...extMap.values()];
-    for (const ext of dummySource) {
-      if (!handledExtIds.has(ext.id!)) {
-        combined.push(dummyInspection(ext, workspaceId));
+      const dummySource = extinguishers.filter((e) => trackedLegacy.has(e.id!));
+      for (const ext of dummySource) {
+        if (!handledExtIds.has(ext.id!)) {
+          combined.push(dummyInspection(ext, workspaceId));
+        }
+      }
+    } else {
+      const filtered = inspections.filter((insp) => {
+        if (!inWs(insp)) return false;
+        const isOrphaned = !trackedLegacy.has(insp.extinguisherId);
+        if (isOrphaned) return false;
+        const inspLocId = nameToId.get(insp.section) ?? '__unassigned__';
+        return relevantLocIds.has(inspLocId);
+      });
+      const deduped = dedupeInspectionsByExtinguisherLatest(filtered);
+      for (const insp of deduped) {
+        combined.push(insp);
+        handledExtIds.add(insp.extinguisherId);
+      }
+      for (const ext of extMap.values()) {
+        if (!handledExtIds.has(ext.id!)) {
+          combined.push(dummyInspection(ext, workspaceId));
+        }
       }
     }
   }
 
-  return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
+  return combined;
 }
 
 export function filterRowsByStatusList(

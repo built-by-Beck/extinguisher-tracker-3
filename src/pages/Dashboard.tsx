@@ -30,8 +30,6 @@ import {
   collection,
   query,
   where,
-  orderBy,
-  limit as fbLimit,
   onSnapshot,
 } from 'firebase/firestore';
 import { db, functions } from '../lib/firebase.ts';
@@ -41,7 +39,6 @@ import { useAuth } from '../hooks/useAuth.ts';
 import { hasFeature } from '../lib/planConfig.ts';
 import { BillingStatus } from '../components/billing/BillingStatus.tsx';
 import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
-import { ComplianceSummaryCard } from '../components/compliance/ComplianceSummaryCard.tsx';
 import type { Workspace } from '../services/workspaceService.ts';
 import type { Extinguisher } from '../services/extinguisherService.ts';
 import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
@@ -140,13 +137,13 @@ export default function Dashboard() {
     const q = query(
       collection(db, 'org', orgId, 'workspaces'),
       where('status', '==', 'active'),
-      orderBy('monthYear', 'desc'),
-      fbLimit(1),
     );
     return onSnapshot(q, (snap) => {
       if (!snap.empty) {
-        const doc = snap.docs[0];
-        setActiveWorkspace({ id: doc.id, ...doc.data() } as Workspace);
+        const latest = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as Workspace))
+          .sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0];
+        setActiveWorkspace(latest ?? null);
       } else {
         setActiveWorkspace(null);
       }
@@ -183,28 +180,12 @@ export default function Dashboard() {
 
   const checkedInspectionCount = inspectionScopeStats.passed + inspectionScopeStats.failed;
 
-  // Compliance counts (client-side grouping from real-time snapshot)
-  const activeExts = allExtinguishers.filter((e) => e.lifecycleStatus === 'active');
-  const complianceCounts: Record<string, number> = {
-    total: activeExts.length,
-    compliant: 0,
-    monthly_due: 0,
-    annual_due: 0,
-    six_year_due: 0,
-    hydro_due: 0,
-    overdue: 0,
-    missing_data: 0,
-  };
-  for (const ext of activeExts) {
-    const status = ext.complianceStatus ?? 'missing_data';
-    if (status in complianceCounts) {
-      complianceCounts[status]++;
-    }
-  }
-
   // Category counts
   const spareCount = allExtinguishers.filter((e) => e.category === 'spare').length;
-  const replacedCount = allExtinguishers.filter((e) => e.category === 'replaced').length;
+  // "Replaced" is lifecycle-driven; keep category fallback for older records.
+  const replacedCount = allExtinguishers.filter(
+    (e) => e.lifecycleStatus === 'replaced' || e.category === 'replaced',
+  ).length;
 
   // Expiration counts
   const thisYear = new Date().getFullYear();
@@ -365,7 +346,7 @@ export default function Dashboard() {
           onClick={() => navigate('/dashboard/inventory')}
         />
         <StatCard
-          label="Left to check"
+          label="Not yet inspected"
           value={activeWorkspace ? Math.max(0, inspectionScopeStats.pending).toString() : '--'}
           icon={ClipboardList}
           color="bg-amber-500"
@@ -421,51 +402,6 @@ export default function Dashboard() {
       {org?.assetLimit && (
         <div className="mb-8">
           <AssetLimitBar currentCount={extCount} />
-        </div>
-      )}
-
-      {/* Compliance Overview */}
-      {activeExts.length > 0 && (
-        <div className="mb-8">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Compliance Overview</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-            <ComplianceSummaryCard
-              status="total"
-              count={complianceCounts.total}
-              label="Total Active"
-              onClick={() => navigate('/dashboard/inventory')}
-            />
-            <ComplianceSummaryCard
-              status="compliant"
-              count={complianceCounts.compliant}
-              onClick={() => navigate('/dashboard/inventory?compliance=compliant')}
-            />
-            <ComplianceSummaryCard
-              status="monthly_due"
-              count={complianceCounts.monthly_due}
-              onClick={() => navigate('/dashboard/inventory?compliance=monthly_due')}
-            />
-            <ComplianceSummaryCard
-              status="annual_due"
-              count={complianceCounts.annual_due}
-              onClick={() => navigate('/dashboard/inventory?compliance=annual_due')}
-            />
-            <ComplianceSummaryCard
-              status="six_year_due"
-              count={complianceCounts.six_year_due}
-              onClick={() => navigate('/dashboard/inventory?compliance=six_year_due')}
-            />
-            <ComplianceSummaryCard
-              status="hydro_due"
-              count={complianceCounts.hydro_due}
-              onClick={() => navigate('/dashboard/inventory?compliance=hydro_due')}
-            />
-            <ComplianceSummaryCard
-              status="overdue"
-              count={complianceCounts.overdue}
-              onClick={() => navigate('/dashboard/inventory?compliance=overdue')}
-            />
-          </div>
         </div>
       )}
 

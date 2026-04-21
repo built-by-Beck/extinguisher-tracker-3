@@ -66,7 +66,7 @@ export function WorkspaceInspectionScopeCards({
   return (
     <div className={`grid grid-cols-2 gap-3 lg:grid-cols-4 ${className}`}>
       <Card
-        label="Left to check"
+        label="Not yet inspected"
         value={String(Math.max(0, stats.pending))}
         icon={ClipboardList}
         color="bg-amber-500"

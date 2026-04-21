@@ -1,5 +1,5 @@
 /**
- * Prominent To inspect / Passed / Failed counts for the active workspace (or a specific workspace).
+ * Prominent Not yet inspected / Passed / Failed counts for the active workspace (or a specific workspace).
  * Stats come from the workspace document (same source as Dashboard and Workspaces list).
  *
  * Author: built_by_Beck
@@ -12,8 +12,6 @@ import {
   doc,
   query,
   where,
-  orderBy,
-  limit as fbLimit,
   onSnapshot,
 } from 'firebase/firestore';
 import { CheckCircle2, Clock, XCircle, ClipboardList, Loader2 } from 'lucide-react';
@@ -73,15 +71,15 @@ export function WorkspaceInspectionSummaryCards({
     const q = query(
       collection(db, 'org', orgId, 'workspaces'),
       where('status', '==', 'active'),
-      orderBy('monthYear', 'desc'),
-      fbLimit(1),
     );
     return onSnapshot(
       q,
       (snap) => {
         if (!snap.empty) {
-          const d = snap.docs[0];
-          setWorkspace({ id: d.id, ...d.data() } as Workspace);
+          const latest = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() } as Workspace))
+            .sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0];
+          setWorkspace(latest ?? null);
         } else {
           setWorkspace(null);
         }
@@ -137,9 +135,9 @@ export function WorkspaceInspectionSummaryCards({
           <span>
             <span className="font-semibold text-gray-900">{workspace.label}</span>
             {fixedWorkspaceId ? (
-              <span className="text-gray-500"> · this workspace</span>
+              <span className="text-gray-500"> · this workspace only</span>
             ) : (
-              <span className="text-gray-500"> · active workspace</span>
+              <span className="text-gray-500"> · active workspace only</span>
             )}
           </span>
         </div>
@@ -158,13 +156,13 @@ export function WorkspaceInspectionSummaryCards({
           className="flex flex-col rounded-lg border border-amber-200 bg-amber-50/80 p-4 text-left shadow-sm transition hover:border-amber-300 hover:shadow"
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-medium text-amber-900">To inspect</span>
+            <span className="text-sm font-medium text-amber-900">Not yet inspected</span>
             <div className="rounded-lg bg-amber-200/80 p-2">
               <Clock className="h-5 w-5 text-amber-900" />
             </div>
           </div>
           <p className="mt-2 text-3xl font-bold tabular-nums text-amber-950">{stats.pending}</p>
-          <p className="mt-1 text-xs text-amber-800/90">Still pending this month</p>
+          <p className="mt-1 text-xs text-amber-800/90">Still not inspected this month (active workspace)</p>
         </button>
 
         <button
