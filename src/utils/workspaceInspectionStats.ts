@@ -274,7 +274,7 @@ export function collectInspectionRowsForScope(params: {
       if (relevant && !relevant.has(locId)) continue;
       combined.push(insp);
     }
-    return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
+    return combined;
   }
 
   const inWs = (insp: Inspection) => inspectionBelongsToWorkspace(insp, workspaceId);
@@ -378,7 +378,7 @@ export function collectInspectionRowsForScope(params: {
     }
   }
 
-  return combined.sort((a, b) => a.assetId.localeCompare(b.assetId));
+  return combined;
 }
 
 export function filterRowsByStatusList(

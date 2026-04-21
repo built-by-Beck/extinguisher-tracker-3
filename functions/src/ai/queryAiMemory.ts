@@ -10,7 +10,8 @@ type AiNoteStatus = 'open' | 'in_progress' | 'resolved';
 type AiMemoryIntentType =
   | 'list_notes_by_month'
   | 'list_expiring_by_year'
-  | 'count_replacements_by_month';
+  | 'count_replacements_by_month'
+  | 'get_extinguisher_inspection_status';
 
 interface MonthWindow {
   year: number;
@@ -25,6 +26,7 @@ interface AiMemoryQueryIntent {
   noteStatus?: AiNoteStatus;
   monthWindow?: MonthWindow;
   targetYear?: number;
+  assetQuery?: string;
 }
 
 interface QueryAiMemoryInput {
@@ -66,6 +68,14 @@ function parseTargetYear(intent: AiMemoryQueryIntent): number {
     throwInvalidArgument('Intent target year is out of range.');
   }
   return intent.targetYear;
+}
+
+function parseAssetQuery(intent: AiMemoryQueryIntent): string {
+  const value = intent.assetQuery?.trim();
+  if (!value) {
+    throwInvalidArgument('Intent assetQuery is required.');
+  }
+  return value;
 }
 
 export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
@@ -204,6 +214,93 @@ export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
       },
       count: replacementEvents.length,
       replacementEvents,
+    };
+  }
+
+  if (intent.type === 'get_extinguisher_inspection_status') {
+    const assetQuery = parseAssetQuery(intent);
+    const workspacesSnap = await adminDb
+      .collection(`org/${orgId}/workspaces`)
+      .where('status', '==', 'active')
+      .get();
+    if (workspacesSnap.empty) {
+      return {
+        intentType: intent.type,
+        appliedFilters: {
+          assetQuery,
+          activeWorkspaceId: null,
+        },
+        count: 0,
+        inspectionStatusMatches: [],
+      };
+    }
+
+    const activeWorkspace = workspacesSnap.docs
+      .map((d) => ({ id: d.id, ...(d.data() as { label?: string; monthYear?: string }) }))
+      .sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0];
+    const workspaceId = activeWorkspace?.id ?? null;
+    const workspaceLabel = activeWorkspace?.label ?? null;
+
+    if (!workspaceId) {
+      return {
+        intentType: intent.type,
+        appliedFilters: {
+          assetQuery,
+          activeWorkspaceId: null,
+        },
+        count: 0,
+        inspectionStatusMatches: [],
+      };
+    }
+
+    const exactSnap = await adminDb
+      .collection(`org/${orgId}/inspections`)
+      .where('workspaceId', '==', workspaceId)
+      .where('assetId', '==', assetQuery)
+      .limit(50)
+      .get();
+
+    const fallbackSnap = exactSnap.empty
+      ? await adminDb
+          .collection(`org/${orgId}/inspections`)
+          .where('workspaceId', '==', workspaceId)
+          .limit(2000)
+          .get()
+      : null;
+
+    const sourceDocs = exactSnap.empty
+      ? (fallbackSnap?.docs ?? []).filter((d) =>
+          String((d.data().assetId as string) ?? '')
+            .toLowerCase()
+            .includes(assetQuery.toLowerCase()),
+        )
+      : exactSnap.docs;
+
+    const inspectionStatusMatches = sourceDocs.map((d) => {
+      const data = d.data();
+      return {
+        inspectionId: d.id,
+        extinguisherId: (data.extinguisherId as string) ?? '',
+        assetId: (data.assetId as string) ?? '',
+        status: (data.status as string) ?? 'pending',
+        section: (data.section as string) ?? '',
+        workspaceId,
+        workspaceLabel,
+        inspectedAt: toIso(data.inspectedAt),
+        inspectedByEmail: (data.inspectedByEmail as string | null) ?? null,
+        notes: (data.notes as string) ?? '',
+      };
+    });
+
+    return {
+      intentType: intent.type,
+      appliedFilters: {
+        assetQuery,
+        activeWorkspaceId: workspaceId,
+        activeWorkspaceLabel: workspaceLabel,
+      },
+      count: inspectionStatusMatches.length,
+      inspectionStatusMatches,
     };
   }
 

@@ -20,6 +20,10 @@ import { useAuth } from '../../hooks/useAuth.ts';
 import { db } from '../../lib/firebase.ts';
 import type { Extinguisher } from '../../services/extinguisherService.ts';
 import type { AiNote, AiNoteStatus } from '../../types/aiNote.ts';
+import type { Workspace } from '../../services/workspaceService.ts';
+import { subscribeToInspections, type Inspection } from '../../services/inspectionService.ts';
+import { subscribeToSectionNotes } from '../../services/sectionNotesService.ts';
+import type { SectionNotesMap } from '../../services/workspaceService.ts';
 
 interface AiAssistantPanelProps {
   extinguishers?: Extinguisher[];
@@ -82,6 +86,9 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orgExtinguishers, setOrgExtinguishers] = useState<Extinguisher[]>([]);
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  const [activeWorkspaceInspections, setActiveWorkspaceInspections] = useState<Inspection[]>([]);
+  const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
   const [notes, setNotes] = useState<AiNote[]>([]);
   const [noteBusyId, setNoteBusyId] = useState<string | null>(null);
 
@@ -116,6 +123,44 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
 
     return subscribeToAiNotes(orgId, setNotes, 8);
   }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId) {
+      setActiveWorkspace(null);
+      return;
+    }
+    const q = query(collection(db, 'org', orgId, 'workspaces'), where('status', '==', 'active'));
+    return onSnapshot(
+      q,
+      (snap) => {
+        if (snap.empty) {
+          setActiveWorkspace(null);
+          return;
+        }
+        const latest = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as Workspace))
+          .sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0];
+        setActiveWorkspace(latest ?? null);
+      },
+      () => setActiveWorkspace(null),
+    );
+  }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId || !activeWorkspace?.id) {
+      setActiveWorkspaceInspections([]);
+      return;
+    }
+    return subscribeToInspections(orgId, activeWorkspace.id, setActiveWorkspaceInspections);
+  }, [orgId, activeWorkspace?.id]);
+
+  useEffect(() => {
+    if (!orgId || !user?.uid) {
+      setSectionNotes({});
+      return;
+    }
+    return subscribeToSectionNotes(orgId, user.uid, setSectionNotes);
+  }, [orgId, user?.uid]);
 
   async function saveNoteFromText(content: string, source: 'manual' | 'ai_suggested' = 'manual') {
     if (!orgId) return;
@@ -183,6 +228,10 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
         orgName: org?.name,
         extinguishers: resolvedExtinguishers,
         complianceSummary: resolvedComplianceSummary,
+        activeWorkspaceId: activeWorkspace?.id ?? null,
+        activeWorkspaceLabel: activeWorkspace?.label ?? null,
+        inspections: activeWorkspaceInspections,
+        sectionNotes,
       });
       setMessages([...updatedMessages, { role: 'assistant', content: response }]);
     } catch (err) {

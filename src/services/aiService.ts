@@ -8,11 +8,14 @@
 
 import { geminiModel } from '../lib/firebase.ts';
 import type { Extinguisher } from './extinguisherService.ts';
+import type { Inspection } from './inspectionService.ts';
+import type { SectionNotesMap } from './workspaceService.ts';
 import { APP_KNOWLEDGE_BASE } from '../lib/aiKnowledgeBase.ts';
 import { parseAiMemoryIntent } from './aiQueryIntentService.ts';
 import { queryAiMemoryCall } from './aiQueryService.ts';
 import type {
   AiMemoryExpiringExtinguisher,
+  AiMemoryInspectionStatusMatch,
   AiMemoryNoteResult,
   AiMemoryQueryResponse,
   AiMemoryReplacementEvent,
@@ -56,6 +59,10 @@ export async function askAssistant(
     orgName?: string;
     extinguishers?: Extinguisher[];
     complianceSummary?: Record<string, number>;
+    activeWorkspaceId?: string | null;
+    activeWorkspaceLabel?: string | null;
+    inspections?: Inspection[];
+    sectionNotes?: SectionNotesMap;
   },
 ): Promise<string> {
   const lastMessage = messages[messages.length - 1];
@@ -80,6 +87,11 @@ export async function askAssistant(
     if (context.complianceSummary) {
       parts.push(`Compliance Summary: ${JSON.stringify(context.complianceSummary)}`);
     }
+    if (context.activeWorkspaceId || context.activeWorkspaceLabel) {
+      parts.push(
+        `Active Workspace: ${context.activeWorkspaceLabel ?? 'unknown'} (${context.activeWorkspaceId ?? 'no-id'})`,
+      );
+    }
     if (context.extinguishers && context.extinguishers.length > 0) {
       // Send a summary, not all fields — keep token count reasonable
       const summary = context.extinguishers.slice(0, 50).map((e) => ({
@@ -99,6 +111,36 @@ export async function askAssistant(
         manufactureDate: e.manufactureDate,
       }));
       parts.push(`Inventory (${context.extinguishers.length} total, showing first ${summary.length}):\n${JSON.stringify(summary, null, 2)}`);
+    }
+    if (context.inspections && context.inspections.length > 0) {
+      const inspectionSummary = context.inspections.slice(0, 300).map((i) => ({
+        assetId: i.assetId,
+        extinguisherId: i.extinguisherId,
+        status: i.status,
+        locationId: i.locationId,
+        section: i.section,
+        inspectedByEmail: i.inspectedByEmail,
+        inspectedAt: i.inspectedAt ?? null,
+        notes: i.notes ?? '',
+      }));
+      parts.push(
+        `Inspection status context (${context.inspections.length} total in active workspace, showing first ${inspectionSummary.length}):\n${JSON.stringify(
+          inspectionSummary,
+          null,
+          2,
+        )}`,
+      );
+    }
+    if (context.sectionNotes && Object.keys(context.sectionNotes).length > 0) {
+      const notesSummary = Object.entries(context.sectionNotes).map(([section, value]) => ({
+        section,
+        notes: value.notes,
+        saveForNextMonth: value.saveForNextMonth,
+        lastUpdated: value.lastUpdated,
+      }));
+      parts.push(
+        `Section notes context (${notesSummary.length} total):\n${JSON.stringify(notesSummary, null, 2)}`,
+      );
     }
     if (parts.length > 0) {
       contextBlock = `\n\nCurrent organization data:\n${parts.join('\n\n')}`;
@@ -136,6 +178,13 @@ function formatDeterministicMemoryResponse(result: AiMemoryQueryResponse): strin
   }
   if (result.intentType === 'list_expiring_by_year') {
     return formatExpiringResult(result.count, filters, result.expiringExtinguishers ?? []);
+  }
+  if (result.intentType === 'get_extinguisher_inspection_status') {
+    return formatInspectionStatusResult(
+      result.count,
+      filters,
+      result.inspectionStatusMatches ?? [],
+    );
   }
   return formatReplacementResult(result.count, filters, result.replacementEvents ?? []);
 }
@@ -207,6 +256,35 @@ function formatReplacementResult(
     ...items,
     '',
     '_If you want only one building/section, ask with that location and month._',
+  ].join('\n');
+}
+
+function formatInspectionStatusResult(
+  count: number,
+  filters: string,
+  matches: AiMemoryInspectionStatusMatch[],
+): string {
+  const items = matches.slice(0, 20).map((row) => {
+    const checked =
+      row.status === 'pending' ? 'Not yet inspected' : `Checked (${row.status.toUpperCase()})`;
+    const inspectedWhen = row.inspectedAt
+      ? new Date(row.inspectedAt).toLocaleString()
+      : 'not inspected yet';
+    const noteSuffix = row.notes ? ` | note: ${row.notes}` : '';
+    return `- ${row.assetId} | ${checked} | section: ${row.section || 'unassigned'} | ${inspectedWhen}${noteSuffix}`;
+  });
+
+  return [
+    '### Extinguisher inspection status',
+    `Found **${count}** matching inspection record(s).`,
+    '',
+    '**Applied filters**',
+    filters,
+    '',
+    items.length > 0
+      ? '**Matches**'
+      : '**Matches**\n- No matching extinguisher inspection was found in the active workspace.',
+    ...items,
   ].join('\n');
 }
 

@@ -1,7 +1,8 @@
 export type AiMemoryIntentType =
   | 'list_notes_by_month'
   | 'list_expiring_by_year'
-  | 'count_replacements_by_month';
+  | 'count_replacements_by_month'
+  | 'get_extinguisher_inspection_status';
 
 export interface MonthWindow {
   year: number;
@@ -16,6 +17,7 @@ export interface AiMemoryQueryIntent {
   noteStatus?: 'open' | 'in_progress' | 'resolved';
   monthWindow?: MonthWindow;
   targetYear?: number;
+  assetQuery?: string;
 }
 
 export interface AiMemoryNoteResult {
@@ -51,6 +53,19 @@ export interface AiMemoryReplacementEvent {
   reason: string | null;
 }
 
+export interface AiMemoryInspectionStatusMatch {
+  inspectionId: string;
+  extinguisherId: string;
+  assetId: string;
+  status: string;
+  section: string;
+  workspaceId: string;
+  workspaceLabel: string | null;
+  inspectedAt: string | null;
+  inspectedByEmail: string | null;
+  notes: string;
+}
+
 export interface AiMemoryQueryResponse {
   intentType: AiMemoryIntentType;
   appliedFilters: Record<string, string | number | boolean | null>;
@@ -58,4 +73,5 @@ export interface AiMemoryQueryResponse {
   notes?: AiMemoryNoteResult[];
   expiringExtinguishers?: AiMemoryExpiringExtinguisher[];
   replacementEvents?: AiMemoryReplacementEvent[];
+  inspectionStatusMatches?: AiMemoryInspectionStatusMatch[];
 }

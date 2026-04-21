@@ -72,6 +72,23 @@ function parseNoteStatus(text: string): 'open' | 'in_progress' | 'resolved' | un
 export function parseAiMemoryIntent(message: string, now = new Date()): AiMemoryQueryIntent | null {
   const normalized = message.toLowerCase();
 
+  const asksInspectionStatus =
+    /\b(extinguisher|asset|unit)\b/.test(normalized) &&
+    /\b(checked|inspected|not yet inspected|pending|pass|passed|fail|failed|status)\b/.test(normalized);
+  if (asksInspectionStatus) {
+    const assetMatch =
+      message.match(/\basset(?:\s*id)?\s*[:#-]?\s*([a-z0-9_-]{2,})\b/i) ??
+      message.match(/\bextinguisher\s*[:#-]?\s*([a-z0-9_-]{2,})\b/i) ??
+      message.match(/\b([a-z]{1,5}-\d{2,})\b/i) ??
+      message.match(/\b(\d{4,})\b/);
+    if (assetMatch?.[1]) {
+      return {
+        type: 'get_extinguisher_inspection_status',
+        assetQuery: assetMatch[1],
+      };
+    }
+  }
+
   const asksForNotes =
     /\b(note|notes|idea|ideas|inspection notes?)\b/.test(normalized) &&
     /\b(show|list|find|get|recall|what|which|all)\b/.test(normalized);

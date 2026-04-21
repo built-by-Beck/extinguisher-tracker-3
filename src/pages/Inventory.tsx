@@ -11,8 +11,6 @@ import {
   collection,
   query,
   where,
-  orderBy,
-  limit as fbLimit,
   onSnapshot,
 } from 'firebase/firestore';
 import {
@@ -239,8 +237,6 @@ export default function Inventory() {
     const q = query(
       collection(db, 'org', orgId, 'workspaces'),
       where('status', '==', 'active'),
-      orderBy('monthYear', 'desc'),
-      fbLimit(1),
     );
     return onSnapshot(
       q,
@@ -249,7 +245,10 @@ export default function Inventory() {
           setActiveWorkspaceId(null);
           return;
         }
-        setActiveWorkspaceId(snap.docs[0].id);
+        const latest = snap.docs
+          .map((d) => ({ id: d.id, ...(d.data() as { monthYear?: string }) }))
+          .sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0];
+        setActiveWorkspaceId(latest?.id ?? null);
       },
       () => setActiveWorkspaceId(null),
     );
@@ -299,7 +298,16 @@ export default function Inventory() {
   // Client-side filtering with enhanced location search
   const filtered = useMemo(() => {
     return items.filter((ext) => {
-      if (categoryFilter && ext.category !== categoryFilter) return false;
+      if (categoryFilter) {
+        // Backward-compatible "Replaced" filter:
+        // - canonical source: lifecycleStatus === 'replaced'
+        // - legacy fallback: category === 'replaced'
+        if (categoryFilter === 'replaced') {
+          if (ext.lifecycleStatus !== 'replaced' && ext.category !== 'replaced') return false;
+        } else if (ext.category !== categoryFilter) {
+          return false;
+        }
+      }
       if (locationFilter) {
         if (ext.locationId !== locationFilter) return false;
       }
@@ -1227,10 +1235,10 @@ export default function Inventory() {
             </div>
           </div>
           <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Unchecked</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Not yet inspected</p>
             <p className="mt-1 text-2xl font-bold text-amber-950">{scopeCheckStats.unchecked}</p>
             <p className="mt-2 text-xs text-amber-800/90">
-              Not the full-org “left to check” for the month; clear filters to widen this slice.
+              Not the full-org “not yet inspected” count for the month; clear filters to widen this slice.
             </p>
           </div>
           </div>

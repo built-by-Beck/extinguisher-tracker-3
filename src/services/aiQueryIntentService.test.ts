@@ -33,6 +33,14 @@ describe('parseAiMemoryIntent', () => {
     expect(intent?.monthWindow?.month).toBe(3);
   });
 
+  it('parses extinguisher inspection status intent with asset id', () => {
+    const intent = parseAiMemoryIntent('is asset 281688 checked yet?');
+    expect(intent).toEqual({
+      type: 'get_extinguisher_inspection_status',
+      assetQuery: '281688',
+    });
+  });
+
   it('returns null for generic questions', () => {
     const intent = parseAiMemoryIntent('explain NFPA 10 annual requirements');
     expect(intent).toBeNull();
