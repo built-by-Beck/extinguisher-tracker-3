@@ -282,7 +282,7 @@ export default function ExtinguisherEdit() {
 
         {/* Compliance icons legend */}
         <div className="mt-4 flex items-center gap-4 text-xs text-gray-400">
-          <span className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-green-500" /> Compliant</span>
+          <span className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-green-500" /> On schedule</span>
           <span className="flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5 text-red-500" /> Overdue</span>
         </div>
 

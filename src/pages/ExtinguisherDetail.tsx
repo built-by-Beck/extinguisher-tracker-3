@@ -55,6 +55,7 @@ import { WorkspaceInspectionSummaryCards } from '../components/workspace/Workspa
 import { ReplaceExtinguisherModal } from '../components/extinguisher/ReplaceExtinguisherModal.tsx';
 import { PromptModal } from '../components/ui/PromptModal.tsx';
 import { softDeleteExtinguisher } from '../services/extinguisherService.ts';
+import { getComplianceLabel } from '../utils/compliance.ts';
 
 function formatTimestamp(ts: unknown): string {
   if (!ts) return '--';
@@ -481,7 +482,7 @@ export default function ExtinguisherDetail() {
           <InfoRow label="Service Class" value={ext.serviceClass} />
         </div>
 
-        {/* Compliance badges */}
+        {/* NFPA maintenance schedule (Pass/Fail is only under Inspection below) */}
         {(ext.complianceStatus || (ext.overdueFlags && ext.overdueFlags.length > 0)) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {ext.complianceStatus && (
@@ -492,7 +493,7 @@ export default function ExtinguisherDetail() {
                     ? 'bg-red-100 text-red-700'
                     : 'bg-amber-100 text-amber-700'
               }`}>
-                {ext.complianceStatus.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                {getComplianceLabel(ext.complianceStatus)}
               </span>
             )}
             {ext.overdueFlags?.map((flag) => (

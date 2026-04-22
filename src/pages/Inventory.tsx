@@ -56,7 +56,7 @@ import {
   batchMergeDuplicates,
   type DuplicateGroup,
 } from '../services/duplicateService.ts';
-import { formatDueDate } from '../utils/compliance.ts';
+import { formatDueDate, getComplianceLabel } from '../utils/compliance.ts';
 import { cacheExtinguishersForWorkspace } from '../services/offlineCacheService.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 import { WorkspaceInspectionSummaryCards } from '../components/workspace/WorkspaceInspectionSummaryCards.tsx';
@@ -82,6 +82,16 @@ const COMPLIANCE_SORT_ORDER: Record<string, number> = {
   overdue: 5,
   missing_data: 6,
 };
+
+const INVENTORY_COMPLIANCE_FILTER_OPTIONS = [
+  'compliant',
+  'monthly_due',
+  'annual_due',
+  'six_year_due',
+  'hydro_due',
+  'overdue',
+  'missing_data',
+] as const;
 
 const STORAGE_KEY_PREFIX = 'ex3_inventory_';
 
@@ -674,20 +684,18 @@ export default function Inventory() {
           <option value="out_of_service">Out of Service</option>
         </select>
 
-        {/* Compliance filter */}
+        {/* Maintenance schedule filter (not monthly Pass/Fail — that lives on workspace inspections) */}
         <select
           value={complianceFilter}
           onChange={(e) => setComplianceFilter(e.target.value)}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
         >
-          <option value="">All Compliance</option>
-          <option value="compliant">Compliant</option>
-          <option value="monthly_due">Monthly Due</option>
-          <option value="annual_due">Annual Due</option>
-          <option value="six_year_due">Six-Year Due</option>
-          <option value="hydro_due">Hydro Due</option>
-          <option value="overdue">Overdue</option>
-          <option value="missing_data">Missing Data</option>
+          <option value="">All maintenance</option>
+          {INVENTORY_COMPLIANCE_FILTER_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {getComplianceLabel(s)}
+            </option>
+          ))}
         </select>
 
         {/* Expiration filter */}
@@ -760,7 +768,7 @@ export default function Inventory() {
                 section: 'Location',
                 type: 'Type',
                 category: 'Category',
-                compliance: 'Compliance',
+                compliance: 'Maintenance',
                 nextInspection: 'Next Inspection',
               }).map(([key, label]) => (
                 <label key={key} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50">
@@ -920,7 +928,7 @@ export default function Inventory() {
                 )}
                 {visibleColumns.compliance && (
                   <SortableTableHeader
-                    label="Compliance"
+                    label="Maintenance"
                     sortKey="compliance"
                     activeSortKey={sortKey}
                     activeSortDir={sortDir}

@@ -26,7 +26,8 @@ export type ComplianceSeverity = 'success' | 'warning' | 'danger' | 'neutral';
 /** Map compliance status to human-readable labels */
 export function getComplianceLabel(status: string): string {
   const labels: Record<string, string> = {
-    compliant: 'Compliant',
+    // "On schedule" — not "Compliant": monthly inspections use Pass/Fail/Pending only.
+    compliant: 'On schedule',
     monthly_due: 'Monthly Due',
     annual_due: 'Annual Due',
     six_year_due: 'Six-Year Due',
