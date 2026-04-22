@@ -19,6 +19,7 @@ Use this three-step flow for non-trivial changes in **extinguisher-tracker-3** s
 - Run `pnpm test`, `pnpm lint`, and `pnpm exec tsc -b`.
 - Grep for risky patterns: `paginated` + `.length` used as a total, duplicate `map.set` loops over inspections without dedupe, or copy that implies “this month for the org” when data is filtered (e.g. Inventory table filters).
 - Confirm UI copy matches behavior (e.g. “Filtered inventory table only” vs org-wide workspace strip).
+- For AI-facing copy, keep edition messaging consistent: NFPA 10 (2022) default reference and explicit note that organizations may operate under different locally adopted editions.
 
 ## Optional: repair `workspace.stats` drift
 

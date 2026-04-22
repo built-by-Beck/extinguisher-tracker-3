@@ -30,6 +30,7 @@ The system is **organization-centric** — all operational data belongs to the o
 - **NFPA 10 Compliance Engine** — Monthly, annual, 6-year maintenance, and hydrostatic testing intervals tracked automatically
 - **Inspection Workspaces** — Organize monthly inspections by workspace with section progress tracking
 - **AI Maintenance Helper** — Built-in assistant trained on NFPA 10 standards for on-the-fly compliance questions
+- **Section Auto Timer** — Automatically tracks section timing to keep inspection routes on pace
 - **Placement Calculator** — Determine required extinguisher quantities and types based on hazard class and floor area
 - **Offline Support** — Perform inspections in areas with no connectivity; data syncs automatically when back online
 - **Compliance Dashboard** — Real-time visibility into passed, failed, and overdue inspections across your organization
@@ -45,6 +46,12 @@ The system is **organization-centric** — all operational data belongs to the o
 - **Role-Based Access** — Owner, Admin, Inspector, and Viewer roles with granular permissions
 - **Real-Time Collaboration** — Multiple inspectors working simultaneously with live updates
 - **Data Restore Tools** — JSON backup restoration with automatic duplicate detection
+
+### AI reference edition policy
+
+- AI guidance defaults to **NFPA 10 (2022)** references.
+- Organizations operating under different adopted editions should align AI usage to local AHJ requirements.
+- AI responses are operational guidance and should be validated by qualified personnel before final compliance decisions.
 
 ## Tech Stack
 

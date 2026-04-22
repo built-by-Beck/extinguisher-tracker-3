@@ -21,8 +21,8 @@ export default function MarketingPricingPage() {
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">Pricing</h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
               Compare <strong>Basic</strong>, <strong>Pro</strong>, <strong>Elite</strong>, and{' '}
-              <strong>Enterprise</strong>. Dollar amounts on this page are for orientation only; subscription and
-              entitlements are enforced in the product billing experience.
+              <strong>Enterprise</strong>. Choose the plan that matches your AI needs, inspection volume, and team pace.
+              Dollar amounts on this page are for orientation only; subscription and entitlements are enforced in the product billing experience.
             </p>
           </div>
         </div>

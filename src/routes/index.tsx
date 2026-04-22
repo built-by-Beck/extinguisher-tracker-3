@@ -43,6 +43,10 @@ import QRLanding from '../pages/QRLanding.tsx';
 import AboutPage from '../pages/marketing/AboutPage.tsx';
 import TermsPage from '../pages/marketing/TermsPage.tsx';
 import PrivacyPage from '../pages/marketing/PrivacyPage.tsx';
+import GettingStarted from '../pages/GettingStarted.tsx';
+import FaqPage from '../pages/FaqPage.tsx';
+import MarketingGettingStartedPage from '../pages/marketing/MarketingGettingStartedPage.tsx';
+import MarketingFaqPage from '../pages/marketing/MarketingFaqPage.tsx';
 
 export function AppRoutes() {
   return (
@@ -57,6 +61,8 @@ export function AppRoutes() {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/getting-started" element={<MarketingGettingStartedPage />} />
+      <Route path="/faq" element={<MarketingFaqPage />} />
       <Route path="/calculator" element={<Calculator />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
@@ -100,6 +106,8 @@ export function AppRoutes() {
           <Route path="reports" element={<Reports />} />
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="calculator" element={<Calculator />} />
+          <Route path="getting-started" element={<GettingStarted />} />
+          <Route path="faq" element={<FaqPage />} />
           <Route path="import-guide" element={<ImportGuide />} />
           <Route path="data-organizer-guide" element={<DataOrganizerGuide />} />
           <Route path="inventory/print" element={<PrintableList />} />

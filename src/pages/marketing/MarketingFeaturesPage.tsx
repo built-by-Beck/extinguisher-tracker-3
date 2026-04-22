@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Barcode,
   Building2,
+  Clock3,
   ClipboardCheck,
   Database,
   FileDown,
@@ -66,8 +67,8 @@ export default function MarketingFeaturesPage() {
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">Features</h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
-              A concise map of what Extinguisher Tracker supports for day-to-day inspection operations. Capabilities
-              may vary by plan; use pricing to compare tiers.
+              Built for teams that do not have time to chase notes, search regulations, or rework missed routes.
+              Capabilities may vary by plan; use pricing to compare tiers.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -90,9 +91,16 @@ export default function MarketingFeaturesPage() {
           <FeatureBlock
             icon={Bot}
             title="AI Maintenance Assistant"
-            what="A built-in AI assistant trained on NFPA 10 standards to answer your team's maintenance and compliance questions."
-            why="Reference materials are hard to carry and search; getting instant answers improves accuracy on the floor."
-            outcome="Faster decision making, better adherence to standards, and a training tool for new inspectors."
+            what="A built-in AI assistant that answers maintenance and compliance questions using NFPA 10 (2022) as the default reference."
+            why="Busy crews should not need to stop and search external sites for code context or app notes."
+            outcome="Faster decisions, fewer workflow interruptions, and consistent guidance while inspections are in progress."
+          />
+          <FeatureBlock
+            icon={Clock3}
+            title="Auto Timer for Route Pace"
+            what="Automatic section timing tracks how long inspection work takes and keeps teams moving without manual stopwatch tracking."
+            why="When timing is manual, sections drift, routes overrun, and follow-up planning becomes guesswork."
+            outcome="Clear pacing visibility, better staffing estimates, and fewer missed checks at the end of a shift."
           />
           <FeatureBlock
             icon={Calculator}
@@ -125,9 +133,9 @@ export default function MarketingFeaturesPage() {
           <FeatureBlock
             icon={Barcode}
             title="Barcode and asset lookup"
-            what="Scan or search to pull the right extinguisher quickly instead of hunting through long lists."
-            why="Field time is expensive; lookup friction causes skipped checks or wrong asset edits."
-            outcome="Faster routes, fewer mis-tagged updates, and better confidence on the floor."
+            what="Scan or search to pull the right extinguisher and related notes instantly instead of hunting through long lists."
+            why="Field time is expensive; lookup friction causes skipped checks, wrong asset edits, and lost context."
+            outcome="Faster routes, cleaner updates, and less context switching while you are actively working."
           />
           <FeatureBlock
             icon={FileDown}

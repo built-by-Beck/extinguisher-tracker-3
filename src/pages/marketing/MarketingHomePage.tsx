@@ -46,11 +46,11 @@ export default function MarketingHomePage() {
         <Section className="py-14 sm:py-20">
           <div className="max-w-3xl">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-              Fire extinguisher software built for real maintenance teams
+              AI-powered extinguisher software built for busy maintenance teams
             </h1>
             <p className="mt-5 text-lg text-gray-600 sm:text-xl">
-              Extinguisher Tracker helps your team keep inventory accurate, run inspections faster with barcode scanning, and
-              keep the records you need for safety and compliance—without the mess of spreadsheets.
+              Extinguisher Tracker helps your team run faster in the field: ask AI for NFPA guidance while you work, use
+              auto timers to keep routes moving, and keep audit-ready records without jumping between apps or spreadsheets.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
@@ -102,8 +102,8 @@ export default function MarketingHomePage() {
         <Section>
           <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">What Extinguisher Tracker does</h2>
           <p className="mt-4 max-w-3xl text-gray-600">
-            We built a system that matches how you work: easy inventory, fast phone-based inspections, and clear reporting 
-            for fire marshals and safety leads. No more surprises during survey season.
+            We built a system for real route work: AI support inside the app, auto timer pacing, fast phone inspections,
+            and clear reporting for fire marshals and safety leads. No more surprises during survey season.
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
@@ -114,8 +114,13 @@ export default function MarketingHomePage() {
               },
               {
                 title: 'AI Maintenance Helper',
-                body: 'Get instant answers to NFPA 10 rules and maintenance questions from our built-in assistant.',
+                body: 'Get instant in-app answers for NFPA 10 (2022 default) and maintenance questions instead of searching Google mid-route.',
                 icon: Bot,
+              },
+              {
+                title: 'Section Auto Timer',
+                body: 'Track route time automatically so crews can stay on pace, surface slow sections, and avoid missed checks.',
+                icon: ClipboardList,
               },
               {
                 title: 'Placement Calculator',
@@ -189,9 +194,13 @@ export default function MarketingHomePage() {
         <Section>
           <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Built for the real world</h2>
           <p className="mt-4 max-w-3xl text-gray-600">
-            This product exists because inspection programs are messy: people leave, locations change, and 
-            inspectors show up unannounced. We focus on what crews need on the floor—fast lookup, 
-            clear status, and a durable record—not fancy buzzwords.
+            This product exists because inspection programs are messy: people leave, locations change, and
+            inspectors show up unannounced. We focus on what crews need on the floor: AI guidance, fast lookup,
+            timer-backed workflow rhythm, clear status, and a durable record.
+          </p>
+          <p className="mt-4 max-w-3xl text-sm text-gray-500">
+            AI guidance references NFPA 10 (2022) by default. Your organization should align responses with the edition adopted
+            in your jurisdiction and internal policy.
           </p>
         </Section>
 

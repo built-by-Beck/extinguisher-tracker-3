@@ -23,8 +23,8 @@ export default function AboutPage() {
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">About Extinguisher Tracker</h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
-              We are on a mission to modernize fire safety compliance and make inspections easier for
-              facilities teams everywhere.
+              We are on a mission to modernize fire safety compliance with practical AI, smarter workflow timing,
+              and tools that help busy facilities teams move faster with fewer mistakes.
             </p>
           </div>
         </div>
@@ -43,6 +43,10 @@ export default function AboutPage() {
                 We believe that fire safety compliance should be simple, efficient, and accessible to
                 organizations of all sizes. Our cloud-based platform eliminates paperwork, reduces
                 inspection time, and provides instant access to compliance documentation.
+              </p>
+              <p className="mt-4 text-gray-600">
+                The AI assistant is designed for real working conditions: if a tech needs a fast answer on a code-related
+                question, they can ask in-app instead of searching the web or flipping through scattered notes.
               </p>
               <p className="mt-4 text-gray-600">
                 Built by safety-minded people for safety-focused teams, Extinguisher Tracker combines
@@ -128,6 +132,10 @@ export default function AboutPage() {
               Extinguisher Tracker is designed to help you meet NFPA 10 and OSHA fire safety
               requirements. Our inspection checklists cover standard monthly criteria, ensuring
               comprehensive compliance documentation.
+            </p>
+            <p className="mt-3 text-sm text-gray-500">
+              AI guidance references NFPA 10 (2022) by default, and organizations should use the edition adopted by their
+              local authority having jurisdiction.
             </p>
             <div className="mt-8 grid gap-6 sm:grid-cols-3">
               <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

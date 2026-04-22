@@ -31,11 +31,13 @@ interface AiAssistantPanelProps {
 }
 
 const SUGGESTED_PROMPTS = [
+  'What does NFPA 10 (2022) require for monthly inspections?',
+  'Our jurisdiction uses NFPA 10 (2018). Explain annual requirements.',
   'Show all notes from this month',
   'Show extinguishers expiring next year',
   'How many extinguishers did we replace last month?',
   'What inspections are overdue?',
-  'Summarize my compliance status',
+  'Summarize my compliance status and mention sections taking the longest time',
 ];
 
 const NOTE_INTENT_PATTERN = /\b(take|save|create|add|make)\s+(?:a\s+)?note\b/i;
@@ -342,8 +344,9 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                     Ask me about NFPA 10 compliance, your inventory, or inspection schedules.
                   </p>
                   <p className="mt-2 text-[11px] text-gray-400">
-                    How to use AI: ask about overdue inspections, maintenance dates, or a quick
-                    compliance summary.
+                    How to use AI: include your adopted NFPA edition in the prompt when it differs
+                    from the default, and ask for overdue inspections, maintenance dates, section notes,
+                    or route pace guidance.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -431,7 +434,7 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
               </button>
             </form>
             <p className="mt-1.5 text-center text-[10px] text-gray-400">
-              AI access is included with Pro, Elite, and Enterprise plans.
+              AI access is included with Pro, Elite, and Enterprise plans. Default reference: NFPA 10 (2022).
             </p>
           </div>
         </div>

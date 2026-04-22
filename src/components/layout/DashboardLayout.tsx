@@ -25,6 +25,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/settings': 'Organization Settings',
   '/dashboard/data-organizer': 'Data Organizer',
   '/dashboard/calculator': 'Fire Extinguisher Calculator',
+  '/dashboard/getting-started': 'Getting Started',
+  '/dashboard/faq': 'FAQ',
   '/dashboard/import-guide': 'Import Guide',
 };
 
@@ -42,6 +44,8 @@ const PAGE_COLORS: Record<string, { bg: string; bgHidden: string }> = {
   '/dashboard/settings':     { bg: 'bg-zinc-800',    bgHidden: 'bg-zinc-700' },
   '/dashboard/data-organizer':{ bg: 'bg-slate-800',  bgHidden: 'bg-slate-700' },
   '/dashboard/calculator':   { bg: 'bg-sky-800',     bgHidden: 'bg-sky-700' },
+  '/dashboard/getting-started': { bg: 'bg-red-900',  bgHidden: 'bg-red-800' },
+  '/dashboard/faq':          { bg: 'bg-orange-900',  bgHidden: 'bg-orange-800' },
   '/dashboard/import-guide': { bg: 'bg-cyan-800',    bgHidden: 'bg-cyan-700' },
 };
 

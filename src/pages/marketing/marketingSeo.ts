@@ -1,15 +1,15 @@
 /** SEO strings for public marketing pages (edit freely). */
 export const marketingSeo = {
   home: {
-    title: 'Extinguisher Tracker — Fire extinguisher inspections & compliance',
+    title: 'Extinguisher Tracker — AI fire extinguisher inspections & compliance',
     description:
-      'Operational software for fire extinguisher inventory, inspection workflows, compliance records, and reporting. Built for facilities teams that work in the field.',
+      'AI-powered software for extinguisher inventory, inspection workflows, section auto timers, compliance records, and reporting. Built for facilities teams in the field.',
     path: '/',
   },
   features: {
     title: 'Features — Extinguisher Tracker',
     description:
-      'Inventory, inspections, barcode lookup, compliance reporting, audit history, locations, issues, and exports — designed for real facility workflows.',
+      'AI maintenance assistant, auto timer workflow pacing, inventory, barcode lookup, compliance reporting, audit history, and exports for real facility workflows.',
     path: '/features',
   },
   pricing: {
@@ -21,7 +21,7 @@ export const marketingSeo = {
   howItWorks: {
     title: 'How it works — Extinguisher Tracker',
     description:
-      'From organization setup to inspections, issue tracking, and reports: a straightforward workflow for extinguisher compliance.',
+      'From organization setup to AI-assisted inspections, timed route execution, issue tracking, and reports: a straightforward workflow for extinguisher compliance.',
     path: '/how-it-works',
   },
   about: {
@@ -29,6 +29,18 @@ export const marketingSeo = {
     description:
       'Learn about Extinguisher Tracker: our mission to modernize fire safety compliance for facilities teams everywhere.',
     path: '/about',
+  },
+  gettingStarted: {
+    title: 'Getting Started — Extinguisher Tracker',
+    description:
+      'Step-by-step onboarding from account setup to first completed inspections, with AI-assisted guidance and workflow best practices.',
+    path: '/getting-started',
+  },
+  faq: {
+    title: 'FAQ — Extinguisher Tracker',
+    description:
+      'Frequently asked questions about setup, pricing, AI assistance, NFPA edition references, and daily inspection operations.',
+    path: '/faq',
   },
   terms: {
     title: 'Terms of Service — Extinguisher Tracker',

@@ -23,6 +23,8 @@ import {
   Calculator,
   Wrench,
   Calendar,
+  BookOpenCheck,
+  CircleHelp,
 } from 'lucide-react';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useOffline } from '../../hooks/useOffline.ts';
@@ -45,6 +47,8 @@ const navItems: NavItem[] = [
   { to: '/dashboard/workspaces', label: 'Inspections', icon: ClipboardList, end: false },
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
   { to: '/dashboard/data-organizer', label: 'Data Organizer', icon: Wrench, end: false, roles: ['owner', 'admin'] },
+  { to: '/dashboard/getting-started', label: 'Getting Started', icon: BookOpenCheck, end: false },
+  { to: '/dashboard/faq', label: 'FAQ', icon: CircleHelp, end: false },
   { to: '/dashboard/locations', label: 'Locations', icon: MapPin, end: false },
   { to: '/dashboard/members', label: 'Members', icon: Users, end: false, requiredFeature: 'teamMembers' },
   { to: '/dashboard/notifications', label: 'Notifications', icon: Bell, end: false },

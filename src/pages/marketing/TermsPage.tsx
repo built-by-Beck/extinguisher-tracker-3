@@ -147,6 +147,15 @@ export default function TermsPage() {
                 laws and regulations. The Service is a tool to assist with compliance management, not a
                 substitute for professional fire safety expertise or legal advice.
               </p>
+              <p>
+                AI assistance in the Service is provided for operational support and informational guidance only. AI outputs
+                may not reflect every local amendment or adopted code edition and must be reviewed by your qualified personnel
+                before action.
+              </p>
+              <p>
+                Unless otherwise configured, AI guidance references NFPA 10 (2022) by default. Your organization is responsible
+                for aligning decisions to the edition and requirements adopted in your jurisdiction.
+              </p>
             </Section>
 
             <Section num={11} title="Termination">
