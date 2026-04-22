@@ -7,11 +7,13 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-base font-semibold ${isActive ? 'text-red-600' : 'text-gray-700 hover:text-red-600'}`;
 
 const MARKETING_PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  '/': { title: 'Fire Extinguisher Tracking Made Simple', subtitle: 'Inspections. Records. Compliance. Organized.' },
-  '/features': { title: 'Features', subtitle: 'Everything your team needs to stay compliant' },
-  '/pricing': { title: 'Pricing', subtitle: 'Plans that scale with your program' },
-  '/how-it-works': { title: 'How It Works', subtitle: 'From signup to compliant in minutes' },
+  '/': { title: 'Fire Extinguisher Tracking, AI Included', subtitle: 'Inspections. AI guidance. Auto-timed workflow.' },
+  '/features': { title: 'Features', subtitle: 'Everything your team needs to stay compliant and move faster' },
+  '/pricing': { title: 'Pricing', subtitle: 'Plans that scale with your AI-assisted program' },
+  '/how-it-works': { title: 'How It Works', subtitle: 'From signup to AI-assisted compliance in minutes' },
   '/about': { title: 'About', subtitle: 'Built by safety-minded people for safety-focused teams' },
+  '/getting-started': { title: 'Getting Started', subtitle: 'From signup to first completed inspection cycle' },
+  '/faq': { title: 'FAQ', subtitle: 'Answers for setup, AI, inspections, and pricing' },
   '/terms': { title: 'Terms of Service', subtitle: 'Usage terms and legal guidelines' },
   '/privacy': { title: 'Privacy Policy', subtitle: 'How we collect, use, and protect your data' },
 };
@@ -46,6 +48,12 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
             </NavLink>
             <NavLink to="/how-it-works" className={navLinkClass}>
               How it works
+            </NavLink>
+            <NavLink to="/getting-started" className={navLinkClass}>
+              Getting started
+            </NavLink>
+            <NavLink to="/faq" className={navLinkClass}>
+              FAQ
             </NavLink>
             <Link
               to="/login"
@@ -90,6 +98,12 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
               </NavLink>
               <NavLink to="/how-it-works" className={navLinkClass} onClick={() => setMobileOpen(false)}>
                 How it works
+              </NavLink>
+              <NavLink to="/getting-started" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+                Getting started
+              </NavLink>
+              <NavLink to="/faq" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+                FAQ
               </NavLink>
               <Link
                 to="/login"
@@ -148,7 +162,7 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
                 <p className="text-sm font-semibold text-red-600">Extinguisher Tracker</p>
               </div>
               <p className="mt-2 max-w-sm text-sm text-gray-600">
-                Inspection and compliance workflow software for teams responsible for fire extinguisher programs.
+                AI-assisted inspection and compliance workflow software for teams responsible for fire extinguisher programs.
               </p>
             </div>
             <div className="flex flex-wrap gap-8 text-sm">
@@ -162,6 +176,12 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
                 </Link>
                 <Link to="/how-it-works" className="text-gray-600 hover:text-red-600">
                   How it works
+                </Link>
+                <Link to="/getting-started" className="text-gray-600 hover:text-red-600">
+                  Getting started
+                </Link>
+                <Link to="/faq" className="text-gray-600 hover:text-red-600">
+                  FAQ
                 </Link>
               </div>
               <div className="flex flex-col gap-2">

@@ -43,7 +43,7 @@ import {
   subscribeToInspections,
   type Inspection,
 } from '../services/inspectionService.ts';
-import type { Workspace, SectionNotesMap } from '../services/workspaceService.ts';
+import type { Workspace, WorkspaceStats, SectionNotesMap } from '../services/workspaceService.ts';
 import { getReport } from '../services/reportService.ts';
 import { ReportDownloadButton } from '../components/reports/ReportDownloadButton.tsx';
 import type { Report } from '../types/report.ts';
@@ -87,11 +87,19 @@ import {
   sortInspectionsByMode,
   type InspectionSortMode,
 } from '../utils/inspectionSorting.ts';
+import { resolveSectionTimerKey } from '../utils/sectionTimerKey.ts';
 
 type PendingScopeViewMode = 'grouped' | 'table';
 
 const NATURAL_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 const PENDING_SCOPE_VIEW_MODE_KEY = 'ex3.pendingScopeViewMode';
+const EMPTY_WORKSPACE_STATS: WorkspaceStats = {
+  total: 0,
+  passed: 0,
+  failed: 0,
+  pending: 0,
+  lastUpdated: null,
+};
 
 const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; bg: string }> = {
   pass: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
@@ -268,6 +276,7 @@ export default function WorkspaceDetail() {
   const orgId = userProfile?.activeOrgId ?? '';
   const featureFlags = org?.featureFlags;
   const canEdit = hasRole(['owner', 'admin']);
+  const canInspect = hasRole(['owner', 'admin', 'inspector']);
   const { isOnline } = useOffline();
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -476,10 +485,33 @@ export default function WorkspaceDetail() {
   // Overall stats for current view (header display)
   const currentViewStats = useMemo(() => {
     if (drillDown.isRoot) {
-      return sumAllBucketStats(locationStatsMap as Map<string, WorkspaceInspectionBucketStats>) as LocationCardStats;
+      // Keep root-level "left to check" aligned with Dashboard source of truth.
+      // This avoids transient count drift between the two screens.
+      const derived = sumAllBucketStats(
+        locationStatsMap as Map<string, WorkspaceInspectionBucketStats>,
+      ) as LocationCardStats;
+      const wsStats = workspace?.stats ?? EMPTY_WORKSPACE_STATS;
+      if (!isArchived) {
+        const total = Math.max(0, Number(wsStats.total ?? 0));
+        const passed = Math.max(0, Number(wsStats.passed ?? 0));
+        const failed = Math.max(0, Number(wsStats.failed ?? 0));
+        const pending = Math.max(0, Number(wsStats.pending ?? 0));
+        const looksInitialized = total > 0 || passed > 0 || failed > 0 || pending > 0;
+        if (looksInitialized) {
+          return { total, passed, failed, pending, percentage: derived.percentage };
+        }
+      }
+      return derived;
     }
     return getAggregatedStats(drillDown.currentLocationId!);
-  }, [drillDown.isRoot, drillDown.currentLocationId, locationStatsMap, getAggregatedStats]);
+  }, [
+    drillDown.isRoot,
+    drillDown.currentLocationId,
+    locationStatsMap,
+    getAggregatedStats,
+    workspace?.stats,
+    isArchived,
+  ]);
 
   /** Stats for the scope card row (matches current drill level). */
   const scopeCardStats = currentViewStats;
@@ -772,6 +804,13 @@ export default function WorkspaceDetail() {
     setLeafStatusTab('pending');
   }, [drillDown.currentLocationId]);
 
+  // When status checkbox filters are cleared, return operators to the "what is left" flow.
+  useEffect(() => {
+    if (drillDown.isLeaf && filters.statuses.size === 0) {
+      setLeafStatusTab('pending');
+    }
+  }, [drillDown.isLeaf, filters.statuses]);
+
   // Unassigned extinguisher list
   const unassignedInspections = useMemo(() => {
     if (!showUnassigned) return [];
@@ -890,6 +929,14 @@ export default function WorkspaceDetail() {
   }, [drillDown.isLeaf, drillDown.currentLocation, locations]);
 
   function handleExtinguisherFound(ext: Extinguisher) {
+    if (
+      !isArchived &&
+      canInspect &&
+      hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan)
+    ) {
+      const key = resolveSectionTimerKey(ext, locations);
+      if (key) startTimer(key);
+    }
     if (ext.id) {
       navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${ext.id}`, { state: { returnTo } });
     }

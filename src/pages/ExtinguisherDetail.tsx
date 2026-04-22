@@ -31,6 +31,7 @@ import {
   ChevronUp,
   Camera,
   Navigation,
+  Clock,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -46,6 +47,9 @@ import {
   type ChecklistData,
 } from '../services/inspectionService.ts';
 import { getActiveWorkspaceForCurrentMonth, createWorkspaceCall } from '../services/workspaceService.ts';
+import { subscribeToLocations, type Location } from '../services/locationService.ts';
+import { useSectionTimer } from '../hooks/useSectionTimer.ts';
+import { resolveSectionTimerKey } from '../utils/sectionTimerKey.ts';
 import { InspectionPanel } from '../components/inspection/InspectionPanel.tsx';
 import { WorkspaceInspectionSummaryCards } from '../components/workspace/WorkspaceInspectionSummaryCards.tsx';
 import { ReplaceExtinguisherModal } from '../components/extinguisher/ReplaceExtinguisherModal.tsx';
@@ -116,6 +120,13 @@ export default function ExtinguisherDetail() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [noActiveWorkspace, setNoActiveWorkspace] = useState(false);
 
+  const {
+    activeSection: timerActiveSection,
+    startTimer,
+    getTotalTime,
+    formatTime,
+  } = useSectionTimer(orgId, activeWorkspaceId ?? '');
+
   // Workspace creation state (for one-click create)
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [wsCreateError, setWsCreateError] = useState<string | null>(null);
@@ -131,6 +142,7 @@ export default function ExtinguisherDetail() {
   const [history, setHistory] = useState<Inspection[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+  const [locations, setLocations] = useState<Location[]>([]);
 
   // Load extinguisher
   useEffect(() => {
@@ -206,6 +218,11 @@ export default function ExtinguisherDetail() {
     refreshHistory();
   }, [refreshHistory]);
 
+  useEffect(() => {
+    if (!orgId) return;
+    return subscribeToLocations(orgId, setLocations);
+  }, [orgId]);
+
   // Callback when InspectionPanel saves/resets
   const handleInspectionUpdated = useCallback(() => {
     loadInspection().catch(() => setInspection(null));
@@ -230,11 +247,33 @@ export default function ExtinguisherDetail() {
     navigate(returnTo);
   }
 
-  function handleInspectionSaved(status: 'pass' | 'fail') {
-    if (status === 'pass' || status === 'fail') {
+  const handleInspectionSaved = useCallback(
+    (status: 'pass' | 'fail') => {
+      if (status !== 'pass' && status !== 'fail') return;
+      if (
+        activeWorkspaceId &&
+        ext &&
+        canInspect &&
+        hasFeature(org?.featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan)
+      ) {
+        const key = resolveSectionTimerKey(ext, locations, inspection ?? null);
+        if (key) startTimer(key);
+      }
       navigate(returnTo);
-    }
-  }
+    },
+    [
+      activeWorkspaceId,
+      ext,
+      canInspect,
+      org?.featureFlags,
+      org?.plan,
+      locations,
+      inspection,
+      startTimer,
+      navigate,
+      returnTo,
+    ],
+  );
 
   async function handleCreateWorkspaceAndInspect() {
     if (!orgId) return;
@@ -487,6 +526,23 @@ export default function ExtinguisherDetail() {
               </a>.
             </p>
           </div>
+
+          {activeWorkspaceId &&
+            hasFeature(
+              org?.featureFlags as Record<string, boolean> | null | undefined,
+              'sectionTimeTracking',
+              org?.plan,
+            ) &&
+            timerActiveSection && (
+              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                <Clock className="h-4 w-4 shrink-0 text-amber-700" aria-hidden />
+                <span className="font-medium">Section timer</span>
+                <span className="text-amber-800">{timerActiveSection}</span>
+                <span className="font-mono tabular-nums text-amber-900">
+                  {formatTime(getTotalTime(timerActiveSection))}
+                </span>
+              </div>
+            )}
 
           {/* No active workspace — one-click create or permission message */}
           {noActiveWorkspace && !workspaceId && (

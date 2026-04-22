@@ -80,6 +80,10 @@ export default function PrivacyPage() {
                 <li>To detect, prevent, and address technical issues and security threats</li>
                 <li>To comply with legal obligations</li>
               </ul>
+              <p>
+                If AI assistant features are enabled for your plan, prompts and responses may be processed and stored to provide
+                the feature, improve response quality, and support operational troubleshooting.
+              </p>
             </Section>
 
             <Section num={4} title="Cookies and Tracking Technologies">

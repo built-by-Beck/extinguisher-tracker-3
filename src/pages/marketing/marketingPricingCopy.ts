@@ -44,9 +44,10 @@ export const marketingPlans: MarketingPlanCard[] = [
     priceLabel: formatPrice(basicPlan.monthlyPrice),
     priceDetail: 'per month',
     annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(basicPlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
-    blurb: 'Small sites that want to ditch paper and get faster checks.',
+    blurb: 'Small sites that want to ditch paper, speed up checks, and build a reliable workflow baseline.',
     bullets: [
       'Fast search by barcode',
+      'Section auto timer for route pace',
       'Placement & quantity calculator',
       'Easy inspection workflow',
       'Standard reports & history',
@@ -60,11 +61,11 @@ export const marketingPlans: MarketingPlanCard[] = [
     priceLabel: formatPrice(proPlan.monthlyPrice),
     priceDetail: 'per month',
     annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(proPlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
-    blurb: 'Growing teams that need lightning fast scanning and AI help.',
+    blurb: 'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
     bullets: [
       'Everything in Basic',
       'Fast phone camera scanning',
-      'AI Maintenance helper',
+      'AI Maintenance helper (NFPA 10, 2022 default)',
       'GPS & photo proof of work',
     ],
     ctaLabel: 'Get started',
@@ -77,7 +78,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     priceLabel: formatPrice(elitePlan.monthlyPrice),
     priceDetail: 'per month',
     annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(elitePlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
-    blurb: 'Large programs that need advanced data tools and priority help.',
+    blurb: 'Large programs that need advanced data tools, AI-supported operations, and priority help.',
     bullets: [
       'Everything in Pro',
       'Advanced data cleanup tools',
@@ -92,10 +93,10 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Enterprise',
     priceLabel: 'Custom',
     priceDetail: 'volume, security, and procurement',
-    blurb: 'For the biggest portfolios with full support and custom setup.',
+    blurb: 'For the biggest portfolios with full support, custom setup, and edition-aware compliance operations.',
     bullets: [
       'Everything in Elite',
-      'Full AI & data recovery',
+      'Full AI, timer insights, and data recovery',
       'Dedicated setup and help',
       'Unlimited extinguishers',
     ],
@@ -110,6 +111,10 @@ export const marketingFaq: MarketingFaqItem[] = [
   {
     q: 'Does this replace our paper binders or spreadsheets?',
     a: 'It gives you a single system of record for extinguishers, inspections, and history. Teams still follow your internal procedures; the software organizes the work and the evidence.',
+  },
+  {
+    q: 'Can AI answer NFPA questions while my team is working?',
+    a: 'Yes. Pro, Elite, and Enterprise include in-app AI assistance for maintenance and compliance questions so teams do not need to leave the workflow. AI guidance uses NFPA 10 (2022) by default, and your organization should align to its locally adopted edition.',
   },
   {
     q: 'Who is the typical buyer?',

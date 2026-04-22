@@ -20,7 +20,7 @@ const steps = [
   {
     step: 3,
     title: 'Perform inspections on a defined rhythm',
-    body: 'Use workspaces and inspection flows to complete routes, capture outcomes, and keep work tied to the correct assets.',
+    body: 'Use workspaces, inspection flows, and section auto timers to complete routes on pace and keep work tied to the correct assets.',
     icon: ClipboardList,
   },
   {
@@ -38,7 +38,7 @@ const steps = [
   {
     step: 6,
     title: 'Optimize and Scale with AI',
-    body: 'Use our AI Maintenance Assistant for NFPA 10 guidance and the Placement Calculator to ensure your facility has perfect coverage as you grow.',
+    body: 'Use the AI Maintenance Assistant for in-app NFPA 10 guidance (2022 default), quick inventory questions, and operational note recall while you work.',
     icon: Bot,
   },
 ] as const;
@@ -54,8 +54,8 @@ export default function MarketingHowItWorksPage() {
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">How it works</h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
-              A straightforward path from setup to sustained operations. Your exact screens and entitlements depend on
-              your plan and configuration inside the app.
+              A straightforward path from setup to sustained operations with AI support, auto timer pacing, and audit-ready records.
+              Your exact screens and entitlements depend on your plan and configuration inside the app.
             </p>
           </div>
         </div>
@@ -79,6 +79,10 @@ export default function MarketingHowItWorksPage() {
               </li>
             ))}
           </ol>
+          <p className="mt-8 max-w-3xl text-sm text-gray-500">
+            AI responses use NFPA 10 (2022) by default. Because jurisdictions and organizations may adopt different editions,
+            your team should confirm final decisions against your adopted standard.
+          </p>
 
           <div className="mt-14 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
             <Link

@@ -37,6 +37,14 @@ const ext1: Extinguisher = {
   locationId: 'floor1',
 } as Extinguisher;
 
+const ext2: Extinguisher = {
+  id: 'ext2',
+  assetId: 'FE-002',
+  serial: 'S2',
+  section: '',
+  locationId: 'floor1',
+} as Extinguisher;
+
 function insp(partial: Partial<Inspection> & Pick<Inspection, 'id' | 'extinguisherId' | 'status'>): Inspection {
   return {
     workspaceId: 'ws1',
@@ -112,5 +120,50 @@ describe('buildLocationStatsMap vs collectInspectionRowsForScope', () => {
     });
     expect(scopeRows).toHaveLength(1);
     expect(scopeRows[0]!.status).toBe('pass');
+  });
+
+  it('keeps "not yet inspected" aligned with scoped rows when some extinguishers have no inspection doc', () => {
+    const inspections: Inspection[] = [
+      insp({
+        id: 'done-old',
+        extinguisherId: 'ext1',
+        status: 'pass',
+        updatedAt: { seconds: 10, nanoseconds: 0 } as unknown,
+      }),
+      insp({
+        id: 'done-new',
+        extinguisherId: 'ext1',
+        status: 'pass',
+        updatedAt: { seconds: 20, nanoseconds: 0 } as unknown,
+      }),
+      // ext2 has no inspection doc yet and should count as pending via dummy row
+    ];
+    const extinguishers = [ext1, ext2];
+    const hasLocationIdData = detectHasLocationIdData(inspections, extinguishers);
+    const map = buildLocationStatsMap({
+      inspections,
+      extinguishers,
+      locations: [locFloor],
+      isArchived: false,
+      hasLocationIdData,
+    });
+    const agg = sumAllBucketStats(map);
+    expect(agg.total).toBe(2);
+    expect(agg.passed).toBe(1);
+    expect(agg.failed).toBe(0);
+    expect(agg.pending).toBe(1);
+
+    const rows = collectInspectionRowsForScope({
+      extinguishers,
+      inspections,
+      workspaceId: 'ws1',
+      isArchived: false,
+      hasLocationIdData,
+      locations: [locFloor],
+      anchorLocationId: null,
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows.filter((r) => r.status === 'pending')).toHaveLength(1);
+    expect(rows.filter((r) => r.status === 'pass')).toHaveLength(1);
   });
 });
