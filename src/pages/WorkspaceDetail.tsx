@@ -87,6 +87,7 @@ import {
   sortInspectionsByMode,
   type InspectionSortMode,
 } from '../utils/inspectionSorting.ts';
+import { resolveSectionTimerKey } from '../utils/sectionTimerKey.ts';
 
 type PendingScopeViewMode = 'grouped' | 'table';
 
@@ -268,6 +269,7 @@ export default function WorkspaceDetail() {
   const orgId = userProfile?.activeOrgId ?? '';
   const featureFlags = org?.featureFlags;
   const canEdit = hasRole(['owner', 'admin']);
+  const canInspect = hasRole(['owner', 'admin', 'inspector']);
   const { isOnline } = useOffline();
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -890,6 +892,14 @@ export default function WorkspaceDetail() {
   }, [drillDown.isLeaf, drillDown.currentLocation, locations]);
 
   function handleExtinguisherFound(ext: Extinguisher) {
+    if (
+      !isArchived &&
+      canInspect &&
+      hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan)
+    ) {
+      const key = resolveSectionTimerKey(ext, locations);
+      if (key) startTimer(key);
+    }
     if (ext.id) {
       navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${ext.id}`, { state: { returnTo } });
     }
