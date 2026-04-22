@@ -659,6 +659,36 @@ export default function WorkspaceDetail() {
   /** Stats for the scope card row (matches current drill level). */
   const scopeCardStats = currentViewStats;
 
+  /** Pending-only rows for the current drill scope (used for location breakdown regardless of active scope card). */
+  const pendingScopeListRows = useMemo(() => {
+    if (drillDown.isLeaf || showUnassigned || showDeleted || !workspaceId) {
+      return [] as Inspection[];
+    }
+    const anchor = drillDown.isRoot ? null : drillDown.currentLocationId;
+    const base = collectInspectionRowsForScope({
+      extinguishers,
+      inspections,
+      workspaceId,
+      isArchived: !!isArchived,
+      hasLocationIdData,
+      locations,
+      anchorLocationId: anchor,
+    });
+    return filterRowsByStatusList(base, 'pending');
+  }, [
+    drillDown.isLeaf,
+    drillDown.isRoot,
+    drillDown.currentLocationId,
+    showUnassigned,
+    showDeleted,
+    workspaceId,
+    extinguishers,
+    inspections,
+    isArchived,
+    hasLocationIdData,
+    locations,
+  ]);
+
   const scopeListRows = useMemo(() => {
     if (
       drillDown.isLeaf ||
@@ -713,12 +743,11 @@ export default function WorkspaceDetail() {
   }, [locations]);
 
   const groupedPendingScopeRows = useMemo(() => {
-    if (scopeListFilter !== 'pending') return [];
     const groups = new Map<
       string,
       { key: string; label: string; orderKey: string; inspections: Inspection[] }
     >();
-    for (const insp of scopeListRows) {
+    for (const insp of pendingScopeListRows) {
       const key = insp.locationId ?? '__unassigned__';
       let group = groups.get(key);
       if (!group) {
@@ -740,7 +769,7 @@ export default function WorkspaceDetail() {
         (a, b) => cmpNatural(norm(a.assetId), norm(b.assetId)) * dir,
       ),
     }));
-  }, [scopeListFilter, scopeListRows, locationById, pendingGroupedAssetDir]);
+  }, [pendingScopeListRows, locationById, pendingGroupedAssetDir]);
 
   const visibleGroupedPendingScopeRows = useMemo(() => {
     if (pendingGroupedLocationFilter === 'all') return groupedPendingScopeRows;
@@ -785,6 +814,13 @@ export default function WorkspaceDetail() {
       return;
     }
     setScopeListFilter((prev) => (prev === filter ? null : filter));
+  }
+
+  /** Jump to the not-yet-inspected list for one location (or all), from the breakdown under the scope cards. */
+  function selectPendingLocationBreakdown(locKey: 'all' | string) {
+    setScopeListFilter('pending');
+    setPendingScopeViewMode('grouped');
+    setPendingGroupedLocationFilter(locKey);
   }
 
   useEffect(() => {
@@ -1220,6 +1256,53 @@ export default function WorkspaceDetail() {
               activeFilter={drillDown.isLeaf ? leafCardActiveFilter : scopeListFilter}
               onSelectFilter={handleScopeCardSelect}
             />
+            {!drillDown.isLeaf && groupedPendingScopeRows.length > 0 && (
+              <div className="mt-4 rounded-lg border border-amber-200/80 bg-amber-50/50 px-3 py-3 sm:px-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-900/90">
+                  Not yet inspected — by location
+                </p>
+                <p className="mb-2.5 text-xs text-amber-950/80">
+                  The amber card above is the total still to check in this view (including all sub-locations). Tap a
+                  location to show only those extinguishers in the list below.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => selectPendingLocationBreakdown('all')}
+                    className={`rounded-lg border px-3 py-1.5 text-left text-sm font-medium transition ${
+                      scopeListFilter === 'pending' && pendingGroupedLocationFilter === 'all'
+                        ? 'border-amber-600 bg-amber-200/90 text-amber-950 ring-2 ring-amber-400/60'
+                        : 'border-amber-300/80 bg-white text-amber-950 hover:border-amber-500'
+                    }`}
+                  >
+                    All locations
+                    <span className="ml-1.5 tabular-nums text-amber-900/90">({pendingScopeListRows.length})</span>
+                  </button>
+                  {groupedPendingScopeRows.map((group) => {
+                    const selected =
+                      scopeListFilter === 'pending' && pendingGroupedLocationFilter === group.key;
+                    return (
+                      <button
+                        key={group.key}
+                        type="button"
+                        onClick={() => selectPendingLocationBreakdown(group.key)}
+                        title={group.label}
+                        className={`max-w-full rounded-lg border px-3 py-1.5 text-left text-sm font-medium transition ${
+                          selected
+                            ? 'border-amber-600 bg-amber-200/90 text-amber-950 ring-2 ring-amber-400/60'
+                            : 'border-amber-300/80 bg-white text-amber-950 hover:border-amber-500'
+                        }`}
+                      >
+                        <span className="line-clamp-2 sm:line-clamp-1">{group.label}</span>
+                        <span className="ml-1.5 tabular-nums text-amber-900/90">
+                          ({group.inspections.length})
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
