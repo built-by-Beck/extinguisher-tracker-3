@@ -46,7 +46,7 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
             <NavLink to="/pricing" className={navLinkClass}>
               Pricing
             </NavLink>
-            <NavLink to="/how-it-works" className={navLinkClass}>
+            <NavLink to="/how-it-works" className={(props) => `${navLinkClass(props)} whitespace-nowrap`}>
               How it works
             </NavLink>
             <NavLink to="/getting-started" className={navLinkClass}>
@@ -57,7 +57,7 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
             </NavLink>
             <Link
               to="/login"
-              className="text-base font-semibold text-gray-700 hover:text-red-600"
+              className="whitespace-nowrap text-base font-semibold text-gray-700 hover:text-red-600"
             >
               Sign in
             </Link>
