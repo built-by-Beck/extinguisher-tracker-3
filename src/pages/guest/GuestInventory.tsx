@@ -13,6 +13,7 @@ import {
   type Extinguisher,
 } from '../../services/extinguisherService.ts';
 import { ComplianceStatusBadge } from '../../components/compliance/ComplianceStatusBadge.tsx';
+import { getComplianceLabel } from '../../utils/compliance.ts';
 
 const PAGE_SIZE = 25;
 
@@ -116,9 +117,9 @@ export default function GuestInventory() {
           onChange={(e) => { setComplianceFilter(e.target.value); handleFilterChange(); }}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
         >
-          <option value="">All Compliance</option>
+          <option value="">All maintenance</option>
           {complianceStatuses.map((s) => (
-            <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+            <option key={s} value={s}>{getComplianceLabel(s)}</option>
           ))}
         </select>
       </div>
@@ -134,7 +135,7 @@ export default function GuestInventory() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Category</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Location</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Section</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Compliance</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Maintenance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

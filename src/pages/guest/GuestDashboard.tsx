@@ -131,7 +131,7 @@ export default function GuestDashboard() {
           color="bg-blue-500"
         />
         <StatCard
-          label="Compliant Assets"
+          label="On schedule (maintenance)"
           value={`${complianceCounts.compliant} / ${complianceCounts.total}`}
           icon={ShieldCheck}
           color="bg-green-500"
@@ -141,13 +141,13 @@ export default function GuestDashboard() {
       {/* Compliance overview */}
       {activeExts.length > 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Compliance Overview</h2>
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Maintenance schedule overview</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="flex items-center gap-3 rounded-lg bg-green-50 p-4">
               <ShieldCheck className="h-8 w-8 text-green-600" />
               <div>
                 <p className="text-2xl font-bold text-green-700">{complianceCounts.compliant}</p>
-                <p className="text-sm text-green-600">Compliant</p>
+                <p className="text-sm text-green-600">On schedule</p>
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-lg bg-amber-50 p-4">

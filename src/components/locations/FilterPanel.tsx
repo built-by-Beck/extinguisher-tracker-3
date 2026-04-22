@@ -71,7 +71,7 @@ const CATEGORY_OPTIONS = [
 ];
 
 const COMPLIANCE_OPTIONS = [
-  { value: 'compliant', label: 'Compliant' },
+  { value: 'compliant', label: 'On schedule' },
   { value: 'monthly_due', label: 'Monthly Due' },
   { value: 'annual_due', label: 'Annual Due' },
   { value: 'six_year_due', label: 'Six-Year Due' },

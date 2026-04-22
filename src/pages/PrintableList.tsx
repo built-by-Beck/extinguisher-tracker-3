@@ -15,6 +15,7 @@ import {
   subscribeToExtinguishers,
   type Extinguisher,
 } from '../services/extinguisherService.ts';
+import { getComplianceLabel } from '../utils/compliance.ts';
 
 function formatDate(d: unknown): string {
   if (!d) return '';
@@ -53,7 +54,7 @@ function toPrintRow(ext: Extinguisher): PrintRow {
     serial: ext.serial || '',
     location: locationParts.join(' > ') || '',
     category: ext.category || '',
-    status: (ext.complianceStatus || ext.category || '').toUpperCase(),
+    status: (ext.complianceStatus ? getComplianceLabel(ext.complianceStatus) : ext.category || '').toUpperCase(),
     mfgYear: ext.manufactureYear != null ? String(ext.manufactureYear) : '',
     expYear: ext.expirationYear != null ? String(ext.expirationYear) : '',
     lastInspection: formatDate(ext.lastMonthlyInspection),

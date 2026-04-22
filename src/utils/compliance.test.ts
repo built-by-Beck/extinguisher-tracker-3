@@ -8,7 +8,7 @@ import {
 
 describe('getComplianceLabel', () => {
   it('maps known statuses to labels', () => {
-    expect(getComplianceLabel('compliant')).toBe('Compliant');
+    expect(getComplianceLabel('compliant')).toBe('On schedule');
     expect(getComplianceLabel('overdue')).toBe('Overdue');
     expect(getComplianceLabel('monthly_due')).toBe('Monthly Due');
     expect(getComplianceLabel('six_year_due')).toBe('Six-Year Due');
