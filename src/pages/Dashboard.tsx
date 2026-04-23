@@ -9,7 +9,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
-  ClipboardList,
   ListChecks,
   Users,
   Flame,
@@ -165,7 +164,7 @@ export default function Dashboard() {
 
   const inspectionScopeStats = useMemo(() => {
     if (!activeWorkspace?.id) {
-      return { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+      return { total: 0, passed: 0, failed: 0, pending: 0, replaced: 0, percentage: 0 };
     }
     const hasLocationIdData = detectHasLocationIdData(dashInspections, allExtinguishers);
     const map = buildLocationStatsMap({
@@ -178,7 +177,8 @@ export default function Dashboard() {
     return sumAllBucketStats(map);
   }, [activeWorkspace?.id, dashInspections, allExtinguishers, dashLocations]);
 
-  const checkedInspectionCount = inspectionScopeStats.passed + inspectionScopeStats.failed;
+  const checkedInspectionCount =
+    inspectionScopeStats.passed + inspectionScopeStats.failed + (inspectionScopeStats.replaced ?? 0);
 
   // Category counts
   const spareCount = allExtinguishers.filter((e) => e.category === 'spare').length;
@@ -346,13 +346,13 @@ export default function Dashboard() {
           onClick={() => navigate('/dashboard/inventory')}
         />
         <StatCard
-          label="Not yet inspected"
-          value={activeWorkspace ? Math.max(0, inspectionScopeStats.pending).toString() : '--'}
-          icon={ClipboardList}
-          color="bg-amber-500"
+          label="Total Compliant Extinguishers"
+          value={activeWorkspace ? Math.max(0, inspectionScopeStats.passed).toString() : '--'}
+          icon={CheckCircle2}
+          color="bg-green-500"
           onClick={() =>
             activeWorkspace
-              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}?status=pending`)
+              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}?status=pass`)
               : navigate('/dashboard/workspaces')
           }
         />

@@ -308,15 +308,19 @@ export default function Inventory() {
   // Client-side filtering with enhanced location search
   const filtered = useMemo(() => {
     return items.filter((ext) => {
+      const isReplacedRecord = ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
       if (categoryFilter) {
         // Backward-compatible "Replaced" filter:
         // - canonical source: lifecycleStatus === 'replaced'
         // - legacy fallback: category === 'replaced'
         if (categoryFilter === 'replaced') {
-          if (ext.lifecycleStatus !== 'replaced' && ext.category !== 'replaced') return false;
+          if (!isReplacedRecord) return false;
         } else if (ext.category !== categoryFilter) {
           return false;
         }
+      } else if (isReplacedRecord) {
+        // Keep replaced legacy records out of normal active inventory lists.
+        return false;
       }
       if (locationFilter) {
         if (ext.locationId !== locationFilter) return false;
@@ -405,6 +409,10 @@ export default function Inventory() {
     let failed = 0;
     let unchecked = 0;
     for (const ext of sorted) {
+      if (ext.lifecycleStatus === 'replaced' || ext.category === 'replaced') {
+        passed += 1;
+        continue;
+      }
       if (!ext.id) {
         unchecked += 1;
         continue;

@@ -1,16 +1,18 @@
 /**
- * Clickable stat cards for workspace inspection scope (pending / checked / pass / fail).
+ * Clickable stat cards for workspace inspection scope (checked / pass / fail / replaced).
  *
  * Author: built_by_Beck
  */
 
-import { ClipboardList, ListChecks, CheckCircle2, XCircle } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { ListChecks, CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 import type { WorkspaceInspectionBucketStats } from '../../utils/workspaceInspectionStats.ts';
 
-export type WorkspaceScopeCardFilter = 'pending' | 'checked' | 'pass' | 'fail';
+export type WorkspaceScopeCardFilter = 'pending' | 'checked' | 'pass' | 'fail' | 'replaced';
 
 interface WorkspaceInspectionScopeCardsProps {
   stats: WorkspaceInspectionBucketStats;
+  replacedTotal?: number;
   /** Highlight when this filter is active (non-leaf list or leaf filter mode). */
   activeFilter?: WorkspaceScopeCardFilter | null;
   onSelectFilter: (filter: WorkspaceScopeCardFilter | null) => void;
@@ -27,7 +29,7 @@ function Card({
 }: {
   label: string;
   value: string;
-  icon: typeof ClipboardList;
+  icon: LucideIcon;
   color: string;
   selected: boolean;
   onClick: () => void;
@@ -57,22 +59,15 @@ function Card({
 
 export function WorkspaceInspectionScopeCards({
   stats,
+  replacedTotal,
   activeFilter,
   onSelectFilter,
   className = '',
 }: WorkspaceInspectionScopeCardsProps) {
-  const checked = stats.passed + stats.failed;
+  const checked = stats.passed + stats.failed + Math.max(0, stats.replaced ?? 0);
 
   return (
     <div className={`grid grid-cols-2 gap-3 lg:grid-cols-4 ${className}`}>
-      <Card
-        label="Not yet inspected"
-        value={String(Math.max(0, stats.pending))}
-        icon={ClipboardList}
-        color="bg-amber-500"
-        selected={activeFilter === 'pending'}
-        onClick={() => onSelectFilter(activeFilter === 'pending' ? null : 'pending')}
-      />
       <Card
         label="Already checked"
         value={String(Math.max(0, checked))}
@@ -96,6 +91,14 @@ export function WorkspaceInspectionScopeCards({
         color="bg-red-600"
         selected={activeFilter === 'fail'}
         onClick={() => onSelectFilter(activeFilter === 'fail' ? null : 'fail')}
+      />
+      <Card
+        label="Replaced"
+        value={String(Math.max(0, replacedTotal ?? stats.replaced ?? 0))}
+        icon={RefreshCw}
+        color="bg-orange-500"
+        selected={activeFilter === 'replaced'}
+        onClick={() => onSelectFilter(activeFilter === 'replaced' ? null : 'replaced')}
       />
     </div>
   );

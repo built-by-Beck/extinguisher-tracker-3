@@ -53,7 +53,12 @@ export interface WorkspaceInspectionBucketStats {
   passed: number;
   failed: number;
   pending: number;
+  replaced: number;
   percentage: number;
+}
+
+function isReplacedExtinguisher(ext: Extinguisher): boolean {
+  return ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
 }
 
 export function detectHasLocationIdData(
@@ -75,7 +80,7 @@ export function buildLocationStatsMap(params: {
 
   function getStats(id: string): WorkspaceInspectionBucketStats {
     if (!map.has(id)) {
-      map.set(id, { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 });
+      map.set(id, { total: 0, passed: 0, failed: 0, pending: 0, replaced: 0, percentage: 0 });
     }
     return map.get(id)!;
   }
@@ -85,6 +90,10 @@ export function buildLocationStatsMap(params: {
       const trackedExtIds = new Set<string>();
       for (const ext of extinguishers) {
         const locId = ext.locationId || '__unassigned__';
+        if (isReplacedExtinguisher(ext)) {
+          getStats(locId).replaced += 1;
+          continue;
+        }
         const stats = getStats(locId);
         stats.total += 1;
         stats.pending += 1;
@@ -118,6 +127,7 @@ export function buildLocationStatsMap(params: {
         stats.total += 1;
         if (insp.status === 'pass') stats.passed += 1;
         else if (insp.status === 'fail') stats.failed += 1;
+        else if (insp.status === 'replaced') stats.replaced += 1;
         else stats.pending += 1;
       }
     }
@@ -131,6 +141,10 @@ export function buildLocationStatsMap(params: {
       const trackedExtIdsLegacy = new Set<string>();
       for (const ext of extinguishers) {
         const locId = nameToId.get(ext.section) ?? '__unassigned__';
+        if (isReplacedExtinguisher(ext)) {
+          getStats(locId).replaced += 1;
+          continue;
+        }
         const stats = getStats(locId);
         stats.total += 1;
         stats.pending += 1;
@@ -162,6 +176,7 @@ export function buildLocationStatsMap(params: {
         stats.total += 1;
         if (insp.status === 'pass') stats.passed += 1;
         else if (insp.status === 'fail') stats.failed += 1;
+        else if (insp.status === 'replaced') stats.replaced += 1;
         else stats.pending += 1;
       }
     }
@@ -169,21 +184,22 @@ export function buildLocationStatsMap(params: {
 
   for (const stats of map.values()) {
     stats.percentage =
-      stats.total > 0 ? Math.round(((stats.passed + stats.failed) / stats.total) * 100) : 0;
+      stats.total > 0 ? Math.round(((stats.passed + stats.failed + stats.replaced) / stats.total) * 100) : 0;
   }
 
   return map;
 }
 
 export function sumAllBucketStats(map: Map<string, WorkspaceInspectionBucketStats>): WorkspaceInspectionBucketStats {
-  const agg: WorkspaceInspectionBucketStats = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+  const agg: WorkspaceInspectionBucketStats = { total: 0, passed: 0, failed: 0, pending: 0, replaced: 0, percentage: 0 };
   for (const stats of map.values()) {
     agg.total += stats.total;
     agg.passed += stats.passed;
     agg.failed += stats.failed;
     agg.pending += stats.pending;
+    agg.replaced += stats.replaced;
   }
-  agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed) / agg.total) * 100) : 0;
+  agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed + agg.replaced) / agg.total) * 100) : 0;
   return agg;
 }
 
@@ -194,7 +210,7 @@ export function aggregateStatsForLocationSubtree(
 ): WorkspaceInspectionBucketStats {
   const descendants = getAllDescendantIds(locations, locationId);
   const allIds = [locationId, ...descendants];
-  const agg: WorkspaceInspectionBucketStats = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+  const agg: WorkspaceInspectionBucketStats = { total: 0, passed: 0, failed: 0, pending: 0, replaced: 0, percentage: 0 };
   for (const id of allIds) {
     const stats = map.get(id);
     if (stats) {
@@ -202,9 +218,10 @@ export function aggregateStatsForLocationSubtree(
       agg.passed += stats.passed;
       agg.failed += stats.failed;
       agg.pending += stats.pending;
+      agg.replaced += stats.replaced;
     }
   }
-  agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed) / agg.total) * 100) : 0;
+  agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed + agg.replaced) / agg.total) * 100) : 0;
   return agg;
 }
 
@@ -255,7 +272,8 @@ export function collectInspectionRowsForScope(params: {
 
   const combined: Inspection[] = [];
   const handledExtIds = new Set<string>();
-  const trackedExtIds = new Set(extinguishers.map((e) => e.id!));
+  const trackableExtinguishers = extinguishers.filter((e) => !isReplacedExtinguisher(e));
+  const trackedExtIds = new Set(trackableExtinguishers.map((e) => e.id!));
 
   if (isArchived) {
     let relevant: Set<string> | null = null;
@@ -287,7 +305,7 @@ export function collectInspectionRowsForScope(params: {
         combined.push(insp);
         if (!isOrphaned) handledExtIds.add(insp.extinguisherId);
       }
-      for (const ext of extinguishers) {
+      for (const ext of trackableExtinguishers) {
         if (!handledExtIds.has(ext.id!)) {
           combined.push(dummyInspection(ext, workspaceId));
         }
@@ -296,7 +314,7 @@ export function collectInspectionRowsForScope(params: {
       const relevantLocIds = getAllDescendantIds(locations, anchorLocationId);
       relevantLocIds.add(anchorLocationId);
       const extMap = new Map<string, Extinguisher>();
-      for (const ext of extinguishers) {
+      for (const ext of trackableExtinguishers) {
         const extLocId = ext.locationId || '__unassigned__';
         if (relevantLocIds.has(extLocId)) {
           extMap.set(ext.id!, ext);
@@ -324,7 +342,7 @@ export function collectInspectionRowsForScope(params: {
     for (const loc of locations) {
       nameToId.set(loc.name, loc.id!);
     }
-    const trackedLegacy = new Set(extinguishers.map((e) => e.id!));
+    const trackedLegacy = new Set(trackableExtinguishers.map((e) => e.id!));
 
     let relevantLocIds: Set<string>;
     if (anchorLocationId !== null) {
@@ -337,7 +355,7 @@ export function collectInspectionRowsForScope(params: {
     }
 
     const extMap = new Map<string, Extinguisher>();
-    for (const ext of extinguishers) {
+    for (const ext of trackableExtinguishers) {
       const locId = nameToId.get(ext.section) ?? '__unassigned__';
       if (relevantLocIds.has(locId)) {
         extMap.set(ext.id!, ext);
@@ -351,7 +369,7 @@ export function collectInspectionRowsForScope(params: {
         combined.push(insp);
         if (!isOrphaned) handledExtIds.add(insp.extinguisherId);
       }
-      const dummySource = extinguishers.filter((e) => trackedLegacy.has(e.id!));
+      const dummySource = trackableExtinguishers.filter((e) => trackedLegacy.has(e.id!));
       for (const ext of dummySource) {
         if (!handledExtIds.has(ext.id!)) {
           combined.push(dummyInspection(ext, workspaceId));
@@ -383,10 +401,10 @@ export function collectInspectionRowsForScope(params: {
 
 export function filterRowsByStatusList(
   rows: Inspection[],
-  filter: 'pending' | 'pass' | 'fail' | 'checked',
+  filter: 'pending' | 'pass' | 'fail' | 'replaced' | 'checked',
 ): Inspection[] {
   if (filter === 'checked') {
-    return rows.filter((r) => r.status === 'pass' || r.status === 'fail');
+    return rows.filter((r) => r.status === 'pass' || r.status === 'fail' || r.status === 'replaced');
   }
   return rows.filter((r) => r.status === filter);
 }

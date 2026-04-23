@@ -14,6 +14,7 @@ export interface WorkspaceStats {
   passed: number;
   failed: number;
   pending: number;
+  replaced?: number;
   lastUpdated: unknown;
 }
 

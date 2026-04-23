@@ -116,7 +116,7 @@ export interface Inspection {
   section: string;
   serial?: string;
   locationId: string | null;
-  status: string; // pending, pass, fail
+  status: 'pending' | 'pass' | 'fail' | 'replaced' | string;
   isExpired?: boolean;
   inspectedAt: unknown | null;
   inspectedBy: string | null;

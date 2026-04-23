@@ -24,6 +24,7 @@ import {
   Search,
   Loader2,
   FileText,
+  RefreshCw,
   WifiOff,
   MapPin,
   ChevronLeft,
@@ -53,7 +54,7 @@ import {
   getCachedInspectionsForWorkspace,
   getCachedWorkspace,
 } from '../services/offlineCacheService.ts';
-import { subscribeToLocations, type Location } from '../services/locationService.ts';
+import { subscribeToLocations, getAllDescendantIds, type Location } from '../services/locationService.ts';
 import { useLocationDrillDown } from '../hooks/useLocationDrillDown.ts';
 import { LocationCard, type LocationCardStats } from '../components/locations/LocationCard.tsx';
 import { WorkspaceInspectionScopeCards } from '../components/workspace/WorkspaceInspectionScopeCards.tsx';
@@ -109,13 +110,14 @@ function serializeWorkspaceQuery(sp: URLSearchParams): string {
 
 function parseScopeListFilterFromSearch(sp: URLSearchParams): WorkspaceScopeCardFilter | null {
   const v = sp.get(WS_Q_SCOPE) ?? sp.get('status');
-  if (v === 'pending' || v === 'checked' || v === 'pass' || v === 'fail') return v;
+  if (v === 'pending' || v === 'checked' || v === 'pass' || v === 'fail' || v === 'replaced') return v;
   return null;
 }
 
-function parseLeafTabFromSearch(sp: URLSearchParams): 'pending' | 'passed' | 'failed' {
+function parseLeafTabFromSearch(sp: URLSearchParams): 'pending' | 'passed' | 'failed' | 'replaced' {
   const v = sp.get(WS_Q_LEAF);
   if (v === 'passed' || v === 'failed') return v;
+  if (v === 'replaced') return v;
   if (v === 'checked') return 'pending';
   return 'pending';
 }
@@ -129,7 +131,7 @@ function buildWorkspaceViewSearchParams(
     showUnassigned: boolean;
     showDeleted: boolean;
     scopeListFilter: WorkspaceScopeCardFilter | null;
-    leafStatusTab: 'pending' | 'passed' | 'failed';
+    leafStatusTab: 'pending' | 'passed' | 'failed' | 'replaced';
     pendingScopeViewMode: PendingScopeViewMode;
     pendingGroupedLocationFilter: string;
   },
@@ -172,6 +174,7 @@ const EMPTY_WORKSPACE_STATS: WorkspaceStats = {
   passed: 0,
   failed: 0,
   pending: 0,
+  replaced: 0,
   lastUpdated: null,
 };
 
@@ -241,18 +244,97 @@ interface LeafExtinguisherTableProps {
   navigate: NavigateFunction;
 }
 
+interface ReplacedPairRow {
+  oldExt: Extinguisher;
+  newExt: Extinguisher | null;
+}
+
+function toDisplay(v: unknown): string {
+  const s = (v ?? '').toString().trim();
+  return s || '--';
+}
+
+function ReplacedPairTable({
+  rows,
+  workspaceId,
+  returnTo,
+  navigate,
+}: {
+  rows: ReplacedPairRow[];
+  workspaceId: string;
+  returnTo: string;
+  navigate: NavigateFunction;
+}) {
+  return (
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <div key={row.oldExt.id} className="rounded-lg border border-orange-200 bg-orange-50/30 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Replaced
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                row.oldExt.id &&
+                navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${row.oldExt.id}`, { state: { returnTo } })
+              }
+              className="text-xs font-semibold text-orange-700 hover:text-orange-900"
+            >
+              Open old unit
+            </button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-lg border border-orange-200 bg-white p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-orange-700">Old extinguisher</p>
+              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Asset:</span> {toDisplay(row.oldExt.assetId)}</p>
+              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Serial:</span> {toDisplay(row.oldExt.serial)}</p>
+              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Type:</span> {toDisplay(row.oldExt.extinguisherType)}</p>
+              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Size:</span> {toDisplay(row.oldExt.extinguisherSize)}</p>
+              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Location:</span> {toDisplay(row.oldExt.vicinity || row.oldExt.section || row.oldExt.parentLocation)}</p>
+            </div>
+            <div className="rounded-lg border border-green-200 bg-white p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-green-700">New extinguisher</p>
+              {row.newExt ? (
+                <>
+                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Asset:</span> {toDisplay(row.newExt.assetId)}</p>
+                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Serial:</span> {toDisplay(row.newExt.serial)}</p>
+                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Type:</span> {toDisplay(row.newExt.extinguisherType)}</p>
+                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Size:</span> {toDisplay(row.newExt.extinguisherSize)}</p>
+                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Location:</span> {toDisplay(row.newExt.vicinity || row.newExt.section || row.newExt.parentLocation)}</p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      row.newExt?.id &&
+                      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${row.newExt.id}`, { state: { returnTo } })
+                    }
+                    className="mt-2 text-xs font-semibold text-green-700 hover:text-green-900"
+                  >
+                    Open new unit
+                  </button>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">New replacement unit not found.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ScopeStatusCards({
   passed,
   failed,
-  unchecked,
 }: {
   passed: number;
   failed: number;
-  unchecked: number;
 }) {
   const checked = passed + failed;
   return (
-    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+    <div className="mt-4 grid gap-3 sm:grid-cols-1">
       <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Checked</p>
         <p className="mt-1 text-2xl font-bold text-blue-950">{checked}</p>
@@ -266,10 +348,6 @@ function ScopeStatusCards({
             <p className="text-lg font-semibold text-red-900">{failed}</p>
           </div>
         </div>
-      </div>
-      <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Not yet inspected</p>
-        <p className="mt-1 text-2xl font-bold text-amber-950">{unchecked}</p>
       </div>
     </div>
   );
@@ -367,7 +445,8 @@ export default function WorkspaceDetail() {
     if (statusParam === 'checked') {
       initial.statuses.add('pass');
       initial.statuses.add('fail');
-    } else if (statusParam && ['pass', 'fail', 'pending'].includes(statusParam)) {
+      initial.statuses.add('replaced');
+    } else if (statusParam && ['pass', 'fail', 'pending', 'replaced'].includes(statusParam)) {
       initial.statuses.add(statusParam);
     }
     return initial;
@@ -397,7 +476,7 @@ export default function WorkspaceDetail() {
     parseScopeListFilterFromSearch(searchParams),
   );
   /** Leaf: single logical list, viewed by status (pending / passed / failed). */
-  const [leafStatusTab, setLeafStatusTab] = useState<'pending' | 'passed' | 'failed'>(() =>
+  const [leafStatusTab, setLeafStatusTab] = useState<'pending' | 'passed' | 'failed' | 'replaced'>(() =>
     parseLeafTabFromSearch(searchParams),
   );
 
@@ -639,9 +718,10 @@ export default function WorkspaceDetail() {
         const passed = Math.max(0, Number(wsStats.passed ?? 0));
         const failed = Math.max(0, Number(wsStats.failed ?? 0));
         const pending = Math.max(0, Number(wsStats.pending ?? 0));
-        const looksInitialized = total > 0 || passed > 0 || failed > 0 || pending > 0;
+        const replaced = Math.max(0, Number((wsStats as WorkspaceStats & { replaced?: number }).replaced ?? 0));
+        const looksInitialized = total > 0 || passed > 0 || failed > 0 || pending > 0 || replaced > 0;
         if (looksInitialized) {
-          return { total, passed, failed, pending, percentage: derived.percentage };
+          return { total, passed, failed, pending, replaced, percentage: derived.percentage };
         }
       }
       return derived;
@@ -742,6 +822,39 @@ export default function WorkspaceDetail() {
     return m;
   }, [locations]);
 
+  const replacedRowsForCurrentScope = useMemo(() => {
+    if (showUnassigned || showDeleted) return [] as ReplacedPairRow[];
+    const relevantLocIds =
+      drillDown.isRoot || !drillDown.currentLocationId
+        ? null
+        : (() => {
+            const ids = getAllDescendantIds(locations, drillDown.currentLocationId!);
+            ids.add(drillDown.currentLocationId!);
+            return ids;
+          })();
+    const extById = new Map<string, Extinguisher>();
+    for (const ext of extinguishers) {
+      if (ext.id) extById.set(ext.id, ext);
+    }
+    const isInScope = (ext: Extinguisher) => {
+      if (!relevantLocIds) return true;
+      return relevantLocIds.has(ext.locationId ?? '__unassigned__');
+    };
+    return extinguishers
+      .filter((ext) => (ext.lifecycleStatus === 'replaced' || ext.category === 'replaced') && isInScope(ext))
+      .map((oldExt) => ({
+        oldExt,
+        newExt: oldExt.replacedByExtId ? extById.get(oldExt.replacedByExtId) ?? null : null,
+      }));
+  }, [
+    showUnassigned,
+    showDeleted,
+    extinguishers,
+    drillDown.isRoot,
+    drillDown.currentLocationId,
+    locations,
+  ]);
+
   const groupedPendingScopeRows = useMemo(() => {
     const groups = new Map<
       string,
@@ -771,21 +884,36 @@ export default function WorkspaceDetail() {
     }));
   }, [pendingScopeListRows, locationById, pendingGroupedAssetDir]);
 
+  // Match Dashboard source for replaced total: lifecycleStatus with category fallback.
+  const dashboardReplacedTotal = useMemo(
+    () =>
+      extinguishers.filter(
+        (ext) => ext.lifecycleStatus === 'replaced' || ext.category === 'replaced',
+      ).length,
+    [extinguishers],
+  );
+
   const visibleGroupedPendingScopeRows = useMemo(() => {
     if (pendingGroupedLocationFilter === 'all') return groupedPendingScopeRows;
     return groupedPendingScopeRows.filter((group) => group.key === pendingGroupedLocationFilter);
   }, [groupedPendingScopeRows, pendingGroupedLocationFilter]);
 
   const leafCardActiveFilter = useMemo((): WorkspaceScopeCardFilter | null => {
-    if (filters.statuses.size === 0) return null;
+    if (filters.statuses.size === 0) return leafStatusTab === 'replaced' ? 'replaced' : null;
     if (filters.statuses.has('pending') && filters.statuses.size === 1) return 'pending';
-    if (filters.statuses.has('pass') && filters.statuses.has('fail') && filters.statuses.size === 2) {
+    if (
+      filters.statuses.has('pass') &&
+      filters.statuses.has('fail') &&
+      filters.statuses.has('replaced') &&
+      filters.statuses.size === 3
+    ) {
       return 'checked';
     }
     if (filters.statuses.has('pass') && filters.statuses.size === 1) return 'pass';
     if (filters.statuses.has('fail') && filters.statuses.size === 1) return 'fail';
+    if (filters.statuses.has('replaced') && filters.statuses.size === 1) return 'replaced';
     return null;
-  }, [filters.statuses]);
+  }, [filters.statuses, leafStatusTab]);
 
   const scopeListStats = useMemo(
     () => ({
@@ -803,10 +931,16 @@ export default function WorkspaceDetail() {
         setFilters(createEmptyFilters());
         return;
       }
+      if (filter === 'replaced') {
+        setFilters(createEmptyFilters());
+        setLeafStatusTab('replaced');
+        return;
+      }
       const next = createEmptyFilters();
       if (filter === 'checked') {
         next.statuses.add('pass');
         next.statuses.add('fail');
+        next.statuses.add('replaced');
       } else {
         next.statuses.add(filter);
       }
@@ -930,6 +1064,10 @@ export default function WorkspaceDetail() {
     () => sortInspectionsByMode({ list: leafInspectionsBase.filter((i) => i.status === 'fail'), mode: sortMode, sortKey, sortDir, extinguishers, locations }),
     [leafInspectionsBase, sortMode, sortKey, sortDir, extinguishers, locations],
   );
+  const sortedLeafReplaced = useMemo(
+    () => replacedRowsForCurrentScope.filter((r) => !!r.oldExt.locationId && r.oldExt.locationId === drillDown.currentLocationId),
+    [replacedRowsForCurrentScope, drillDown.currentLocationId],
+  );
   /** Match locationStatsMap aggregate when list is not narrowed by search or extra location chips. */
   const leafScopeStats = useMemo(() => {
     const map = locationStatsMap as Map<string, WorkspaceInspectionBucketStats>;
@@ -946,6 +1084,7 @@ export default function WorkspaceDetail() {
     return {
       passed: sortedLeafPassed.length,
       failed: sortedLeafFailed.length,
+      replaced: sortedLeafReplaced.length,
       unchecked: sortedLeafPending.length,
     };
   }, [
@@ -957,6 +1096,7 @@ export default function WorkspaceDetail() {
     locations,
     sortedLeafPassed.length,
     sortedLeafFailed.length,
+    sortedLeafReplaced.length,
     sortedLeafPending.length,
   ]);
 
@@ -1253,6 +1393,7 @@ export default function WorkspaceDetail() {
             </p>
             <WorkspaceInspectionScopeCards
               stats={scopeCardStats as WorkspaceInspectionBucketStats}
+              replacedTotal={dashboardReplacedTotal}
               activeFilter={drillDown.isLeaf ? leafCardActiveFilter : scopeListFilter}
               onSelectFilter={handleScopeCardSelect}
             />
@@ -1313,12 +1454,15 @@ export default function WorkspaceDetail() {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-gray-900">
               {scopeListFilter === 'pending' && 'Not yet inspected'}
-              {scopeListFilter === 'checked' && 'Passed and failed'}
+              {scopeListFilter === 'checked' && 'Passed, failed, and replaced'}
               {scopeListFilter === 'pass' && 'Passed'}
               {scopeListFilter === 'fail' && 'Failed'}
+              {scopeListFilter === 'replaced' && 'Replaced'}
               <span className="ml-2 text-sm font-normal text-gray-500">
                 {scopeListFilter === 'checked'
                   ? `(${scopeListRowsPassed.length} passed, ${scopeListRowsFailed.length} failed in this area)`
+                  : scopeListFilter === 'replaced'
+                    ? `(${replacedRowsForCurrentScope.length} in this area)`
                   : `(${scopeListRows.length} in this area)`}
               </span>
             </h2>
@@ -1410,8 +1554,15 @@ export default function WorkspaceDetail() {
               </>
             )}
           </div>
-          {scopeListRows.length === 0 ? (
+          {(scopeListFilter === 'replaced' ? replacedRowsForCurrentScope.length === 0 : scopeListRows.length === 0) ? (
             <p className="text-sm text-gray-500">Nothing in this category for this location scope.</p>
+          ) : scopeListFilter === 'replaced' ? (
+            <ReplacedPairTable
+              rows={replacedRowsForCurrentScope}
+              workspaceId={workspaceId}
+              returnTo={returnTo}
+              navigate={navigate}
+            />
           ) : scopeListFilter === 'pending' && pendingScopeViewMode === 'grouped' ? (
             <div className="space-y-3">
               {visibleGroupedPendingScopeRows.map((group) => {
@@ -1539,7 +1690,6 @@ export default function WorkspaceDetail() {
           <ScopeStatusCards
             passed={scopeListStats.passed}
             failed={scopeListStats.failed}
-            unchecked={scopeListStats.unchecked}
           />
         </div>
       )}
@@ -1717,7 +1867,6 @@ export default function WorkspaceDetail() {
           <ScopeStatusCards
             passed={unassignedScopeStats.passed}
             failed={unassignedScopeStats.failed}
-            unchecked={unassignedScopeStats.unchecked}
           />
         </>
       )}
@@ -1789,7 +1938,6 @@ export default function WorkspaceDetail() {
           <ScopeStatusCards
             passed={deletedScopeStats.passed}
             failed={deletedScopeStats.failed}
-            unchecked={deletedScopeStats.unchecked}
           />
         </>
       )}
@@ -1866,7 +2014,7 @@ export default function WorkspaceDetail() {
 
           {!floorScanGrouped && (
             <p className="mb-3 text-xs text-gray-600">
-              Status filters are on — showing a single list. Clear status filters to split into Not yet inspected, Passed, and Failed.
+              Status filters are on — showing a single list. Clear status filters to split into Not yet inspected, Passed, Failed, and Replaced.
             </p>
           )}
 
@@ -1887,7 +2035,7 @@ export default function WorkspaceDetail() {
           ) : floorScanGrouped ? (
             <div className="space-y-6">
               <div className="rounded-lg border border-gray-200 bg-white p-2 shadow-sm">
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
                   <button
                     type="button"
                     onClick={() => setLeafStatusTab('pending')}
@@ -1920,6 +2068,17 @@ export default function WorkspaceDetail() {
                     }`}
                   >
                     Failed ({sortedLeafFailed.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLeafStatusTab('replaced')}
+                    className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+                      leafStatusTab === 'replaced'
+                        ? 'bg-orange-100 text-orange-900'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Replaced ({sortedLeafReplaced.length})
                   </button>
                 </div>
               </div>
@@ -1975,7 +2134,7 @@ export default function WorkspaceDetail() {
                       />
                     )}
                   </>
-                ) : (
+                ) : leafStatusTab === 'failed' ? (
                   <>
                     <h3 className="mb-2 flex flex-wrap items-center gap-2 text-base font-semibold text-gray-900">
                       <span>Failed</span>
@@ -1994,6 +2153,27 @@ export default function WorkspaceDetail() {
                         sortKey={sortKey}
                         sortDir={sortDir}
                         onToggleSort={toggleSort}
+                        workspaceId={workspaceId!}
+                        returnTo={returnTo}
+                        navigate={navigate}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <h3 className="mb-2 flex flex-wrap items-center gap-2 text-base font-semibold text-gray-900">
+                      <span>Replaced</span>
+                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
+                        {sortedLeafReplaced.length}
+                      </span>
+                    </h3>
+                    {sortedLeafReplaced.length === 0 ? (
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
+                        No replaced extinguisher pairs in this view yet.
+                      </div>
+                    ) : (
+                      <ReplacedPairTable
+                        rows={sortedLeafReplaced}
                         workspaceId={workspaceId!}
                         returnTo={returnTo}
                         navigate={navigate}
@@ -2092,7 +2272,6 @@ export default function WorkspaceDetail() {
           <ScopeStatusCards
             passed={leafScopeStats.passed}
             failed={leafScopeStats.failed}
-            unchecked={leafScopeStats.unchecked}
           />
         </>
       )}
