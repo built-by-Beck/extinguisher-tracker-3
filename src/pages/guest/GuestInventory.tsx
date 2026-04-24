@@ -5,15 +5,17 @@
  * Author: built_by_Beck
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Package, Search } from 'lucide-react';
 import { useGuest } from '../../hooks/useGuest.ts';
 import {
+  isInventoryActiveRecord,
   subscribeToExtinguishers,
   type Extinguisher,
 } from '../../services/extinguisherService.ts';
 import { ComplianceStatusBadge } from '../../components/compliance/ComplianceStatusBadge.tsx';
 import { getComplianceLabel } from '../../utils/compliance.ts';
+import { getSupersededExtinguisherIds } from '../../utils/workspaceInspectionStats.ts';
 
 const PAGE_SIZE = 25;
 
@@ -35,9 +37,24 @@ export default function GuestInventory() {
     }, { showDeleted: false });
   }, [orgId]);
 
+  const supersededExtinguisherIds = useMemo(() => getSupersededExtinguisherIds(items), [items]);
+
   // Client-side filtering
   const filtered = items.filter((ext) => {
-    if (categoryFilter && ext.category !== categoryFilter) return false;
+    const isReplacedRecord = ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
+    const isSupersededStale = ext.id != null && supersededExtinguisherIds.has(ext.id);
+    const isRetiredInventoryRow = isReplacedRecord || isSupersededStale;
+    if (categoryFilter) {
+      if (categoryFilter === 'replaced') {
+        if (!isRetiredInventoryRow) return false;
+      } else if (ext.category !== categoryFilter) {
+        return false;
+      }
+    } else {
+      if (!isInventoryActiveRecord(ext as unknown as Record<string, unknown>)) return false;
+      if (isReplacedRecord) return false;
+      if (isSupersededStale && !isReplacedRecord) return false;
+    }
     if (sectionFilter && ext.section !== sectionFilter) return false;
     if (complianceFilter && ext.complianceStatus !== complianceFilter) return false;
     if (searchQuery) {
@@ -96,7 +113,8 @@ export default function GuestInventory() {
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
         >
           <option value="">All Categories</option>
-          {categories.map((cat) => (
+          <option value="replaced">Retired / replaced</option>
+          {categories.filter((c) => c && c !== 'replaced').map((cat) => (
             <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>

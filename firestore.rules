@@ -107,6 +107,11 @@ service cloud.firestore {
         allow create: if hasRole(orgId, ['owner', 'admin']) && hasWritableSubscription(orgId);
         allow update: if hasRole(orgId, ['owner', 'admin']) && hasWritableSubscription(orgId);
         allow delete: if hasRole(orgId, ['owner', 'admin']) && hasWritableSubscription(orgId);
+
+        match /replacementHistory/{histId} {
+          allow read: if isMember(orgId) && !isGuest(orgId);
+          allow write: if false;
+        }
       }
 
       match /workspaces/{wsId} {

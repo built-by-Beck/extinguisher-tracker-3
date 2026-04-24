@@ -1,0 +1,2 @@
+{"timestamp":"2026-04-24T20:45:00Z","area":"replacement-workflow","error":"Initial build left assetId mutable during replacement and active fallback incomplete for legacy rows.","impact":"Would violate permanent asset slot invariant and could allow old serial/barcode search hits for legacy replaced rows.","fix":"Made asset slot canonical/read-only, moved duplicate checks into transaction, strengthened active predicates, and reran build/lint/tests successfully."}
+

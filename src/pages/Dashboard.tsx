@@ -39,12 +39,13 @@ import { hasFeature } from '../lib/planConfig.ts';
 import { BillingStatus } from '../components/billing/BillingStatus.tsx';
 import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
 import type { Workspace } from '../services/workspaceService.ts';
-import type { Extinguisher } from '../services/extinguisherService.ts';
+import { isInventoryActiveRecord, type Extinguisher } from '../services/extinguisherService.ts';
 import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
 import { subscribeToLocations, type Location } from '../services/locationService.ts';
 import {
   buildLocationStatsMap,
   detectHasLocationIdData,
+  getSupersededExtinguisherIds,
   sumAllBucketStats,
 } from '../utils/workspaceInspectionStats.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
@@ -114,8 +115,15 @@ export default function Dashboard() {
       where('deletedAt', '==', null),
     );
     return onSnapshot(q, (snap) => {
-      setExtCount(snap.size);
       const exts = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Extinguisher));
+      const superseded = getSupersededExtinguisherIds(exts);
+      const mainInventoryCount = exts.filter((e) => {
+        if (!isInventoryActiveRecord(e as unknown as Record<string, unknown>)) return false;
+        if (e.lifecycleStatus === 'replaced' || e.category === 'replaced') return false;
+        if (e.id && superseded.has(e.id)) return false;
+        return true;
+      }).length;
+      setExtCount(mainInventoryCount);
       setAllExtinguishers(exts);
     });
   }, [orgId]);
@@ -179,6 +187,17 @@ export default function Dashboard() {
 
   const checkedInspectionCount =
     inspectionScopeStats.passed + inspectionScopeStats.failed + (inspectionScopeStats.replaced ?? 0);
+
+  /** Maintenance schedule (NFPA-style `complianceStatus`), not monthly inspection pass/fail. */
+  const maintenanceScheduleCompliantCount = useMemo(() => {
+    const superseded = getSupersededExtinguisherIds(allExtinguishers);
+    return allExtinguishers.filter((e) => {
+      if (!isInventoryActiveRecord(e as unknown as Record<string, unknown>)) return false;
+      if (e.lifecycleStatus === 'replaced' || e.category === 'replaced') return false;
+      if (e.id && superseded.has(e.id)) return false;
+      return e.complianceStatus === 'compliant';
+    }).length;
+  }, [allExtinguishers]);
 
   // Category counts
   const spareCount = allExtinguishers.filter((e) => e.category === 'spare').length;
@@ -346,15 +365,11 @@ export default function Dashboard() {
           onClick={() => navigate('/dashboard/inventory')}
         />
         <StatCard
-          label="Total Compliant Extinguishers"
-          value={activeWorkspace ? Math.max(0, inspectionScopeStats.passed).toString() : '--'}
+          label="On maintenance schedule"
+          value={maintenanceScheduleCompliantCount.toString()}
           icon={CheckCircle2}
-          color="bg-green-500"
-          onClick={() =>
-            activeWorkspace
-              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}?status=pass`)
-              : navigate('/dashboard/workspaces')
-          }
+          color="bg-emerald-600"
+          onClick={() => navigate('/dashboard/inventory?compliance=compliant')}
         />
         <StatCard
           label="Already checked"

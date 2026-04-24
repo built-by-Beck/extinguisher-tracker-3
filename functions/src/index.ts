@@ -44,6 +44,8 @@ export { recalculateWorkspaceInspectionStats } from './inspections/recalculateWo
 export { recalculateExtinguisherLifecycle } from './lifecycle/recalculateLifecycle.js';
 export { batchRecalculateLifecycle } from './lifecycle/batchRecalculate.js';
 export { replaceExtinguisher } from './lifecycle/replaceExtinguisher.js';
+export { dedupeActiveExtinguishersByAssetId } from './lifecycle/dedupeActiveExtinguishersByAssetId.js';
+export { repairStaleReplacementLinks } from './lifecycle/repairStaleReplacementLinks.js';
 export { retireExtinguisher } from './lifecycle/retireExtinguisher.js';
 
 // Lifecycle engine (Firestore trigger)

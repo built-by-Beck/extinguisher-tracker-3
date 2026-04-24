@@ -18,12 +18,13 @@ export interface NewExtinguisherData {
   manufactureYear?: number | null;
   expirationYear?: number | null;
   barcode?: string | null;
+  barcodeFormat?: string | null;
   notes?: string | null;
+  photos?: unknown;
 }
 
 export interface ReplaceExtinguisherResult {
-  oldExtinguisherId: string;
-  newExtinguisherId: string;
+  extinguisherId: string;
 }
 
 export interface RetireExtinguisherResult {
@@ -43,8 +44,8 @@ export interface BatchRecalculateResult {
 }
 
 /**
- * Replace an extinguisher with a new unit.
- * Old extinguisher is marked 'replaced'; new one is created with preserved location.
+ * Replace the physical extinguisher in place: same Firestore document / asset slot,
+ * prior state archived under replacementHistory, serial and barcode updated.
  */
 export async function replaceExtinguisher(
   orgId: string,

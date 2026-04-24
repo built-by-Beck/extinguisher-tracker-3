@@ -49,6 +49,7 @@ import {
   createExtinguisher,
   generateScannedAssetId,
   getAllActiveExtinguishers,
+  isInventoryActiveRecord,
   type Extinguisher,
 } from '../services/extinguisherService.ts';
 import {
@@ -68,7 +69,10 @@ import {
 } from '../services/locationService.ts';
 import { db } from '../lib/firebase.ts';
 import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
-import { dedupeInspectionsByExtinguisherLatest } from '../utils/workspaceInspectionStats.ts';
+import {
+  dedupeInspectionsByExtinguisherLatest,
+  getSupersededExtinguisherIds,
+} from '../utils/workspaceInspectionStats.ts';
 
 type SortKey = 'assetId' | 'serial' | 'location' | 'compliance' | 'nextInspection';
 type ViewMode = 'table' | 'cards';
@@ -287,14 +291,46 @@ export default function Inventory() {
     return () => unsub();
   }, [orgId, showDeleted]);
 
+  const supersededExtinguisherIds = useMemo(() => getSupersededExtinguisherIds(items), [items]);
+
+  /** Active inventory rows only (excludes retired / replaced / superseded); not narrowed by table filters. */
+  const activeInventoryExcludingRetired = useMemo(
+    () =>
+      items.filter((ext) => {
+        const isActiveRecord = isInventoryActiveRecord(ext as unknown as Record<string, unknown>);
+        const isReplacedRecord = ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
+        const isSupersededStale = ext.id != null && supersededExtinguisherIds.has(ext.id);
+        return isActiveRecord && !isReplacedRecord && !isSupersededStale;
+      }),
+    [items, supersededExtinguisherIds],
+  );
+
+  /**
+   * Basis for the Checked / Passed / Failed / Not yet inspected cards below the table.
+   * Counts follow the selected location (or the whole active inventory), not the compliance /
+   * expiry / category / search slice shown in the table.
+   */
+  const inspectionStatsBaseList = useMemo(() => {
+    if (locationFilter) {
+      return activeInventoryExcludingRetired.filter((e) => e.locationId === locationFilter);
+    }
+    return activeInventoryExcludingRetired;
+  }, [locationFilter, activeInventoryExcludingRetired]);
+
   // Get total count for asset limit bar — count non-deleted items from snapshot
   useEffect(() => {
     if (!orgId) return;
     const activeCount = showDeleted
       ? items.filter((e) => !e.deletedAt).length
-      : items.length;
+      : items.filter((e) => {
+          if (!isInventoryActiveRecord(e as unknown as Record<string, unknown>)) return false;
+          const isReplaced = e.lifecycleStatus === 'replaced' || e.category === 'replaced';
+          if (isReplaced) return false;
+          if (e.id && supersededExtinguisherIds.has(e.id)) return false;
+          return true;
+        }).length;
     setTotalCount(activeCount);
-  }, [orgId, items, showDeleted]);
+  }, [orgId, items, showDeleted, supersededExtinguisherIds]);
 
   // Helper: get location path for an extinguisher
   const getExtLocationPath = useCallback(
@@ -309,18 +345,22 @@ export default function Inventory() {
   const filtered = useMemo(() => {
     return items.filter((ext) => {
       const isReplacedRecord = ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
+      const isSupersededStale = ext.id != null && supersededExtinguisherIds.has(ext.id);
+      const isRetiredInventoryRow = isReplacedRecord || isSupersededStale;
       if (categoryFilter) {
-        // Backward-compatible "Replaced" filter:
-        // - canonical source: lifecycleStatus === 'replaced'
-        // - legacy fallback: category === 'replaced'
+        // Retired / replaced view:
+        // - canonical: lifecycleStatus === 'replaced' (and legacy category === 'replaced')
+        // - stale chain: active old unit still in DB while a successor has replacesExtId → old id
         if (categoryFilter === 'replaced') {
-          if (!isReplacedRecord) return false;
+          if (!isRetiredInventoryRow) return false;
         } else if (ext.category !== categoryFilter) {
           return false;
         }
-      } else if (isReplacedRecord) {
-        // Keep replaced legacy records out of normal active inventory lists.
-        return false;
+      } else {
+        // Default table: active inventory only (use Retired / replaced filter for history).
+        if (!isInventoryActiveRecord(ext as unknown as Record<string, unknown>)) return false;
+        if (isReplacedRecord) return false;
+        if (isSupersededStale && !isReplacedRecord) return false;
       }
       if (locationFilter) {
         if (ext.locationId !== locationFilter) return false;
@@ -350,7 +390,16 @@ export default function Inventory() {
       }
       return true;
     });
-  }, [items, categoryFilter, locationFilter, complianceFilter, expiringFilter, searchQuery, getExtLocationPath]);
+  }, [
+    items,
+    categoryFilter,
+    locationFilter,
+    complianceFilter,
+    expiringFilter,
+    searchQuery,
+    getExtLocationPath,
+    supersededExtinguisherIds,
+  ]);
 
   // Sorted list
   const sorted = useMemo(() => {
@@ -408,9 +457,15 @@ export default function Inventory() {
     let passed = 0;
     let failed = 0;
     let unchecked = 0;
-    for (const ext of sorted) {
+    for (const ext of inspectionStatsBaseList) {
+      // Monthly inspection stats apply to in-service inventory only — never pass/fail retired or chain duplicates.
       if (ext.lifecycleStatus === 'replaced' || ext.category === 'replaced') {
-        passed += 1;
+        continue;
+      }
+      if (ext.id && supersededExtinguisherIds.has(ext.id)) {
+        continue;
+      }
+      if (ext.category === 'retired' || ext.category === 'out_of_service') {
         continue;
       }
       if (!ext.id) {
@@ -427,9 +482,9 @@ export default function Inventory() {
       failed,
       unchecked,
       checked: passed + failed,
-      total: sorted.length,
+      total: inspectionStatsBaseList.length,
     };
-  }, [sorted, activeStatusByExtinguisherId]);
+  }, [inspectionStatsBaseList, activeStatusByExtinguisherId, supersededExtinguisherIds]);
 
   function toggleSelectAll() {
     if (selectedIds.size === paginatedItems.length && paginatedItems.length > 0) {
@@ -687,7 +742,7 @@ export default function Inventory() {
           <option value="">All Categories</option>
           <option value="standard">Standard</option>
           <option value="spare">Spare</option>
-          <option value="replaced">Replaced</option>
+          <option value="replaced">Retired / replaced</option>
           <option value="retired">Retired</option>
           <option value="out_of_service">Out of Service</option>
         </select>
@@ -1229,11 +1284,16 @@ export default function Inventory() {
         </div>
       )}
 
-      {sorted.length > 0 && (
+      {!showDeleted && categoryFilter !== 'replaced' && inspectionStatsBaseList.length > 0 && (
         <div className="mt-6">
           <p className="mb-2 text-xs font-medium text-gray-500">
-            Inspection counts below are for the <span className="font-semibold text-gray-700">filtered inventory table only</span>
-            ({scopeCheckStats.total} row{scopeCheckStats.total !== 1 ? 's' : ''}). Org-wide monthly progress is in the workspace strip above.
+            Inspection counts below are for{' '}
+            <span className="font-semibold text-gray-700">
+              {locationFilter
+                ? 'every active extinguisher at the selected location (other table filters do not change these numbers)'
+                : 'every active extinguisher in the organization (table filters do not change these numbers)'}
+            </span>{' '}
+            ({scopeCheckStats.total} unit{scopeCheckStats.total !== 1 ? 's' : ''}). Org-wide monthly progress is in the workspace strip above.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-4">
@@ -1254,7 +1314,7 @@ export default function Inventory() {
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Not yet inspected</p>
             <p className="mt-1 text-2xl font-bold text-amber-950">{scopeCheckStats.unchecked}</p>
             <p className="mt-2 text-xs text-amber-800/90">
-              Not the full-org “not yet inspected” count for the month; clear filters to widen this slice.
+              Counts include only units in the monthly inspection scope (replaced, retired, out-of-service, and superseded duplicates are excluded), not the expiry or compliance filters on the table.
             </p>
           </div>
           </div>

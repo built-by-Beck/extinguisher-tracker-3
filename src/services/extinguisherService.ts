@@ -87,6 +87,24 @@ export interface Extinguisher {
   deletedAt: unknown | null;
   deletedBy: string | null;
   deletionReason: string | null;
+  /** Denormalized inventory flags (aligned with lifecycleStatus when set). */
+  status?: string | null;
+  isActive?: boolean | null;
+  /** Optional free-form asset notes */
+  notes?: string | null;
+}
+
+/** Active inventory row: not deleted and lifecycle is active (or unset legacy). */
+export function isInventoryActiveRecord(data: Record<string, unknown>): boolean {
+  const ls = data.lifecycleStatus as string | null | undefined;
+  const category = data.category as string | null | undefined;
+  const status = data.status as string | null | undefined;
+  const isActive = data.isActive as boolean | null | undefined;
+  if (ls === 'replaced' || ls === 'retired' || ls === 'deleted') return false;
+  if (category === 'replaced' || category === 'retired' || category === 'out_of_service') return false;
+  if (status != null && status !== 'active') return false;
+  if (isActive === false) return false;
+  return ls === 'active' || ls == null || ls === '';
 }
 
 function extinguishersRef(orgId: string) {
@@ -108,10 +126,14 @@ function sanitizeScannedCodeForAssetId(code: string): string {
 }
 
 /**
- * Get total count of active (non-deleted) extinguishers.
+ * Count of lifecycle-active extinguishers (non-deleted).
  */
 export async function getActiveExtinguisherCount(orgId: string): Promise<number> {
-  const q = query(extinguishersRef(orgId), where('deletedAt', '==', null));
+  const q = query(
+    extinguishersRef(orgId),
+    where('deletedAt', '==', null),
+    where('lifecycleStatus', '==', 'active'),
+  );
   const snapshot = await getCountFromServer(q);
   return snapshot.data().count;
 }
@@ -120,34 +142,74 @@ export async function getActiveExtinguisherCount(orgId: string): Promise<number>
  * Check if an assetId already exists in the org.
  */
 export async function isAssetIdTaken(orgId: string, assetId: string, excludeId?: string): Promise<boolean> {
-  const q = query(
-    extinguishersRef(orgId),
+  const col = extinguishersRef(orgId);
+  const q1 = query(
+    col,
     where('assetId', '==', assetId),
     where('deletedAt', '==', null),
-    limit(2),
+    where('lifecycleStatus', '==', 'active'),
+    limit(8),
   );
-  const snap = await getDocs(q);
-  if (excludeId) {
-    return snap.docs.some((d) => d.id !== excludeId);
-  }
-  return !snap.empty;
+  let snap = await getDocs(q1);
+  const strictHit = excludeId ? snap.docs.some((d) => d.id !== excludeId) : !snap.empty;
+  if (strictHit) return true;
+
+  const q2 = query(col, where('assetId', '==', assetId), where('deletedAt', '==', null), limit(16));
+  snap = await getDocs(q2);
+  return snap.docs.some((d) => {
+    if (excludeId && d.id === excludeId) return false;
+    return isInventoryActiveRecord(d.data() as Record<string, unknown>);
+  });
 }
 
 /**
  * Check if a serial number is already in use by an active extinguisher.
  */
 export async function isSerialTaken(orgId: string, serial: string, excludeId?: string): Promise<boolean> {
-  const q = query(
-    extinguishersRef(orgId),
+  const col = extinguishersRef(orgId);
+  const q1 = query(
+    col,
     where('serial', '==', serial),
     where('deletedAt', '==', null),
-    limit(2),
+    where('lifecycleStatus', '==', 'active'),
+    limit(8),
   );
-  const snap = await getDocs(q);
-  if (excludeId) {
-    return snap.docs.some((d) => d.id !== excludeId);
-  }
-  return !snap.empty;
+  let snap = await getDocs(q1);
+  const strictHit = excludeId ? snap.docs.some((d) => d.id !== excludeId) : !snap.empty;
+  if (strictHit) return true;
+
+  const q2 = query(col, where('serial', '==', serial), where('deletedAt', '==', null), limit(16));
+  snap = await getDocs(q2);
+  return snap.docs.some((d) => {
+    if (excludeId && d.id === excludeId) return false;
+    return isInventoryActiveRecord(d.data() as Record<string, unknown>);
+  });
+}
+
+/**
+ * True if another active inventory extinguisher uses this barcode.
+ */
+export async function isBarcodeTaken(orgId: string, barcode: string, excludeId?: string): Promise<boolean> {
+  const trimmed = barcode.trim();
+  if (!trimmed) return false;
+  const col = extinguishersRef(orgId);
+  const q1 = query(
+    col,
+    where('barcode', '==', trimmed),
+    where('deletedAt', '==', null),
+    where('lifecycleStatus', '==', 'active'),
+    limit(8),
+  );
+  let snap = await getDocs(q1);
+  const strictHit = excludeId ? snap.docs.some((d) => d.id !== excludeId) : !snap.empty;
+  if (strictHit) return true;
+
+  const q2 = query(col, where('barcode', '==', trimmed), where('deletedAt', '==', null), limit(16));
+  snap = await getDocs(q2);
+  return snap.docs.some((d) => {
+    if (excludeId && d.id === excludeId) return false;
+    return isInventoryActiveRecord(d.data() as Record<string, unknown>);
+  });
 }
 
 /**
@@ -208,6 +270,8 @@ export async function createExtinguisher(
     requiresSixYearMaintenance: null,
     hydroTestIntervalYears: null,
     lifecycleStatus: 'active',
+    status: 'active',
+    isActive: true,
     complianceStatus: 'compliant',
     overdueFlags: [],
     replacedByExtId: null,
@@ -285,6 +349,8 @@ export async function softDeleteExtinguisher(
   const ref = doc(db, 'org', orgId, 'extinguishers', extId);
   await updateDoc(ref, {
     lifecycleStatus: 'deleted',
+    status: 'deleted',
+    isActive: false,
     deletedAt: serverTimestamp(),
     deletedBy: uid,
     deletionReason: reason,
@@ -348,6 +414,8 @@ export async function restoreExtinguisher(
   const ref = doc(db, 'org', orgId, 'extinguishers', extId);
   await updateDoc(ref, {
     lifecycleStatus: 'active',
+    status: 'active',
+    isActive: true,
     deletedAt: null,
     deletedBy: null,
     deletionReason: null,
@@ -374,6 +442,8 @@ export async function batchSoftDeleteExtinguishers(
       const ref = doc(db, 'org', orgId, 'extinguishers', extId);
       batch.update(ref, {
         lifecycleStatus: 'deleted',
+        status: 'deleted',
+        isActive: false,
         deletedAt: serverTimestamp(),
         deletedBy: uid,
         deletionReason: reason,
@@ -398,29 +468,83 @@ export async function getExtinguisher(orgId: string, extId: string): Promise<Ext
 
 /**
  * Look up an extinguisher by barcode, asset ID, serial, or QR value.
- * Searches active (non-deleted) extinguishers within the org.
+ * Only returns lifecycle-active inventory (replaced/retired units are ignored).
  */
 export async function findExtinguisherByCode(
   orgId: string,
   code: string,
 ): Promise<Extinguisher | null> {
   const colRef = collection(db, 'org', orgId, 'extinguishers');
-
-  // Search fields in priority order
   const fields = ['barcode', 'assetId', 'serial', 'qrCodeValue'] as const;
 
   for (const field of fields) {
     const q = query(
       colRef,
       where('deletedAt', '==', null),
+      where('lifecycleStatus', '==', 'active'),
       where(field, '==', code),
-      limit(1),
+      limit(12),
     );
     const snap = await getDocs(q);
-    if (!snap.empty) {
-      return { id: snap.docs[0].id, ...snap.docs[0].data() } as Extinguisher;
+    const hit = snap.docs.find((d) => isInventoryActiveRecord(d.data() as Record<string, unknown>));
+    if (hit) {
+      const ext = { id: hit.id, ...hit.data() } as Extinguisher;
+      // #region agent log
+      fetch('http://127.0.0.1:7590/ingest/60982b77-4867-44d4-bb0e-2b2e4905ad1d', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6badb8' },
+        body: JSON.stringify({
+          sessionId: '6badb8',
+          location: 'extinguisherService.ts:findExtinguisherByCode',
+          message: 'match_strict',
+          data: { field, extId: ext.id, lifecycle: ext.lifecycleStatus ?? null },
+          timestamp: Date.now(),
+          hypothesisId: 'H1',
+        }),
+      }).catch(() => {});
+      // #endregion
+      return ext;
     }
   }
+
+  for (const field of fields) {
+    const q = query(colRef, where('deletedAt', '==', null), where(field, '==', code), limit(12));
+    const snap = await getDocs(q);
+    const hit = snap.docs.find((d) => isInventoryActiveRecord(d.data() as Record<string, unknown>));
+    if (hit) {
+      const ext = { id: hit.id, ...hit.data() } as Extinguisher;
+      // #region agent log
+      fetch('http://127.0.0.1:7590/ingest/60982b77-4867-44d4-bb0e-2b2e4905ad1d', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6badb8' },
+        body: JSON.stringify({
+          sessionId: '6badb8',
+          location: 'extinguisherService.ts:findExtinguisherByCode',
+          message: 'match_legacy_fallback',
+          data: { field, extId: ext.id, lifecycle: ext.lifecycleStatus ?? null },
+          timestamp: Date.now(),
+          hypothesisId: 'H4',
+        }),
+      }).catch(() => {});
+      // #endregion
+      return ext;
+    }
+  }
+
+  // #region agent log
+  fetch('http://127.0.0.1:7590/ingest/60982b77-4867-44d4-bb0e-2b2e4905ad1d', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6badb8' },
+    body: JSON.stringify({
+      sessionId: '6badb8',
+      location: 'extinguisherService.ts:findExtinguisherByCode',
+      message: 'no_match',
+      data: { trimmedLen: code.trim().length },
+      timestamp: Date.now(),
+      hypothesisId: 'H1',
+    }),
+  }).catch(() => {});
+  // #endregion
   return null;
 }
 
@@ -495,10 +619,46 @@ export async function getAllActiveExtinguishers(orgId: string): Promise<Extingui
   const q = query(
     extinguishersRef(orgId),
     where('deletedAt', '==', null),
+    where('lifecycleStatus', '==', 'active'),
     orderBy('createdAt', 'desc'),
   );
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Extinguisher[];
+}
+
+export interface ReplacementHistoryRow {
+  id: string;
+  replacedAt: unknown;
+  reason: string | null;
+  previousSerial: string | null;
+  previousBarcode: string | null;
+  priorSnapshot?: Record<string, unknown>;
+}
+
+/**
+ * Real-time listener for in-place replacement snapshots (subcollection).
+ */
+export function subscribeToReplacementHistory(
+  orgId: string,
+  extinguisherId: string,
+  callback: (rows: ReplacementHistoryRow[]) => void,
+): () => void {
+  const colRef = collection(db, 'org', orgId, 'extinguishers', extinguisherId, 'replacementHistory');
+  const q = query(colRef, orderBy('replacedAt', 'desc'));
+  return onSnapshot(q, (snap) => {
+    const rows: ReplacementHistoryRow[] = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        replacedAt: data.replacedAt,
+        reason: (data.reason as string | null) ?? null,
+        previousSerial: (data.previousSerial as string | null) ?? null,
+        previousBarcode: (data.previousBarcode as string | null) ?? null,
+        priorSnapshot: data.priorSnapshot as Record<string, unknown> | undefined,
+      };
+    });
+    callback(rows);
+  });
 }
 
 /**

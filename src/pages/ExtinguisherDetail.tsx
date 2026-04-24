@@ -37,7 +37,14 @@ import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { hasFeature } from '../lib/planConfig.ts';
 import { useOffline } from '../hooks/useOffline.ts';
-import { getExtinguisher, restoreExtinguisher, type Extinguisher } from '../services/extinguisherService.ts';
+import {
+  getExtinguisher,
+  isInventoryActiveRecord,
+  restoreExtinguisher,
+  subscribeToReplacementHistory,
+  type Extinguisher,
+  type ReplacementHistoryRow,
+} from '../services/extinguisherService.ts';
 import {
   getInspectionForExtinguisherInWorkspace,
   getInspectionHistoryForExtinguisher,
@@ -144,6 +151,7 @@ export default function ExtinguisherDetail() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [replacementHistoryRows, setReplacementHistoryRows] = useState<ReplacementHistoryRow[]>([]);
 
   // Load extinguisher
   useEffect(() => {
@@ -160,6 +168,14 @@ export default function ExtinguisherDetail() {
       })
       .catch(() => setExtError('Failed to load extinguisher.'))
       .finally(() => setExtLoading(false));
+  }, [orgId, extId]);
+
+  useEffect(() => {
+    if (!orgId || !extId) {
+      setReplacementHistoryRows([]);
+      return;
+    }
+    return subscribeToReplacementHistory(orgId, extId, setReplacementHistoryRows);
   }, [orgId, extId]);
 
   // Load inspection (and resolve workspace if needed).
@@ -186,7 +202,12 @@ export default function ExtinguisherDetail() {
 
     if (insp) {
       setInspection(insp);
-    } else if (ext && !ext.deletedAt && ext.category === 'standard') {
+    } else if (
+      ext &&
+      !ext.deletedAt &&
+      ext.category === 'standard' &&
+      isInventoryActiveRecord(ext as unknown as Record<string, unknown>)
+    ) {
       // Auto-create pending inspection for this extinguisher
       const created = await createSingleInspection(orgId, extId, resolvedWsId, {
         assetId: ext.assetId,
@@ -783,42 +804,71 @@ export default function ExtinguisherDetail() {
         />
       )}
 
-      {/* ---- Replacement History (only if applicable) ---- */}
-      {ext.replacementHistory && ext.replacementHistory.length > 0 && (
+      {/* ---- Replacement History (subcollection + legacy array) ---- */}
+      {(replacementHistoryRows.length > 0 || (ext.replacementHistory && ext.replacementHistory.length > 0)) && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <RefreshCw className="h-5 w-5 text-gray-400" />
-            <h2 className="text-base font-semibold text-gray-900">
-              Replacement History ({ext.replacementHistory.length})
-            </h2>
+            <h2 className="text-base font-semibold text-gray-900">Replacement History</h2>
           </div>
-          <div className="divide-y divide-gray-100">
-            {ext.replacementHistory.map((r, idx) => (
-              <div key={idx} className="py-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      Replaced on {formatTimestamp(r.replacedAt)}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      By {r.replacedByEmail}
-                    </p>
-                    {r.replacedAssetId && (
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Previous asset: {r.replacedAssetId}
-                      </p>
-                    )}
-                    {r.reason && (
-                      <p className="text-xs text-gray-400 mt-0.5">{r.reason}</p>
-                    )}
+          <p className="mb-4 text-xs text-gray-500">
+            Prior physical units for this asset slot (previous serial numbers and barcodes). Scans only match the
+            current active unit.
+          </p>
+          {replacementHistoryRows.length > 0 && (
+            <div className="mb-4 divide-y divide-gray-100">
+              {replacementHistoryRows.map((r) => {
+                const snapSerial =
+                  (r.priorSnapshot?.serial as string | undefined) ?? r.previousSerial ?? '—';
+                const snapBarcode = (r.priorSnapshot?.barcode as string | null | undefined) ?? r.previousBarcode;
+                return (
+                  <div key={r.id} className="py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          Prior unit — serial <span className="font-mono">{snapSerial}</span>
+                        </p>
+                        {snapBarcode ? (
+                          <p className="mt-0.5 text-xs text-gray-600">
+                            Barcode: <span className="font-mono">{snapBarcode}</span>
+                          </p>
+                        ) : null}
+                        <p className="mt-1 text-xs text-gray-500">Recorded {formatTimestamp(r.replacedAt)}</p>
+                        {r.reason ? <p className="mt-0.5 text-xs text-gray-400">{r.reason}</p> : null}
+                      </div>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                        Archived
+                      </span>
+                    </div>
                   </div>
-                  <span className="ml-3 shrink-0 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700">
-                    Replaced
-                  </span>
+                );
+              })}
+            </div>
+          )}
+          {ext.replacementHistory && ext.replacementHistory.length > 0 && (
+            <div className="divide-y divide-gray-100">
+              <p className="pb-2 text-xs font-medium uppercase tracking-wide text-gray-400">Legacy chain metadata</p>
+              {ext.replacementHistory.map((r, idx) => (
+                <div key={idx} className="py-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        Replaced on {formatTimestamp(r.replacedAt)}
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">By {r.replacedByEmail}</p>
+                      {r.replacedAssetId && (
+                        <p className="mt-0.5 text-xs text-gray-400">Previous asset: {r.replacedAssetId}</p>
+                      )}
+                      {r.reason && <p className="mt-0.5 text-xs text-gray-400">{r.reason}</p>}
+                    </div>
+                    <span className="ml-3 shrink-0 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700">
+                      Replaced
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
