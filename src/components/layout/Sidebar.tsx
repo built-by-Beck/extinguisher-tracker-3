@@ -25,6 +25,8 @@ import {
   Calendar,
   BookOpenCheck,
   CircleHelp,
+  Archive,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useOffline } from '../../hooks/useOffline.ts';
@@ -46,6 +48,13 @@ const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/dashboard/workspaces', label: 'Inspections', icon: ClipboardList, end: false },
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
+  { to: '/dashboard/custom-asset-inspections', label: 'Custom Asset Inspections', icon: ClipboardCheck, end: false },
+  {
+    to: '/dashboard/inventory?category=replaced',
+    label: 'Retired extinguishers',
+    icon: Archive,
+    end: false,
+  },
   { to: '/dashboard/data-organizer', label: 'Data Organizer', icon: Wrench, end: false, roles: ['owner', 'admin'] },
   { to: '/dashboard/getting-started', label: 'Getting Started', icon: BookOpenCheck, end: false },
   { to: '/dashboard/faq', label: 'FAQ', icon: CircleHelp, end: false },

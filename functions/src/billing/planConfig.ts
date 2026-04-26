@@ -45,6 +45,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       bulkTagPrinting: false,
       inspectionRoutes: false,
       aiAssistant: false,
+      customAssetInspections: false,
       guestAccess: false,
       teamMembers: false,
     },
@@ -68,6 +69,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       bulkTagPrinting: false,
       inspectionRoutes: true,
       aiAssistant: true,
+      customAssetInspections: true,
       guestAccess: false,
       teamMembers: false,
     },
@@ -91,6 +93,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       bulkTagPrinting: true,
       inspectionRoutes: true,
       aiAssistant: true,
+      customAssetInspections: true,
       guestAccess: true,
       teamMembers: true,
     },
@@ -114,6 +117,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       bulkTagPrinting: true,
       inspectionRoutes: true,
       aiAssistant: true,
+      customAssetInspections: true,
       guestAccess: true,
       teamMembers: true,
     },
@@ -178,4 +182,9 @@ export function priceIdForPlan(
     default:
       return null;
   }
+}
+
+export function canUseCustomAssetInspections(plan?: string | null, featureFlags?: Record<string, boolean> | null): boolean {
+  if (featureFlags?.customAssetInspections === true) return true;
+  return plan === 'pro' || plan === 'elite' || plan === 'enterprise';
 }

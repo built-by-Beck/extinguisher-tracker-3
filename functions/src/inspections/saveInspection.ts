@@ -12,6 +12,7 @@ import {
   requiresSixYear,
   type ExtinguisherForCalc,
 } from '../lifecycle/complianceCalc.js';
+import { canUseCustomAssetInspections } from '../billing/planConfig.js';
 
 interface ChecklistData {
   pinPresent: string;
@@ -35,7 +36,14 @@ interface SaveInspectionData {
   status: 'pass' | 'fail';
   isExpired?: boolean;
   checklistData?: ChecklistData;
+  checklistAnswers?: Record<string, {
+    result: 'pass' | 'fail' | 'na' | 'unchecked';
+    notes?: string;
+    answeredAt?: unknown;
+    answeredBy?: string;
+  }>;
   notes?: string;
+  details?: string;
   photoUrl?: string | null;
   photoPath?: string | null;
   gps?: { lat: number; lng: number; accuracy: number; altitude: number | null; capturedAt: string } | null;
@@ -72,16 +80,31 @@ export const saveInspection = onCall(async (request) => {
 
     const inspData = inspSnap.data()!;
     const previousStatus = inspData.status as string;
+    const targetType = (inspData.targetType as string | undefined) ?? 'extinguisher';
 
     const wsRef = adminDb.doc(`org/${orgId}/workspaces/${inspData.workspaceId}`);
     const wsSnap = await tx.get(wsRef);
 
-    const extRef = adminDb.doc(`org/${orgId}/extinguishers/${inspData.extinguisherId}`);
-    const extSnap = await tx.get(extRef);
+    const extRef = targetType === 'asset'
+      ? null
+      : adminDb.doc(`org/${orgId}/extinguishers/${inspData.extinguisherId}`);
+    const extSnap = extRef ? await tx.get(extRef) : null;
 
     // 3. Validation logic
     if (wsSnap.exists && wsSnap.data()?.status === 'archived') {
       throwFailedPrecondition('Cannot modify inspections in an archived workspace.');
+    }
+    if (targetType === 'asset') {
+      const orgSnap = await tx.get(adminDb.doc(`org/${orgId}`));
+      const orgData = orgSnap.data() ?? {};
+      if (
+        !canUseCustomAssetInspections(
+          typeof orgData.plan === 'string' ? orgData.plan : null,
+          (orgData.featureFlags as Record<string, boolean> | undefined) ?? null,
+        )
+      ) {
+        throwFailedPrecondition('Custom Asset Inspections require a Pro plan or higher.');
+      }
     }
 
     const serverTimestamp = FieldValue.serverTimestamp();
@@ -95,10 +118,12 @@ export const saveInspection = onCall(async (request) => {
       inspectedBy: uid,
       inspectedByEmail: email,
       notes: data.notes ?? inspData.notes ?? '',
+      details: data.details ?? inspData.details ?? '',
       updatedAt: serverTimestamp,
     };
 
     if (data.checklistData) updateData.checklistData = data.checklistData;
+    if (data.checklistAnswers) updateData.checklistAnswers = data.checklistAnswers;
     if (data.photoUrl !== undefined) updateData.photoUrl = data.photoUrl;
     if (data.photoPath !== undefined) updateData.photoPath = data.photoPath;
     if (data.gps !== undefined) updateData.gps = data.gps;
@@ -120,7 +145,10 @@ export const saveInspection = onCall(async (request) => {
     const eventRef = adminDb.collection(`org/${orgId}/inspectionEvents`).doc();
     tx.set(eventRef, {
       inspectionId,
-      extinguisherId: inspData.extinguisherId,
+      targetType,
+      extinguisherId: inspData.extinguisherId ?? null,
+      assetRefId: inspData.assetRefId ?? null,
+      assetName: inspData.assetName ?? null,
       workspaceId: inspData.workspaceId,
       assetId: inspData.assetId,
       action: 'inspected',
@@ -128,7 +156,10 @@ export const saveInspection = onCall(async (request) => {
       newStatus: status,
       isExpired: data.isExpired ?? false,
       checklistData: data.checklistData ?? null,
+      checklistAnswers: data.checklistAnswers ?? null,
+      checklistSnapshot: inspData.checklistSnapshot ?? null,
       notes: data.notes ?? null,
+      details: data.details ?? null,
       photoUrl: data.photoUrl ?? null,
       gps: data.gps ?? null,
       attestation: data.attestation ?? null,
@@ -156,7 +187,7 @@ export const saveInspection = onCall(async (request) => {
     }
 
     // Update extinguisher lifecycle after inspection
-    if (extSnap.exists) {
+    if (targetType !== 'asset' && extRef && extSnap?.exists) {
       const extData = extSnap.data()!;
 
       // nextMonthlyInspection = now + 30 days (inspection just completed)

@@ -19,6 +19,8 @@ export interface OrgFeatureFlags {
   inspectionRoutes: boolean;
   /** Pro+: AI compliance assistant powered by Gemini */
   aiAssistant: boolean;
+  /** Pro+: Custom Asset Inspections for non-extinguisher recurring inspection work */
+  customAssetInspections: boolean;
   /** Elite/Enterprise: Allow anonymous read-only guest access via share link or code */
   guestAccess: boolean;
   /** Elite/Enterprise: Invite and manage team members */

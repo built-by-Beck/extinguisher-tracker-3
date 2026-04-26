@@ -6,11 +6,21 @@ import { validateSubscriptionTx } from '../utils/subscription.js';
 import { throwInvalidArgument, throwFailedPrecondition } from '../utils/errors.js';
 import { writeAuditLogTx } from '../utils/auditLog.js';
 import { FieldValue } from 'firebase-admin/firestore';
+import { canUseCustomAssetInspections } from '../billing/planConfig.js';
 
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
+
+interface AssetInspectionItemSnapshot {
+  id: string;
+  label?: string;
+  description?: string;
+  required?: boolean;
+  active?: boolean;
+  order: number;
+}
 
 function formatLabel(monthYear: string): string {
   const [year, month] = monthYear.split('-');
@@ -31,13 +41,30 @@ export const createWorkspace = onCall(async (request) => {
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
 
+  const orgSnap = await adminDb.doc(`org/${orgId}`).get();
+  const orgData = orgSnap.data() ?? {};
+  const includeCustomAssets = canUseCustomAssetInspections(
+    typeof orgData.plan === 'string' ? orgData.plan : null,
+    (orgData.featureFlags as Record<string, boolean> | undefined) ?? null,
+  );
+
   // 1. Check for active extinguishers outside transaction
   const extSnap = await adminDb.collection(`org/${orgId}/extinguishers`)
     .where('deletedAt', '==', null)
     .where('category', '==', 'standard')
     .get();
 
+  const assetSnap = includeCustomAssets
+    ? await adminDb.collection(`org/${orgId}/assets`)
+      .where('active', '==', true)
+      .where('status', '==', 'active')
+      .where('recurrence', '==', 'monthly')
+      .get()
+    : null;
+
   const totalExtinguishers = extSnap.size;
+  const totalCustomAssets = assetSnap?.size ?? 0;
+  const totalInspectionTargets = totalExtinguishers + totalCustomAssets;
 
   // 2. Create workspace document within transaction
   await adminDb.runTransaction(async (tx) => {
@@ -63,10 +90,10 @@ export const createWorkspace = onCall(async (request) => {
       archivedAt: null,
       archivedBy: null,
       stats: {
-        total: totalExtinguishers,
+        total: totalInspectionTargets,
         passed: 0,
         failed: 0,
-        pending: totalExtinguishers,
+        pending: totalInspectionTargets,
         lastUpdated: serverTimestamp,
       },
     });
@@ -78,7 +105,7 @@ export const createWorkspace = onCall(async (request) => {
       performedByEmail: email,
       entityType: 'workspace',
       entityId: monthYear,
-      details: { monthYear, extinguishersSeeded: totalExtinguishers },
+      details: { monthYear, extinguishersSeeded: totalExtinguishers, customAssetsSeeded: totalCustomAssets },
     });
   });
 
@@ -92,6 +119,7 @@ export const createWorkspace = onCall(async (request) => {
     const inspDocRef = inspRef.doc();
     
     batch.set(inspDocRef, {
+      targetType: 'extinguisher',
       extinguisherId: extDoc.id,
       workspaceId: monthYear,
       assetId: extData.assetId ?? '',
@@ -121,6 +149,58 @@ export const createWorkspace = onCall(async (request) => {
     }
   }
 
+  if (assetSnap) {
+    for (const assetDoc of assetSnap.docs) {
+      const assetData = assetDoc.data();
+      const checklistSnapshot: AssetInspectionItemSnapshot[] = ((assetData.inspectionItems as Array<Record<string, unknown>> | undefined) ?? [])
+        .filter((item) => item.active !== false)
+        .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
+        .map((item, index) => ({
+          ...item,
+          id: String(item.id ?? `item_${index}`),
+          order: index,
+        }));
+      const inspDocRef = inspRef.doc(`asset_${assetDoc.id}_${monthYear}`);
+
+      batch.set(inspDocRef, {
+        orgId,
+        workspaceId: monthYear,
+        targetType: 'asset',
+        assetRefId: assetDoc.id,
+        assetName: assetData.name ?? '',
+        assetType: assetData.assetType ?? '',
+        assetCode: assetData.assetCode ?? '',
+        assetId: assetData.assetCode || assetData.name || assetDoc.id,
+        locationId: assetData.locationId || null,
+        locationName: assetData.locationName ?? '',
+        section: assetData.locationName ?? '',
+        status: 'pending',
+        inspectedAt: null,
+        inspectedBy: null,
+        inspectedByEmail: null,
+        checklistSnapshot,
+        checklistAnswers: Object.fromEntries(
+          checklistSnapshot.map((item) => [String(item.id), { result: 'unchecked' }]),
+        ),
+        notes: '',
+        details: '',
+        photoUrl: null,
+        photoPath: null,
+        gps: null,
+        attestation: null,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      batchCount++;
+      if (batchCount >= 499) {
+        await batch.commit();
+        batch = adminDb.batch();
+        batchCount = 0;
+      }
+    }
+  }
+
   if (batchCount > 0) {
     await batch.commit();
   }
@@ -145,6 +225,6 @@ export const createWorkspace = onCall(async (request) => {
     if (notesCount > 0) await notesBatch.commit();
   }
 
-  return { monthYear, label: formatLabel(monthYear), totalExtinguishers };
+  return { monthYear, label: formatLabel(monthYear), totalExtinguishers, totalCustomAssets };
 });
 

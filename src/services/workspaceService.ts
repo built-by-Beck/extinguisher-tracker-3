@@ -91,10 +91,10 @@ export async function getActiveWorkspaceForCurrentMonth(orgId: string): Promise<
 export async function createWorkspaceCall(
   orgId: string,
   monthYear: string,
-): Promise<{ monthYear: string; label: string; totalExtinguishers: number }> {
+): Promise<{ monthYear: string; label: string; totalExtinguishers: number; totalCustomAssets?: number }> {
   const fn = httpsCallable<
     { orgId: string; monthYear: string },
-    { monthYear: string; label: string; totalExtinguishers: number }
+    { monthYear: string; label: string; totalExtinguishers: number; totalCustomAssets?: number }
   >(functions, 'createWorkspace');
   const result = await fn({ orgId, monthYear });
   return result.data;

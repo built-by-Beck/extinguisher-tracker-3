@@ -47,6 +47,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     bulkTagPrinting: false,
     inspectionRoutes: false,
     aiAssistant: false,
+    customAssetInspections: false,
     guestAccess: false,
     teamMembers: false,
   },
@@ -63,6 +64,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     bulkTagPrinting: false,
     inspectionRoutes: true,
     aiAssistant: true,
+    customAssetInspections: true,
     guestAccess: false,
     teamMembers: false,
   },
@@ -79,6 +81,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     bulkTagPrinting: true,
     inspectionRoutes: true,
     aiAssistant: true,
+    customAssetInspections: true,
     guestAccess: true,
     teamMembers: true,
   },
@@ -95,6 +98,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     bulkTagPrinting: true,
     inspectionRoutes: true,
     aiAssistant: true,
+    customAssetInspections: true,
     guestAccess: true,
     teamMembers: true,
   },
@@ -184,4 +188,11 @@ export function hasFeature(
   }
 
   return PLAN_FEATURE_FLAGS[plan as PlanName]?.[feature] === true;
+}
+
+export function canUseCustomAssetInspections(
+  featureFlags: Record<string, boolean> | null | undefined,
+  plan?: string | null,
+): boolean {
+  return hasFeature(featureFlags, 'customAssetInspections', plan);
 }

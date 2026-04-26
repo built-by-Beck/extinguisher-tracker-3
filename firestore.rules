@@ -39,6 +39,20 @@ service cloud.firestore {
       return org.plan == 'enterprise' || org.subscriptionStatus in ['active', 'trialing'];
     }
 
+    function hasCustomAssetInspections(orgId) {
+      let org = get(orgDoc(orgId)).data;
+      return (org.featureFlags != null && org.featureFlags.customAssetInspections == true)
+        || org.plan in ['pro', 'elite', 'enterprise'];
+    }
+
+    function isAssetInspectionCreate(orgId) {
+      return request.resource.data.targetType == 'asset';
+    }
+
+    function isAssetInspectionUpdate(orgId) {
+      return resource.data.targetType == 'asset' || request.resource.data.targetType == 'asset';
+    }
+
     // collectionGroup('members') — needed by OrgContext to find all orgs a user belongs to
     match /{path=**}/members/{memberId} {
       allow read: if isAuth() && request.auth.uid == resource.data.uid;
@@ -114,6 +128,16 @@ service cloud.firestore {
         }
       }
 
+      match /assets/{assetId} {
+        allow read: if isMember(orgId);
+        allow create, update: if hasRole(orgId, ['owner', 'admin'])
+          && hasWritableSubscription(orgId)
+          && hasCustomAssetInspections(orgId);
+        allow delete: if hasRole(orgId, ['owner', 'admin'])
+          && hasWritableSubscription(orgId)
+          && hasCustomAssetInspections(orgId);
+      }
+
       match /workspaces/{wsId} {
         allow read: if isMember(orgId);
         allow create, update: if hasRole(orgId, ['owner', 'admin']) && hasWritableSubscription(orgId);
@@ -122,7 +146,12 @@ service cloud.firestore {
 
       match /inspections/{inspId} {
         allow read: if isMember(orgId);
-        allow create, update: if hasRole(orgId, ['owner', 'admin', 'inspector']) && hasWritableSubscription(orgId);
+        allow create: if hasRole(orgId, ['owner', 'admin', 'inspector'])
+          && hasWritableSubscription(orgId)
+          && (!isAssetInspectionCreate(orgId) || hasCustomAssetInspections(orgId));
+        allow update: if hasRole(orgId, ['owner', 'admin', 'inspector'])
+          && hasWritableSubscription(orgId)
+          && (!isAssetInspectionUpdate(orgId) || hasCustomAssetInspections(orgId));
         // Allow owners/admins to delete pending inspections (e.g. when extinguisher is deleted)
         allow delete: if hasRole(orgId, ['owner', 'admin'])
                       && hasWritableSubscription(orgId)
