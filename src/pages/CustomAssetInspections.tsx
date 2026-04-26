@@ -7,6 +7,7 @@ import {
   Edit2,
   Lock,
   Plus,
+  Save,
   Search,
   Trash2,
   X,
@@ -23,12 +24,22 @@ import {
   listenToAssets,
   retireAsset,
   updateAsset,
+  ensureCustomAssetInspectionForWorkspace,
+  type ChecklistAnswer,
   type CreateAssetInput,
   type CustomAsset,
   type CustomAssetInspectionItem,
+  type CustomAssetInspectionResult,
   type CustomAssetRecurrence,
 } from '../services/assetService.ts';
 import { subscribeToLocations, type Location } from '../services/locationService.ts';
+import { getActiveWorkspaceForCurrentMonth, type Workspace } from '../services/workspaceService.ts';
+import {
+  getInspection,
+  getInspectionForAssetInWorkspace,
+  saveInspectionCall,
+  type Inspection,
+} from '../services/inspectionService.ts';
 
 const RECURRENCE_OPTIONS: CustomAssetRecurrence[] = ['monthly', 'weekly', 'quarterly', 'annual', 'custom'];
 
@@ -46,12 +57,17 @@ export default function CustomAssetInspections() {
   const { org, hasRole } = useOrg();
   const orgId = userProfile?.activeOrgId ?? '';
   const canManage = hasRole(['owner', 'admin']);
+  const canInspect = hasRole(['owner', 'admin', 'inspector']);
   const canUseFeature =
     canUseCustomAssetInspections(org?.featureFlags, org?.plan) &&
     isWritableSubscription(org?.plan, org?.subscriptionStatus);
 
   const [assets, setAssets] = useState<CustomAsset[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  const [inspectionsByAsset, setInspectionsByAsset] = useState<Record<string, Inspection | null>>({});
+  const [answersByAsset, setAnswersByAsset] = useState<Record<string, Record<string, ChecklistAnswer>>>({});
+  const [savingInspectionAssetId, setSavingInspectionAssetId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingAsset, setEditingAsset] = useState<CustomAsset | null>(null);
@@ -76,9 +92,57 @@ export default function CustomAssetInspections() {
   }, [orgId, canUseFeature]);
 
   useEffect(() => {
+    if (!orgId || !canUseFeature) {
+      setActiveWorkspace(null);
+      return;
+    }
+    getActiveWorkspaceForCurrentMonth(orgId).then(setActiveWorkspace).catch(() => setActiveWorkspace(null));
+  }, [orgId, canUseFeature]);
+
+  useEffect(() => {
     if (!orgId) return;
     return subscribeToLocations(orgId, setLocations);
   }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId || !canUseFeature || !activeWorkspace || assets.length === 0) return;
+    let cancelled = false;
+    const workspaceId = activeWorkspace.id;
+
+    async function loadAssetInspections() {
+      const nextInspections: Record<string, Inspection | null> = {};
+      const nextAnswers: Record<string, Record<string, ChecklistAnswer>> = {};
+
+      for (const asset of assets) {
+        if (!asset.id || !asset.active || asset.status !== 'active' || asset.recurrence !== 'monthly') continue;
+        let inspection = await getInspectionForAssetInWorkspace(orgId, asset.id, workspaceId);
+        if (!inspection && canManage) {
+          const inspectionId = await ensureCustomAssetInspectionForWorkspace(orgId, workspaceId, asset.id);
+          inspection = await getInspection(orgId, inspectionId);
+        }
+        nextInspections[asset.id] = inspection;
+        const items = inspection?.checklistSnapshot?.length
+          ? inspection.checklistSnapshot
+          : asset.inspectionItems.filter((item) => item.active);
+        nextAnswers[asset.id] = inspection?.checklistAnswers ?? Object.fromEntries(
+          items.map((item) => [item.id, { result: 'unchecked' as const }]),
+        );
+      }
+
+      if (!cancelled) {
+        setInspectionsByAsset(nextInspections);
+        setAnswersByAsset(nextAnswers);
+      }
+    }
+
+    loadAssetInspections().catch((err: unknown) => {
+      if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load custom asset inspections.');
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWorkspace, assets, canManage, canUseFeature, orgId]);
 
   const filteredAssets = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -151,6 +215,76 @@ export default function CustomAssetInspections() {
       [next[index], next[target]] = [next[target], next[index]];
       return next.map((item, order) => ({ ...item, order }));
     });
+  }
+
+  function setInlineAnswer(assetId: string, itemId: string, result: CustomAssetInspectionResult) {
+    setAnswersByAsset((prev) => ({
+      ...prev,
+      [assetId]: {
+        ...(prev[assetId] ?? {}),
+        [itemId]: {
+          ...(prev[assetId]?.[itemId] ?? { result: 'unchecked' }),
+          result,
+          answeredAt: new Date().toISOString(),
+          answeredBy: user?.uid,
+        },
+      },
+    }));
+  }
+
+  function setInlineAnswerNotes(assetId: string, itemId: string, notesValue: string) {
+    setAnswersByAsset((prev) => ({
+      ...prev,
+      [assetId]: {
+        ...(prev[assetId] ?? {}),
+        [itemId]: {
+          ...(prev[assetId]?.[itemId] ?? { result: 'unchecked' }),
+          notes: notesValue,
+        },
+      },
+    }));
+  }
+
+  async function saveInlineInspection(asset: CustomAsset) {
+    if (!orgId || !asset.id || !canInspect) return;
+    const inspection = inspectionsByAsset[asset.id];
+    if (!inspection?.id) {
+      setError('Create this month\'s workspace or open the asset detail before saving this custom inspection.');
+      return;
+    }
+    const activeItems = (inspection.checklistSnapshot?.length ? inspection.checklistSnapshot : asset.inspectionItems)
+      .filter((item) => item.active)
+      .sort((a, b) => a.order - b.order);
+    const answers = answersByAsset[asset.id] ?? {};
+    const hasUnchecked = activeItems.some((item) => (answers[item.id]?.result ?? 'unchecked') === 'unchecked');
+    if (hasUnchecked) {
+      setError(`Answer each inspection column for ${asset.name} before saving.`);
+      return;
+    }
+
+    setSavingInspectionAssetId(asset.id);
+    setError('');
+    try {
+      const status = Object.values(answers).some((answer) => answer.result === 'fail') ? 'fail' : 'pass';
+      await saveInspectionCall(orgId, inspection.id, {
+        status,
+        checklistAnswers: answers,
+        notes: inspection.notes ?? '',
+        details: inspection.details ?? '',
+      });
+      setInspectionsByAsset((prev) => ({
+        ...prev,
+        [asset.id!]: {
+          ...inspection,
+          status,
+          checklistAnswers: answers,
+        },
+      }));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save custom asset inspection.');
+    } finally {
+      setSavingInspectionAssetId(null);
+    }
   }
 
   async function handleSave() {
@@ -268,7 +402,7 @@ export default function CustomAssetInspections() {
       </div>
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr_auto] gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <div className="grid grid-cols-[1.1fr_.8fr_.75fr_2.2fr_auto] gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
           <span>What asset are you inspecting?</span>
           <span>Location</span>
           <span>Type / Code</span>
@@ -285,7 +419,7 @@ export default function CustomAssetInspections() {
           filteredAssets.map((asset) => (
             <div
               key={asset.id}
-              className="grid cursor-pointer grid-cols-[1.4fr_1fr_1fr_1fr_auto] items-center gap-3 border-b border-gray-100 px-4 py-3 text-sm hover:bg-gray-50 last:border-b-0"
+              className="grid cursor-pointer grid-cols-[1.1fr_.8fr_.75fr_2.2fr_auto] items-start gap-3 border-b border-gray-100 px-4 py-3 text-sm hover:bg-gray-50 last:border-b-0"
               onClick={() => navigate(`/dashboard/custom-asset-inspections/${asset.id}`)}
             >
               <div>
@@ -294,10 +428,59 @@ export default function CustomAssetInspections() {
               </div>
               <span className="text-gray-600">{asset.locationName || 'Unassigned'}</span>
               <span className="text-gray-600">{asset.assetType || asset.assetCode || 'Custom asset'}</span>
-              <span className="text-gray-600">
-                {asset.inspectionItems.filter((item) => item.active).length} column
-                {asset.inspectionItems.filter((item) => item.active).length === 1 ? '' : 's'}
-              </span>
+              <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+                {!activeWorkspace ? (
+                  <p className="text-xs text-gray-500">Create this month&apos;s workspace to inspect these columns.</p>
+                ) : (
+                  (asset.inspectionItems.filter((item) => item.active).sort((a, b) => a.order - b.order)).map((item) => {
+                    const answer = asset.id ? answersByAsset[asset.id]?.[item.id] : undefined;
+                    return (
+                      <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-2">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-medium text-gray-900">{item.label}</p>
+                          <div className="flex items-center gap-1">
+                            {(['pass', 'fail'] as CustomAssetInspectionResult[]).map((result) => (
+                              <button
+                                key={result}
+                                type="button"
+                                onClick={() => asset.id && setInlineAnswer(asset.id, item.id, result)}
+                                disabled={!canInspect || inspectionsByAsset[asset.id ?? '']?.status === 'pass' || inspectionsByAsset[asset.id ?? '']?.status === 'fail'}
+                                className={`rounded px-2.5 py-1 text-xs font-semibold ${
+                                  answer?.result === result
+                                    ? result === 'pass'
+                                      ? 'bg-green-600 text-white'
+                                      : 'bg-red-600 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                } disabled:cursor-not-allowed disabled:opacity-50`}
+                              >
+                                {result === 'pass' ? 'Pass' : 'Fail'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <input
+                          value={answer?.notes ?? ''}
+                          onChange={(e) => asset.id && setInlineAnswerNotes(asset.id, item.id, e.target.value)}
+                          disabled={!canInspect || inspectionsByAsset[asset.id ?? '']?.status === 'pass' || inspectionsByAsset[asset.id ?? '']?.status === 'fail'}
+                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
+                          placeholder={`Notes for ${item.label}`}
+                        />
+                      </div>
+                    );
+                  })
+                )}
+                {activeWorkspace && canInspect && asset.id && inspectionsByAsset[asset.id] && (
+                  <button
+                    type="button"
+                    onClick={() => saveInlineInspection(asset)}
+                    disabled={savingInspectionAssetId === asset.id || inspectionsByAsset[asset.id]?.status === 'pass' || inspectionsByAsset[asset.id]?.status === 'fail'}
+                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    {savingInspectionAssetId === asset.id ? 'Saving...' : 'Save row'}
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-1">
                 {canManage && (
                   <>
