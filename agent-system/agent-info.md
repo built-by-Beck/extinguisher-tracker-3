@@ -91,3 +91,36 @@ Manual smoke test the new sidebar tab with a Pro org and Basic org, then deploy 
 
 **Handoff Notes:**
 Reviewer should verify Pro gating, Firestore rules, no hardcoded custom asset types/checklists, old extinguisher flows still excluded from asset rows, and workspace counts include asset inspections only for Pro+ orgs.
+
+## 2026-04-26 - Build/Review
+
+**Task:**
+Add reusable Custom Asset Inspection Templates for owner/admin users.
+
+**Summary:**
+Implemented org-scoped `assetInspectionTemplates` so admins can save the custom inspection column list from an asset and apply it to future assets. The asset create/edit modal now loads active templates, suggests matching templates by asset type, copies template columns into the asset with fresh item IDs, and keeps asset name/location unique per asset. Firestore rules and indexes now cover template reads/writes under the existing Pro+ custom asset gating.
+
+**Files Changed:**
+- `src/services/assetService.ts`
+- `src/pages/CustomAssetInspections.tsx`
+- `firestore.rules`
+- `firestore.indexes.json`
+
+**Plan Compliance:**
+- Added the planned org-scoped template model and service helpers.
+- Added apply-template and save-as-template controls in the existing modal without building a full manager page.
+- Enforced member reads and owner/admin Pro+ writable writes in Firestore rules.
+- Preserved extinguisher behavior and existing inspection snapshots.
+
+**Validation:**
+- App lint: passed (`pnpm lint`).
+- App build/typecheck: passed (`pnpm build`).
+- App tests: passed, 79 tests (`pnpm test`).
+- Functions lint: passed (`npm run lint` in `functions`).
+- Functions build/typecheck: passed (`npm run build` in `functions`).
+- Functions tests: passed, 30 tests (`npm run test` in `functions`).
+- IDE diagnostics: no linter errors on changed files.
+- Formatter note: no formatter script exists in `package.json`.
+
+**Review Notes:**
+Reviewer verified plan compliance, Pro+/owner-admin security gating, copied template item ID freshness, simplicity of modal-only controls, and no changes to extinguisher inspection logic.

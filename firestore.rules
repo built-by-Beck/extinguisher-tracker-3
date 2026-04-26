@@ -138,6 +138,16 @@ service cloud.firestore {
           && hasCustomAssetInspections(orgId);
       }
 
+      match /assetInspectionTemplates/{templateId} {
+        allow read: if isMember(orgId);
+        allow create, update: if hasRole(orgId, ['owner', 'admin'])
+          && hasWritableSubscription(orgId)
+          && hasCustomAssetInspections(orgId);
+        allow delete: if hasRole(orgId, ['owner', 'admin'])
+          && hasWritableSubscription(orgId)
+          && hasCustomAssetInspections(orgId);
+      }
+
       match /workspaces/{wsId} {
         allow read: if isMember(orgId);
         allow create, update: if hasRole(orgId, ['owner', 'admin']) && hasWritableSubscription(orgId);

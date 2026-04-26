@@ -56,6 +56,19 @@ export interface CustomAsset {
   retiredBy?: string | null;
 }
 
+export interface CustomAssetInspectionTemplate {
+  id?: string;
+  orgId: string;
+  name: string;
+  assetType?: string;
+  inspectionItems: CustomAssetInspectionItem[];
+  active: boolean;
+  createdAt: Timestamp | unknown;
+  createdBy: string;
+  updatedAt: Timestamp | unknown;
+  updatedBy: string;
+}
+
 export interface ChecklistAnswer {
   result: CustomAssetInspectionResult;
   notes?: string;
@@ -74,6 +87,13 @@ export interface CreateAssetInput {
   notes?: string;
   details?: string;
   recurrence?: CustomAssetRecurrence;
+  templateId?: string | null;
+  inspectionItems: CustomAssetInspectionItem[];
+}
+
+export interface CreateAssetInspectionTemplateInput {
+  name: string;
+  assetType?: string;
   inspectionItems: CustomAssetInspectionItem[];
 }
 
@@ -91,6 +111,10 @@ function inspectionsRef(orgId: string) {
   return collection(db, 'org', orgId, 'inspections');
 }
 
+function templatesRef(orgId: string) {
+  return collection(db, 'org', orgId, 'assetInspectionTemplates');
+}
+
 export function createInspectionItem(label: string, order: number): CustomAssetInspectionItem {
   return {
     id: crypto.randomUUID(),
@@ -99,6 +123,20 @@ export function createInspectionItem(label: string, order: number): CustomAssetI
     active: true,
     required: false,
   };
+}
+
+export function copyInspectionItemsForAsset(items: CustomAssetInspectionItem[]): CustomAssetInspectionItem[] {
+  return items
+    .filter((item) => item.active !== false && item.label.trim())
+    .sort((a, b) => a.order - b.order)
+    .map((item, index) => ({
+      id: crypto.randomUUID(),
+      label: item.label.trim(),
+      description: item.description?.trim() || '',
+      required: item.required ?? false,
+      order: index,
+      active: true,
+    }));
 }
 
 function normalizeAssetInput(orgId: string, uid: string, input: CreateAssetInput) {
@@ -116,7 +154,7 @@ function normalizeAssetInput(orgId: string, uid: string, input: CreateAssetInput
     active: true,
     status: 'active' as CustomAssetStatus,
     recurrence: input.recurrence ?? 'monthly',
-    templateId: null,
+    templateId: input.templateId ?? null,
     inspectionItems: input.inspectionItems
       .filter((item) => item.label.trim())
       .map((item, index) => ({
@@ -163,6 +201,7 @@ export async function updateAsset(
   if (updates.notes !== undefined) patch.notes = updates.notes.trim();
   if (updates.details !== undefined) patch.details = updates.details.trim();
   if (updates.recurrence !== undefined) patch.recurrence = updates.recurrence;
+  if (updates.templateId !== undefined) patch.templateId = updates.templateId;
   if (updates.active !== undefined) patch.active = updates.active;
   if (updates.status !== undefined) patch.status = updates.status;
   if (updates.inspectionItems !== undefined) {
@@ -220,6 +259,63 @@ export function listenToAssets(
   return onSnapshot(query(assetsRef(orgId), ...assetConstraints(filters)), (snap) => {
     callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as CustomAsset)));
   });
+}
+
+export function listenToAssetInspectionTemplates(
+  orgId: string,
+  callback: (items: CustomAssetInspectionTemplate[]) => void,
+): () => void {
+  const q = query(
+    templatesRef(orgId),
+    where('active', '==', true),
+    orderBy('name', 'asc'),
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as CustomAssetInspectionTemplate)));
+  });
+}
+
+function normalizeTemplateInput(orgId: string, uid: string, input: CreateAssetInspectionTemplateInput) {
+  return {
+    orgId,
+    name: input.name.trim(),
+    assetType: input.assetType?.trim() || '',
+    inspectionItems: copyInspectionItemsForAsset(input.inspectionItems),
+    active: true,
+    createdAt: serverTimestamp(),
+    createdBy: uid,
+    updatedAt: serverTimestamp(),
+    updatedBy: uid,
+  };
+}
+
+export async function createAssetInspectionTemplate(
+  orgId: string,
+  uid: string,
+  input: CreateAssetInspectionTemplateInput,
+): Promise<string> {
+  const ref = doc(templatesRef(orgId));
+  await setDoc(ref, normalizeTemplateInput(orgId, uid, input));
+  return ref.id;
+}
+
+export async function updateAssetInspectionTemplate(
+  orgId: string,
+  templateId: string,
+  uid: string,
+  updates: Partial<CreateAssetInspectionTemplateInput> & { active?: boolean },
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    updatedAt: serverTimestamp(),
+    updatedBy: uid,
+  };
+  if (updates.name !== undefined) patch.name = updates.name.trim();
+  if (updates.assetType !== undefined) patch.assetType = updates.assetType.trim();
+  if (updates.inspectionItems !== undefined) {
+    patch.inspectionItems = copyInspectionItemsForAsset(updates.inspectionItems);
+  }
+  if (updates.active !== undefined) patch.active = updates.active;
+  await updateDoc(doc(db, 'org', orgId, 'assetInspectionTemplates', templateId), patch);
 }
 
 export function getLocationName(locations: Location[], locationId: string | null | undefined): string {

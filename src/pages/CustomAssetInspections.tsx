@@ -19,9 +19,12 @@ import { LocationSelector } from '../components/locations/LocationSelector.tsx';
 import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
 import {
   createAsset,
+  createAssetInspectionTemplate,
   createInspectionItem,
+  copyInspectionItemsForAsset,
   getLocationName,
   listenToAssets,
+  listenToAssetInspectionTemplates,
   retireAsset,
   updateAsset,
   ensureCustomAssetInspectionForWorkspace,
@@ -29,6 +32,7 @@ import {
   type CreateAssetInput,
   type CustomAsset,
   type CustomAssetInspectionItem,
+  type CustomAssetInspectionTemplate,
   type CustomAssetInspectionResult,
   type CustomAssetRecurrence,
 } from '../services/assetService.ts';
@@ -63,6 +67,7 @@ export default function CustomAssetInspections() {
     isWritableSubscription(org?.plan, org?.subscriptionStatus);
 
   const [assets, setAssets] = useState<CustomAsset[]>([]);
+  const [templates, setTemplates] = useState<CustomAssetInspectionTemplate[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [inspectionsByAsset, setInspectionsByAsset] = useState<Record<string, Inspection | null>>({});
@@ -73,10 +78,14 @@ export default function CustomAssetInspections() {
   const [editingAsset, setEditingAsset] = useState<CustomAsset | null>(null);
   const [retireTarget, setRetireTarget] = useState<CustomAsset | null>(null);
   const [saving, setSaving] = useState(false);
+  const [templateSaving, setTemplateSaving] = useState(false);
   const [error, setError] = useState('');
+  const [templateMessage, setTemplateMessage] = useState('');
 
   const [name, setName] = useState('');
   const [assetType, setAssetType] = useState('');
+  const [templateName, setTemplateName] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [assetCode, setAssetCode] = useState('');
   const [barcode, setBarcode] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
@@ -89,6 +98,11 @@ export default function CustomAssetInspections() {
   useEffect(() => {
     if (!orgId || !canUseFeature) return;
     return listenToAssets(orgId, setAssets);
+  }, [orgId, canUseFeature]);
+
+  useEffect(() => {
+    if (!orgId || !canUseFeature) return;
+    return listenToAssetInspectionTemplates(orgId, setTemplates);
   }, [orgId, canUseFeature]);
 
   useEffect(() => {
@@ -163,6 +177,8 @@ export default function CustomAssetInspections() {
     setEditingAsset(null);
     setName('');
     setAssetType('');
+    setTemplateName('');
+    setSelectedTemplateId('');
     setAssetCode('');
     setBarcode('');
     setSerialNumber('');
@@ -172,6 +188,7 @@ export default function CustomAssetInspections() {
     setDetails('');
     setInspectionItems(emptyFormItems());
     setError('');
+    setTemplateMessage('');
   }
 
   function openCreate() {
@@ -183,6 +200,8 @@ export default function CustomAssetInspections() {
     setEditingAsset(asset);
     setName(asset.name);
     setAssetType(asset.assetType ?? '');
+    setTemplateName('');
+    setSelectedTemplateId(asset.templateId ?? '');
     setAssetCode(asset.assetCode ?? '');
     setBarcode(asset.barcode ?? '');
     setSerialNumber(asset.serialNumber ?? '');
@@ -192,6 +211,7 @@ export default function CustomAssetInspections() {
     setDetails(asset.details ?? '');
     setInspectionItems(asset.inspectionItems.length ? [...asset.inspectionItems].sort((a, b) => a.order - b.order) : emptyFormItems());
     setError('');
+    setTemplateMessage('');
     setShowForm(true);
   }
 
@@ -215,6 +235,48 @@ export default function CustomAssetInspections() {
       [next[index], next[target]] = [next[target], next[index]];
       return next.map((item, order) => ({ ...item, order }));
     });
+  }
+
+  const matchingTemplates = useMemo(() => {
+    const normalized = assetType.trim().toLowerCase();
+    if (!normalized) return [];
+    return templates.filter((template) => template.assetType?.trim().toLowerCase() === normalized);
+  }, [assetType, templates]);
+
+  function applyTemplate(templateId: string) {
+    const template = templates.find((item) => item.id === templateId);
+    if (!template?.id) return;
+    setSelectedTemplateId(template.id);
+    setInspectionItems(copyInspectionItemsForAsset(template.inspectionItems));
+    setTemplateName(template.name);
+    setTemplateMessage(`Applied template: ${template.name}`);
+  }
+
+  async function handleSaveAsTemplate() {
+    if (!orgId || !user || !canManage) return;
+    const cleanItems = inspectionItems.filter((item) => item.label.trim());
+    if (cleanItems.length === 0) {
+      setError('Add at least one inspection column before saving a template.');
+      return;
+    }
+    const resolvedTemplateName = (templateName || assetType || name || 'Custom inspection template').trim();
+    setTemplateSaving(true);
+    setError('');
+    setTemplateMessage('');
+    try {
+      const templateId = await createAssetInspectionTemplate(orgId, user.uid, {
+        name: resolvedTemplateName,
+        assetType,
+        inspectionItems: cleanItems,
+      });
+      setSelectedTemplateId(templateId);
+      setTemplateName(resolvedTemplateName);
+      setTemplateMessage(`Saved template: ${resolvedTemplateName}`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save inspection template.');
+    } finally {
+      setTemplateSaving(false);
+    }
   }
 
   function setInlineAnswer(assetId: string, itemId: string, result: CustomAssetInspectionResult) {
@@ -310,6 +372,7 @@ export default function CustomAssetInspections() {
       locationId,
       locationName: getLocationName(locations, locationId),
       recurrence,
+      templateId: selectedTemplateId || null,
       notes,
       details,
       inspectionItems: cleanItems,
@@ -545,7 +608,15 @@ export default function CustomAssetInspections() {
                 </label>
                 <label className="block">
                   <span className="text-sm font-medium text-gray-700">Asset type (optional)</span>
-                  <input value={assetType} onChange={(e) => setAssetType(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="User-defined type" />
+                  <input
+                    value={assetType}
+                    onChange={(e) => {
+                      setAssetType(e.target.value);
+                      setTemplateMessage('');
+                    }}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    placeholder="User-defined type"
+                  />
                 </label>
                 <label className="block">
                   <span className="text-sm font-medium text-gray-700">Asset code (optional)</span>
@@ -567,6 +638,62 @@ export default function CustomAssetInspections() {
                   <span className="text-sm font-medium text-gray-700">Serial number (optional)</span>
                   <input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                 </label>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="min-w-64 flex-1">
+                    <span className="text-sm font-medium text-gray-700">Apply template</span>
+                    <select
+                      value={selectedTemplateId}
+                      onChange={(e) => e.target.value ? applyTemplate(e.target.value) : setSelectedTemplateId('')}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="">No template selected</option>
+                      {templates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}{template.assetType ? ` (${template.assetType})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="min-w-56 flex-1">
+                    <span className="text-sm font-medium text-gray-700">Template name</span>
+                    <input
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      placeholder={assetType ? `${assetType} template` : 'Template name'}
+                    />
+                  </label>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={handleSaveAsTemplate}
+                      disabled={templateSaving}
+                      className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                    >
+                      {templateSaving ? 'Saving...' : 'Save as template'}
+                    </button>
+                  )}
+                </div>
+                {matchingTemplates.length > 0 && !selectedTemplateId && (
+                  <div className="mt-3 rounded-lg border border-indigo-100 bg-white px-3 py-2 text-sm text-gray-700">
+                    Template found for <span className="font-semibold">{assetType.trim()}</span>.{' '}
+                    <button
+                      type="button"
+                      onClick={() => matchingTemplates[0].id && applyTemplate(matchingTemplates[0].id)}
+                      className="font-medium text-indigo-700 hover:text-indigo-900"
+                    >
+                      Apply {matchingTemplates[0].name}
+                    </button>
+                  </div>
+                )}
+                {templateMessage && (
+                  <p className="mt-2 text-sm font-medium text-green-700">{templateMessage}</p>
+                )}
+                <p className="mt-2 text-xs text-gray-500">
+                  Templates save only the inspection columns. Asset name and location stay unique for each asset.
+                </p>
               </div>
               <label className="block">
                 <span className="text-sm font-medium text-gray-700">Where is this asset?</span>
