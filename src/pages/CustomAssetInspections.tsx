@@ -439,7 +439,7 @@ export default function CustomAssetInspections() {
                         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                           <p className="font-medium text-gray-900">{item.label}</p>
                           <div className="flex items-center gap-1">
-                            {(['pass', 'fail'] as CustomAssetInspectionResult[]).map((result) => (
+                            {(['pass', 'fail', 'na'] as CustomAssetInspectionResult[]).map((result) => (
                               <button
                                 key={result}
                                 type="button"
@@ -449,11 +449,13 @@ export default function CustomAssetInspections() {
                                   answer?.result === result
                                     ? result === 'pass'
                                       ? 'bg-green-600 text-white'
-                                      : 'bg-red-600 text-white'
+                                      : result === 'fail'
+                                        ? 'bg-red-600 text-white'
+                                        : 'bg-gray-700 text-white'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 } disabled:cursor-not-allowed disabled:opacity-50`}
                               >
-                                {result === 'pass' ? 'Pass' : 'Fail'}
+                                {result === 'na' ? 'N/A' : result === 'pass' ? 'Pass' : 'Fail'}
                               </button>
                             ))}
                           </div>
