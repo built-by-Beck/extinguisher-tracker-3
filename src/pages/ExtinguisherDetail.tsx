@@ -39,7 +39,6 @@ import { hasFeature } from '../lib/planConfig.ts';
 import { useOffline } from '../hooks/useOffline.ts';
 import {
   getExtinguisher,
-  isInventoryActiveRecord,
   restoreExtinguisher,
   subscribeToReplacementHistory,
   type Extinguisher,
@@ -48,7 +47,7 @@ import {
 import {
   getInspectionForExtinguisherInWorkspace,
   getInspectionHistoryForExtinguisher,
-  createSingleInspection,
+  addExtinguisherToWorkspaceChecklistCall,
   CHECKLIST_SECTIONS,
   type Inspection,
   type ChecklistData,
@@ -127,6 +126,8 @@ export default function ExtinguisherDetail() {
   const [inspection, setInspection] = useState<Inspection | null | undefined>(undefined);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [noActiveWorkspace, setNoActiveWorkspace] = useState(false);
+  const [addingToChecklist, setAddingToChecklist] = useState(false);
+  const [addToChecklistError, setAddToChecklistError] = useState<string | null>(null);
 
   const {
     activeSection: timerActiveSection,
@@ -178,9 +179,8 @@ export default function ExtinguisherDetail() {
     return subscribeToReplacementHistory(orgId, extId, setReplacementHistoryRows);
   }, [orgId, extId]);
 
-  // Load inspection (and resolve workspace if needed).
-  // Auto-creates a pending inspection if the extinguisher exists in the workspace
-  // but has no inspection record (e.g., added after workspace creation).
+  // Load inspection (and resolve workspace if needed). Missing rows are not auto-created:
+  // owners/admins explicitly add new inventory to the month checklist.
   const loadInspection = useCallback(async () => {
     if (!orgId || !extId) return;
 
@@ -200,27 +200,8 @@ export default function ExtinguisherDetail() {
     setActiveWorkspaceId(resolvedWsId);
     const insp = await getInspectionForExtinguisherInWorkspace(orgId, extId, resolvedWsId);
 
-    if (insp) {
-      setInspection(insp);
-    } else if (
-      ext &&
-      !ext.deletedAt &&
-      ext.category === 'standard' &&
-      isInventoryActiveRecord(ext as unknown as Record<string, unknown>)
-    ) {
-      // Auto-create pending inspection for this extinguisher
-      const created = await createSingleInspection(orgId, extId, resolvedWsId, {
-        assetId: ext.assetId,
-        parentLocation: ext.parentLocation,
-        section: ext.section,
-        serial: ext.serial,
-        locationId: ext.locationId,
-      });
-      setInspection(created);
-    } else {
-      setInspection(null);
-    }
-  }, [orgId, extId, workspaceId, ext]);
+    setInspection(insp ?? null);
+  }, [orgId, extId, workspaceId]);
 
   useEffect(() => {
     loadInspection().catch(() => setInspection(null));
@@ -306,13 +287,27 @@ export default function ExtinguisherDetail() {
       const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       await createWorkspaceCall(orgId, monthYear);
       setNoActiveWorkspace(false);
-      // Reload inspection — workspace now exists and inspection was seeded (or will be auto-created)
+      // Reload inspection — workspace now exists and eligible inventory was seeded.
       await loadInspection();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create workspace.';
       setWsCreateError(msg);
     } finally {
       setCreatingWorkspace(false);
+    }
+  }
+
+  async function handleAddToCurrentChecklist() {
+    if (!orgId || !extId || !activeWorkspaceId) return;
+    setAddingToChecklist(true);
+    setAddToChecklistError(null);
+    try {
+      await addExtinguisherToWorkspaceChecklistCall(orgId, extId, activeWorkspaceId);
+      await loadInspection();
+    } catch (err: unknown) {
+      setAddToChecklistError(err instanceof Error ? err.message : 'Failed to add to this month checklist.');
+    } finally {
+      setAddingToChecklist(false);
     }
   }
 
@@ -604,10 +599,31 @@ export default function ExtinguisherDetail() {
 
           {/* Extinguisher not in workspace */}
           {!noActiveWorkspace && inspection === null && (
-            <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <p className="text-sm text-gray-500">
-                This extinguisher is not in the current workspace.
+            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-5">
+              <p className="text-sm font-semibold text-amber-900">
+                This extinguisher is not on this month&apos;s pending checklist.
               </p>
+              <p className="mt-1 text-sm text-amber-800">
+                New inventory does not change an active monthly checklist until an owner or admin adds it.
+              </p>
+              {addToChecklistError && (
+                <p className="mt-2 text-sm text-red-600">{addToChecklistError}</p>
+              )}
+              {canEdit && activeWorkspaceId ? (
+                <button
+                  type="button"
+                  onClick={handleAddToCurrentChecklist}
+                  disabled={addingToChecklist}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {addingToChecklist ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  {addingToChecklist ? 'Adding...' : 'Add to Current Month Checklist'}
+                </button>
+              ) : (
+                <p className="mt-2 text-sm text-amber-800">
+                  Ask an owner or admin to add it to the current month checklist.
+                </p>
+              )}
             </div>
           )}
 

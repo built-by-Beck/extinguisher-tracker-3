@@ -5,7 +5,7 @@
  * Author: built_by_Beck
  */
 
-import { MapPin, Building2, Layers, CheckCircle2, XCircle, Clock, Flame } from 'lucide-react';
+import { MapPin, Building2, Layers, CheckCircle2, XCircle, Clock, Flame, RefreshCw } from 'lucide-react';
 import { getLocationTypeLabel } from '../../services/locationService.ts';
 
 export interface LocationCardStats {
@@ -13,6 +13,7 @@ export interface LocationCardStats {
   passed: number;
   failed: number;
   pending: number;
+  replaced?: number;
   percentage: number;
 }
 
@@ -86,7 +87,7 @@ export function LocationCard({ name, locationType, stats, onClick }: LocationCar
       </div>
 
       {/* Mini stats */}
-      <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
         <span className="flex items-center gap-1">
           <CheckCircle2 className="h-3 w-3 text-green-500" />
           {stats.passed}
@@ -99,6 +100,12 @@ export function LocationCard({ name, locationType, stats, onClick }: LocationCar
           <Clock className="h-3 w-3 text-gray-400" />
           {stats.pending}
         </span>
+        {(stats.replaced ?? 0) > 0 && (
+          <span className="flex items-center gap-1">
+            <RefreshCw className="h-3 w-3 text-orange-500" />
+            {stats.replaced}
+          </span>
+        )}
       </div>
     </button>
   );

@@ -256,6 +256,9 @@ export function ImportExportBar({ onImportJSON }: ImportExportBarProps) {
       const { created, skipped, errors } = result.data;
 
       let msg = `Imported ${created} extinguisher${created !== 1 ? 's' : ''}.`;
+      if (created > 0) {
+        msg += ' New items were added to inventory only; open an extinguisher to add it to the current month checklist.';
+      }
       if (skipped > 0) msg += ` ${skipped} skipped.`;
       if (errors.length > 0) msg += ` Issues: ${errors.slice(0, 3).join('; ')}`;
 

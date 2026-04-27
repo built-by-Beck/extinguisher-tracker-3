@@ -1,6 +1,6 @@
 /**
  * Single source of truth for workspace inspection counts and scoped row lists.
- * Matches WorkspaceDetail / Dashboard expectations (extinguishers + inspections).
+ * Active monthly progress is derived from inspection rows only.
  *
  * Author: built_by_Beck
  */
@@ -41,11 +41,17 @@ export function dedupeInspectionsByExtinguisherLatest(inspections: Inspection[])
   const seen = new Set<string>();
   const out: Inspection[] = [];
   for (const insp of sorted) {
-    if (seen.has(insp.extinguisherId)) continue;
-    seen.add(insp.extinguisherId);
+    const key = inspectionIdentity(insp);
+    if (seen.has(key)) continue;
+    seen.add(key);
     out.push(insp);
   }
   return out;
+}
+
+function inspectionIdentity(insp: Inspection): string {
+  if (insp.targetType === 'asset') return `asset:${insp.assetRefId || insp.id || insp.assetId}`;
+  return `ext:${insp.extinguisherId || insp.id || insp.assetId}`;
 }
 
 export interface WorkspaceInspectionBucketStats {
@@ -59,6 +65,23 @@ export interface WorkspaceInspectionBucketStats {
 
 function isReplacedExtinguisher(ext: Extinguisher): boolean {
   return ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
+}
+
+/**
+ * Extinguisher IDs superseded by another non-deleted record via `replacesExtId`
+ * (replacement successor). If the old unit is still `active` in Firestore, it would
+ * otherwise duplicate pending inspection work with the successor row.
+ */
+export function getSupersededExtinguisherIds(extinguishers: Extinguisher[]): Set<string> {
+  const superseded = new Set<string>();
+  for (const e of extinguishers) {
+    if (e.deletedAt != null) continue;
+    const rid = e.replacesExtId;
+    if (rid && typeof rid === 'string' && rid.length > 0) {
+      superseded.add(rid);
+    }
+  }
+  return superseded;
 }
 
 export function detectHasLocationIdData(
@@ -76,6 +99,7 @@ export function buildLocationStatsMap(params: {
   hasLocationIdData: boolean;
 }): Map<string, WorkspaceInspectionBucketStats> {
   const { inspections, extinguishers, locations, isArchived, hasLocationIdData } = params;
+  const supersededIds = getSupersededExtinguisherIds(extinguishers);
   const map = new Map<string, WorkspaceInspectionBucketStats>();
 
   function getStats(id: string): WorkspaceInspectionBucketStats {
@@ -87,38 +111,17 @@ export function buildLocationStatsMap(params: {
 
   if (hasLocationIdData) {
     if (!isArchived) {
-      const trackedExtIds = new Set<string>();
-      for (const ext of extinguishers) {
-        const locId = ext.locationId || '__unassigned__';
-        if (isReplacedExtinguisher(ext)) {
-          getStats(locId).replaced += 1;
-          continue;
-        }
-        const stats = getStats(locId);
-        stats.total += 1;
-        stats.pending += 1;
-        trackedExtIds.add(ext.id!);
-      }
       // De-dupe by extinguisher so duplicate pass/fail docs (re-saves, sync, imports) do not
       // each subtract from pending — that was collapsing "left to check" toward zero.
       for (const insp of dedupeInspectionsByExtinguisherLatest(inspections)) {
-        const isOrphaned = !trackedExtIds.has(insp.extinguisherId);
-        const locId = isOrphaned ? '__deleted__' : (insp.locationId || '__unassigned__');
-        if (isOrphaned) {
-          const s = getStats(locId);
-          s.total += 1;
-          s.pending += 1;
-        }
-        if (insp.status === 'pass' || insp.status === 'fail') {
-          const stats = getStats(locId);
-          if (insp.status === 'pass') {
-            stats.passed += 1;
-            stats.pending = Math.max(0, stats.pending - 1);
-          } else {
-            stats.failed += 1;
-            stats.pending = Math.max(0, stats.pending - 1);
-          }
-        }
+        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
+        const locId = insp.locationId || '__unassigned__';
+        const stats = getStats(locId);
+        stats.total += 1;
+        if (insp.status === 'pass') stats.passed += 1;
+        else if (insp.status === 'fail') stats.failed += 1;
+        else if (insp.status === 'replaced') stats.replaced += 1;
+        else stats.pending += 1;
       }
     } else {
       for (const insp of inspections) {
@@ -138,36 +141,15 @@ export function buildLocationStatsMap(params: {
     }
 
     if (!isArchived) {
-      const trackedExtIdsLegacy = new Set<string>();
-      for (const ext of extinguishers) {
-        const locId = nameToId.get(ext.section) ?? '__unassigned__';
-        if (isReplacedExtinguisher(ext)) {
-          getStats(locId).replaced += 1;
-          continue;
-        }
+      for (const insp of dedupeInspectionsByExtinguisherLatest(inspections)) {
+        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
+        const locId = nameToId.get(insp.section) ?? '__unassigned__';
         const stats = getStats(locId);
         stats.total += 1;
-        stats.pending += 1;
-        trackedExtIdsLegacy.add(ext.id!);
-      }
-      for (const insp of dedupeInspectionsByExtinguisherLatest(inspections)) {
-        const isOrphanedLegacy = !trackedExtIdsLegacy.has(insp.extinguisherId);
-        const locId = isOrphanedLegacy ? '__deleted__' : (nameToId.get(insp.section) ?? '__unassigned__');
-        if (isOrphanedLegacy) {
-          const s = getStats(locId);
-          s.total += 1;
-          s.pending += 1;
-        }
-        if (insp.status === 'pass' || insp.status === 'fail') {
-          const stats = getStats(locId);
-          if (insp.status === 'pass') {
-            stats.passed += 1;
-            stats.pending = Math.max(0, stats.pending - 1);
-          } else {
-            stats.failed += 1;
-            stats.pending = Math.max(0, stats.pending - 1);
-          }
-        }
+        if (insp.status === 'pass') stats.passed += 1;
+        else if (insp.status === 'fail') stats.failed += 1;
+        else if (insp.status === 'replaced') stats.replaced += 1;
+        else stats.pending += 1;
       }
     } else {
       for (const insp of inspections) {
@@ -183,8 +165,9 @@ export function buildLocationStatsMap(params: {
   }
 
   for (const stats of map.values()) {
+    // Completion is inspection outcomes only; replaced legacy units are tracked separately.
     stats.percentage =
-      stats.total > 0 ? Math.round(((stats.passed + stats.failed + stats.replaced) / stats.total) * 100) : 0;
+      stats.total > 0 ? Math.round(((stats.passed + stats.failed) / stats.total) * 100) : 0;
   }
 
   return map;
@@ -199,7 +182,7 @@ export function sumAllBucketStats(map: Map<string, WorkspaceInspectionBucketStat
     agg.pending += stats.pending;
     agg.replaced += stats.replaced;
   }
-  agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed + agg.replaced) / agg.total) * 100) : 0;
+  agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed) / agg.total) * 100) : 0;
   return agg;
 }
 
@@ -221,25 +204,8 @@ export function aggregateStatsForLocationSubtree(
       agg.replaced += stats.replaced;
     }
   }
-  agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed + agg.replaced) / agg.total) * 100) : 0;
+  agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed) / agg.total) * 100) : 0;
   return agg;
-}
-
-function dummyInspection(ext: Extinguisher, workspaceId: string): Inspection {
-  return {
-    id: `dummy-${ext.id}`,
-    extinguisherId: ext.id!,
-    workspaceId,
-    assetId: ext.assetId,
-    status: 'pending',
-    inspectedAt: null,
-    inspectedBy: null,
-    section: ext.section || '',
-    locationId: ext.locationId || null,
-    qrCodeValue: ext.qrCodeValue,
-    barcode: ext.barcode,
-    serial: ext.serial,
-  } as unknown as Inspection;
 }
 
 function inspectionBelongsToWorkspace(insp: Inspection, workspaceId: string): boolean {
@@ -248,7 +214,7 @@ function inspectionBelongsToWorkspace(insp: Inspection, workspaceId: string): bo
 
 /**
  * Rows for a workspace scope: whole org view (anchor null) or one location subtree.
- * Active workspaces: one row per extinguisher (latest inspection doc wins).
+ * Active workspaces: one real inspection row per extinguisher/asset (latest legacy duplicate wins).
  */
 export function collectInspectionRowsForScope(params: {
   extinguishers: Extinguisher[];
@@ -271,8 +237,10 @@ export function collectInspectionRowsForScope(params: {
   } = params;
 
   const combined: Inspection[] = [];
-  const handledExtIds = new Set<string>();
-  const trackableExtinguishers = extinguishers.filter((e) => !isReplacedExtinguisher(e));
+  const supersededIds = getSupersededExtinguisherIds(extinguishers);
+  const trackableExtinguishers = extinguishers.filter(
+    (e) => !isReplacedExtinguisher(e) && !supersededIds.has(e.id!),
+  );
   const trackedExtIds = new Set(trackableExtinguishers.map((e) => e.id!));
 
   if (isArchived) {
@@ -301,40 +269,22 @@ export function collectInspectionRowsForScope(params: {
     if (anchorLocationId === null) {
       const deduped = dedupeInspectionsByExtinguisherLatest(inspections.filter(inWs));
       for (const insp of deduped) {
-        const isOrphaned = !trackedExtIds.has(insp.extinguisherId);
+        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
         combined.push(insp);
-        if (!isOrphaned) handledExtIds.add(insp.extinguisherId);
-      }
-      for (const ext of trackableExtinguishers) {
-        if (!handledExtIds.has(ext.id!)) {
-          combined.push(dummyInspection(ext, workspaceId));
-        }
       }
     } else {
       const relevantLocIds = getAllDescendantIds(locations, anchorLocationId);
       relevantLocIds.add(anchorLocationId);
-      const extMap = new Map<string, Extinguisher>();
-      for (const ext of trackableExtinguishers) {
-        const extLocId = ext.locationId || '__unassigned__';
-        if (relevantLocIds.has(extLocId)) {
-          extMap.set(ext.id!, ext);
-        }
-      }
       const filtered = inspections.filter((insp) => {
         if (!inWs(insp)) return false;
-        if (!trackedExtIds.has(insp.extinguisherId)) return false;
+        if (insp.targetType !== 'asset' && !trackedExtIds.has(insp.extinguisherId)) return false;
         const inspLocId = insp.locationId || '__unassigned__';
         return relevantLocIds.has(inspLocId);
       });
       const deduped = dedupeInspectionsByExtinguisherLatest(filtered);
       for (const insp of deduped) {
+        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
         combined.push(insp);
-        handledExtIds.add(insp.extinguisherId);
-      }
-      for (const ext of extMap.values()) {
-        if (!handledExtIds.has(ext.id!)) {
-          combined.push(dummyInspection(ext, workspaceId));
-        }
       }
     }
   } else {
@@ -365,33 +315,21 @@ export function collectInspectionRowsForScope(params: {
     if (anchorLocationId === null) {
       const deduped = dedupeInspectionsByExtinguisherLatest(inspections.filter(inWs));
       for (const insp of deduped) {
-        const isOrphaned = !trackedLegacy.has(insp.extinguisherId);
+        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
         combined.push(insp);
-        if (!isOrphaned) handledExtIds.add(insp.extinguisherId);
-      }
-      const dummySource = trackableExtinguishers.filter((e) => trackedLegacy.has(e.id!));
-      for (const ext of dummySource) {
-        if (!handledExtIds.has(ext.id!)) {
-          combined.push(dummyInspection(ext, workspaceId));
-        }
       }
     } else {
       const filtered = inspections.filter((insp) => {
         if (!inWs(insp)) return false;
-        const isOrphaned = !trackedLegacy.has(insp.extinguisherId);
+        const isOrphaned = insp.targetType !== 'asset' && !trackedLegacy.has(insp.extinguisherId);
         if (isOrphaned) return false;
         const inspLocId = nameToId.get(insp.section) ?? '__unassigned__';
         return relevantLocIds.has(inspLocId);
       });
       const deduped = dedupeInspectionsByExtinguisherLatest(filtered);
       for (const insp of deduped) {
+        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
         combined.push(insp);
-        handledExtIds.add(insp.extinguisherId);
-      }
-      for (const ext of extMap.values()) {
-        if (!handledExtIds.has(ext.id!)) {
-          combined.push(dummyInspection(ext, workspaceId));
-        }
       }
     }
   }

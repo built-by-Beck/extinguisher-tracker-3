@@ -152,3 +152,25 @@ export async function recalculateWorkspaceInspectionStatsCall(
   const result = await fn({ orgId, workspaceId });
   return result.data;
 }
+
+export async function repairWorkspaceChecklistCall(
+  orgId: string,
+  workspaceId: string,
+): Promise<{
+  workspaceId: string;
+  rowsCreated: number;
+  duplicatesDeleted: number;
+  stats: { total: number; passed: number; failed: number; pending: number; percentage: number };
+}> {
+  const fn = httpsCallable<
+    { orgId: string; workspaceId: string },
+    {
+      workspaceId: string;
+      rowsCreated: number;
+      duplicatesDeleted: number;
+      stats: { total: number; passed: number; failed: number; pending: number; percentage: number };
+    }
+  >(functions, 'repairWorkspaceChecklist');
+  const result = await fn({ orgId, workspaceId });
+  return result.data;
+}

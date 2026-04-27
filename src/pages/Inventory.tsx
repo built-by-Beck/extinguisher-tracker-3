@@ -453,6 +453,11 @@ export default function Inventory() {
     return map;
   }, [activeWorkspaceInspections]);
 
+  const notInActiveChecklistCount = useMemo(() => {
+    if (!activeWorkspaceId) return 0;
+    return activeInventoryExcludingRetired.filter((ext) => ext.id && !activeStatusByExtinguisherId.has(ext.id)).length;
+  }, [activeInventoryExcludingRetired, activeStatusByExtinguisherId, activeWorkspaceId]);
+
   const scopeCheckStats = useMemo(() => {
     let passed = 0;
     let failed = 0;
@@ -569,7 +574,7 @@ export default function Inventory() {
       });
 
       setScanAddTarget(null);
-      navigate(`/dashboard/inventory/${extId}/edit`);
+      navigate(`/dashboard/inventory/${extId}`, { state: { returnTo: '/dashboard/inventory' } });
     } catch (err) {
       setScanAddError(err instanceof Error ? err.message : 'Failed to add scanned extinguisher.');
     } finally {
@@ -632,6 +637,18 @@ export default function Inventory() {
       {orgId && (
         <div className="mb-6">
           <WorkspaceInspectionSummaryCards orgId={orgId} />
+        </div>
+      )}
+
+      {canEdit && activeWorkspaceId && notInActiveChecklistCount > 0 && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-900">
+            {notInActiveChecklistCount} active extinguisher{notInActiveChecklistCount !== 1 ? 's are' : ' is'} not on this month&apos;s checklist.
+          </p>
+          <p className="mt-1 text-sm text-amber-800">
+            New and imported inventory stays out of the active month until you open the extinguisher and choose
+            <span className="font-semibold"> Add to Current Month Checklist</span>.
+          </p>
         </div>
       )}
 

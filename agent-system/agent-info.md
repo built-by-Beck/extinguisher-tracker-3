@@ -92,6 +92,43 @@ Manual smoke test the new sidebar tab with a Pro org and Basic org, then deploy 
 **Handoff Notes:**
 Reviewer should verify Pro gating, Firestore rules, no hardcoded custom asset types/checklists, old extinguisher flows still excluded from asset rows, and workspace counts include asset inspections only for Pro+ orgs.
 
+## 2026-04-27 - Planning Mode
+
+**Task:**
+Full-program review request for errors, unnecessary code, and needed fixes.
+
+**Summary:**
+Started strict Plan -> Build -> Review flow. Read PBR workflow skills, project memory, package scripts, README, lint/test configuration, and active project structure. Identified `extinguisher-tracker-3` as the active app and scoped the review away from sibling legacy folders unless the user explicitly expands scope.
+
+**Files Inspected:**
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+- `README.md`
+- `package.json`
+- `functions/package.json`
+- `eslint.config.js`
+- `vite.config.ts`
+- `functions/jest.config.js`
+
+**Files Changed:**
+- `agent-system/agent-info.md`
+
+**Key Decisions:**
+- Do not edit application code until the review/build plan is approved.
+- Start with quality gates and high-signal static cleanup before broader refactors.
+- Treat runtime behavior fixes as debug-mode work requiring instrumentation and reproduction evidence.
+
+**Risks / Blockers:**
+- Broad "fix anything" scope can cause unnecessary churn unless constrained to evidenced findings.
+- Runtime issues need log evidence before fixes.
+
+**Next Recommended Action:**
+Await user approval, then enter Build Mode to run quality gates and implement only the approved review scope.
+
+**Handoff Notes:**
+Build Mode should inspect and address leftover debug ingest code, functions lint reliability, plan config parity, active inventory predicate drift, and AI/listing lifecycle filters using the smallest safe diffs. Review Mode must verify plan compliance, tests, security, and simplicity.
+
 ## 2026-04-26 - Build/Review
 
 **Task:**
@@ -158,3 +195,55 @@ Updated the replace modal panel to use a viewport-bounded flex column and made t
 
 **Review Notes:**
 - Reviewer verified plan compliance, validation, no new security surface, and simple localized UI-only change.
+
+## 2026-04-27 - Build Mode
+
+**Task:**
+Implement Monthly Pending Checklist Source Of Truth Plan.
+
+**Implementation Summary:**
+Added deterministic backend helpers for extinguisher monthly inspection rows, changed workspace creation to seed stable pending rows from eligible active standard inventory, removed silent current-month auto-seeding from CSV import and extinguisher-created lifecycle triggers, and added an owner/admin callable for explicit current-month checklist enrollment. Active workspace counts and lists now derive from real inspection rows rather than dummy pending rows from live inventory, with repair/recalculate callables available for active workspace cleanup.
+
+**Files Changed:**
+- `functions/src/inspections/extinguisherInspectionRows.ts`
+- `functions/src/inspections/addExtinguisherToWorkspaceChecklist.ts`
+- `functions/src/inspections/recalculateWorkspaceStats.ts`
+- `functions/src/workspaces/createWorkspace.ts`
+- `functions/src/data/importCSV.ts`
+- `functions/src/lifecycle/onExtinguisherWrite.ts`
+- `functions/src/index.ts`
+- `functions/src/__tests__/extinguisherInspectionRows.test.ts`
+- `src/services/inspectionService.ts`
+- `src/services/workspaceService.ts`
+- `src/utils/workspaceInspectionStats.ts`
+- `src/utils/workspaceInspectionStats.test.ts`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/pages/Inventory.tsx`
+- `src/pages/ExtinguisherDetail.tsx`
+- `src/pages/ExtinguisherCreate.tsx`
+- `src/components/extinguisher/ImportExportBar.tsx`
+
+**Plan Compliance:**
+- Preserved the existing app and SaaS extras while making inspection rows the active monthly checklist source of truth.
+- Pending, passed, and failed are mutually exclusive UI buckets from one monthly inspection record per extinguisher.
+- New inventory no longer changes active checklist scope silently; owners/admins explicitly add items to the month.
+- Repair scope is active workspaces only.
+
+**Validation:**
+- Formatter: no formatter script exists in `package.json`.
+- App tests: passed, 80 tests (`pnpm test`).
+- Functions tests: passed, 33 tests (`npm run test`).
+- App lint: initially failed on an unused import after removing auto-create behavior, then passed after fix (`pnpm lint`).
+- App build/typecheck: initially failed on the same unused import, then passed after fix (`pnpm build`).
+- Functions lint: passed (`npm run lint` in `functions`).
+- Functions build/typecheck: passed (`npm run build` in `functions`).
+- Build warning: Vite reported the existing large chunk warning after successful build.
+
+**Risks / Review Focus:**
+- Review should verify callable authorization/subscription checks, no hidden auto-enrollment paths remain, active stats are row-derived, custom asset rows are still separate, and repair duplicate handling is conservative.
+
+**Review Notes:**
+- Review initially found two must-fix issues: client inspection dedupe was not target-type-aware for custom asset rows, and explicit enrollment could acknowledge an existing row before all subscription/workspace/target validations completed.
+- Fixed both issues by adding target-aware inspection identities, preserving asset rows in active scoped lists, moving enrollment validation before legacy row acknowledgement, and adding subscription validation to repair/recalculate.
+- Reviewer verified plan compliance, security checks, row-derived active counts, explicit owner/admin enrollment, conservative active-workspace repair, and preservation of custom asset separation.
+- Decision: approved after fixes.

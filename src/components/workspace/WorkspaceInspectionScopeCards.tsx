@@ -5,14 +5,13 @@
  */
 
 import type { LucideIcon } from 'lucide-react';
-import { ListChecks, CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
+import { ClipboardList, ListChecks, CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 import type { WorkspaceInspectionBucketStats } from '../../utils/workspaceInspectionStats.ts';
 
 export type WorkspaceScopeCardFilter = 'pending' | 'checked' | 'pass' | 'fail' | 'replaced';
 
 interface WorkspaceInspectionScopeCardsProps {
   stats: WorkspaceInspectionBucketStats;
-  replacedTotal?: number;
   /** Highlight when this filter is active (non-leaf list or leaf filter mode). */
   activeFilter?: WorkspaceScopeCardFilter | null;
   onSelectFilter: (filter: WorkspaceScopeCardFilter | null) => void;
@@ -59,7 +58,6 @@ function Card({
 
 export function WorkspaceInspectionScopeCards({
   stats,
-  replacedTotal,
   activeFilter,
   onSelectFilter,
   className = '',
@@ -67,9 +65,17 @@ export function WorkspaceInspectionScopeCards({
   const checked = stats.passed + stats.failed + Math.max(0, stats.replaced ?? 0);
 
   return (
-    <div className={`grid grid-cols-2 gap-3 lg:grid-cols-4 ${className}`}>
+    <div className={`grid grid-cols-2 gap-3 lg:grid-cols-5 ${className}`}>
       <Card
-        label="Already checked"
+        label="Not yet inspected"
+        value={String(Math.max(0, stats.pending))}
+        icon={ClipboardList}
+        color="bg-amber-500"
+        selected={activeFilter === 'pending'}
+        onClick={() => onSelectFilter(activeFilter === 'pending' ? null : 'pending')}
+      />
+      <Card
+        label="Checked"
         value={String(Math.max(0, checked))}
         icon={ListChecks}
         color="bg-slate-600"
@@ -94,7 +100,7 @@ export function WorkspaceInspectionScopeCards({
       />
       <Card
         label="Replaced"
-        value={String(Math.max(0, replacedTotal ?? stats.replaced ?? 0))}
+        value={String(Math.max(0, stats.replaced ?? 0))}
         icon={RefreshCw}
         color="bg-orange-500"
         selected={activeFilter === 'replaced'}

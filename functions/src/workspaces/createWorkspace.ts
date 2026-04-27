@@ -7,6 +7,11 @@ import { throwInvalidArgument, throwFailedPrecondition } from '../utils/errors.j
 import { writeAuditLogTx } from '../utils/auditLog.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { canUseCustomAssetInspections } from '../billing/planConfig.js';
+import {
+  buildPendingExtinguisherInspectionSeed,
+  deterministicExtinguisherInspectionId,
+  isMonthlyWorkspaceExtinguisher,
+} from '../inspections/extinguisherInspectionRows.js';
 
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -62,7 +67,8 @@ export const createWorkspace = onCall(async (request) => {
       .get()
     : null;
 
-  const totalExtinguishers = extSnap.size;
+  const activeExtinguishers = extSnap.docs.filter((doc) => isMonthlyWorkspaceExtinguisher(doc.data()));
+  const totalExtinguishers = activeExtinguishers.length;
   const totalCustomAssets = assetSnap?.size ?? 0;
   const totalInspectionTargets = totalExtinguishers + totalCustomAssets;
 
@@ -114,32 +120,11 @@ export const createWorkspace = onCall(async (request) => {
   let batch = adminDb.batch();
   let batchCount = 0;
 
-  for (const extDoc of extSnap.docs) {
+  for (const extDoc of activeExtinguishers) {
     const extData = extDoc.data();
-    const inspDocRef = inspRef.doc();
+    const inspDocRef = inspRef.doc(deterministicExtinguisherInspectionId(extDoc.id, monthYear));
     
-    batch.set(inspDocRef, {
-      targetType: 'extinguisher',
-      extinguisherId: extDoc.id,
-      workspaceId: monthYear,
-      assetId: extData.assetId ?? '',
-      parentLocation: extData.parentLocation ?? '',
-      section: extData.section ?? '',
-      serial: extData.serial ?? '',
-      locationId: extData.locationId ?? null,
-      status: 'pending',
-      inspectedAt: null,
-      inspectedBy: null,
-      inspectedByEmail: null,
-      checklistData: null,
-      notes: '',
-      photoUrl: null,
-      photoPath: null,
-      gps: null,
-      attestation: null,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    batch.set(inspDocRef, buildPendingExtinguisherInspectionSeed(extDoc.id, monthYear, extData));
 
     batchCount++;
     if (batchCount >= 499) {
