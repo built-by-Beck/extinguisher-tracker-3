@@ -124,3 +124,37 @@ Implemented org-scoped `assetInspectionTemplates` so admins can save the custom 
 
 **Review Notes:**
 Reviewer verified plan compliance, Pro+/owner-admin security gating, copied template item ID freshness, simplicity of modal-only controls, and no changes to extinguisher inspection logic.
+
+## 2026-04-27 - Build/Review
+
+**Task:**
+Fix Replace Extinguisher modal so the submit button remains reachable on short screens.
+
+**Summary:**
+Updated the replace modal panel to use a viewport-bounded flex column and made the form content scrollable. This keeps the header visible and allows the red `Replace Extinguisher` submit button to be reached without changing replacement validation, lifecycle behavior, or navigation.
+
+**Files Inspected:**
+- `src/components/extinguisher/ReplaceExtinguisherModal.tsx`
+- `src/components/extinguisher/ColumnMapperModal.tsx`
+- `src/components/extinguisher/DataImportModal.tsx`
+- `src/pages/ExtinguisherDetail.tsx`
+- `package.json`
+
+**Files Changed:**
+- `src/components/extinguisher/ReplaceExtinguisherModal.tsx`
+
+**Plan Compliance:**
+- Applied only the planned modal layout change.
+- Preserved replacement business logic, asset-slot handling, validation, and navigation.
+- No lessons or error-log entries were needed because validation passed and no mistake was fixed during implementation.
+
+**Validation:**
+- Formatter: no formatter script exists in `package.json`.
+- App lint: passed (`pnpm lint`).
+- App build/typecheck: passed (`pnpm build`).
+- App tests: passed, 79 tests (`pnpm test`).
+- IDE diagnostics: no linter errors on `ReplaceExtinguisherModal.tsx`.
+- Build warning: Vite reported the existing large chunk warning after successful build.
+
+**Review Notes:**
+- Reviewer verified plan compliance, validation, no new security surface, and simple localized UI-only change.

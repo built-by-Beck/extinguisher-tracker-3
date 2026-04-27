@@ -124,8 +124,8 @@ export function ReplaceExtinguisherModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+        <div className="shrink-0 flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Replace Extinguisher</h2>
             <p className="mt-0.5 text-sm text-gray-500">
@@ -143,7 +143,7 @@ export function ReplaceExtinguisherModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-4">
+        <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Asset ID (slot)</label>
             <input
