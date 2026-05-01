@@ -1139,3 +1139,49 @@ Manually open the archived April workspace and verify rows say View, the extingu
 
 **Handoff Notes:**
 If future page tests are added, include an archived workspace fixture for `ExtinguisherDetail` and `WorkspaceDetail` so read-only controls are covered by automated UI tests.
+
+## 2026-05-01 - Build/Review Mode
+
+**Task:**
+Fix clipped dashboard sidebar navigation so Settings remains reachable on shorter or zoomed screens.
+
+**Summary:**
+Implemented the approved SMALL PBRD Lite plan by making only the sidebar navigation pane scrollable while keeping the brand header, month switcher, and footer fixed in the sidebar flex layout. Completed focused review and found no issues.
+
+**Files Inspected:**
+- src/components/layout/Sidebar.tsx
+- src/components/layout/DashboardLayout.tsx
+- src/routes/index.tsx
+- package.json
+- agent-system/agent-info.md
+- agent-system/lessons_learned.md
+- agent-system/error_log.jsonl
+
+**Files Changed:**
+- src/components/layout/Sidebar.tsx
+- agent-system/agent-info.md
+
+**Key Decisions:**
+- Kept route order, roles, feature gates, and mobile overlay behavior unchanged.
+- Added `shrink-0` to fixed sidebar sections and `min-h-0 overflow-y-auto` to the nav region so bottom links can be reached by scrolling.
+- Deferred documentation because this is a styling/reachability bug fix with no workflow, setup, pricing, or public-copy change.
+
+**Validation:**
+- Formatter: no formatter script exists in root `package.json`.
+- `ReadLints` on `src/components/layout/Sidebar.tsx`: passed.
+- `pnpm lint`: passed.
+- `pnpm build`: passed; existing Vite large chunk warning remains.
+- `git diff --check -- src/components/layout/Sidebar.tsx`: passed.
+- Relevant tests: no automated test covers sidebar viewport scrolling; change was reviewed by inspecting the flex/overflow behavior.
+
+**Review Verdict:**
+ACCEPTED
+
+**Risks / Blockers:**
+- No blocker. Residual risk is visual-only: browser/manual confirmation at the user's exact screen height and zoom is still recommended.
+
+**Next Recommended Action:**
+Open the dashboard at the problematic viewport/zoom and scroll the left nav to confirm Settings is reachable.
+
+**Handoff Notes:**
+If the sidebar grows again, keep the middle navigation as the only scrollable region or consider grouping lower-priority links to reduce height pressure.
