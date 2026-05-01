@@ -39,13 +39,77 @@ service cloud.firestore {
       return org.plan == 'enterprise' || org.subscriptionStatus in ['active', 'trialing'];
     }
 
+    function hasCustomAssetInspections(orgId) {
+      let org = get(orgDoc(orgId)).data;
+      return (org.featureFlags != null && org.featureFlags.customAssetInspections == true)
+        || org.plan in ['pro', 'elite', 'enterprise'];
+    }
+
+    function isPresetAvatarId(value) {
+      return value in [
+        'helmet-red',
+        'shield-blue',
+        'clipboard-green',
+        'building-slate',
+        'spark-amber',
+        'hydrant-purple'
+      ];
+    }
+
+    function isValidUserCreate(uid) {
+      return request.resource.data.keys().hasOnly([
+          'displayName',
+          'email',
+          'avatarId',
+          'photoURL',
+          'defaultOrgId',
+          'activeOrgId',
+          'createdAt',
+          'updatedAt',
+          'lastLoginAt'
+        ])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 2
+        && request.resource.data.displayName.size() <= 80
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.avatarId is string
+        && isPresetAvatarId(request.resource.data.avatarId)
+        && request.resource.data.photoURL == null
+        && request.resource.data.defaultOrgId == null
+        && request.resource.data.activeOrgId == null;
+    }
+
+    function isValidUserSessionUpdate(uid) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'activeOrgId',
+          'lastLoginAt',
+          'updatedAt'
+        ])
+        && (!('activeOrgId' in request.resource.data)
+          || request.resource.data.activeOrgId == null
+          || (
+            exists(/databases/$(database)/documents/org/$(request.resource.data.activeOrgId)/members/$(uid))
+            && get(/databases/$(database)/documents/org/$(request.resource.data.activeOrgId)/members/$(uid)).data.status == 'active'
+          ));
+    }
+
+    function isAssetInspectionCreate(orgId) {
+      return request.resource.data.targetType == 'asset';
+    }
+
+    function isAssetInspectionUpdate(orgId) {
+      return resource.data.targetType == 'asset' || request.resource.data.targetType == 'asset';
+    }
+
     // collectionGroup('members') — needed by OrgContext to find all orgs a user belongs to
     match /{path=**}/members/{memberId} {
       allow read: if isAuth() && request.auth.uid == resource.data.uid;
     }
 
     match /usr/{uid} {
-      allow read, create, update: if isAuth() && request.auth.uid == uid;
+      allow read: if isAuth() && request.auth.uid == uid;
+      allow create: if isAuth() && request.auth.uid == uid && isValidUserCreate(uid);
+      allow update: if isAuth() && request.auth.uid == uid && isValidUserSessionUpdate(uid);
       allow delete: if false;
     }
 
@@ -75,7 +139,10 @@ service cloud.firestore {
           'createdBy',
           'createdAt',
           'deletedAt',
-          'guestAccess'
+          'guestAccess',
+          'name',
+          'profile',
+          'branding'
         ]);
 
       allow create, delete: if false;
@@ -107,6 +174,31 @@ service cloud.firestore {
         allow create: if hasRole(orgId, ['owner', 'admin']) && hasWritableSubscription(orgId);
         allow update: if hasRole(orgId, ['owner', 'admin']) && hasWritableSubscription(orgId);
         allow delete: if hasRole(orgId, ['owner', 'admin']) && hasWritableSubscription(orgId);
+
+        match /replacementHistory/{histId} {
+          allow read: if isMember(orgId) && !isGuest(orgId);
+          allow write: if false;
+        }
+      }
+
+      match /assets/{assetId} {
+        allow read: if isMember(orgId);
+        allow create, update: if hasRole(orgId, ['owner', 'admin'])
+          && hasWritableSubscription(orgId)
+          && hasCustomAssetInspections(orgId);
+        allow delete: if hasRole(orgId, ['owner', 'admin'])
+          && hasWritableSubscription(orgId)
+          && hasCustomAssetInspections(orgId);
+      }
+
+      match /assetInspectionTemplates/{templateId} {
+        allow read: if isMember(orgId);
+        allow create, update: if hasRole(orgId, ['owner', 'admin'])
+          && hasWritableSubscription(orgId)
+          && hasCustomAssetInspections(orgId);
+        allow delete: if hasRole(orgId, ['owner', 'admin'])
+          && hasWritableSubscription(orgId)
+          && hasCustomAssetInspections(orgId);
       }
 
       match /workspaces/{wsId} {
@@ -117,7 +209,12 @@ service cloud.firestore {
 
       match /inspections/{inspId} {
         allow read: if isMember(orgId);
-        allow create, update: if hasRole(orgId, ['owner', 'admin', 'inspector']) && hasWritableSubscription(orgId);
+        allow create: if hasRole(orgId, ['owner', 'admin', 'inspector'])
+          && hasWritableSubscription(orgId)
+          && (!isAssetInspectionCreate(orgId) || hasCustomAssetInspections(orgId));
+        allow update: if hasRole(orgId, ['owner', 'admin', 'inspector'])
+          && hasWritableSubscription(orgId)
+          && (!isAssetInspectionUpdate(orgId) || hasCustomAssetInspections(orgId));
         // Allow owners/admins to delete pending inspections (e.g. when extinguisher is deleted)
         allow delete: if hasRole(orgId, ['owner', 'admin'])
                       && hasWritableSubscription(orgId)

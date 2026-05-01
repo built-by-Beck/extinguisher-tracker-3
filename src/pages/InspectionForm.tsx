@@ -29,9 +29,10 @@ import {
   CHECKLIST_ITEMS,
   type Inspection,
 } from '../services/inspectionService.ts';
-import { getCachedInspectionsForWorkspace } from '../services/offlineCacheService.ts';
+import { getCachedInspectionsForWorkspace, getCachedWorkspace } from '../services/offlineCacheService.ts';
 import { InspectionPanel } from '../components/inspection/InspectionPanel.tsx';
 import { WorkspaceInspectionSummaryCards } from '../components/workspace/WorkspaceInspectionSummaryCards.tsx';
+import { getWorkspace, type Workspace } from '../services/workspaceService.ts';
 
 function formatDate(timestamp: unknown): string {
   if (!timestamp) return 'Unknown';
@@ -60,6 +61,7 @@ export default function InspectionForm() {
   const { isOnline } = useOffline();
 
   const [inspection, setInspection] = useState<Inspection | null>(null);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Inspection history state
@@ -72,6 +74,7 @@ export default function InspectionForm() {
 
     // Reset state for new inspection (lessons-learned rule)
     setInspection(null);
+    setWorkspace(null);
     setHistory([]);
     setExpandedHistoryIdx(null);
     setLoading(true);
@@ -79,6 +82,12 @@ export default function InspectionForm() {
     try {
       const insp = await getInspection(orgId, inspectionId);
       setInspection(insp);
+      if (workspaceId) {
+        const ws = await getWorkspace(orgId, workspaceId);
+        setWorkspace(ws);
+      } else {
+        setWorkspace(null);
+      }
       setLoading(false);
 
       // Fetch inspection history
@@ -95,6 +104,8 @@ export default function InspectionForm() {
       // On network error when offline, fall back to IndexedDB cache
       if (!isOnline && workspaceId) {
         try {
+          const cachedWorkspace = await getCachedWorkspace(orgId, workspaceId);
+          setWorkspace(cachedWorkspace ? (cachedWorkspace as unknown as Workspace) : null);
           const cached = await getCachedInspectionsForWorkspace(orgId, workspaceId);
           const match = cached.find((c) => c['id'] === inspectionId);
           if (match) {
@@ -104,6 +115,7 @@ export default function InspectionForm() {
           // Cache read failed
         }
       }
+      setWorkspace(null);
       setLoading(false);
     }
   }, [orgId, inspectionId, workspaceId, isOnline]);
@@ -128,6 +140,8 @@ export default function InspectionForm() {
   if (!inspection) {
     return <div className="p-6 text-sm text-gray-500">Inspection not found.</div>;
   }
+
+  const isWorkspaceReadOnly = workspace?.status === 'archived';
 
   return (
     <div className="mx-auto max-w-3xl p-6">
@@ -166,6 +180,13 @@ export default function InspectionForm() {
         </div>
       )}
 
+      {isWorkspaceReadOnly && (
+        <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+          <span className="font-semibold text-gray-900">{workspace?.label ?? 'This workspace'} is archived.</span>{' '}
+          Historical inspections are read-only, so pass, fail, reset, and edit controls are disabled.
+        </div>
+      )}
+
       {/* Offline banner */}
       {!isOnline && (
         <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -181,8 +202,8 @@ export default function InspectionForm() {
         inspectionId={inspectionId!}
         workspaceId={inspection.workspaceId}
         inspection={inspection}
-        canInspect={canInspect}
-        canReset={canReset}
+        canInspect={canInspect && !isWorkspaceReadOnly}
+        canReset={canReset && !isWorkspaceReadOnly}
         isOnline={isOnline}
         inspectorName={user?.displayName ?? user?.email ?? 'Unknown'}
         onInspectionUpdated={handleInspectionUpdated}

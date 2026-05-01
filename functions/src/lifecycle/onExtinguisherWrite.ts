@@ -19,6 +19,7 @@ import {
   calculateNextHydroTest,
   calculateComplianceStatus,
   getHydroIntervalByType,
+  normalizeMonthlyInspectionSchedule,
   requiresSixYear,
   type ExtinguisherForCalc,
 } from './complianceCalc.js';
@@ -37,17 +38,15 @@ export const onExtinguisherCreated = onDocumentCreated(
     // Match workspace seeding behavior: only standard assets are tracked in monthly workspaces.
     if (extData.category !== 'standard') return;
 
-    // Fetch active workspace outside transaction (queries not allowed in tx)
-    const activeWorkspaceSnap = await adminDb
-      .collection(`org/${orgId}/workspaces`)
-      .where('status', '==', 'active')
-      .limit(1)
-      .get();
-
     await adminDb.runTransaction(async (tx) => {
       const extRef = adminDb.doc(`org/${orgId}/extinguishers/${extId}`);
       const extSnap = await tx.get(extRef);
       if (!extSnap.exists) return; // Doc deleted between trigger and tx
+      const orgSnap = await tx.get(adminDb.doc(`org/${orgId}`));
+      const orgData = orgSnap.data() ?? {};
+      const orgSettings = (orgData.settings as Record<string, unknown> | undefined) ?? {};
+      const monthlySchedule = normalizeMonthlyInspectionSchedule(orgSettings.monthlyInspectionSchedule);
+      const orgTimezone = typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
 
       const currentExtData = extSnap.data()!;
       if (currentExtData.lifecycleStatus !== 'active') return;
@@ -61,7 +60,7 @@ export const onExtinguisherCreated = onDocumentCreated(
       const lastSixYear = currentExtData.lastSixYearMaintenance as Timestamp | null;
       const lastHydro = currentExtData.lastHydroTest as Timestamp | null;
 
-      const nextMonthlyInspection = calculateNextMonthlyInspection(lastMonthly);
+      const nextMonthlyInspection = calculateNextMonthlyInspection(lastMonthly, monthlySchedule, orgTimezone);
       const nextAnnualInspection = calculateNextAnnualInspection(lastAnnual);
       const nextHydroTest = calculateNextHydroTest(lastHydro, hydroInterval);
       const nextSixYearMaintenance = needsSixYear
@@ -97,71 +96,8 @@ export const onExtinguisherCreated = onDocumentCreated(
         updatedAt: serverTimestamp,
       });
 
-      // 2. Seed active workspace if one exists
-      if (!activeWorkspaceSnap.empty) {
-        const workspaceDoc = activeWorkspaceSnap.docs[0];
-        const workspaceId = workspaceDoc.id;
-
-        // Check if an inspection already exists for this extinguisher in this workspace
-        // (query outside tx was not possible, so we read by workspace ref inside tx)
-        const workspaceTxSnap = await tx.get(workspaceDoc.ref);
-
-        if (workspaceTxSnap.exists && workspaceTxSnap.data()?.status === 'active') {
-          // Check if an inspection already exists (e.g., seeded by CSV import)
-          const existingInspSnap = await adminDb
-            .collection(`org/${orgId}/inspections`)
-            .where('extinguisherId', '==', extId)
-            .where('workspaceId', '==', workspaceId)
-            .limit(1)
-            .get();
-
-          if (!existingInspSnap.empty) {
-            // Inspection already seeded — skip to avoid duplicates
-            return;
-          }
-
-          let section = (currentExtData.section as string | null) ?? '';
-          const locationId = (currentExtData.locationId as string | null) ?? null;
-
-          if (!section && locationId) {
-            const locationRef = adminDb.doc(`org/${orgId}/locations/${locationId}`);
-            const locationSnap = await tx.get(locationRef);
-            if (locationSnap.exists) {
-              section = ((locationSnap.data()?.name as string | null) ?? '').trim();
-            }
-          }
-
-          // Use auto-generated ID to match createWorkspace seeding pattern
-          const inspectionRef = adminDb.collection(`org/${orgId}/inspections`).doc();
-          tx.set(inspectionRef, {
-            extinguisherId: extId,
-            workspaceId,
-            assetId: (currentExtData.assetId as string | null) ?? '',
-            parentLocation: (currentExtData.parentLocation as string | null) ?? '',
-            serial: (currentExtData.serial as string | null) ?? '',
-            section,
-            locationId: locationId ?? null,
-            status: 'pending',
-            inspectedAt: null,
-            inspectedBy: null,
-            inspectedByEmail: null,
-            checklistData: null,
-            notes: '',
-            photoUrl: null,
-            photoPath: null,
-            gps: null,
-            attestation: null,
-            createdAt: serverTimestamp,
-            updatedAt: serverTimestamp,
-          });
-
-          tx.update(workspaceDoc.ref, {
-            'stats.total': FieldValue.increment(1),
-            'stats.pending': FieldValue.increment(1),
-            'stats.lastUpdated': serverTimestamp,
-          });
-        }
-      }
+      // Workspace checklist scope is intentionally explicit. New extinguishers are added
+      // to inventory here; owners/admins can enroll them into the active month separately.
     });
   },
 );

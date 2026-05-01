@@ -14,6 +14,7 @@ export interface WorkspaceStats {
   passed: number;
   failed: number;
   pending: number;
+  replaced?: number;
   lastUpdated: unknown;
 }
 
@@ -84,16 +85,23 @@ export async function getActiveWorkspaceForCurrentMonth(orgId: string): Promise<
   return ws;
 }
 
+export async function getWorkspace(orgId: string, workspaceId: string): Promise<Workspace | null> {
+  const wsRef = doc(db, 'org', orgId, 'workspaces', workspaceId);
+  const snap = await getDoc(wsRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as Workspace;
+}
+
 /**
  * Create a new workspace via Cloud Function.
  */
 export async function createWorkspaceCall(
   orgId: string,
   monthYear: string,
-): Promise<{ monthYear: string; label: string; totalExtinguishers: number }> {
+): Promise<{ monthYear: string; label: string; totalExtinguishers: number; totalCustomAssets?: number }> {
   const fn = httpsCallable<
     { orgId: string; monthYear: string },
-    { monthYear: string; label: string; totalExtinguishers: number }
+    { monthYear: string; label: string; totalExtinguishers: number; totalCustomAssets?: number }
   >(functions, 'createWorkspace');
   const result = await fn({ orgId, monthYear });
   return result.data;
@@ -148,6 +156,28 @@ export async function recalculateWorkspaceInspectionStatsCall(
       stats: { total: number; passed: number; failed: number; pending: number; percentage: number };
     }
   >(functions, 'recalculateWorkspaceInspectionStats');
+  const result = await fn({ orgId, workspaceId });
+  return result.data;
+}
+
+export async function repairWorkspaceChecklistCall(
+  orgId: string,
+  workspaceId: string,
+): Promise<{
+  workspaceId: string;
+  rowsCreated: number;
+  duplicatesDeleted: number;
+  stats: { total: number; passed: number; failed: number; pending: number; percentage: number };
+}> {
+  const fn = httpsCallable<
+    { orgId: string; workspaceId: string },
+    {
+      workspaceId: string;
+      rowsCreated: number;
+      duplicatesDeleted: number;
+      stats: { total: number; passed: number; failed: number; pending: number; percentage: number };
+    }
+  >(functions, 'repairWorkspaceChecklist');
   const result = await fn({ orgId, workspaceId });
   return result.data;
 }

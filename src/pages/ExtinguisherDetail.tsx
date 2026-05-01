@@ -37,16 +37,28 @@ import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { hasFeature } from '../lib/planConfig.ts';
 import { useOffline } from '../hooks/useOffline.ts';
-import { getExtinguisher, restoreExtinguisher, type Extinguisher } from '../services/extinguisherService.ts';
+import {
+  getExtinguisher,
+  restoreExtinguisher,
+  subscribeToReplacementHistory,
+  type Extinguisher,
+  type ReplacementHistoryRow,
+} from '../services/extinguisherService.ts';
 import {
   getInspectionForExtinguisherInWorkspace,
   getInspectionHistoryForExtinguisher,
-  createSingleInspection,
+  addExtinguisherToWorkspaceChecklistCall,
   CHECKLIST_SECTIONS,
   type Inspection,
   type ChecklistData,
 } from '../services/inspectionService.ts';
-import { getActiveWorkspaceForCurrentMonth, createWorkspaceCall } from '../services/workspaceService.ts';
+import { getCachedWorkspace } from '../services/offlineCacheService.ts';
+import {
+  createWorkspaceCall,
+  getActiveWorkspaceForCurrentMonth,
+  getWorkspace,
+  type Workspace,
+} from '../services/workspaceService.ts';
 import { subscribeToLocations, type Location } from '../services/locationService.ts';
 import { useSectionTimer } from '../hooks/useSectionTimer.ts';
 import { resolveSectionTimerKey } from '../utils/sectionTimerKey.ts';
@@ -119,7 +131,10 @@ export default function ExtinguisherDetail() {
   // State for current inspection
   const [inspection, setInspection] = useState<Inspection | null | undefined>(undefined);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
+  const [workspaceContext, setWorkspaceContext] = useState<Workspace | null>(null);
   const [noActiveWorkspace, setNoActiveWorkspace] = useState(false);
+  const [addingToChecklist, setAddingToChecklist] = useState(false);
+  const [addToChecklistError, setAddToChecklistError] = useState<string | null>(null);
 
   const {
     activeSection: timerActiveSection,
@@ -144,6 +159,7 @@ export default function ExtinguisherDetail() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [replacementHistoryRows, setReplacementHistoryRows] = useState<ReplacementHistoryRow[]>([]);
 
   // Load extinguisher
   useEffect(() => {
@@ -162,9 +178,16 @@ export default function ExtinguisherDetail() {
       .finally(() => setExtLoading(false));
   }, [orgId, extId]);
 
-  // Load inspection (and resolve workspace if needed).
-  // Auto-creates a pending inspection if the extinguisher exists in the workspace
-  // but has no inspection record (e.g., added after workspace creation).
+  useEffect(() => {
+    if (!orgId || !extId) {
+      setReplacementHistoryRows([]);
+      return;
+    }
+    return subscribeToReplacementHistory(orgId, extId, setReplacementHistoryRows);
+  }, [orgId, extId]);
+
+  // Load inspection (and resolve workspace if needed). Missing rows are not auto-created:
+  // owners/admins explicitly add new inventory to the month checklist.
   const loadInspection = useCallback(async () => {
     if (!orgId || !extId) return;
 
@@ -172,8 +195,20 @@ export default function ExtinguisherDetail() {
     setInspection(undefined);
     setNoActiveWorkspace(false);
     setActiveWorkspaceId(null);
+    setWorkspaceContext(null);
 
-    const resolvedWsId = workspaceId ?? (await getActiveWorkspaceForCurrentMonth(orgId))?.id ?? null;
+    let resolvedWorkspace: Workspace | null = null;
+    if (workspaceId) {
+      try {
+        resolvedWorkspace = await getWorkspace(orgId, workspaceId);
+      } catch {
+        const cached = await getCachedWorkspace(orgId, workspaceId);
+        resolvedWorkspace = cached ? (cached as unknown as Workspace) : null;
+      }
+    } else {
+      resolvedWorkspace = await getActiveWorkspaceForCurrentMonth(orgId);
+    }
+    const resolvedWsId = resolvedWorkspace?.id ?? null;
 
     if (!resolvedWsId) {
       setNoActiveWorkspace(true);
@@ -182,24 +217,11 @@ export default function ExtinguisherDetail() {
     }
 
     setActiveWorkspaceId(resolvedWsId);
+    setWorkspaceContext(resolvedWorkspace);
     const insp = await getInspectionForExtinguisherInWorkspace(orgId, extId, resolvedWsId);
 
-    if (insp) {
-      setInspection(insp);
-    } else if (ext && !ext.deletedAt && ext.category === 'standard') {
-      // Auto-create pending inspection for this extinguisher
-      const created = await createSingleInspection(orgId, extId, resolvedWsId, {
-        assetId: ext.assetId,
-        parentLocation: ext.parentLocation,
-        section: ext.section,
-        serial: ext.serial,
-        locationId: ext.locationId,
-      });
-      setInspection(created);
-    } else {
-      setInspection(null);
-    }
-  }, [orgId, extId, workspaceId, ext]);
+    setInspection(insp ?? null);
+  }, [orgId, extId, workspaceId]);
 
   useEffect(() => {
     loadInspection().catch(() => setInspection(null));
@@ -224,6 +246,12 @@ export default function ExtinguisherDetail() {
     return subscribeToLocations(orgId, setLocations);
   }, [orgId]);
 
+  const isWorkspaceArchived = !!workspaceId && workspaceContext?.status === 'archived';
+  const isWorkspaceReadOnly = !!workspaceId && workspaceContext?.status !== 'active';
+  const canInspectInContext = canInspect && !isWorkspaceReadOnly;
+  const canResetInContext = canReset && !isWorkspaceReadOnly;
+  const canEditInContext = canEdit && !isWorkspaceReadOnly;
+
   // Callback when InspectionPanel saves/resets
   const handleInspectionUpdated = useCallback(() => {
     loadInspection().catch(() => setInspection(null));
@@ -231,7 +259,7 @@ export default function ExtinguisherDetail() {
   }, [loadInspection, refreshHistory]);
 
   async function handleRestore() {
-    if (!orgId || !extId) return;
+    if (!orgId || !extId || isWorkspaceReadOnly) return;
     setRestoring(true);
     try {
       await restoreExtinguisher(orgId, extId);
@@ -254,7 +282,7 @@ export default function ExtinguisherDetail() {
       if (
         activeWorkspaceId &&
         ext &&
-        canInspect &&
+        canInspectInContext &&
         hasFeature(org?.featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan)
       ) {
         const key = resolveSectionTimerKey(ext, locations, inspection ?? null);
@@ -265,7 +293,7 @@ export default function ExtinguisherDetail() {
     [
       activeWorkspaceId,
       ext,
-      canInspect,
+      canInspectInContext,
       org?.featureFlags,
       org?.plan,
       locations,
@@ -285,7 +313,7 @@ export default function ExtinguisherDetail() {
       const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       await createWorkspaceCall(orgId, monthYear);
       setNoActiveWorkspace(false);
-      // Reload inspection — workspace now exists and inspection was seeded (or will be auto-created)
+      // Reload inspection — workspace now exists and eligible inventory was seeded.
       await loadInspection();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create workspace.';
@@ -295,8 +323,22 @@ export default function ExtinguisherDetail() {
     }
   }
 
+  async function handleAddToCurrentChecklist() {
+    if (!orgId || !extId || !activeWorkspaceId || isWorkspaceReadOnly) return;
+    setAddingToChecklist(true);
+    setAddToChecklistError(null);
+    try {
+      await addExtinguisherToWorkspaceChecklistCall(orgId, extId, activeWorkspaceId);
+      await loadInspection();
+    } catch (err: unknown) {
+      setAddToChecklistError(err instanceof Error ? err.message : 'Failed to add to this month checklist.');
+    } finally {
+      setAddingToChecklist(false);
+    }
+  }
+
   async function handleDelete(reason: string) {
-    if (!orgId || !extId || !user) return;
+    if (!orgId || !extId || !user || isWorkspaceReadOnly) return;
     setDeleting(true);
     try {
       await softDeleteExtinguisher(orgId, extId, user.uid, reason);
@@ -366,6 +408,15 @@ export default function ExtinguisherDetail() {
         </div>
       )}
 
+      {isWorkspaceArchived && (
+        <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+          <span className="font-semibold text-gray-900">
+            {workspaceContext?.label ?? 'This workspace'} is archived.
+          </span>{' '}
+          Historical records are read-only, so inspection, pass/fail, reset, and edit actions are disabled here.
+        </div>
+      )}
+
       {/* Deleted banner */}
       {isDeleted && (
         <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3">
@@ -376,7 +427,7 @@ export default function ExtinguisherDetail() {
               {ext.deletionReason && <> Reason: {ext.deletionReason}</>}
             </span>
           </div>
-          {canEdit && (
+          {canEditInContext && (
             <button
               onClick={handleRestore}
               disabled={restoring}
@@ -400,7 +451,7 @@ export default function ExtinguisherDetail() {
             Print Tag
           </button>
         )}
-        {canEdit && extId && !isDeleted && (
+        {canEditInContext && extId && !isDeleted && (
           <button
             onClick={() => setReplaceOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-orange-300 px-3 py-2 text-sm font-medium text-orange-700 hover:bg-orange-50"
@@ -409,7 +460,7 @@ export default function ExtinguisherDetail() {
             Replace
           </button>
         )}
-        {canEdit && extId && (
+        {canEditInContext && extId && (
           <Link
             to={`/dashboard/inventory/${extId}/edit`}
             state={{ returnTo: location.pathname + location.search }}
@@ -419,7 +470,7 @@ export default function ExtinguisherDetail() {
             Edit
           </Link>
         )}
-        {canEdit && extId && !isDeleted && (
+        {canEditInContext && extId && !isDeleted && (
           <button
             onClick={() => setDeletePromptOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
@@ -529,6 +580,7 @@ export default function ExtinguisherDetail() {
           </div>
 
           {activeWorkspaceId &&
+            !isWorkspaceReadOnly &&
             hasFeature(
               org?.featureFlags as Record<string, boolean> | null | undefined,
               'sectionTimeTracking',
@@ -583,10 +635,35 @@ export default function ExtinguisherDetail() {
 
           {/* Extinguisher not in workspace */}
           {!noActiveWorkspace && inspection === null && (
-            <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <p className="text-sm text-gray-500">
-                This extinguisher is not in the current workspace.
+            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-5">
+              <p className="text-sm font-semibold text-amber-900">
+                {isWorkspaceReadOnly
+                  ? 'This extinguisher does not have an inspection record in this archived workspace.'
+                  : 'This extinguisher is not on this month&apos;s pending checklist.'}
               </p>
+              <p className="mt-1 text-sm text-amber-800">
+                {isWorkspaceReadOnly
+                  ? 'Archived monthly workspaces are read-only and cannot receive new checklist items.'
+                  : 'New inventory does not change an active monthly checklist until an owner or admin adds it.'}
+              </p>
+              {addToChecklistError && (
+                <p className="mt-2 text-sm text-red-600">{addToChecklistError}</p>
+              )}
+              {canEditInContext && activeWorkspaceId ? (
+                <button
+                  type="button"
+                  onClick={handleAddToCurrentChecklist}
+                  disabled={addingToChecklist}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {addingToChecklist ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  {addingToChecklist ? 'Adding...' : 'Add to Current Month Checklist'}
+                </button>
+              ) : (
+                <p className="mt-2 text-sm text-amber-800">
+                  Ask an owner or admin to add it to the current month checklist.
+                </p>
+              )}
             </div>
           )}
 
@@ -606,8 +683,8 @@ export default function ExtinguisherDetail() {
               inspectionId={inspection.id!}
               workspaceId={activeWorkspaceId}
               inspection={inspection}
-              canInspect={canInspect}
-              canReset={canReset}
+              canInspect={canInspectInContext}
+              canReset={canResetInContext}
               isOnline={isOnline}
               inspectorName={user?.displayName ?? user?.email ?? 'Unknown'}
               previousNotes={history.find((h) => (h.status === 'pass' || h.status === 'fail') && h.notes)?.notes}
@@ -762,7 +839,7 @@ export default function ExtinguisherDetail() {
 
       {/* Delete Extinguisher Modal */}
       <PromptModal
-        open={deletePromptOpen}
+        open={deletePromptOpen && canEditInContext}
         title="Delete Extinguisher"
         message={`Are you sure you want to delete Asset #${ext.assetId}? This can be undone by an admin.`}
         placeholder="Reason for deletion (optional)"
@@ -774,51 +851,80 @@ export default function ExtinguisherDetail() {
       />
 
       {/* Replace Extinguisher Modal */}
-      {replaceOpen && orgId && extId && (
+      {replaceOpen && canEditInContext && orgId && extId && (
         <ReplaceExtinguisherModal
           orgId={orgId}
           oldExtinguisherId={extId}
-          oldAssetId={ext.assetId}
+          oldExtinguisher={ext}
           onClose={() => setReplaceOpen(false)}
         />
       )}
 
-      {/* ---- Replacement History (only if applicable) ---- */}
-      {ext.replacementHistory && ext.replacementHistory.length > 0 && (
+      {/* ---- Replacement History (subcollection + legacy array) ---- */}
+      {(replacementHistoryRows.length > 0 || (ext.replacementHistory && ext.replacementHistory.length > 0)) && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <RefreshCw className="h-5 w-5 text-gray-400" />
-            <h2 className="text-base font-semibold text-gray-900">
-              Replacement History ({ext.replacementHistory.length})
-            </h2>
+            <h2 className="text-base font-semibold text-gray-900">Replacement History</h2>
           </div>
-          <div className="divide-y divide-gray-100">
-            {ext.replacementHistory.map((r, idx) => (
-              <div key={idx} className="py-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      Replaced on {formatTimestamp(r.replacedAt)}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      By {r.replacedByEmail}
-                    </p>
-                    {r.replacedAssetId && (
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Previous asset: {r.replacedAssetId}
-                      </p>
-                    )}
-                    {r.reason && (
-                      <p className="text-xs text-gray-400 mt-0.5">{r.reason}</p>
-                    )}
+          <p className="mb-4 text-xs text-gray-500">
+            Prior physical units for this asset slot (previous serial numbers and barcodes). Scans only match the
+            current active unit.
+          </p>
+          {replacementHistoryRows.length > 0 && (
+            <div className="mb-4 divide-y divide-gray-100">
+              {replacementHistoryRows.map((r) => {
+                const snapSerial =
+                  (r.priorSnapshot?.serial as string | undefined) ?? r.previousSerial ?? '—';
+                const snapBarcode = (r.priorSnapshot?.barcode as string | null | undefined) ?? r.previousBarcode;
+                return (
+                  <div key={r.id} className="py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          Prior unit — serial <span className="font-mono">{snapSerial}</span>
+                        </p>
+                        {snapBarcode ? (
+                          <p className="mt-0.5 text-xs text-gray-600">
+                            Barcode: <span className="font-mono">{snapBarcode}</span>
+                          </p>
+                        ) : null}
+                        <p className="mt-1 text-xs text-gray-500">Recorded {formatTimestamp(r.replacedAt)}</p>
+                        {r.reason ? <p className="mt-0.5 text-xs text-gray-400">{r.reason}</p> : null}
+                      </div>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                        Archived
+                      </span>
+                    </div>
                   </div>
-                  <span className="ml-3 shrink-0 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700">
-                    Replaced
-                  </span>
+                );
+              })}
+            </div>
+          )}
+          {ext.replacementHistory && ext.replacementHistory.length > 0 && (
+            <div className="divide-y divide-gray-100">
+              <p className="pb-2 text-xs font-medium uppercase tracking-wide text-gray-400">Legacy chain metadata</p>
+              {ext.replacementHistory.map((r, idx) => (
+                <div key={idx} className="py-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        Replaced on {formatTimestamp(r.replacedAt)}
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">By {r.replacedByEmail}</p>
+                      {r.replacedAssetId && (
+                        <p className="mt-0.5 text-xs text-gray-400">Previous asset: {r.replacedAssetId}</p>
+                      )}
+                      {r.reason && <p className="mt-0.5 text-xs text-gray-400">{r.reason}</p>}
+                    </div>
+                    <span className="ml-3 shrink-0 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700">
+                      Replaced
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -6,9 +6,11 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, AlertTriangle, Save, CheckSquare, Wrench, Download, FileSpreadsheet, HelpCircle } from 'lucide-react';
+import { Loader2, AlertTriangle, Save, CheckSquare, Wrench, Download, FileSpreadsheet, HelpCircle, RefreshCw } from 'lucide-react';
+import { httpsCallable } from 'firebase/functions';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
+import { functions } from '../lib/firebase.ts';
 import {
   subscribeToExtinguishers,
   updateExtinguisher,
@@ -71,6 +73,10 @@ export default function DataOrganizer() {
   // Bulk Assignment States
   const [bulkLocId, setBulkLocId] = useState('');
   const [bulkSection, setBulkSection] = useState('');
+  const [repairingReplacements, setRepairingReplacements] = useState(false);
+  const [repairReplacementResult, setRepairReplacementResult] = useState<string | null>(null);
+  const [dedupingAssets, setDedupingAssets] = useState(false);
+  const [dedupeAssetResult, setDedupeAssetResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orgId) return;
@@ -202,6 +208,51 @@ export default function DataOrganizer() {
     });
   };
 
+  const handleDedupeActiveByAsset = async () => {
+    if (!orgId) return;
+    setDedupingAssets(true);
+    setDedupeAssetResult(null);
+    try {
+      const dedupe = httpsCallable<{ orgId: string }, { retiredCount: number }>(
+        functions,
+        'dedupeActiveExtinguishersByAssetId',
+      );
+      const res = await dedupe({ orgId });
+      setDedupeAssetResult(
+        res.data.retiredCount === 0
+          ? 'No duplicate active rows found for the same asset number.'
+          : `Retired ${res.data.retiredCount} duplicate active row(s). Open Inventory → Retired to review.`,
+      );
+    } catch (e) {
+      setDedupeAssetResult(e instanceof Error ? e.message : 'Dedupe failed.');
+    } finally {
+      setDedupingAssets(false);
+    }
+  };
+
+  const handleRepairReplacementLinks = async () => {
+    if (!orgId) return;
+    setRepairingReplacements(true);
+    setRepairReplacementResult(null);
+    try {
+      const repair = httpsCallable<{ orgId: string }, { repaired: number }>(
+        functions,
+        'repairStaleReplacementLinks',
+      );
+      const res = await repair({ orgId });
+      setRepairReplacementResult(
+        `Updated ${res.data.repaired} old unit(s) to replaced status. They now appear under Inventory → Retired / replaced.`,
+      );
+    } catch (err) {
+      console.error(err);
+      setRepairReplacementResult(
+        'Repair failed. Deploy the latest Cloud Functions (repairStaleReplacementLinks) and try again.',
+      );
+    } finally {
+      setRepairingReplacements(false);
+    }
+  };
+
   if (!hasRole(['owner', 'admin'])) {
     return (
       <div className="p-6 text-center">
@@ -262,6 +313,64 @@ export default function DataOrganizer() {
               Import Guide
             </Link>
           </div>
+        </div>
+      </div>
+
+      {/* Duplicate active asset numbers — retire older docs, keep newest */}
+      <div className="mb-5 rounded-xl border border-violet-200 bg-violet-50/80 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-violet-700" />
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Duplicate active rows (same asset number)</p>
+              <p className="mt-0.5 text-sm text-gray-700">
+                Only one lifecycle-active extinguisher should exist per asset ID. This tool keeps the newest document
+                (by <span className="font-mono text-xs">createdAt</span>) and retires the others.
+              </p>
+              {dedupeAssetResult && (
+                <p className="mt-2 text-sm font-medium text-violet-900">{dedupeAssetResult}</p>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleDedupeActiveByAsset}
+            disabled={dedupingAssets || !orgId}
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+          >
+            {dedupingAssets ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />}
+            Dedupe by asset number
+          </button>
+        </div>
+      </div>
+
+      {/* Replacement chain repair — marks old units replaced when a successor has replacesExtId */}
+      <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/80 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <RefreshCw className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Retired / duplicate old units after replacement</p>
+              <p className="mt-0.5 text-sm text-gray-700">
+                If a new extinguisher points at an old id via <span className="font-mono text-xs">replacesExtId</span> but
+                the old record is still active, it can show up as extra work in inspections. This one-time repair marks
+                those old documents as replaced (same as the in-app replacement flow). View results under{' '}
+                <strong>Retired extinguishers</strong> in the sidebar.
+              </p>
+              {repairReplacementResult && (
+                <p className="mt-2 text-sm font-medium text-green-800">{repairReplacementResult}</p>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleRepairReplacementLinks}
+            disabled={repairingReplacements || !orgId}
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+          >
+            {repairingReplacements ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Fix replacement links
+          </button>
         </div>
       </div>
 

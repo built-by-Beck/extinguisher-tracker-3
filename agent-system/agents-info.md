@@ -1402,3 +1402,26 @@ Phase 6 is complete and reviewed. All 24 tasks verified. The remaining items on 
 - **Security hardening** (CSP headers, rate limiting, input sanitization, etc.)
 
 Recommended Phase 7 scope: **Legal attestation + Security hardening**. These are the final items in the build order before the application can be considered feature-complete for v1 launch.
+
+---
+
+## 2026-04-23 — Workspace leaf inspection UX (Pending / Checked)
+
+**Task:** Align the in-workspace location workflow with operators’ mental model: month workspace → pick location → **Pending** queue → Pass/Fail moves units into **Checked** (passed + failed together). Keep advanced filters available.
+
+**What changed:**
+- `WorkspaceDetail.tsx`: At a **leaf** location, the top-level list mode is now **Pending** | **Checked** (single view showing passed then failed subsections) | **Replaced**. URL query `leaf` accepts `pending`, `checked`, or `replaced`; legacy `leaf=passed` and `leaf=failed` map to `checked`.
+- **Bug fix:** Tapping the scope card **Checked** on a leaf no longer turns on pass+fail checkbox filters (which forced the confusing “single combined table” mode). Pass, Fail, and Checked cards all open the unified Checked view.
+- `WorkspaceInspectionScopeCards.tsx`: Renamed card label **Already checked** → **Checked**.
+
+**Files:** `src/pages/WorkspaceDetail.tsx`, `src/components/workspace/WorkspaceInspectionScopeCards.tsx`
+
+**Verification:** `npm run build`, `npm run lint` (extinguisher-tracker-3).
+
+### Lessons learned
+
+**Symptom:** Operators described the app as not matching “pending vs checked” even though tabs existed.
+
+**Root cause:** On leaf, `handleScopeCardSelect` treated `filter === 'checked'` by setting `filters.statuses` to pass+fail, which set `floorScanGrouped` to false and replaced the tabbed UI with paginated combined list—easy to misread as “broken” or unrelated to monthly inspection.
+
+**Prevention:** For primary workflows, map high-level scope cards to explicit view modes (`LeafListTab`) instead of reusing low-level filter primitives that change layout mode.

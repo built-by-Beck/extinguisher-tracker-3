@@ -32,7 +32,7 @@ import {
   isAssetIdTaken,
   type Extinguisher,
 } from '../services/extinguisherService.ts';
-import { retireExtinguisher } from '../services/lifecycleService.ts';
+import { recalculateLifecycle, retireExtinguisher } from '../services/lifecycleService.ts';
 import { formatShortDate, formatDueDate, isOverdue } from '../utils/compliance.ts';
 
 export default function ExtinguisherEdit() {
@@ -78,6 +78,9 @@ export default function ExtinguisherEdit() {
 
     try {
       await updateExtinguisher(orgId, extId, data);
+      if (extinguisher?.lifecycleStatus === 'active') {
+        await recalculateLifecycle(orgId, extId);
+      }
       navigate(returnTo);
     } finally {
       setSaving(false);
@@ -329,7 +332,7 @@ export default function ExtinguisherEdit() {
         <ReplaceExtinguisherModal
           orgId={orgId}
           oldExtinguisherId={extId}
-          oldAssetId={extinguisher.assetId}
+          oldExtinguisher={extinguisher}
           onClose={() => setShowReplaceModal(false)}
         />
       )}

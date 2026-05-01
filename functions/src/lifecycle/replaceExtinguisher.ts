@@ -1,11 +1,9 @@
 /**
  * Cloud Function: replaceExtinguisher
- * Handles the lifecycle replacement of a fire extinguisher.
- * - Sets old extinguisher to 'replaced'
- * - Creates new extinguisher doc with preserved location
- * - Appends to replacement history
- * - Runs initial lifecycle calc on new unit
- * - Writes audit log
+ * In-place replacement: the extinguisher document stays active as the current unit.
+ * - Writes a full snapshot of the prior document to subcollection replacementHistory
+ * - Updates serial, barcode, physical fields, photos, notes; resets lifecycle for the new body
+ * - Does not create a second active record for the same asset number
  *
  * Callable by owner/admin.
  *
@@ -13,7 +11,7 @@
  */
 
 import { onCall } from 'firebase-functions/v2/https';
-import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue, type DocumentData } from 'firebase-admin/firestore';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
@@ -27,9 +25,18 @@ import {
   calculateNextHydroTest,
   calculateComplianceStatus,
   getHydroIntervalByType,
+  normalizeMonthlyInspectionSchedule,
   requiresSixYear,
   type ExtinguisherForCalc,
 } from './complianceCalc.js';
+
+function requireStringField(value: unknown, message: string): string {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  if (!trimmed) {
+    throwFailedPrecondition(message);
+  }
+  return trimmed;
+}
 
 interface NewExtinguisherData {
   assetId: string;
@@ -41,7 +48,11 @@ interface NewExtinguisherData {
   manufactureYear?: number | null;
   expirationYear?: number | null;
   barcode?: string | null;
+  barcodeFormat?: string | null;
+  lastSixYearMaintenance?: boolean | null;
+  lastHydroTest?: boolean | null;
   notes?: string | null;
+  photos?: unknown;
 }
 
 interface ReplaceExtinguisherInput {
@@ -51,6 +62,24 @@ interface ReplaceExtinguisherInput {
   reason?: string;
 }
 
+function isInventoryActive(data: DocumentData): boolean {
+  const ls = data.lifecycleStatus as string | null | undefined;
+  const category = data.category as string | null | undefined;
+  const status = data.status as string | null | undefined;
+  const isActive = data.isActive as boolean | null | undefined;
+  if (ls === 'replaced' || ls === 'retired' || ls === 'deleted') return false;
+  if (category === 'replaced' || category === 'retired' || category === 'out_of_service') return false;
+  if (status != null && status !== 'active') return false;
+  if (isActive === false) return false;
+  return ls === 'active' || ls == null || ls === '';
+}
+
+function normalizeOptionalString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 export const replaceExtinguisher = onCall(async (request) => {
   const { uid, email } = validateAuth(request);
   const { orgId, oldExtinguisherId, newExtinguisherData, reason } = request.data as ReplaceExtinguisherInput;
@@ -58,48 +87,108 @@ export const replaceExtinguisher = onCall(async (request) => {
   if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
   if (!oldExtinguisherId || typeof oldExtinguisherId !== 'string') throwInvalidArgument('oldExtinguisherId is required.');
   if (!newExtinguisherData || typeof newExtinguisherData !== 'object') throwInvalidArgument('newExtinguisherData is required.');
-  if (!newExtinguisherData.assetId) throwInvalidArgument('newExtinguisherData.assetId is required.');
-  if (!newExtinguisherData.serial) throwInvalidArgument('newExtinguisherData.serial is required.');
+  if (typeof newExtinguisherData.serial !== 'string') throwInvalidArgument('newExtinguisherData.serial is required.');
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
 
-  // Validate serial number is unique (must be outside transaction)
-  const serialCheck = await adminDb.collection(`org/${orgId}/extinguishers`)
-    .where('serial', '==', newExtinguisherData.serial)
-    .where('deletedAt', '==', null)
-    .limit(1)
-    .get();
-  if (!serialCheck.empty) {
-    throwFailedPrecondition(`Serial number "${newExtinguisherData.serial}" is already in use by another extinguisher.`);
-  }
+  const newSerial = newExtinguisherData.serial.trim();
+  if (!newSerial) throwInvalidArgument('newExtinguisherData.serial is required.');
+  const newBarcode = newExtinguisherData.barcode != null ? String(newExtinguisherData.barcode).trim() : '';
 
   return await adminDb.runTransaction(async (tx) => {
-    // 1. Subscription check
     await validateSubscriptionTx(tx, orgId);
+    const orgSnap = await tx.get(adminDb.doc(`org/${orgId}`));
+    const orgData = orgSnap.data() ?? {};
+    const orgSettings = (orgData.settings as Record<string, unknown> | undefined) ?? {};
+    const monthlySchedule = normalizeMonthlyInspectionSchedule(orgSettings.monthlyInspectionSchedule);
+    const orgTimezone = typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
 
-    // 2. Load old extinguisher
-    const oldExtRef = adminDb.doc(`org/${orgId}/extinguishers/${oldExtinguisherId}`);
-    const oldExtSnap = await tx.get(oldExtRef);
-    if (!oldExtSnap.exists) throwNotFound('Extinguisher not found.');
+    const extRef = adminDb.doc(`org/${orgId}/extinguishers/${oldExtinguisherId}`);
+    const extSnap = await tx.get(extRef);
+    if (!extSnap.exists) throwNotFound('Extinguisher not found.');
 
-    const oldExtData = oldExtSnap.data()!;
+    const oldExtData = extSnap.data()!;
 
-    if (oldExtData.lifecycleStatus !== 'active') {
+    if (!isInventoryActive(oldExtData)) {
       throwFailedPrecondition('Only active extinguishers can be replaced.');
+    }
+
+    const oldAssetId = requireStringField(
+      oldExtData.assetId,
+      'Extinguisher asset number is missing. Add an asset number before replacing this extinguisher.',
+    );
+    const requestedAssetId = requireStringField(
+      newExtinguisherData.assetId,
+      'New asset number is required for replacement.',
+    );
+
+    const colRef = adminDb.collection(`org/${orgId}/extinguishers`);
+    const serialSnap = await tx.get(
+      colRef.where('serial', '==', newSerial).where('deletedAt', '==', null),
+    );
+    const serialConflict = serialSnap.docs.find((d) => d.id !== oldExtinguisherId && isInventoryActive(d.data()));
+    if (serialConflict) {
+      throwFailedPrecondition(`Serial number "${newSerial}" is already in use by another active extinguisher.`);
+    }
+
+    if (newBarcode) {
+      const bcSnap = await tx.get(
+        colRef.where('barcode', '==', newBarcode).where('deletedAt', '==', null),
+      );
+      const bcConflict = bcSnap.docs.find((d) => d.id !== oldExtinguisherId && isInventoryActive(d.data()));
+      if (bcConflict) {
+        throwFailedPrecondition(`Barcode "${newBarcode}" is already in use by another active extinguisher.`);
+      }
+    }
+
+    const assetSnap = await tx.get(
+      colRef.where('assetId', '==', requestedAssetId).where('deletedAt', '==', null),
+    );
+    const assetOthers = assetSnap.docs.filter((d) => d.id !== oldExtinguisherId && isInventoryActive(d.data()));
+    if (assetOthers.length > 0) {
+      throwFailedPrecondition(
+        'Another active extinguisher already uses this asset number. Resolve duplicates (Data organizer) before replacing.',
+      );
     }
 
     const now = Timestamp.now();
     const serverTimestamp = FieldValue.serverTimestamp();
 
-    // 3. Calculate lifecycle for new extinguisher
+    const histRef = adminDb.collection(`org/${orgId}/extinguishers/${oldExtinguisherId}/replacementHistory`).doc();
+    tx.set(histRef, {
+      orgId,
+      currentExtinguisherId: oldExtinguisherId,
+      priorSnapshot: { ...oldExtData },
+      replacedAt: now,
+      replacedBy: uid,
+      replacedByEmail: email,
+      reason: reason ?? null,
+      notes: normalizeOptionalString(newExtinguisherData.notes),
+      previousSerial: oldExtData.serial ?? null,
+      previousBarcode: oldExtData.barcode ?? null,
+      previousAssetId: oldExtData.assetId ?? null,
+      newSerial,
+      newBarcode: newBarcode || null,
+      newAssetId: requestedAssetId,
+      waitingForService: false,
+      sentForService: false,
+      discarded: false,
+      returned: false,
+      returnedSpareExtinguisherId: null,
+      serviceStatusUpdatedAt: null,
+      serviceStatusUpdatedBy: null,
+    });
+
     const extType = newExtinguisherData.extinguisherType ?? '';
     const hydroInterval = getHydroIntervalByType(extType);
     const needsSixYear = requiresSixYear(extType);
+    const lastSixYearMaintenance = newExtinguisherData.lastSixYearMaintenance === true ? now : null;
+    const lastHydroTest = newExtinguisherData.lastHydroTest === true ? now : null;
 
-    const nextMonthlyInspection = calculateNextMonthlyInspection(null);
+    const nextMonthlyInspection = calculateNextMonthlyInspection(null, monthlySchedule, orgTimezone);
     const nextAnnualInspection = calculateNextAnnualInspection(null);
-    const nextHydroTest = calculateNextHydroTest(null, hydroInterval);
-    const nextSixYearMaintenance = needsSixYear ? calculateNextSixYearMaintenance(null) : null;
+    const nextHydroTest = calculateNextHydroTest(lastHydroTest, hydroInterval);
+    const nextSixYearMaintenance = needsSixYear ? calculateNextSixYearMaintenance(lastSixYearMaintenance) : null;
 
     const calcInput: ExtinguisherForCalc = {
       lifecycleStatus: 'active',
@@ -107,8 +196,8 @@ export const replaceExtinguisher = onCall(async (request) => {
       requiresSixYearMaintenance: needsSixYear,
       lastMonthlyInspection: null,
       lastAnnualInspection: null,
-      lastSixYearMaintenance: null,
-      lastHydroTest: null,
+      lastSixYearMaintenance,
+      lastHydroTest,
       hydroTestIntervalYears: hydroInterval,
       nextMonthlyInspection,
       nextAnnualInspection,
@@ -118,75 +207,49 @@ export const replaceExtinguisher = onCall(async (request) => {
 
     const { complianceStatus, overdueFlags } = calculateComplianceStatus(calcInput);
 
-    // 4. Create new unit (preserves location from old unit)
-    const newExtRef = adminDb.collection(`org/${orgId}/extinguishers`).doc();
-    const newExtId = newExtRef.id;
+    const photosPayload = newExtinguisherData.photos;
+    const nextPhotos = Array.isArray(photosPayload)
+      ? photosPayload
+      : Array.isArray(oldExtData.photos)
+        ? oldExtData.photos
+        : [];
 
-    const replacementEntry = {
-      replacedExtId: oldExtinguisherId,
-      replacedAssetId: oldExtData.assetId,
-      replacedAt: now,
-      replacedBy: uid,
-      replacedByEmail: email,
-      reason: reason ?? null,
-    };
-
-    tx.set(newExtRef, {
-      assetId: newExtinguisherData.assetId,
-      serial: newExtinguisherData.serial,
-      barcode: newExtinguisherData.barcode ?? null,
-      barcodeFormat: null,
-      qrCodeValue: null,
-      qrCodeUrl: null,
+    tx.update(extRef, {
+      assetId: requestedAssetId,
+      serial: newSerial,
+      barcode: newBarcode || null,
+      barcodeFormat: newBarcode ? (newExtinguisherData.barcodeFormat as string | null) ?? null : null,
       manufacturer: newExtinguisherData.manufacturer ?? null,
-      category: 'standard',
       extinguisherType: newExtinguisherData.extinguisherType ?? null,
       serviceClass: newExtinguisherData.serviceClass ?? null,
       extinguisherSize: newExtinguisherData.extinguisherSize ?? null,
-      manufactureDate: null,
       manufactureYear: newExtinguisherData.manufactureYear ?? null,
-      installDate: null,
-      inServiceDate: now,
+      manufactureDate: null,
       expirationYear: newExtinguisherData.expirationYear ?? null,
-      vicinity: oldExtData.vicinity ?? '',
-      parentLocation: oldExtData.parentLocation ?? '',
-      section: oldExtData.section ?? '',
-      locationId: oldExtData.locationId ?? null,
-      photos: [],
+      notes: newExtinguisherData.notes ?? null,
+      photos: nextPhotos,
       lastMonthlyInspection: null,
       nextMonthlyInspection,
       lastAnnualInspection: null,
       nextAnnualInspection,
-      lastSixYearMaintenance: null,
+      lastSixYearMaintenance,
       nextSixYearMaintenance,
-      lastHydroTest: null,
+      lastHydroTest,
       nextHydroTest,
       hydroTestIntervalYears: hydroInterval,
       requiresSixYearMaintenance: needsSixYear,
       lifecycleStatus: 'active',
       complianceStatus,
       overdueFlags,
-      replacesExtId: oldExtinguisherId,
+      inServiceDate: now,
+      replacesExtId: null,
       replacedByExtId: null,
-      replacementHistory: [replacementEntry],
-      createdAt: serverTimestamp,
-      updatedAt: serverTimestamp,
-      createdBy: uid,
-      deletedAt: null,
-      deletedBy: null,
-      deletionReason: null,
-    });
-
-    // 5. Update old extinguisher to 'replaced'
-    tx.update(oldExtRef, {
-      lifecycleStatus: 'replaced',
-      complianceStatus: 'replaced',
-      replacedByExtId: newExtId,
-      replacementHistory: FieldValue.arrayUnion(replacementEntry),
+      replacementHistory: [],
+      status: 'active',
+      isActive: true,
       updatedAt: serverTimestamp,
     });
 
-    // 6. Write audit log within transaction
     writeAuditLogTx(tx, orgId, {
       action: 'extinguisher.replaced',
       performedBy: uid,
@@ -194,15 +257,16 @@ export const replaceExtinguisher = onCall(async (request) => {
       entityType: 'extinguisher',
       entityId: oldExtinguisherId,
       details: {
-        oldExtinguisherId,
-        oldAssetId: oldExtData.assetId,
-        newExtinguisherId: newExtId,
-        newAssetId: newExtinguisherData.assetId,
+        extinguisherId: oldExtinguisherId,
+        oldAssetId,
+        newAssetId: requestedAssetId,
+        previousSerial: oldExtData.serial ?? null,
+        newSerial,
         reason: reason ?? null,
+        newExtinguisherId: oldExtinguisherId,
       },
     });
 
-    return { oldExtinguisherId, newExtinguisherId: newExtId };
+    return { extinguisherId: oldExtinguisherId };
   });
 });
-

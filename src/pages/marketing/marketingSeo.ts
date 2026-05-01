@@ -3,13 +3,13 @@ export const marketingSeo = {
   home: {
     title: 'Extinguisher Tracker — AI fire extinguisher inspections & compliance',
     description:
-      'AI-powered software for extinguisher inventory, inspection workflows, section auto timers, compliance records, and reporting. Built for facilities teams in the field.',
+      'Field-built software for extinguisher inventory, inspections, AI guidance, offline sync, reports, reminders, audit logs, and lifecycle tracking.',
     path: '/',
   },
   features: {
     title: 'Features — Extinguisher Tracker',
     description:
-      'AI maintenance assistant, auto timer workflow pacing, inventory, barcode lookup, compliance reporting, audit history, and exports for real facility workflows.',
+      'AI maintenance assistant, timed routes, inventory, barcode and QR lookup, offline sync, photo evidence, custom asset inspections, guest access, audit logs, and exports.',
     path: '/features',
   },
   pricing: {
@@ -21,19 +21,19 @@ export const marketingSeo = {
   howItWorks: {
     title: 'How it works — Extinguisher Tracker',
     description:
-      'From organization setup to AI-assisted inspections, timed route execution, issue tracking, and reports: a straightforward workflow for extinguisher compliance.',
+      'From organization setup to AI-assisted inspections, offline field work, reminders, issue tracking, reporting, sharing, and audit-ready records.',
     path: '/how-it-works',
   },
   about: {
     title: 'About — Extinguisher Tracker',
     description:
-      'Learn about Extinguisher Tracker: our mission to modernize fire safety compliance for facilities teams everywhere.',
+      'Learn how Extinguisher Tracker was independently built from field-level life safety experience and practical software development.',
     path: '/about',
   },
   gettingStarted: {
     title: 'Getting Started — Extinguisher Tracker',
     description:
-      'Step-by-step onboarding from account setup to first completed inspections, with AI-assisted guidance and workflow best practices.',
+      'Step-by-step onboarding from account setup to inventory, inspections, evidence capture, reports, sharing, AI-assisted guidance, and workflow best practices.',
     path: '/getting-started',
   },
   faq: {

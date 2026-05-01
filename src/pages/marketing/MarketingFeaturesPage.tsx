@@ -2,7 +2,9 @@ import type { ComponentType } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Barcode,
+  Bell,
   Building2,
+  Camera,
   Clock3,
   ClipboardCheck,
   Database,
@@ -10,10 +12,16 @@ import {
   History,
   MapPinned,
   MonitorSmartphone,
+  Printer,
+  QrCode,
+  RefreshCcw,
+  Share2,
   TriangleAlert,
+  Users,
   Bot,
   Calculator,
   DatabaseZap,
+  WifiOff,
 } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
@@ -67,8 +75,8 @@ export default function MarketingFeaturesPage() {
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">Features</h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
-              Built for teams that do not have time to chase notes, search regulations, or rework missed routes.
-              Capabilities may vary by plan; use pricing to compare tiers.
+              Built for teams that do not have time to chase notes, search regulations, rebuild spreadsheets, or lose
+              field evidence. Capabilities may vary by plan; use pricing to compare tiers.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -91,7 +99,7 @@ export default function MarketingFeaturesPage() {
           <FeatureBlock
             icon={Bot}
             title="AI Maintenance Assistant"
-            what="A built-in AI assistant that answers maintenance and compliance questions using NFPA 10 (2022) as the default reference."
+            what="A built-in AI assistant that answers maintenance and compliance questions using the NFPA reference configured in Organization Settings."
             why="Busy crews should not need to stop and search external sites for code context or app notes."
             outcome="Faster decisions, fewer workflow interruptions, and consistent guidance while inspections are in progress."
           />
@@ -107,7 +115,7 @@ export default function MarketingFeaturesPage() {
             title="Compliance Placement Calculator"
             what="An interactive tool to determine required extinguisher quantities and types based on hazard class and floor area."
             why="Manual placement calculations are prone to error and time-consuming during site setup."
-            outcome="Confident facility planning, guaranteed compliance with NFPA 10 coverage rules, and optimized asset spend."
+            outcome="Confident facility planning with advisory NFPA-aligned guidance that should still be confirmed against local requirements and AHJ direction."
           />
           <FeatureBlock
             icon={DatabaseZap}
@@ -124,6 +132,13 @@ export default function MarketingFeaturesPage() {
             outcome="Fewer missed units, cleaner handoffs between shifts, and a list leadership can trust."
           />
           <FeatureBlock
+            icon={RefreshCcw}
+            title="Replacement and retirement lifecycle"
+            what="Confirm the old unit during replacement, reuse or intentionally change the asset ID, archive old serial/barcode/unit details, track retired service status, and return serviced old units as active spare inventory with a new spare asset ID."
+            why="Extinguishers do not stay static. Units get replaced, retired, moved, or corrected, and those changes need a clean trail."
+            outcome="A clearer active inventory, side-by-side old/current replacement history, and a practical follow-up queue for retired units that may be serviced, discarded, or reused as spares."
+          />
+          <FeatureBlock
             icon={ClipboardCheck}
             title="Inspection workflow tracking"
             what="Structured inspection runs tied to workspaces and routes so crews know what to complete and when."
@@ -131,11 +146,39 @@ export default function MarketingFeaturesPage() {
             outcome="Predictable completion, clearer ownership, and less scrambling before deadlines."
           />
           <FeatureBlock
+            icon={ClipboardCheck}
+            title="Custom asset inspections"
+            what="Create inspection programs for non-extinguisher assets that still need recurring checks, notes, and follow-up visibility."
+            why="Life safety teams often track more than one asset type, and those checks should not be forced into unrelated spreadsheets."
+            outcome="One workflow for extinguisher work plus adjacent recurring inspections your team already has to manage."
+          />
+          <FeatureBlock
             icon={Barcode}
             title="Barcode and asset lookup"
             what="Scan or search to pull the right extinguisher and related notes instantly instead of hunting through long lists."
             why="Field time is expensive; lookup friction causes skipped checks, wrong asset edits, and lost context."
             outcome="Faster routes, cleaner updates, and less context switching while you are actively working."
+          />
+          <FeatureBlock
+            icon={QrCode}
+            title="QR links and tag workflows"
+            what="Use QR links, printable lists, and tag printing to connect the physical extinguisher to the right digital record."
+            why="A good asset program needs the person in front of the unit to land on the right information quickly."
+            outcome="Less guessing in the field and a cleaner bridge between labels, scans, inspection forms, and records."
+          />
+          <FeatureBlock
+            icon={Camera}
+            title="Photo, GPS, and field notes"
+            what="Capture inspection evidence, location context, and notes while the work is still fresh."
+            why="Plain pass/fail records often leave teams reconstructing what happened after the route is over."
+            outcome="Better evidence for follow-up decisions, internal reviews, and questions from safety leaders."
+          />
+          <FeatureBlock
+            icon={WifiOff}
+            title="Offline-ready sync queue"
+            what="Support low-connectivity inspection work with offline storage and a sync queue when the connection comes back."
+            why="Inspections happen in stairwells, basements, mechanical rooms, and remote buildings where signal is not guaranteed."
+            outcome="Crews can keep moving instead of waiting for perfect connectivity."
           />
           <FeatureBlock
             icon={FileDown}
@@ -146,10 +189,17 @@ export default function MarketingFeaturesPage() {
           />
           <FeatureBlock
             icon={History}
-            title="History, records, and audit trail"
-            what="Durable record of inspection activity and important changes so prior work is discoverable later."
+            title="History, records, and audit logs"
+            what="Durable inspection history plus dedicated audit logs for important activity and changes."
             why="Turnover and disputes are normal; memory is not a system of record."
             outcome="Defensible documentation when you need to reconstruct what happened and when."
+          />
+          <FeatureBlock
+            icon={Bell}
+            title="Notifications and reminders"
+            what="In-app notification and reminder workflows help overdue work and follow-ups stay visible."
+            why="Important inspection work should not depend on someone remembering to check a separate spreadsheet."
+            outcome="More timely attention to upcoming, overdue, and unresolved work."
           />
           <FeatureBlock
             icon={MonitorSmartphone}
@@ -166,6 +216,34 @@ export default function MarketingFeaturesPage() {
             outcome="Easier route planning, clearer scope per team, and reporting that matches real geography."
           />
           <FeatureBlock
+            icon={Users}
+            title="Organizations, roles, and invites"
+            what="Invite team members, separate access by organization, and use roles for owners, admins, inspectors, and viewers."
+            why="The person inspecting in the field does not always need the same access as an owner or administrator."
+            outcome="Cleaner collaboration across facilities, teams, and outside stakeholders."
+          />
+          <FeatureBlock
+            icon={Building2}
+            title="Profiles and organization branding"
+            what="Users choose safe preset avatars, while organization creators can maintain profile details and add a small logo on Pro, Elite, and Enterprise plans."
+            why="Profile identity should be useful without opening broad personal photo uploads or unrestricted media paths."
+            outcome="A more polished workspace with branding controls protected by creator-only permissions, plan gates, and strict Storage rules."
+          />
+          <FeatureBlock
+            icon={Share2}
+            title="Guest access for limited visibility"
+            what="Share limited guest views when someone needs to review records without becoming a full team member."
+            why="Auditors, partners, and temporary reviewers often need answers without long-term access."
+            outcome="More controlled sharing with less need to export or screenshot everything."
+          />
+          <FeatureBlock
+            icon={Printer}
+            title="Print-ready field support"
+            what="Print inventory lists and tags when paper labels, backup lists, or physical binders are still part of the operation."
+            why="Digital systems still need to connect to real buildings, labels, and field handoffs."
+            outcome="Better continuity between the app, the asset label, and the technician standing in front of the unit."
+          />
+          <FeatureBlock
             icon={TriangleAlert}
             title="Issue tracking"
             what="Surface failed items and follow-ups so corrective work does not disappear into notes."
@@ -176,7 +254,7 @@ export default function MarketingFeaturesPage() {
             icon={Building2}
             title="Reporting and export support"
             what="Pull data out for finance, procurement, or partner workflows when the in-app view is not enough."
-            why="Organizations rarely live in a single tool; exports bridge to CMMS, CMMS tickets, and leadership decks."
+            why="Organizations rarely live in a single tool; exports bridge to CMMS tools, tickets, and leadership decks."
             outcome="Less copy-paste, fewer transcription errors, and faster responses to cross-team requests."
           />
         </div>

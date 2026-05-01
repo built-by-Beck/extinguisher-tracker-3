@@ -2,10 +2,16 @@
 export type { WithId, Timestamps } from './firestore.ts';
 
 // User profile
-export type { UserProfile } from './user.ts';
+export type { PresetAvatarId, UserProfile } from './user.ts';
 
 // Organization
-export type { Organization, OrgFeatureFlags, OrgSettings } from './organization.ts';
+export type {
+  Organization,
+  OrgBranding,
+  OrgFeatureFlags,
+  OrgProfile,
+  OrgSettings,
+} from './organization.ts';
 
 // Member
 export type { OrgMember, OrgRole, MemberStatus } from './member.ts';

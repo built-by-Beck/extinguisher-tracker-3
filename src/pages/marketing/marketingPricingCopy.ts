@@ -50,7 +50,7 @@ export const marketingPlans: MarketingPlanCard[] = [
       'Section auto timer for route pace',
       'Placement & quantity calculator',
       'Easy inspection workflow',
-      'Standard reports & history',
+      'Standard reports, exports & history',
     ],
     ctaLabel: 'Get started',
     ctaHref: 'signup',
@@ -65,8 +65,10 @@ export const marketingPlans: MarketingPlanCard[] = [
     bullets: [
       'Everything in Basic',
       'Fast phone camera scanning',
-      'AI Maintenance helper (NFPA 10, 2022 default)',
+      'AI Maintenance helper with configurable NFPA reference',
       'GPS & photo proof of work',
+      'Custom asset inspections',
+      'Organization logo branding',
     ],
     ctaLabel: 'Get started',
     ctaHref: 'signup',
@@ -83,6 +85,8 @@ export const marketingPlans: MarketingPlanCard[] = [
       'Everything in Pro',
       'Advanced data cleanup tools',
       'Bulk tag printing',
+      'Guest sharing and offline sync support',
+      'Organization branding controls',
       'Priority help from our team',
     ],
     ctaLabel: 'Get started',
@@ -96,7 +100,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     blurb: 'For the biggest portfolios with full support, custom setup, and edition-aware compliance operations.',
     bullets: [
       'Everything in Elite',
-      'Full AI, timer insights, and data recovery',
+      'Full AI, timer insights, audit history, and data recovery',
       'Dedicated setup and help',
       'Unlimited extinguishers',
     ],
@@ -113,8 +117,24 @@ export const marketingFaq: MarketingFaqItem[] = [
     a: 'It gives you a single system of record for extinguishers, inspections, and history. Teams still follow your internal procedures; the software organizes the work and the evidence.',
   },
   {
+    q: 'What does the product track besides monthly extinguisher checks?',
+    a: 'Extinguisher Tracker also supports locations, tags, QR links, photos, GPS context, lifecycle replacement and retirement history, returned spare inventory, custom asset inspections, notifications, reports, exports, and audit logs depending on plan access.',
+  },
+  {
     q: 'Can AI answer NFPA questions while my team is working?',
-    a: 'Yes. Pro, Elite, and Enterprise include in-app AI assistance for maintenance and compliance questions so teams do not need to leave the workflow. AI guidance uses NFPA 10 (2022) by default, and your organization should align to its locally adopted edition.',
+    a: 'Yes. Pro, Elite, and Enterprise include in-app AI assistance for maintenance and compliance questions so teams do not need to leave the workflow. AI guidance uses the NFPA reference configured in Settings; new organizations fall back to NFPA 10 (2022), and your organization should align final decisions to its locally adopted edition.',
+  },
+  {
+    q: 'Does the calculator guarantee code compliance?',
+    a: 'No. The calculator is a planning aid that helps with NFPA-aligned coverage thinking. Final placement and compliance decisions should be confirmed against local requirements, your adopted code edition, and AHJ direction.',
+  },
+  {
+    q: 'Can the app work in low-connectivity areas?',
+    a: 'The app includes offline-oriented field support and a sync queue so crews can keep working when signal is unreliable. Teams should still confirm pending work has synced before relying on final records.',
+  },
+  {
+    q: 'Can outside reviewers see records without becoming full users?',
+    a: 'Guest access is designed for limited visibility when an auditor, partner, or temporary reviewer needs to see shared information without receiving full administrative access.',
   },
   {
     q: 'Who is the typical buyer?',

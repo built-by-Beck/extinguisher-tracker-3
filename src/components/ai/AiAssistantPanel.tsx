@@ -20,6 +20,7 @@ import { useAuth } from '../../hooks/useAuth.ts';
 import { db } from '../../lib/firebase.ts';
 import type { Extinguisher } from '../../services/extinguisherService.ts';
 import type { AiNote, AiNoteStatus } from '../../types/aiNote.ts';
+import type { NfpaEdition } from '../../types/organization.ts';
 import type { Workspace } from '../../services/workspaceService.ts';
 import { subscribeToInspections, type Inspection } from '../../services/inspectionService.ts';
 import { subscribeToSectionNotes } from '../../services/sectionNotesService.ts';
@@ -30,15 +31,26 @@ interface AiAssistantPanelProps {
   complianceSummary?: Record<string, number>;
 }
 
-const SUGGESTED_PROMPTS = [
-  'What does NFPA 10 (2022) require for monthly inspections?',
-  'Our jurisdiction uses NFPA 10 (2018). Explain annual requirements.',
-  'Show all notes from this month',
-  'Show extinguishers expiring next year',
-  'How many extinguishers did we replace last month?',
-  'What inspections are overdue?',
-  'Summarize my compliance status and mention sections taking the longest time',
-];
+function formatNfpaReference(edition?: NfpaEdition, customLabel?: string): string {
+  if (edition === 'other') {
+    return customLabel?.trim() || 'our AHJ-specific NFPA reference';
+  }
+  return `NFPA 10 (${edition ?? '2022'})`;
+}
+
+function buildSuggestedPrompts(nfpaReference: string): string[] {
+  return [
+    `What does ${nfpaReference} require for monthly inspections?`,
+    `Compare ${nfpaReference} to our local AHJ notes for annual requirements.`,
+    'Show all notes from this month',
+    'Show extinguishers expiring next year',
+    'Show marked expired extinguishers',
+    'Show possible expired candidates',
+    'How many extinguishers did we replace last month?',
+    'What inspections are overdue?',
+    'Summarize my compliance status and mention sections taking the longest time',
+  ];
+}
 
 const NOTE_INTENT_PATTERN = /\b(take|save|create|add|make)\s+(?:a\s+)?note\b/i;
 
@@ -116,6 +128,11 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
   const resolvedComplianceSummary =
     complianceSummary ?? buildComplianceSummary(resolvedExtinguishers);
   const canManageNotes = hasRole(['owner', 'admin', 'inspector']);
+  const nfpaReference = formatNfpaReference(
+    org?.settings?.nfpaEdition,
+    org?.settings?.nfpaEditionLabel,
+  );
+  const suggestedPrompts = buildSuggestedPrompts(nfpaReference);
 
   useEffect(() => {
     if (!orgId) {
@@ -234,6 +251,9 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
         activeWorkspaceLabel: activeWorkspace?.label ?? null,
         inspections: activeWorkspaceInspections,
         sectionNotes,
+        nfpaEdition: org?.settings?.nfpaEdition,
+        nfpaEditionLabel: org?.settings?.nfpaEditionLabel,
+        localComplianceNotes: org?.settings?.localComplianceNotes,
       });
       setMessages([...updatedMessages, { role: 'assistant', content: response }]);
     } catch (err) {
@@ -272,7 +292,7 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
               <div>
                 <h3 className="text-sm font-semibold text-gray-900">AI Assistant</h3>
                 <p className="text-xs text-gray-500">
-                  NFPA 10 compliance help for Pro, Elite, and Enterprise
+                  {nfpaReference} compliance help for Pro, Elite, and Enterprise
                 </p>
               </div>
             </div>
@@ -315,6 +335,7 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                       <div className="mt-2 flex items-center justify-between">
                         <span className="text-[10px] text-gray-500">Status</span>
                         <select
+                          aria-label={`Status for note ${note.id}`}
                           value={note.status}
                           disabled={!canManageNotes || noteBusyId === note.id}
                           onChange={(e) =>
@@ -344,14 +365,14 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                     Ask me about NFPA 10 compliance, your inventory, or inspection schedules.
                   </p>
                   <p className="mt-2 text-[11px] text-gray-400">
-                    How to use AI: include your adopted NFPA edition in the prompt when it differs
-                    from the default, and ask for overdue inspections, maintenance dates, section notes,
-                    or route pace guidance.
+                    How to use AI: your org reference is {nfpaReference}. Ask for overdue inspections,
+                    maintenance dates, section notes,
+                    route pace guidance, marked expired units, or possible expired candidates.
                   </p>
                 </div>
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-gray-400 uppercase">Try asking</p>
-                  {SUGGESTED_PROMPTS.map((prompt) => (
+                  {suggestedPrompts.map((prompt) => (
                     <button
                       key={prompt}
                       onClick={() => void handleSend(prompt)}
@@ -434,7 +455,7 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
               </button>
             </form>
             <p className="mt-1.5 text-center text-[10px] text-gray-400">
-              AI access is included with Pro, Elite, and Enterprise plans. Default reference: NFPA 10 (2022).
+              AI access is included with Pro, Elite, and Enterprise plans. Reference: {nfpaReference}.
             </p>
           </div>
         </div>

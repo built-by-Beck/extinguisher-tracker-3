@@ -102,6 +102,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const newProfile: UserProfile = {
       displayName,
       email,
+      avatarId: 'helmet-red',
       photoURL: null,
       defaultOrgId: null,
       activeOrgId: null,

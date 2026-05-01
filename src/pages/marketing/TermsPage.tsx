@@ -153,8 +153,9 @@ export default function TermsPage() {
                 before action.
               </p>
               <p>
-                Unless otherwise configured, AI guidance references NFPA 10 (2022) by default. Your organization is responsible
-                for aligning decisions to the edition and requirements adopted in your jurisdiction.
+                AI guidance references the NFPA edition configured in Organization Settings. Unless otherwise configured,
+                new organizations use NFPA 10 (2022) as the default reference. Your organization is responsible for
+                aligning decisions to the edition and requirements adopted in your jurisdiction.
               </p>
             </Section>
 

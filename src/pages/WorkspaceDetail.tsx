@@ -24,6 +24,7 @@ import {
   Search,
   Loader2,
   FileText,
+  RefreshCw,
   WifiOff,
   MapPin,
   ChevronLeft,
@@ -43,7 +44,10 @@ import {
   subscribeToInspections,
   type Inspection,
 } from '../services/inspectionService.ts';
-import type { Workspace, WorkspaceStats, SectionNotesMap } from '../services/workspaceService.ts';
+import {
+  type Workspace,
+  type SectionNotesMap,
+} from '../services/workspaceService.ts';
 import { getReport } from '../services/reportService.ts';
 import { ReportDownloadButton } from '../components/reports/ReportDownloadButton.tsx';
 import type { Report } from '../types/report.ts';
@@ -53,7 +57,7 @@ import {
   getCachedInspectionsForWorkspace,
   getCachedWorkspace,
 } from '../services/offlineCacheService.ts';
-import { subscribeToLocations, type Location } from '../services/locationService.ts';
+import { subscribeToLocations, getAllDescendantIds, type Location } from '../services/locationService.ts';
 import { useLocationDrillDown } from '../hooks/useLocationDrillDown.ts';
 import { LocationCard, type LocationCardStats } from '../components/locations/LocationCard.tsx';
 import { WorkspaceInspectionScopeCards } from '../components/workspace/WorkspaceInspectionScopeCards.tsx';
@@ -65,6 +69,7 @@ import {
   detectHasLocationIdData,
   filterRowsByStatusList,
   dedupeInspectionsByExtinguisherLatest,
+  getSupersededExtinguisherIds,
   sumAllBucketStats,
   type WorkspaceInspectionBucketStats,
 } from '../utils/workspaceInspectionStats.ts';
@@ -100,6 +105,9 @@ const WS_Q_SCOPE = 'scope';
 const WS_Q_LEAF = 'leaf';
 const WS_Q_GROUP = 'group';
 
+/** At a leaf location: pending queue vs completed (pass+fail) vs replaced pairs. */
+type LeafListTab = 'pending' | 'checked' | 'replaced';
+
 function serializeWorkspaceQuery(sp: URLSearchParams): string {
   return [...sp.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -109,14 +117,15 @@ function serializeWorkspaceQuery(sp: URLSearchParams): string {
 
 function parseScopeListFilterFromSearch(sp: URLSearchParams): WorkspaceScopeCardFilter | null {
   const v = sp.get(WS_Q_SCOPE) ?? sp.get('status');
-  if (v === 'pending' || v === 'checked' || v === 'pass' || v === 'fail') return v;
+  if (v === 'pending' || v === 'checked' || v === 'pass' || v === 'fail' || v === 'replaced') return v;
   return null;
 }
 
-function parseLeafTabFromSearch(sp: URLSearchParams): 'pending' | 'passed' | 'failed' {
+function parseLeafTabFromSearch(sp: URLSearchParams): LeafListTab {
   const v = sp.get(WS_Q_LEAF);
-  if (v === 'passed' || v === 'failed') return v;
-  if (v === 'checked') return 'pending';
+  if (v === 'replaced') return 'replaced';
+  // Legacy URLs used passed / failed as top-level tabs; both map to the unified Checked view.
+  if (v === 'checked' || v === 'passed' || v === 'failed') return 'checked';
   return 'pending';
 }
 
@@ -129,7 +138,7 @@ function buildWorkspaceViewSearchParams(
     showUnassigned: boolean;
     showDeleted: boolean;
     scopeListFilter: WorkspaceScopeCardFilter | null;
-    leafStatusTab: 'pending' | 'passed' | 'failed';
+    leafStatusTab: LeafListTab;
     pendingScopeViewMode: PendingScopeViewMode;
     pendingGroupedLocationFilter: string;
   },
@@ -167,14 +176,6 @@ function buildWorkspaceViewSearchParams(
 
   return next;
 }
-const EMPTY_WORKSPACE_STATS: WorkspaceStats = {
-  total: 0,
-  passed: 0,
-  failed: 0,
-  pending: 0,
-  lastUpdated: null,
-};
-
 const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; bg: string }> = {
   pass: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
   fail: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-100' },
@@ -239,6 +240,129 @@ interface LeafExtinguisherTableProps {
   workspaceId: string;
   returnTo: string;
   navigate: NavigateFunction;
+  isArchived: boolean;
+}
+
+interface ReplacedPairRow {
+  oldExt: Extinguisher;
+  newExt: Extinguisher | null;
+}
+
+function toDisplay(v: unknown): string {
+  const s = (v ?? '').toString().trim();
+  return s || '--';
+}
+
+function formatReplacementTimestamp(ts: unknown): string {
+  if (!ts) return '--';
+  try {
+    const maybeTs = ts as { toDate?: () => Date; seconds?: number };
+    const date = typeof maybeTs.toDate === 'function'
+      ? maybeTs.toDate()
+      : maybeTs.seconds
+        ? new Date(maybeTs.seconds * 1000)
+        : new Date(ts as string);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch {
+    return '--';
+  }
+}
+
+function ReplacedPairTable({
+  rows,
+  workspaceId,
+  returnTo,
+  navigate,
+  isArchived,
+}: {
+  rows: ReplacedPairRow[];
+  workspaceId: string;
+  returnTo: string;
+  navigate: NavigateFunction;
+  isArchived: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      {rows.map((row) => {
+        const hist = row.oldExt.replacementHistory;
+        const lastEvent = Array.isArray(hist) && hist.length > 0 ? hist[hist.length - 1] : null;
+        return (
+        <div key={row.oldExt.id} className="rounded-lg border border-orange-200 bg-orange-50/30 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Replaced
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                row.oldExt.id &&
+                navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${row.oldExt.id}`, { state: { returnTo } })
+              }
+              className="text-xs font-semibold text-orange-700 hover:text-orange-900"
+            >
+              {isArchived ? 'View old unit' : 'Open old unit'}
+            </button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-lg border border-orange-200 bg-white p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-orange-700">Old extinguisher</p>
+              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Asset:</span> {toDisplay(row.oldExt.assetId)}</p>
+              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Serial:</span> {toDisplay(row.oldExt.serial)}</p>
+              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Type:</span> {toDisplay(row.oldExt.extinguisherType)}</p>
+              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Size:</span> {toDisplay(row.oldExt.extinguisherSize)}</p>
+              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Location:</span> {toDisplay(row.oldExt.vicinity || row.oldExt.section || row.oldExt.parentLocation)}</p>
+            </div>
+            <div className="rounded-lg border border-green-200 bg-white p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-green-700">New extinguisher</p>
+              {row.newExt ? (
+                <>
+                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Asset:</span> {toDisplay(row.newExt.assetId)}</p>
+                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Serial:</span> {toDisplay(row.newExt.serial)}</p>
+                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Type:</span> {toDisplay(row.newExt.extinguisherType)}</p>
+                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Size:</span> {toDisplay(row.newExt.extinguisherSize)}</p>
+                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Location:</span> {toDisplay(row.newExt.vicinity || row.newExt.section || row.newExt.parentLocation)}</p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      row.newExt?.id &&
+                      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${row.newExt.id}`, { state: { returnTo } })
+                    }
+                    className="mt-2 text-xs font-semibold text-green-700 hover:text-green-900"
+                  >
+                    {isArchived ? 'View new unit' : 'Open new unit'}
+                  </button>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">New replacement unit not found.</p>
+              )}
+            </div>
+          </div>
+          {lastEvent && (
+            <div className="mt-3 border-t border-orange-200/80 pt-2 text-xs text-gray-600">
+              {lastEvent.replacedAt != null && (
+                <p>
+                  <span className="font-medium text-gray-700">When:</span>{' '}
+                  {formatReplacementTimestamp(lastEvent.replacedAt)}
+                </p>
+              )}
+              {lastEvent.replacedByEmail != null && lastEvent.replacedByEmail !== '' && (
+                <p>
+                  <span className="font-medium text-gray-700">By:</span> {String(lastEvent.replacedByEmail)}
+                </p>
+              )}
+              {lastEvent.reason != null && String(lastEvent.reason).trim() !== '' && (
+                <p>
+                  <span className="font-medium text-gray-700">Reason:</span> {String(lastEvent.reason)}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function ScopeStatusCards({
@@ -284,6 +408,7 @@ function LeafExtinguisherTable({
   workspaceId,
   returnTo,
   navigate,
+  isArchived,
 }: LeafExtinguisherTableProps) {
   return (
     <div className="space-y-2">
@@ -323,7 +448,9 @@ function LeafExtinguisherTable({
                   <Icon className="h-3 w-3" />
                   {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
                 </span>
-                <p className="mt-2 text-xs font-semibold text-red-600">Inspect</p>
+                <p className={`mt-2 text-xs font-semibold ${isArchived ? 'text-gray-500' : 'text-red-600'}`}>
+                  {isArchived ? 'View' : 'Inspect'}
+                </p>
               </div>
             </div>
             {(insp.inspectedByEmail || insp.notes) && (
@@ -367,7 +494,8 @@ export default function WorkspaceDetail() {
     if (statusParam === 'checked') {
       initial.statuses.add('pass');
       initial.statuses.add('fail');
-    } else if (statusParam && ['pass', 'fail', 'pending'].includes(statusParam)) {
+      initial.statuses.add('replaced');
+    } else if (statusParam && ['pass', 'fail', 'pending', 'replaced'].includes(statusParam)) {
       initial.statuses.add(statusParam);
     }
     return initial;
@@ -396,8 +524,8 @@ export default function WorkspaceDetail() {
   const [scopeListFilter, setScopeListFilter] = useState<WorkspaceScopeCardFilter | null>(() =>
     parseScopeListFilterFromSearch(searchParams),
   );
-  /** Leaf: single logical list, viewed by status (pending / passed / failed). */
-  const [leafStatusTab, setLeafStatusTab] = useState<'pending' | 'passed' | 'failed'>(() =>
+  /** Leaf: pending queue vs checked (pass+fail) vs replaced. */
+  const [leafStatusTab, setLeafStatusTab] = useState<LeafListTab>(() =>
     parseLeafTabFromSearch(searchParams),
   );
 
@@ -628,22 +756,9 @@ export default function WorkspaceDetail() {
   // Overall stats for current view (header display)
   const currentViewStats = useMemo(() => {
     if (drillDown.isRoot) {
-      // Keep root-level "left to check" aligned with Dashboard source of truth.
-      // This avoids transient count drift between the two screens.
       const derived = sumAllBucketStats(
         locationStatsMap as Map<string, WorkspaceInspectionBucketStats>,
       ) as LocationCardStats;
-      const wsStats = workspace?.stats ?? EMPTY_WORKSPACE_STATS;
-      if (!isArchived) {
-        const total = Math.max(0, Number(wsStats.total ?? 0));
-        const passed = Math.max(0, Number(wsStats.passed ?? 0));
-        const failed = Math.max(0, Number(wsStats.failed ?? 0));
-        const pending = Math.max(0, Number(wsStats.pending ?? 0));
-        const looksInitialized = total > 0 || passed > 0 || failed > 0 || pending > 0;
-        if (looksInitialized) {
-          return { total, passed, failed, pending, percentage: derived.percentage };
-        }
-      }
       return derived;
     }
     return getAggregatedStats(drillDown.currentLocationId!);
@@ -652,8 +767,6 @@ export default function WorkspaceDetail() {
     drillDown.currentLocationId,
     locationStatsMap,
     getAggregatedStats,
-    workspace?.stats,
-    isArchived,
   ]);
 
   /** Stats for the scope card row (matches current drill level). */
@@ -742,6 +855,55 @@ export default function WorkspaceDetail() {
     return m;
   }, [locations]);
 
+  const supersededExtinguisherIds = useMemo(() => getSupersededExtinguisherIds(extinguishers), [extinguishers]);
+
+  const replacedRowsForCurrentScope = useMemo(() => {
+    if (showUnassigned || showDeleted) return [] as ReplacedPairRow[];
+    const relevantLocIds =
+      drillDown.isRoot || !drillDown.currentLocationId
+        ? null
+        : (() => {
+            const ids = getAllDescendantIds(locations, drillDown.currentLocationId!);
+            ids.add(drillDown.currentLocationId!);
+            return ids;
+          })();
+    const extById = new Map<string, Extinguisher>();
+    for (const ext of extinguishers) {
+      if (ext.id) extById.set(ext.id, ext);
+    }
+    const successorIdByReplacedOldId = new Map<string, string>();
+    for (const ext of extinguishers) {
+      if (ext.deletedAt != null || !ext.id) continue;
+      if (ext.replacesExtId) successorIdByReplacedOldId.set(ext.replacesExtId, ext.id);
+    }
+    const isInScope = (ext: Extinguisher) => {
+      if (!relevantLocIds) return true;
+      return relevantLocIds.has(ext.locationId ?? '__unassigned__');
+    };
+    return extinguishers
+      .filter((ext) => {
+        const isReplacedRow = ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
+        const isStaleSuperseded = supersededExtinguisherIds.has(ext.id!);
+        if (!isReplacedRow && !isStaleSuperseded) return false;
+        return isInScope(ext);
+      })
+      .map((oldExt) => {
+        const successorId = oldExt.replacedByExtId ?? successorIdByReplacedOldId.get(oldExt.id!) ?? null;
+        return {
+          oldExt,
+          newExt: successorId ? extById.get(successorId) ?? null : null,
+        };
+      });
+  }, [
+    showUnassigned,
+    showDeleted,
+    extinguishers,
+    supersededExtinguisherIds,
+    drillDown.isRoot,
+    drillDown.currentLocationId,
+    locations,
+  ]);
+
   const groupedPendingScopeRows = useMemo(() => {
     const groups = new Map<
       string,
@@ -777,15 +939,29 @@ export default function WorkspaceDetail() {
   }, [groupedPendingScopeRows, pendingGroupedLocationFilter]);
 
   const leafCardActiveFilter = useMemo((): WorkspaceScopeCardFilter | null => {
-    if (filters.statuses.size === 0) return null;
+    if (filters.statuses.size === 0) {
+      if (leafStatusTab === 'replaced') return 'replaced';
+      if (leafStatusTab === 'pending') return 'pending';
+      if (leafStatusTab === 'checked') return 'checked';
+      return null;
+    }
     if (filters.statuses.has('pending') && filters.statuses.size === 1) return 'pending';
     if (filters.statuses.has('pass') && filters.statuses.has('fail') && filters.statuses.size === 2) {
       return 'checked';
     }
+    if (
+      filters.statuses.has('pass') &&
+      filters.statuses.has('fail') &&
+      filters.statuses.has('replaced') &&
+      filters.statuses.size === 3
+    ) {
+      return 'checked';
+    }
     if (filters.statuses.has('pass') && filters.statuses.size === 1) return 'pass';
     if (filters.statuses.has('fail') && filters.statuses.size === 1) return 'fail';
+    if (filters.statuses.has('replaced') && filters.statuses.size === 1) return 'replaced';
     return null;
-  }, [filters.statuses]);
+  }, [filters.statuses, leafStatusTab]);
 
   const scopeListStats = useMemo(
     () => ({
@@ -801,15 +977,26 @@ export default function WorkspaceDetail() {
       setScopeListFilter(null);
       if (filter === null) {
         setFilters(createEmptyFilters());
+        setLeafStatusTab('pending');
+        return;
+      }
+      if (filter === 'pending') {
+        setFilters(createEmptyFilters());
+        setLeafStatusTab('pending');
+        return;
+      }
+      if (filter === 'pass' || filter === 'fail' || filter === 'checked') {
+        setFilters(createEmptyFilters());
+        setLeafStatusTab('checked');
+        return;
+      }
+      if (filter === 'replaced') {
+        setFilters(createEmptyFilters());
+        setLeafStatusTab('replaced');
         return;
       }
       const next = createEmptyFilters();
-      if (filter === 'checked') {
-        next.statuses.add('pass');
-        next.statuses.add('fail');
-      } else {
-        next.statuses.add(filter);
-      }
+      next.statuses.add(filter);
       setFilters(next);
       return;
     }
@@ -930,6 +1117,10 @@ export default function WorkspaceDetail() {
     () => sortInspectionsByMode({ list: leafInspectionsBase.filter((i) => i.status === 'fail'), mode: sortMode, sortKey, sortDir, extinguishers, locations }),
     [leafInspectionsBase, sortMode, sortKey, sortDir, extinguishers, locations],
   );
+  const sortedLeafReplaced = useMemo(
+    () => replacedRowsForCurrentScope.filter((r) => !!r.oldExt.locationId && r.oldExt.locationId === drillDown.currentLocationId),
+    [replacedRowsForCurrentScope, drillDown.currentLocationId],
+  );
   /** Match locationStatsMap aggregate when list is not narrowed by search or extra location chips. */
   const leafScopeStats = useMemo(() => {
     const map = locationStatsMap as Map<string, WorkspaceInspectionBucketStats>;
@@ -941,11 +1132,12 @@ export default function WorkspaceDetail() {
       filters.locationIds.size === 0;
     if (useAggregate) {
       const agg = aggregateStatsForLocationSubtree(map, locations, anchorLoc);
-      return { passed: agg.passed, failed: agg.failed, unchecked: agg.pending };
+      return { passed: agg.passed, failed: agg.failed, replaced: agg.replaced, unchecked: agg.pending };
     }
     return {
       passed: sortedLeafPassed.length,
       failed: sortedLeafFailed.length,
+      replaced: sortedLeafReplaced.length,
       unchecked: sortedLeafPending.length,
     };
   }, [
@@ -957,6 +1149,7 @@ export default function WorkspaceDetail() {
     locations,
     sortedLeafPassed.length,
     sortedLeafFailed.length,
+    sortedLeafReplaced.length,
     sortedLeafPending.length,
   ]);
 
@@ -993,32 +1186,11 @@ export default function WorkspaceDetail() {
     let combined: Inspection[] = [];
 
     if (!isArchived) {
-      const extMap = new Map<string, Extinguisher>();
       const trackedExtIds = new Set(extinguishers.map((e) => e.id!));
-      for (const ext of extinguishers) {
-        if (!ext.locationId) extMap.set(ext.id!, ext);
-      }
-      const handledExtIds = new Set<string>();
       for (const insp of inspections) {
         // Skip orphaned inspections — they belong in the __deleted__ bucket, not unassigned
         if (!insp.locationId && trackedExtIds.has(insp.extinguisherId)) {
           combined.push(insp);
-          handledExtIds.add(insp.extinguisherId);
-        }
-      }
-      for (const ext of extMap.values()) {
-        if (!handledExtIds.has(ext.id!)) {
-          combined.push({
-            id: `dummy-${ext.id}`,
-            extinguisherId: ext.id!,
-            workspaceId: workspaceId!,
-            assetId: ext.assetId,
-            status: 'pending',
-            inspectedAt: null,
-            inspectedBy: null,
-            section: ext.section || '',
-            locationId: null,
-          } as unknown as Inspection);
         }
       }
       combined = dedupeInspectionsByExtinguisherLatest(combined);
@@ -1043,7 +1215,7 @@ export default function WorkspaceDetail() {
       });
     }
     return combined;
-  }, [showUnassigned, inspections, extinguishers, filters, searchQuery, isArchived, workspaceId]);
+  }, [showUnassigned, inspections, extinguishers, filters, searchQuery, isArchived]);
   const unassignedScopeStats = useMemo(() => {
     let passed = 0;
     let failed = 0;
@@ -1217,18 +1389,32 @@ export default function WorkspaceDetail() {
         </div>
 
         {/* Progress bar */}
-        <div className="mt-3 h-3 rounded-full bg-gray-200">
+        <div
+          className="mt-3 h-3 rounded-full bg-gray-200"
+          aria-label={`${currentViewStats.passed} passed and ${currentViewStats.failed} failed out of ${currentViewStats.total} extinguishers`}
+        >
           {currentViewStats.total > 0 && (
-            <div className="flex h-3 overflow-hidden rounded-full">
-              <div
-                className="bg-green-500 transition-all"
-                style={{ width: `${(currentViewStats.passed / currentViewStats.total) * 100}%` }}
+            <svg
+              className="h-3 w-full overflow-hidden rounded-full"
+              viewBox="0 0 100 12"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <rect
+                className="fill-green-500 transition-all"
+                x="0"
+                y="0"
+                width={(currentViewStats.passed / currentViewStats.total) * 100}
+                height="12"
               />
-              <div
-                className="bg-red-500 transition-all"
-                style={{ width: `${(currentViewStats.failed / currentViewStats.total) * 100}%` }}
+              <rect
+                className="fill-red-500 transition-all"
+                x={(currentViewStats.passed / currentViewStats.total) * 100}
+                y="0"
+                width={(currentViewStats.failed / currentViewStats.total) * 100}
+                height="12"
               />
-            </div>
+            </svg>
           )}
         </div>
 
@@ -1249,7 +1435,7 @@ export default function WorkspaceDetail() {
         {!showUnassigned && !showDeleted && (
           <div className="mt-5">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
-              This location — tap a card to list extinguishers
+              This location — tap a card to filter the list. At a room or floor, use Pending to work the queue; Checked shows Pass and Fail together.
             </p>
             <WorkspaceInspectionScopeCards
               stats={scopeCardStats as WorkspaceInspectionBucketStats}
@@ -1262,8 +1448,8 @@ export default function WorkspaceDetail() {
                   Not yet inspected — by location
                 </p>
                 <p className="mb-2.5 text-xs text-amber-950/80">
-                  The amber card above is the total still to check in this view (including all sub-locations). Tap a
-                  location to show only those extinguishers in the list below.
+                  The &quot;All locations&quot; count is the total still to check in this view (including all sub-locations).
+                  Tap a location to show only those extinguishers in the list below.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -1313,12 +1499,15 @@ export default function WorkspaceDetail() {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-gray-900">
               {scopeListFilter === 'pending' && 'Not yet inspected'}
-              {scopeListFilter === 'checked' && 'Passed and failed'}
+              {scopeListFilter === 'checked' && 'Passed, failed, and replaced'}
               {scopeListFilter === 'pass' && 'Passed'}
               {scopeListFilter === 'fail' && 'Failed'}
+              {scopeListFilter === 'replaced' && 'Replaced'}
               <span className="ml-2 text-sm font-normal text-gray-500">
                 {scopeListFilter === 'checked'
                   ? `(${scopeListRowsPassed.length} passed, ${scopeListRowsFailed.length} failed in this area)`
+                  : scopeListFilter === 'replaced'
+                    ? `(${replacedRowsForCurrentScope.length} in this area)`
                   : `(${scopeListRows.length} in this area)`}
               </span>
             </h2>
@@ -1364,10 +1553,14 @@ export default function WorkspaceDetail() {
             )}
             {(scopeListFilter !== 'pending' || pendingScopeViewMode === 'table') && (
               <>
-                <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                <label
+                  htmlFor="workspace-scope-sort-mode"
+                  className="text-xs font-medium uppercase tracking-wide text-gray-500"
+                >
                   Sort mode
                 </label>
                 <select
+                  id="workspace-scope-sort-mode"
                   value={sortMode}
                   onChange={(e) => setSortMode(e.target.value as InspectionSortMode)}
                   className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
@@ -1381,10 +1574,14 @@ export default function WorkspaceDetail() {
             )}
             {scopeListFilter === 'pending' && pendingScopeViewMode === 'grouped' && (
               <>
-                <label className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                <label
+                  htmlFor="workspace-pending-location-filter"
+                  className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500"
+                >
                   Location
                 </label>
                 <select
+                  id="workspace-pending-location-filter"
                   value={pendingGroupedLocationFilter}
                   onChange={(e) => setPendingGroupedLocationFilter(e.target.value)}
                   className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
@@ -1396,10 +1593,14 @@ export default function WorkspaceDetail() {
                     </option>
                   ))}
                 </select>
-                <label className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                <label
+                  htmlFor="workspace-pending-asset-sort"
+                  className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500"
+                >
                   Asset
                 </label>
                 <select
+                  id="workspace-pending-asset-sort"
                   value={pendingGroupedAssetDir}
                   onChange={(e) => setPendingGroupedAssetDir(e.target.value as 'asc' | 'desc')}
                   className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
@@ -1410,8 +1611,16 @@ export default function WorkspaceDetail() {
               </>
             )}
           </div>
-          {scopeListRows.length === 0 ? (
+          {(scopeListFilter === 'replaced' ? replacedRowsForCurrentScope.length === 0 : scopeListRows.length === 0) ? (
             <p className="text-sm text-gray-500">Nothing in this category for this location scope.</p>
+          ) : scopeListFilter === 'replaced' ? (
+            <ReplacedPairTable
+              rows={replacedRowsForCurrentScope}
+              workspaceId={workspaceId}
+              returnTo={returnTo}
+              navigate={navigate}
+              isArchived={!!isArchived}
+            />
           ) : scopeListFilter === 'pending' && pendingScopeViewMode === 'grouped' ? (
             <div className="space-y-3">
               {visibleGroupedPendingScopeRows.map((group) => {
@@ -1451,6 +1660,7 @@ export default function WorkspaceDetail() {
                           workspaceId={workspaceId}
                           returnTo={returnTo}
                           navigate={navigate}
+                          isArchived={!!isArchived}
                         />
                       </div>
                     )}
@@ -1491,6 +1701,7 @@ export default function WorkspaceDetail() {
                     workspaceId={workspaceId}
                     returnTo={returnTo}
                     navigate={navigate}
+                    isArchived={!!isArchived}
                   />
                 )}
               </section>
@@ -1520,9 +1731,27 @@ export default function WorkspaceDetail() {
                     workspaceId={workspaceId}
                     returnTo={returnTo}
                     navigate={navigate}
+                    isArchived={!!isArchived}
                   />
                 )}
               </section>
+              {replacedRowsForCurrentScope.length > 0 && (
+                <section>
+                  <h3 className="mb-2 flex flex-wrap items-center gap-2 text-sm font-semibold text-orange-900">
+                    <span>Replaced (old / new)</span>
+                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
+                      {replacedRowsForCurrentScope.length}
+                    </span>
+                  </h3>
+                  <ReplacedPairTable
+                    rows={replacedRowsForCurrentScope}
+                    workspaceId={workspaceId}
+                    returnTo={returnTo}
+                    navigate={navigate}
+                    isArchived={!!isArchived}
+                  />
+                </section>
+              )}
             </div>
           ) : (
             <LeafExtinguisherTable
@@ -1534,6 +1763,7 @@ export default function WorkspaceDetail() {
               workspaceId={workspaceId}
               returnTo={returnTo}
               navigate={navigate}
+              isArchived={!!isArchived}
             />
           )}
           <ScopeStatusCards
@@ -1706,7 +1936,9 @@ export default function WorkspaceDetail() {
                             {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-600">Inspect</td>
+                        <td className={`whitespace-nowrap px-4 py-3 text-right text-sm font-medium ${isArchived ? 'text-gray-500' : 'text-red-600'}`}>
+                          {isArchived ? 'View' : 'Inspect'}
+                        </td>
                       </tr>
                     );
                   })}
@@ -1820,6 +2052,8 @@ export default function WorkspaceDetail() {
               />
               {searchQuery && (
                 <button
+                  type="button"
+                  aria-label="Clear search"
                   onClick={() => setSearchQuery('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
                 >
@@ -1843,8 +2077,14 @@ export default function WorkspaceDetail() {
               </button>
             )}
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium uppercase tracking-wide text-gray-500">Sort mode</label>
+              <label
+                htmlFor="workspace-leaf-sort-mode"
+                className="text-xs font-medium uppercase tracking-wide text-gray-500"
+              >
+                Sort mode
+              </label>
               <select
+                id="workspace-leaf-sort-mode"
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as InspectionSortMode)}
                 className="rounded-md border-gray-300 py-2 text-sm focus:border-red-500 focus:ring-red-500"
@@ -1866,7 +2106,7 @@ export default function WorkspaceDetail() {
 
           {!floorScanGrouped && (
             <p className="mb-3 text-xs text-gray-600">
-              Status filters are on — showing a single list. Clear status filters to split into Not yet inspected, Passed, and Failed.
+              Status filters are on — showing a single combined list. Clear status filters in the panel above to return to Pending vs Checked.
             </p>
           )}
 
@@ -1886,40 +2126,52 @@ export default function WorkspaceDetail() {
             </div>
           ) : floorScanGrouped ? (
             <div className="space-y-6">
-              <div className="rounded-lg border border-gray-200 bg-white p-2 shadow-sm">
+              <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+                <p className="mb-2 text-xs text-gray-600">
+                  {isArchived ? (
+                    <>
+                      This archived workspace is read-only. Open rows to review historical inspection records.
+                    </>
+                  ) : (
+                    <>
+                      Open the month workspace, pick a location, then work the <span className="font-semibold">Pending</span> list.
+                      Pass or fail removes a unit from Pending and moves it under <span className="font-semibold">Checked</span>.
+                    </>
+                  )}
+                </p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <button
                     type="button"
                     onClick={() => setLeafStatusTab('pending')}
                     className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
                       leafStatusTab === 'pending'
-                        ? 'bg-amber-100 text-amber-900'
+                        ? 'bg-amber-100 text-amber-900 ring-2 ring-amber-300'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    Not yet inspected ({sortedLeafPending.length})
+                    Pending — not yet inspected ({sortedLeafPending.length})
                   </button>
                   <button
                     type="button"
-                    onClick={() => setLeafStatusTab('passed')}
+                    onClick={() => setLeafStatusTab('checked')}
                     className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
-                      leafStatusTab === 'passed'
-                        ? 'bg-green-100 text-green-900'
+                      leafStatusTab === 'checked'
+                        ? 'bg-slate-200 text-slate-900 ring-2 ring-slate-400'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    Passed ({sortedLeafPassed.length})
+                    Checked — pass & fail ({sortedLeafPassed.length + sortedLeafFailed.length})
                   </button>
                   <button
                     type="button"
-                    onClick={() => setLeafStatusTab('failed')}
+                    onClick={() => setLeafStatusTab('replaced')}
                     className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
-                      leafStatusTab === 'failed'
-                        ? 'bg-red-100 text-red-900'
+                      leafStatusTab === 'replaced'
+                        ? 'bg-orange-100 text-orange-900 ring-2 ring-orange-300'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    Failed ({sortedLeafFailed.length})
+                    Replaced ({sortedLeafReplaced.length})
                   </button>
                 </div>
               </div>
@@ -1928,14 +2180,15 @@ export default function WorkspaceDetail() {
                 {leafStatusTab === 'pending' ? (
                   <>
                     <h3 className="mb-2 flex flex-wrap items-center gap-2 text-base font-semibold text-gray-900">
-                      <span>Not yet inspected</span>
+                      <span>Pending</span>
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
                         {sortedLeafPending.length}
                       </span>
                     </h3>
                     {sortedLeafPending.length === 0 ? (
                       <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-6 text-center text-sm text-green-800">
-                        All extinguishers in this view are checked. Use the Passed or Failed tabs to review completed inspections.
+                        Nothing left to inspect here for this month. Open <span className="font-semibold">Checked</span> to review
+                        passed and failed units.
                       </div>
                     ) : (
                       <LeafExtinguisherTable
@@ -1947,56 +2200,82 @@ export default function WorkspaceDetail() {
                         workspaceId={workspaceId!}
                         returnTo={returnTo}
                         navigate={navigate}
+                        isArchived={!!isArchived}
                       />
                     )}
                   </>
-                ) : leafStatusTab === 'passed' ? (
-                  <>
-                    <h3 className="mb-2 flex flex-wrap items-center gap-2 text-base font-semibold text-gray-900">
-                      <span>Passed</span>
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">
-                        {sortedLeafPassed.length}
-                      </span>
-                    </h3>
-                    {sortedLeafPassed.length === 0 ? (
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
-                        No passed extinguishers in this view yet.
-                      </div>
-                    ) : (
-                      <LeafExtinguisherTable
-                        inspections={sortedLeafPassed}
-                        vicinityByExtinguisherId={vicinityByExtinguisherId}
-                        sortKey={sortKey}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                        workspaceId={workspaceId!}
-                        returnTo={returnTo}
-                        navigate={navigate}
-                      />
-                    )}
-                  </>
+                ) : leafStatusTab === 'checked' ? (
+                  <div className="space-y-8">
+                    <div>
+                      <h3 className="mb-2 flex flex-wrap items-center gap-2 text-base font-semibold text-green-900">
+                        <span>Checked — passed</span>
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">
+                          {sortedLeafPassed.length}
+                        </span>
+                      </h3>
+                      {sortedLeafPassed.length === 0 ? (
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
+                          No passed extinguishers in this location yet.
+                        </div>
+                      ) : (
+                        <LeafExtinguisherTable
+                          inspections={sortedLeafPassed}
+                          vicinityByExtinguisherId={vicinityByExtinguisherId}
+                          sortKey={sortKey}
+                          sortDir={sortDir}
+                          onToggleSort={toggleSort}
+                          workspaceId={workspaceId!}
+                          returnTo={returnTo}
+                          navigate={navigate}
+                          isArchived={!!isArchived}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="mb-2 flex flex-wrap items-center gap-2 text-base font-semibold text-red-900">
+                        <span>Checked — failed</span>
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">
+                          {sortedLeafFailed.length}
+                        </span>
+                      </h3>
+                      {sortedLeafFailed.length === 0 ? (
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
+                          No failed extinguishers in this location yet.
+                        </div>
+                      ) : (
+                        <LeafExtinguisherTable
+                          inspections={sortedLeafFailed}
+                          vicinityByExtinguisherId={vicinityByExtinguisherId}
+                          sortKey={sortKey}
+                          sortDir={sortDir}
+                          onToggleSort={toggleSort}
+                          workspaceId={workspaceId!}
+                          returnTo={returnTo}
+                          navigate={navigate}
+                          isArchived={!!isArchived}
+                        />
+                      )}
+                    </div>
+                  </div>
                 ) : (
                   <>
                     <h3 className="mb-2 flex flex-wrap items-center gap-2 text-base font-semibold text-gray-900">
-                      <span>Failed</span>
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">
-                        {sortedLeafFailed.length}
+                      <span>Replaced</span>
+                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
+                        {sortedLeafReplaced.length}
                       </span>
                     </h3>
-                    {sortedLeafFailed.length === 0 ? (
+                    {sortedLeafReplaced.length === 0 ? (
                       <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
-                        No failed extinguishers in this view yet.
+                        No replaced extinguisher pairs in this view yet.
                       </div>
                     ) : (
-                      <LeafExtinguisherTable
-                        inspections={sortedLeafFailed}
-                        vicinityByExtinguisherId={vicinityByExtinguisherId}
-                        sortKey={sortKey}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
+                      <ReplacedPairTable
+                        rows={sortedLeafReplaced}
                         workspaceId={workspaceId!}
                         returnTo={returnTo}
                         navigate={navigate}
+                        isArchived={!!isArchived}
                       />
                     )}
                   </>
@@ -2014,6 +2293,7 @@ export default function WorkspaceDetail() {
                 workspaceId={workspaceId!}
                 returnTo={returnTo}
                 navigate={navigate}
+                isArchived={!!isArchived}
               />
 
               {/* Leaf pagination (classic filtered mode only) */}
@@ -2022,6 +2302,7 @@ export default function WorkspaceDetail() {
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <span>Show</span>
                     <select
+                      aria-label="Rows per page"
                       value={leafPageSize}
                       onChange={(e) => { setLeafPageSize(Number(e.target.value)); setLeafPage(1); }}
                       className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"

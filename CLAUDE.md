@@ -69,13 +69,20 @@ invite/{inviteId}     — pending org invitations
 
 ## Agent System
 
-Three collaborative agents in `agents/.claude/agents/`:
+Four collaborative agents in `agents/.claude/agents/`:
 
 - **plan-agent** (Opus) — reads project state, produces decomposed tasks in `agent-system/plan.md`
 - **build-agent** (Sonnet) — implements tasks from the plan, updates `agent-system/agents-info.md`
 - **review-agent** (Opus) — reviews completed work, fixes issues, updates `agent-system/lessons-learned.md`
+- **document-agent** (Opus) — runs after review, inspects the real implementation, then updates docs, website copy, FAQ, TODO/roadmap, and `agent-system/agent-info.md`
 
-Shared state files live in `agent-system/` (plan.md, agents-info.md, lessons-learned.md).
+Shared state files live in `agent-system/` (`plan.md`, `agents-info.md`, `agent-info.md`, `lessons-learned.md`, and related handoff logs).
+
+Use PBRD Lite + Full PBRD from `docs/AI_WORKFLOW.md`: classify each task as SMALL, MEDIUM, or LARGE before editing. SMALL tasks use a 1-3 bullet mini plan, minimal memory reads, changed-file review, and no Document Agent unless user-facing behavior changed. MEDIUM tasks use focused Plan + Build + Review. LARGE/high-risk tasks use Full PBRD.
+
+Token budget defaults: read only the last 40 lines of `agent-system/agent-info.md` unless more is required, search lessons by keyword before reading broad sections, keep plans/reviews/memory entries concise, and do not rewrite `agent-system/plan.md` for SMALL tasks.
+
+Always use LARGE / Full PBRD for auth, Stripe, billing, subscription gating, Firestore rules/schema, customer data, migrations, data deletion, production deployment, replacement workflow, monthly workspace source-of-truth logic, major reporting, security-sensitive logic, or more than 8 files.
 
 ## Suggested Project Structure (from specs)
 

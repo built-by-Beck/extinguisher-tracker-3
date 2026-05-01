@@ -25,6 +25,8 @@ import {
   Calendar,
   BookOpenCheck,
   CircleHelp,
+  Archive,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useOffline } from '../../hooks/useOffline.ts';
@@ -46,6 +48,13 @@ const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/dashboard/workspaces', label: 'Inspections', icon: ClipboardList, end: false },
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
+  { to: '/dashboard/custom-asset-inspections', label: 'Custom Asset Inspections', icon: ClipboardCheck, end: false },
+  {
+    to: '/dashboard/replaced-extinguishers',
+    label: 'Replaced extinguishers',
+    icon: Archive,
+    end: false,
+  },
   { to: '/dashboard/data-organizer', label: 'Data Organizer', icon: Wrench, end: false, roles: ['owner', 'admin'] },
   { to: '/dashboard/getting-started', label: 'Getting Started', icon: BookOpenCheck, end: false },
   { to: '/dashboard/faq', label: 'FAQ', icon: CircleHelp, end: false },
@@ -101,7 +110,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         `}
       >
         {/* Brand header */}
-        <div className="flex h-16 items-center justify-between border-b border-gray-200 px-3">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 px-3">
           <div className="flex items-center gap-2.5">
             <img src="/logo.png" alt="Extinguisher Tracker" className="h-9 w-9 rounded-lg object-contain" />
             <span className="text-base font-bold leading-tight text-gray-900">Extinguisher<br /><span className="text-red-600">Tracker</span></span>
@@ -116,7 +125,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </div>
 
         {/* Workspace quick-switch */}
-        <div className="border-b border-gray-200 px-3 py-3">
+        <div className="shrink-0 border-b border-gray-200 px-3 py-3">
           <button
             onClick={() => setShowSwitcher(true)}
             className="flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-100"
@@ -127,7 +136,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {visibleNavItems.map((item) => (
             <NavLink
               key={item.to}
@@ -155,7 +164,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 px-4 py-3 space-y-2">
+        <div className="shrink-0 space-y-2 border-t border-gray-200 px-4 py-3">
           <SyncStatusIndicator />
           <p className="text-xs text-gray-400">Created by Beck-Publishing</p>
         </div>

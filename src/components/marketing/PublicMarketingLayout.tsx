@@ -7,13 +7,13 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-base font-semibold ${isActive ? 'text-red-600' : 'text-gray-700 hover:text-red-600'}`;
 
 const MARKETING_PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  '/': { title: 'Fire Extinguisher Tracking, AI Included', subtitle: 'Inspections. AI guidance. Auto-timed workflow.' },
-  '/features': { title: 'Features', subtitle: 'Everything your team needs to stay compliant and move faster' },
+  '/': { title: 'Field-Built Fire Extinguisher Tracking', subtitle: 'Inspections. AI guidance. Offline-aware workflow.' },
+  '/features': { title: 'Features', subtitle: 'The major workflows your extinguisher program needs in one place' },
   '/pricing': { title: 'Pricing', subtitle: 'Plans that scale with your AI-assisted program' },
-  '/how-it-works': { title: 'How It Works', subtitle: 'From signup to AI-assisted compliance in minutes' },
-  '/about': { title: 'About', subtitle: 'Built by safety-minded people for safety-focused teams' },
-  '/getting-started': { title: 'Getting Started', subtitle: 'From signup to first completed inspection cycle' },
-  '/faq': { title: 'FAQ', subtitle: 'Answers for setup, AI, inspections, and pricing' },
+  '/how-it-works': { title: 'How It Works', subtitle: 'From setup to field evidence, reports, sharing, and audit history' },
+  '/about': { title: 'About', subtitle: 'Independently built from field-level life safety experience' },
+  '/getting-started': { title: 'Getting Started', subtitle: 'From signup to a stronger inspection program' },
+  '/faq': { title: 'FAQ', subtitle: 'Answers for setup, AI, field work, reports, sharing, and pricing' },
   '/terms': { title: 'Terms of Service', subtitle: 'Usage terms and legal guidelines' },
   '/privacy': { title: 'Privacy Policy', subtitle: 'How we collect, use, and protect your data' },
 };
@@ -69,16 +69,29 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
             </Link>
           </nav>
 
-          <button
-            type="button"
-            className="rounded-md p-2 text-gray-700 md:hidden"
-            aria-expanded={mobileOpen}
-            aria-controls="marketing-mobile-nav"
-            onClick={() => setMobileOpen((o) => !o)}
-          >
-            {mobileOpen ? <X className="h-6 w-6" aria-hidden /> : <Menu className="h-6 w-6" aria-hidden />}
-            <span className="sr-only">Menu</span>
-          </button>
+          {mobileOpen ? (
+            <button
+              type="button"
+              className="rounded-md p-2 text-gray-700 md:hidden"
+              aria-expanded="true"
+              aria-controls="marketing-mobile-nav"
+              onClick={() => setMobileOpen(false)}
+            >
+              <X className="h-6 w-6" aria-hidden />
+              <span className="sr-only">Close menu</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="rounded-md p-2 text-gray-700 md:hidden"
+              aria-expanded="false"
+              aria-controls="marketing-mobile-nav"
+              onClick={() => setMobileOpen(true)}
+            >
+              <Menu className="h-6 w-6" aria-hidden />
+              <span className="sr-only">Open menu</span>
+            </button>
+          )}
         </div>
 
         {mobileOpen ? (
@@ -162,7 +175,7 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
                 <p className="text-sm font-semibold text-red-600">Extinguisher Tracker</p>
               </div>
               <p className="mt-2 max-w-sm text-sm text-gray-600">
-                AI-assisted inspection and compliance workflow software for teams responsible for fire extinguisher programs.
+                Field-built inspection and compliance workflow software for teams responsible for fire extinguisher programs.
               </p>
             </div>
             <div className="flex flex-wrap gap-8 text-sm">

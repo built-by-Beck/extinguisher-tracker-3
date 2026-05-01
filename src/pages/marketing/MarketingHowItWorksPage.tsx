@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Building2, ClipboardList, FileText, LineChart, UserPlus, Bot } from 'lucide-react';
+import { Building2, ClipboardList, FileText, LineChart, UserPlus, Bot, Share2, WifiOff } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { marketingSeo } from './marketingSeo.ts';
@@ -13,32 +13,44 @@ const steps = [
   },
   {
     step: 2,
-    title: 'Add facilities, buildings, and extinguisher records',
-    body: 'Model locations the way your teams navigate them, then load or maintain inventory so every unit has a home in the system.',
+    title: 'Add facilities, buildings, extinguishers, and tags',
+    body: 'Model locations the way your teams navigate them, then load inventory, add QR/barcode context, and keep every unit tied to a clear home.',
     icon: Building2,
   },
   {
     step: 3,
     title: 'Perform inspections on a defined rhythm',
-    body: 'Use workspaces, inspection flows, and section auto timers to complete routes on pace and keep work tied to the correct assets.',
+    body: 'Use monthly workspaces, inspection flows, photos, notes, GPS context, and section auto timers to complete routes on pace.',
     icon: ClipboardList,
   },
   {
     step: 4,
     title: 'Track issues and compliance status',
-    body: 'Failed items and follow-ups stay visible until resolved, so open risk does not depend on someone remembering a sticky note.',
+    body: 'Failed items, reminders, replacement history, custom asset checks, and follow-ups stay visible until resolved.',
     icon: LineChart,
   },
   {
     step: 5,
     title: 'Generate reports and keep durable history',
-    body: 'Export or summarize when leadership, partners, or internal QA needs evidence—without rebuilding spreadsheets from scratch.',
+    body: 'Export, print, or summarize reports, audit logs, and activity history when leadership, partners, or internal QA needs evidence.',
     icon: FileText,
   },
   {
     step: 6,
+    title: 'Keep field work moving when conditions are not perfect',
+    body: 'Use mobile workflows, offline sync support, and QR lookup so teams can keep working in basements, stairwells, and remote areas.',
+    icon: WifiOff,
+  },
+  {
+    step: 7,
+    title: 'Share limited visibility when needed',
+    body: 'Invite team members with roles or use guest access when outside reviewers need visibility without full administrative access.',
+    icon: Share2,
+  },
+  {
+    step: 8,
     title: 'Optimize and Scale with AI',
-    body: 'Use the AI Maintenance Assistant for in-app NFPA 10 guidance (2022 default), quick inventory questions, and operational note recall while you work.',
+    body: 'Use the AI Maintenance Assistant for in-app NFPA 10 guidance based on your configured reference, quick inventory questions, and operational note recall while you work.',
     icon: Bot,
   },
 ] as const;
@@ -54,7 +66,7 @@ export default function MarketingHowItWorksPage() {
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">How it works</h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
-              A straightforward path from setup to sustained operations with AI support, auto timer pacing, and audit-ready records.
+              A straightforward path from setup to sustained operations with AI support, offline-aware field work, timed routes, and audit-ready records.
               Your exact screens and entitlements depend on your plan and configuration inside the app.
             </p>
           </div>
@@ -80,8 +92,9 @@ export default function MarketingHowItWorksPage() {
             ))}
           </ol>
           <p className="mt-8 max-w-3xl text-sm text-gray-500">
-            AI responses use NFPA 10 (2022) by default. Because jurisdictions and organizations may adopt different editions,
-            your team should confirm final decisions against your adopted standard.
+            AI responses use the NFPA reference configured in Organization Settings, with NFPA 10 (2022) as the new-org
+            fallback. Because jurisdictions and organizations may adopt different editions, your team should confirm
+            final decisions against your adopted standard.
           </p>
 
           <div className="mt-14 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">

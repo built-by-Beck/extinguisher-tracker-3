@@ -54,17 +54,24 @@ export default function Reports() {
   const [genError, setGenError] = useState('');
 
   useEffect(() => {
-    if (!orgId) return;
+    if (!orgId) {
+      setReports([]);
+      setGenWorkspaceId('');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const unsub = subscribeToReports(orgId, (data) => {
       setReports(data);
-      if (data.length > 0 && !genWorkspaceId) {
-        setGenWorkspaceId(data[0].workspaceId);
-      }
+      setGenWorkspaceId((current) => {
+        if (data.length === 0) return '';
+        if (current && data.some((report) => report.workspaceId === current)) return current;
+        return data[0].workspaceId;
+      });
       setLoading(false);
     });
     return () => unsub();
-  }, [orgId, genWorkspaceId]);
+  }, [orgId]);
 
   async function handleGenerate() {
     if (!orgId || !genWorkspaceId) return;
@@ -110,8 +117,11 @@ export default function Reports() {
           )}
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex-1 min-w-[200px]">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Select Workspace</label>
+              <label htmlFor="report-workspace" className="mb-1 block text-sm font-medium text-gray-700">
+                Select Workspace
+              </label>
               <select
+                id="report-workspace"
                 value={genWorkspaceId}
                 onChange={(e) => setGenWorkspaceId(e.target.value)}
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm"
@@ -125,8 +135,11 @@ export default function Reports() {
               </select>
             </div>
             <div className="w-32">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Format</label>
+              <label htmlFor="report-format" className="mb-1 block text-sm font-medium text-gray-700">
+                Format
+              </label>
               <select
+                id="report-format"
                 value={genFormat}
                 onChange={(e) => setGenFormat(e.target.value as ReportFormat)}
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm"
@@ -142,8 +155,19 @@ export default function Reports() {
               disabled={generating || !genWorkspaceId}
               className="flex h-[38px] items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
             >
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Generate
+              <span className="relative h-4 w-4 shrink-0" aria-hidden="true">
+                <Download
+                  className={`absolute inset-0 h-4 w-4 transition-opacity ${
+                    generating ? 'opacity-0' : 'opacity-100'
+                  }`}
+                />
+                <Loader2
+                  className={`absolute inset-0 h-4 w-4 animate-spin transition-opacity ${
+                    generating ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+              </span>
+              <span>{generating ? 'Generating' : 'Generate'}</span>
             </button>
           </div>
         </div>

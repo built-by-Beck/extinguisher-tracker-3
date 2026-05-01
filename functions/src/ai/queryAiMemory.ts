@@ -1,5 +1,5 @@
 import { onCall } from 'firebase-functions/v2/https';
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, type DocumentData, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
@@ -10,6 +10,8 @@ type AiNoteStatus = 'open' | 'in_progress' | 'resolved';
 type AiMemoryIntentType =
   | 'list_notes_by_month'
   | 'list_expiring_by_year'
+  | 'list_marked_expired'
+  | 'list_expired_candidates'
   | 'count_replacements_by_month'
   | 'get_extinguisher_inspection_status';
 
@@ -76,6 +78,42 @@ function parseAssetQuery(intent: AiMemoryQueryIntent): string {
     throwInvalidArgument('Intent assetQuery is required.');
   }
   return value;
+}
+
+function isActiveExtinguisher(data: DocumentData): boolean {
+  const ls = data.lifecycleStatus as string | null | undefined;
+  const category = data.category as string | null | undefined;
+  const status = data.status as string | null | undefined;
+  const isActive = data.isActive as boolean | null | undefined;
+  if (ls === 'replaced' || ls === 'retired' || ls === 'deleted') return false;
+  if (category === 'replaced' || category === 'retired' || category === 'out_of_service') return false;
+  if (status != null && status !== 'active') return false;
+  if (isActive === false) return false;
+  return ls === 'active' || ls == null || ls === '';
+}
+
+function toExtinguisherResult(d: QueryDocumentSnapshot<DocumentData>) {
+  const data = d.data();
+  return {
+    id: d.id,
+    assetId: (data.assetId as string) ?? '',
+    serial: (data.serial as string) ?? '',
+    section: (data.section as string) ?? '',
+    parentLocation: (data.parentLocation as string) ?? '',
+    manufactureYear: (data.manufactureYear as number | null) ?? null,
+    expirationYear: (data.expirationYear as number | null) ?? null,
+    isExpired: data.isExpired === true,
+    lifecycleStatus: (data.lifecycleStatus as string | null) ?? null,
+    complianceStatus: (data.complianceStatus as string | null) ?? null,
+  };
+}
+
+function sortByLocationAndAsset<T extends { parentLocation: string; section: string; assetId: string }>(rows: T[]): T[] {
+  return rows.sort((a, b) => {
+    const loc = `${a.parentLocation} ${a.section}`.localeCompare(`${b.parentLocation} ${b.section}`);
+    if (loc !== 0) return loc;
+    return a.assetId.localeCompare(b.assetId, undefined, { numeric: true });
+  });
 }
 
 export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
@@ -152,19 +190,7 @@ export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
       .get();
 
     const expiringExtinguishers = snap.docs
-      .map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          assetId: (data.assetId as string) ?? '',
-          serial: (data.serial as string) ?? '',
-          section: (data.section as string) ?? '',
-          parentLocation: (data.parentLocation as string) ?? '',
-          expirationYear: (data.expirationYear as number | null) ?? null,
-          lifecycleStatus: (data.lifecycleStatus as string | null) ?? null,
-          complianceStatus: (data.complianceStatus as string | null) ?? null,
-        };
-      })
+      .map(toExtinguisherResult)
       .filter((ext) => ext.lifecycleStatus !== 'deleted');
 
     return {
@@ -175,6 +201,71 @@ export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
       },
       count: expiringExtinguishers.length,
       expiringExtinguishers,
+    };
+  }
+
+  if (intent.type === 'list_marked_expired') {
+    const snap = await adminDb
+      .collection(`org/${orgId}/extinguishers`)
+      .where('deletedAt', '==', null)
+      .where('isExpired', '==', true)
+      .limit(1000)
+      .get();
+
+    const expiredExtinguishers = sortByLocationAndAsset(
+      snap.docs.map(toExtinguisherResult).filter((ext, idx) => {
+        const data = snap.docs[idx].data();
+        return isActiveExtinguisher(data) && ext.isExpired;
+      }),
+    );
+
+    return {
+      intentType: intent.type,
+      appliedFilters: {
+        isExpired: true,
+        activeInventoryOnly: true,
+        deletedAtIsNull: true,
+      },
+      count: expiredExtinguishers.length,
+      expiredExtinguishers,
+    };
+  }
+
+  if (intent.type === 'list_expired_candidates') {
+    const currentYear = new Date().getUTCFullYear();
+    const cutoffManufactureYear = currentYear - 6;
+    const snap = await adminDb
+      .collection(`org/${orgId}/extinguishers`)
+      .where('deletedAt', '==', null)
+      .limit(2000)
+      .get();
+
+    const expiredCandidateExtinguishers = sortByLocationAndAsset(
+      snap.docs
+        .filter((d) => {
+          const data = d.data();
+          const manufactureYear = data.manufactureYear as number | null | undefined;
+          return (
+            isActiveExtinguisher(data) &&
+            data.isExpired !== true &&
+            typeof manufactureYear === 'number' &&
+            manufactureYear <= cutoffManufactureYear
+          );
+        })
+        .map(toExtinguisherResult),
+    );
+
+    return {
+      intentType: intent.type,
+      appliedFilters: {
+        manufactureYearLte: cutoffManufactureYear,
+        isExpired: false,
+        activeInventoryOnly: true,
+        deletedAtIsNull: true,
+        advisoryOnly: true,
+      },
+      count: expiredCandidateExtinguishers.length,
+      expiredCandidateExtinguishers,
     };
   }
 

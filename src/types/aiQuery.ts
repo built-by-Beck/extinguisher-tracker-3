@@ -1,6 +1,8 @@
 export type AiMemoryIntentType =
   | 'list_notes_by_month'
   | 'list_expiring_by_year'
+  | 'list_marked_expired'
+  | 'list_expired_candidates'
   | 'count_replacements_by_month'
   | 'get_extinguisher_inspection_status';
 
@@ -37,7 +39,9 @@ export interface AiMemoryExpiringExtinguisher {
   serial: string;
   section: string;
   parentLocation: string;
+  manufactureYear: number | null;
   expirationYear: number | null;
+  isExpired: boolean;
   lifecycleStatus: string | null;
   complianceStatus: string | null;
 }
@@ -72,6 +76,8 @@ export interface AiMemoryQueryResponse {
   count: number;
   notes?: AiMemoryNoteResult[];
   expiringExtinguishers?: AiMemoryExpiringExtinguisher[];
+  expiredExtinguishers?: AiMemoryExpiringExtinguisher[];
+  expiredCandidateExtinguishers?: AiMemoryExpiringExtinguisher[];
   replacementEvents?: AiMemoryReplacementEvent[];
   inspectionStatusMatches?: AiMemoryInspectionStatusMatch[];
 }

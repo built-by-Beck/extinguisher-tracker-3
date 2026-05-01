@@ -10,6 +10,7 @@ import { geminiModel } from '../lib/firebase.ts';
 import type { Extinguisher } from './extinguisherService.ts';
 import type { Inspection } from './inspectionService.ts';
 import type { SectionNotesMap } from './workspaceService.ts';
+import type { NfpaEdition } from '../types/organization.ts';
 import { APP_KNOWLEDGE_BASE } from '../lib/aiKnowledgeBase.ts';
 import { parseAiMemoryIntent } from './aiQueryIntentService.ts';
 import { queryAiMemoryCall } from './aiQueryService.ts';
@@ -37,8 +38,9 @@ Your role:
 Rules:
 - Be concise and practical — users are busy inspectors and facility managers
 - When analyzing data, reference specific extinguisher asset IDs
-- Always cite NFPA 10 when relevant
+- Cite the organization's selected NFPA 10 reference when relevant
 - If you don't know something, say so — don't guess on safety-critical info
+- Do not present app guidance as a legal compliance guarantee; defer final decisions to the adopted local code, qualified judgment, and AHJ direction
 - Never suggest skipping required inspections or maintenance
 - Format responses with markdown for readability
 
@@ -47,6 +49,13 @@ ${APP_KNOWLEDGE_BASE}`;
 export interface AiMessage {
   role: 'user' | 'assistant';
   content: string;
+}
+
+function formatNfpaReference(edition?: NfpaEdition, customLabel?: string): string {
+  if (edition === 'other') {
+    return customLabel?.trim() || 'Other / AHJ-specific NFPA 10 reference';
+  }
+  return `NFPA 10 (${edition ?? '2022'})`;
 }
 
 /**
@@ -63,6 +72,9 @@ export async function askAssistant(
     activeWorkspaceLabel?: string | null;
     inspections?: Inspection[];
     sectionNotes?: SectionNotesMap;
+    nfpaEdition?: NfpaEdition;
+    nfpaEditionLabel?: string;
+    localComplianceNotes?: string;
   },
 ): Promise<string> {
   const lastMessage = messages[messages.length - 1];
@@ -84,6 +96,10 @@ export async function askAssistant(
     if (context.orgName) {
       parts.push(`Organization: ${context.orgName}`);
     }
+    parts.push(`Selected compliance reference: ${formatNfpaReference(context.nfpaEdition, context.nfpaEditionLabel)}`);
+    if (context.localComplianceNotes?.trim()) {
+      parts.push(`Local AHJ / internal policy notes: ${context.localComplianceNotes.trim()}`);
+    }
     if (context.complianceSummary) {
       parts.push(`Compliance Summary: ${JSON.stringify(context.complianceSummary)}`);
     }
@@ -102,6 +118,9 @@ export async function askAssistant(
         section: e.section,
         complianceStatus: e.complianceStatus,
         lifecycleStatus: e.lifecycleStatus,
+        manufactureYear: e.manufactureYear,
+        expirationYear: e.expirationYear,
+        isExpired: e.isExpired,
         lastMonthlyInspection: e.lastMonthlyInspection,
         lastAnnualInspection: e.lastAnnualInspection,
         nextMonthlyInspection: e.nextMonthlyInspection,
@@ -179,6 +198,12 @@ function formatDeterministicMemoryResponse(result: AiMemoryQueryResponse): strin
   if (result.intentType === 'list_expiring_by_year') {
     return formatExpiringResult(result.count, filters, result.expiringExtinguishers ?? []);
   }
+  if (result.intentType === 'list_marked_expired') {
+    return formatMarkedExpiredResult(result.count, filters, result.expiredExtinguishers ?? []);
+  }
+  if (result.intentType === 'list_expired_candidates') {
+    return formatExpiredCandidatesResult(result.count, filters, result.expiredCandidateExtinguishers ?? []);
+  }
   if (result.intentType === 'get_extinguisher_inspection_status') {
     return formatInspectionStatusResult(
       result.count,
@@ -230,6 +255,56 @@ function formatExpiringResult(
     ...items,
     '',
     '_If you want this grouped by location or exported, ask and I can format it._',
+  ].join('\n');
+}
+
+function formatMarkedExpiredResult(
+  count: number,
+  filters: string,
+  extinguishers: AiMemoryExpiringExtinguisher[],
+): string {
+  const items = extinguishers.map((ext) => {
+    const location = ext.section || ext.parentLocation || 'unassigned';
+    const mfg = ext.manufactureYear != null ? ` | mfg: ${ext.manufactureYear}` : '';
+    const exp = ext.expirationYear != null ? ` | exp: ${ext.expirationYear}` : '';
+    return `- ${ext.assetId} (${ext.serial || 'no serial'}) | ${location}${mfg}${exp}`;
+  });
+
+  return [
+    '### Marked expired extinguishers',
+    `Found **${count}** extinguisher(s) marked expired.`,
+    '',
+    '**Applied filters**',
+    filters,
+    '',
+    items.length > 0 ? '**Printable list**' : '**Printable list**\n- No extinguishers are marked expired.',
+    ...items,
+    '',
+    '_This official replacement list only includes units where the expired checkbox has been saved. Possible candidates are separate; ask for possible expired candidates if you want that advisory list too._',
+  ].join('\n');
+}
+
+function formatExpiredCandidatesResult(
+  count: number,
+  filters: string,
+  extinguishers: AiMemoryExpiringExtinguisher[],
+): string {
+  const items = extinguishers.map((ext) => {
+    const location = ext.section || ext.parentLocation || 'unassigned';
+    return `- ${ext.assetId} (${ext.serial || 'no serial'}) | ${location} | mfg: ${ext.manufactureYear ?? 'unknown'}`;
+  });
+
+  return [
+    '### Possible expired candidates',
+    `Found **${count}** active extinguisher(s) manufactured 6+ years ago that are not marked expired.`,
+    '',
+    '**Applied filters**',
+    filters,
+    '',
+    items.length > 0 ? '**Candidate list**' : '**Candidate list**\n- No possible candidates matched this rule.',
+    ...items,
+    '',
+    '_This is not the official expired list. It is only a follow-up list to help catch units someone may have forgotten to mark expired._',
   ].join('\n');
 }
 

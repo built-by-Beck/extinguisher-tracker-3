@@ -55,6 +55,8 @@ export const retireExtinguisher = onCall(async (request) => {
     // 3. Apply updates
     tx.update(extRef, {
       lifecycleStatus: 'retired',
+      status: 'retired',
+      isActive: false,
       complianceStatus: 'retired',
       // Clear all next* due date fields — lifecycle tracking stops
       nextMonthlyInspection: null,

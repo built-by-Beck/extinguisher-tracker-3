@@ -9,7 +9,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
-  ClipboardList,
   ListChecks,
   Users,
   Flame,
@@ -40,12 +39,18 @@ import { hasFeature } from '../lib/planConfig.ts';
 import { BillingStatus } from '../components/billing/BillingStatus.tsx';
 import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
 import type { Workspace } from '../services/workspaceService.ts';
-import type { Extinguisher } from '../services/extinguisherService.ts';
+import {
+  isInventoryActiveRecord,
+  isOfficiallyExpiredExtinguisher,
+  isPossibleExpiredCandidate,
+  type Extinguisher,
+} from '../services/extinguisherService.ts';
 import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
 import { subscribeToLocations, type Location } from '../services/locationService.ts';
 import {
   buildLocationStatsMap,
   detectHasLocationIdData,
+  getSupersededExtinguisherIds,
   sumAllBucketStats,
 } from '../utils/workspaceInspectionStats.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
@@ -60,15 +65,26 @@ interface StatCardProps {
 }
 
 function StatCard({ label, value, icon: Icon, color, onClick }: StatCardProps) {
+  const interactiveProps = onClick
+    ? {
+        role: 'button' as const,
+        tabIndex: 0,
+        onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        },
+      }
+    : {};
+
   return (
     <div
       className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow ${
         onClick ? 'cursor-pointer hover:border-gray-300 hover:shadow-md' : ''
       }`}
       onClick={onClick}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      {...interactiveProps}
     >
       <div className="flex items-center justify-between">
         <div>
@@ -115,8 +131,15 @@ export default function Dashboard() {
       where('deletedAt', '==', null),
     );
     return onSnapshot(q, (snap) => {
-      setExtCount(snap.size);
       const exts = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Extinguisher));
+      const superseded = getSupersededExtinguisherIds(exts);
+      const mainInventoryCount = exts.filter((e) => {
+        if (!isInventoryActiveRecord(e as unknown as Record<string, unknown>)) return false;
+        if (e.lifecycleStatus === 'replaced' || e.category === 'replaced') return false;
+        if (e.id && superseded.has(e.id)) return false;
+        return true;
+      }).length;
+      setExtCount(mainInventoryCount);
       setAllExtinguishers(exts);
     });
   }, [orgId]);
@@ -165,7 +188,7 @@ export default function Dashboard() {
 
   const inspectionScopeStats = useMemo(() => {
     if (!activeWorkspace?.id) {
-      return { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+      return { total: 0, passed: 0, failed: 0, pending: 0, replaced: 0, percentage: 0 };
     }
     const hasLocationIdData = detectHasLocationIdData(dashInspections, allExtinguishers);
     const map = buildLocationStatsMap({
@@ -178,7 +201,19 @@ export default function Dashboard() {
     return sumAllBucketStats(map);
   }, [activeWorkspace?.id, dashInspections, allExtinguishers, dashLocations]);
 
-  const checkedInspectionCount = inspectionScopeStats.passed + inspectionScopeStats.failed;
+  const checkedInspectionCount =
+    inspectionScopeStats.passed + inspectionScopeStats.failed + (inspectionScopeStats.replaced ?? 0);
+
+  /** Maintenance schedule (NFPA-style `complianceStatus`), not monthly inspection pass/fail. */
+  const maintenanceScheduleCompliantCount = useMemo(() => {
+    const superseded = getSupersededExtinguisherIds(allExtinguishers);
+    return allExtinguishers.filter((e) => {
+      if (!isInventoryActiveRecord(e as unknown as Record<string, unknown>)) return false;
+      if (e.lifecycleStatus === 'replaced' || e.category === 'replaced') return false;
+      if (e.id && superseded.has(e.id)) return false;
+      return e.complianceStatus === 'compliant';
+    }).length;
+  }, [allExtinguishers]);
 
   // Category counts
   const spareCount = allExtinguishers.filter((e) => e.category === 'spare').length;
@@ -189,10 +224,11 @@ export default function Dashboard() {
 
   // Expiration counts
   const thisYear = new Date().getFullYear();
-  const isMarkedExpired = (e: Extinguisher) =>
-    (e.expirationYear != null && e.expirationYear < thisYear) || e.isExpired === true;
   const expiredCount = allExtinguishers.filter(
-    (e) => isMarkedExpired(e) && !e.deletedAt,
+    (e) => isInventoryActiveRecord(e as unknown as Record<string, unknown>) && isOfficiallyExpiredExtinguisher(e) && !e.deletedAt,
+  ).length;
+  const expiredCandidateCount = allExtinguishers.filter(
+    (e) => isPossibleExpiredCandidate(e, thisYear) && !e.deletedAt,
   ).length;
   const expiringThisYearCount = allExtinguishers.filter(
     (e) => e.expirationYear === thisYear && !e.deletedAt,
@@ -346,15 +382,11 @@ export default function Dashboard() {
           onClick={() => navigate('/dashboard/inventory')}
         />
         <StatCard
-          label="Not yet inspected"
-          value={activeWorkspace ? Math.max(0, inspectionScopeStats.pending).toString() : '--'}
-          icon={ClipboardList}
-          color="bg-amber-500"
-          onClick={() =>
-            activeWorkspace
-              ? navigate(`/dashboard/workspaces/${activeWorkspace.id}?status=pending`)
-              : navigate('/dashboard/workspaces')
-          }
+          label="On maintenance schedule"
+          value={maintenanceScheduleCompliantCount.toString()}
+          icon={CheckCircle2}
+          color="bg-emerald-600"
+          onClick={() => navigate('/dashboard/inventory?compliance=compliant')}
         />
         <StatCard
           label="Already checked"
@@ -465,7 +497,7 @@ export default function Dashboard() {
               <Clock className="h-5 w-5 shrink-0 text-red-600" />
               <div>
                 <p className="text-lg font-bold text-red-700">{expiredCount}</p>
-                <p className="text-xs text-red-600">Expired</p>
+                <p className="text-xs text-red-600">Marked Expired</p>
               </div>
             </button>
           </div>
@@ -473,19 +505,28 @@ export default function Dashboard() {
       )}
 
       {/* Expiration Planning */}
-      {(expiringThisYearCount > 0 || expiringNextYearCount > 0 || expiredCount > 0) && (
+      {(expiringThisYearCount > 0 || expiringNextYearCount > 0 || expiredCount > 0 || expiredCandidateCount > 0) && (
         <div className="mb-8">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">Expiration Planning</h2>
           <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <button
                 onClick={() => navigate('/dashboard/inventory?expiring=expired')}
                 className="rounded-lg bg-red-50 p-4 text-center hover:bg-red-100"
               >
                 <CalendarClock className="mx-auto h-6 w-6 text-red-500" />
                 <p className="mt-2 text-2xl font-bold text-red-700">{expiredCount}</p>
-                <p className="text-sm text-red-600">Already Expired</p>
-                <p className="mt-1 text-xs text-red-500">Need replacement now</p>
+                <p className="text-sm text-red-600">Marked Expired</p>
+                <p className="mt-1 text-xs text-red-500">Official replacement list</p>
+              </button>
+              <button
+                onClick={() => navigate('/dashboard/inventory?expiring=candidates')}
+                className="rounded-lg bg-orange-50 p-4 text-center hover:bg-orange-100"
+              >
+                <CalendarClock className="mx-auto h-6 w-6 text-orange-500" />
+                <p className="mt-2 text-2xl font-bold text-orange-700">{expiredCandidateCount}</p>
+                <p className="text-sm text-orange-600">Possible Candidates</p>
+                <p className="mt-1 text-xs text-orange-500">Mfg year is 6+ years old</p>
               </button>
               <button
                 onClick={() => navigate('/dashboard/inventory?expiring=thisYear')}

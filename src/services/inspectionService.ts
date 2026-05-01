@@ -8,15 +8,12 @@ import {
   doc,
   getDoc,
   getDocs,
-  addDoc,
-  updateDoc,
-  increment,
-  serverTimestamp,
   type QueryConstraint,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../lib/firebase.ts';
 import { queueInspection } from './offlineSyncService.ts';
+import type { ChecklistAnswer, CustomAssetInspectionItem } from './assetService.ts';
 
 export interface ChecklistData {
   pinPresent: string;
@@ -109,24 +106,33 @@ export const EMPTY_CHECKLIST: ChecklistData = {
 
 export interface Inspection {
   id?: string;
+  targetType?: 'extinguisher' | 'asset';
   extinguisherId: string;
   workspaceId: string;
   assetId: string;
+  assetRefId?: string;
+  assetName?: string;
+  assetType?: string;
+  assetCode?: string;
   parentLocation?: string;
   section: string;
   serial?: string;
   locationId: string | null;
-  status: string; // pending, pass, fail
+  locationName?: string;
+  status: 'pending' | 'pass' | 'fail' | 'replaced' | string;
   isExpired?: boolean;
   inspectedAt: unknown | null;
   inspectedBy: string | null;
   inspectedByEmail: string | null;
   checklistData: ChecklistData | null;
   notes: string;
+  details?: string;
   photoUrl: string | null;
   photoPath: string | null;
   gps: unknown | null;
   attestation: unknown | null;
+  checklistSnapshot?: CustomAssetInspectionItem[];
+  checklistAnswers?: Record<string, ChecklistAnswer>;
   createdAt: unknown;
   updatedAt: unknown;
 }
@@ -138,7 +144,7 @@ export function subscribeToInspections(
   orgId: string,
   workspaceId: string,
   callback: (items: Inspection[]) => void,
-  options: { section?: string; status?: string } = {},
+  options: { section?: string; status?: string; includeAssetInspections?: boolean } = {},
 ): () => void {
   const constraints: QueryConstraint[] = [
     where('workspaceId', '==', workspaceId),
@@ -160,7 +166,7 @@ export function subscribeToInspections(
       id: d.id,
       ...d.data(),
     })) as Inspection[];
-    callback(items);
+    callback(options.includeAssetInspections ? items : items.filter((item) => item.targetType !== 'asset'));
   });
 }
 
@@ -184,7 +190,9 @@ export async function saveInspectionCall(
     status: 'pass' | 'fail';
     isExpired?: boolean;
     checklistData?: ChecklistData;
+    checklistAnswers?: Record<string, ChecklistAnswer>;
     notes?: string;
+    details?: string;
     photoUrl?: string | null;
     photoPath?: string | null;
     gps?: unknown | null;
@@ -295,6 +303,28 @@ export async function getInspectionForExtinguisherInWorkspace(
   return { id: snap.docs[0].id, ...snap.docs[0].data() } as Inspection;
 }
 
+export async function getInspectionForAssetInWorkspace(
+  orgId: string,
+  assetId: string,
+  workspaceId: string,
+): Promise<Inspection | null> {
+  const deterministicId = `asset_${assetId}_${workspaceId}`;
+  const ref = doc(db, 'org', orgId, 'inspections', deterministicId);
+  const snap = await getDoc(ref);
+  if (snap.exists()) return { id: snap.id, ...snap.data() } as Inspection;
+
+  const q = query(
+    collection(db, 'org', orgId, 'inspections'),
+    where('targetType', '==', 'asset'),
+    where('assetRefId', '==', assetId),
+    where('workspaceId', '==', workspaceId),
+    limit(1),
+  );
+  const querySnap = await getDocs(q);
+  if (querySnap.empty) return null;
+  return { id: querySnap.docs[0].id, ...querySnap.docs[0].data() } as Inspection;
+}
+
 /**
  * Get completed inspection history for an extinguisher across all workspaces.
  * Returns pass/fail inspections ordered by inspectedAt descending.
@@ -315,59 +345,37 @@ export async function getInspectionHistoryForExtinguisher(
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Inspection));
 }
 
+export async function getInspectionHistoryForAsset(
+  orgId: string,
+  assetId: string,
+  limitCount: number = 12,
+): Promise<Inspection[]> {
+  const q = query(
+    collection(db, 'org', orgId, 'inspections'),
+    where('targetType', '==', 'asset'),
+    where('assetRefId', '==', assetId),
+    orderBy('createdAt', 'desc'),
+    limit(limitCount),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Inspection));
+}
+
 /**
- * Create a single pending inspection for an extinguisher in a workspace.
- * Used when an extinguisher is opened for inspection but has no inspection
- * record yet (e.g., added after workspace creation).
+ * Explicitly add one extinguisher to a workspace checklist.
+ * Owners/admins use this for inventory created after the active month starts.
  */
-export async function createSingleInspection(
+export async function addExtinguisherToWorkspaceChecklistCall(
   orgId: string,
   extId: string,
   workspaceId: string,
-  extData: {
-    assetId: string;
-    parentLocation?: string;
-    section?: string;
-    serial?: string;
-    locationId?: string | null;
-  },
-): Promise<Inspection> {
-  const inspData = {
-    extinguisherId: extId,
-    workspaceId,
-    assetId: extData.assetId ?? '',
-    parentLocation: extData.parentLocation ?? '',
-    section: extData.section ?? '',
-    serial: extData.serial ?? '',
-    locationId: extData.locationId ?? null,
-    status: 'pending',
-    isExpired: false,
-    inspectedAt: null,
-    inspectedBy: null,
-    inspectedByEmail: null,
-    checklistData: null,
-    notes: '',
-    photoUrl: null,
-    photoPath: null,
-    gps: null,
-    attestation: null,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-
-  const ref = await addDoc(collection(db, 'org', orgId, 'inspections'), inspData);
-
-  // Update workspace stats to reflect the newly seeded inspection
-  const wsRef = doc(db, 'org', orgId, 'workspaces', workspaceId);
-  await updateDoc(wsRef, {
-    'stats.total': increment(1),
-    'stats.pending': increment(1),
-    'stats.lastUpdated': serverTimestamp(),
-  }).catch(() => {
-    // Non-critical — stats will be recalculated on archive
-  });
-
-  return { id: ref.id, ...inspData } as Inspection;
+): Promise<{ inspectionId: string; created: boolean; alreadyExisted: boolean }> {
+  const fn = httpsCallable<
+    { orgId: string; workspaceId: string; extinguisherId: string },
+    { inspectionId: string; created: boolean; alreadyExisted: boolean }
+  >(functions, 'addExtinguisherToWorkspaceChecklist');
+  const result = await fn({ orgId, workspaceId, extinguisherId: extId });
+  return result.data;
 }
 
 /**

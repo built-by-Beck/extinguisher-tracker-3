@@ -13,6 +13,14 @@ const faqSections = [
         q: 'Where do I invite team members?',
         a: 'Go to Settings and open the Members area. Owners/Admins can invite users and assign roles.',
       },
+      {
+        q: 'How should roles be used?',
+        a: 'Use owner/admin access for people managing setup, billing, members, and program configuration. Inspector and viewer access should stay focused on field work and record visibility.',
+      },
+      {
+        q: 'Can users upload profile photos or organization logos?',
+        a: 'Users choose from preset avatars instead of uploading personal profile photos. Organization logo branding is available to the organization creator on Pro, Elite, and Enterprise plans with strict image type, size, path, and permission checks.',
+      },
     ],
   },
   {
@@ -30,6 +38,22 @@ const faqSections = [
         q: 'Where can I find the import format?',
         a: 'Use the Import Guide from Inventory for templates and exact column expectations.',
       },
+      {
+        q: 'How do barcode, QR, and tag printing fit together?',
+        a: 'Barcode search and QR links help field users reach the right record quickly. Printable lists and tag printing help connect the digital record back to physical equipment and route paperwork.',
+      },
+      {
+        q: 'What should we do when an extinguisher is replaced?',
+        a: 'Use Replace Extinguisher from the active unit detail page instead of overwriting history by hand. The modal confirms the old unit, lets admins reuse the existing asset/location ID or intentionally enter a new asset ID, archives the old serial/barcode/unit details, and updates the active record with the replacement unit.',
+      },
+      {
+        q: 'Where can we review old replaced units or return one as a spare?',
+        a: 'Open Replaced Extinguishers from the sidebar. It shows each retired old unit beside its current replacement, lets owners/admins track waiting-for-service, sent-for-service, discarded, or returned status, and can create a returned old unit as a new active spare record with a unique spare asset ID.',
+      },
+      {
+        q: 'What is the difference between marked expired and possible expired candidates?',
+        a: 'Marked Expired is the official list: only active, non-deleted extinguishers where the expired flag has been saved. Possible Candidates is an advisory follow-up list for active units manufactured 6+ years ago that are not marked expired yet.',
+      },
     ],
   },
   {
@@ -45,7 +69,36 @@ const faqSections = [
       },
       {
         q: 'Which NFPA edition does AI use?',
-        a: 'AI guidance defaults to NFPA 10 (2022). If your jurisdiction adopts another edition, include that in your prompt and verify final decisions internally.',
+        a: 'AI uses the NFPA reference configured in Organization Settings. New organizations fall back to NFPA 10 (2022) until an owner/admin selects another edition or adds AHJ-specific notes; final decisions still need qualified internal review.',
+      },
+      {
+        q: 'Does the placement calculator guarantee compliance?',
+        a: 'No. Treat it as a planning aid. Final placement and compliance decisions should be confirmed against your adopted code edition, internal policy, qualified judgment, and AHJ direction.',
+      },
+      {
+        q: 'What should we do after working offline?',
+        a: 'Open the Sync Queue and confirm queued work has synced before treating reports or dashboard totals as final.',
+      },
+    ],
+  },
+  {
+    title: 'Reports, sharing, and advanced workflows',
+    items: [
+      {
+        q: 'Where do notifications and reminders show up?',
+        a: 'Use Notifications to review due, overdue, and follow-up activity. Reports and dashboards help summarize the overall program status.',
+      },
+      {
+        q: 'Where can I see audit history?',
+        a: 'Open Audit Logs to review important activity and changes. These records help reconstruct what happened without relying on memory or side notes.',
+      },
+      {
+        q: 'Can outside reviewers see records?',
+        a: 'Guest access is designed for limited visibility when someone needs to review shared information without becoming a full team member.',
+      },
+      {
+        q: 'Can we inspect non-extinguisher assets?',
+        a: 'Yes. Custom asset inspections support recurring checks for other assets that need structured inspection records, notes, and follow-up tracking.',
       },
     ],
   },

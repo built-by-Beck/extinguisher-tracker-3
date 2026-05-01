@@ -39,8 +39,8 @@ export default function ExtinguisherCreate() {
         throw new Error(`Asset ID "${data.assetId}" is already in use.`);
       }
 
-      await createExtinguisher(orgId, user.uid, data);
-      navigate('/dashboard/inventory');
+      const extId = await createExtinguisher(orgId, user.uid, data);
+      navigate(`/dashboard/inventory/${extId}`, { state: { returnTo: '/dashboard/inventory' } });
     } finally {
       setLoading(false);
     }

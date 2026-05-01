@@ -70,12 +70,19 @@ export function ReportDownloadButton({
         disabled={loading}
         className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 hover:border-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Icon className="h-4 w-4" />
-        )}
-        {displayLabel}
+        <span className="relative h-4 w-4 shrink-0" aria-hidden="true">
+          <Icon
+            className={`absolute inset-0 h-4 w-4 transition-opacity ${
+              loading ? 'opacity-0' : 'opacity-100'
+            }`}
+          />
+          <Loader2
+            className={`absolute inset-0 h-4 w-4 animate-spin transition-opacity ${
+              loading ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+        </span>
+        <span>{displayLabel}</span>
       </button>
       {error && (
         <p className="text-xs text-red-600">{error}</p>
