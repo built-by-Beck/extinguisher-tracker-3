@@ -107,6 +107,19 @@ export function isInventoryActiveRecord(data: Record<string, unknown>): boolean 
   return ls === 'active' || ls == null || ls === '';
 }
 
+export function isOfficiallyExpiredExtinguisher(data: Pick<Extinguisher, 'isExpired'>): boolean {
+  return data.isExpired === true;
+}
+
+export function isPossibleExpiredCandidate(
+  data: Pick<Extinguisher, 'isExpired' | 'manufactureYear'> & Partial<Extinguisher>,
+  currentYear = new Date().getFullYear(),
+): boolean {
+  if (isOfficiallyExpiredExtinguisher(data)) return false;
+  if (!isInventoryActiveRecord(data as unknown as Record<string, unknown>)) return false;
+  return typeof data.manufactureYear === 'number' && data.manufactureYear <= currentYear - 6;
+}
+
 function extinguishersRef(orgId: string) {
   return collection(db, 'org', orgId, 'extinguishers');
 }

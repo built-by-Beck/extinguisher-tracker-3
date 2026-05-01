@@ -208,3 +208,15 @@ Each entry follows this structure:
 - **Issue**: The useEffect dependency array included `inspection.checklistData`, `inspection.notes`, and `inspection.gps`. Since `checklistData` and `gps` are objects, any re-fetch by the parent (even returning identical data) creates new object references, triggering the effect and blowing away the user's in-progress edits.
 - **Resolution**: Narrowed the dependency array to `[inspection.id, inspection.status]` only — the two scalar values that meaningfully indicate "this is a different inspection" or "the inspection outcome changed." Added an eslint-disable comment for `react-hooks/exhaustive-deps` with an explanatory block comment.
 - **Rule**: When a useEffect resets component state from a parent-provided object, only include stable scalar identifiers (like `.id`, `.status`) in the dependency array — never object-valued fields. Object references change on every re-fetch even when the data is identical, causing spurious resets that destroy user input.
+
+### 2026-05-01 -- Candidate AI intents should not require explicit asset nouns
+- **Context**: Adding AI support for optional expired-candidate lists based on manufacture year.
+- **Issue**: The first parser rule required words like "extinguisher" or "asset", so "show possible expired candidates with mfg dates older than 6 years" returned no deterministic intent.
+- **Resolution**: Allowed candidate-specific wording to trigger the candidate intent even when the user omits the asset noun.
+- **Rule**: For optional follow-up lists with named domain terms like "candidates", intent parsing should accept the named list phrase directly and not require users to repeat the object noun.
+
+### 2026-05-01 -- Avoid impossible future sentinel dates in tests
+- **Context**: Testing expired-candidate filtering for manufacture-year based lists.
+- **Issue**: A test fixture used `manufactureYear: 3000` to guarantee a unit was not older than 6 years.
+- **Resolution**: Replaced the impossible sentinel with the current UTC year so the fixture remains realistic and future-safe.
+- **Rule**: Test fixtures for real-world domain data should use plausible dynamic dates or named constants instead of impossible values that look like product data.

@@ -930,3 +930,212 @@ Preview the marketing pages visually to make sure the longer feature and FAQ cop
 
 **Handoff Notes:**
 Future public copy should preserve the independent field-built story while avoiding employer/workplace-development references and avoiding guaranteed compliance claims.
+
+## 2026-05-01 11:31 CT - Document Agent: Expired Inventory Lists
+
+**PBRD Stage / Gate Status:** Document Mode after Review verdict ACCEPTED. Gate C documentation pass completed after inspecting actual implementation and docs.
+
+**Feature documented:** Expired Inventory Lists: official marked-expired records are `isExpired === true`; possible candidates are active, non-deleted units with manufacture year 6+ years old that are not marked expired.
+
+**Files inspected:** `agent-system/agent-info.md` last 40 lines, `docs/AI_WORKFLOW.md`, implementation diff for `src/pages/Inventory.tsx`, `src/pages/PrintableList.tsx`, `src/pages/Dashboard.tsx`, `src/services/extinguisherService.ts`, `src/services/aiQueryIntentService.ts`, `src/services/aiService.ts`, `src/types/aiQuery.ts`, `functions/src/ai/queryAiMemory.ts`, related tests, `README.md`, `src/pages/FaqPage.tsx`, `src/components/ai/AiAssistantPanel.tsx`, `src/pages/marketing/MarketingFeaturesPage.tsx`, `src/pages/marketing/MarketingGettingStartedPage.tsx`.
+
+**Files updated:** `README.md`, `src/pages/FaqPage.tsx`, `src/components/ai/AiAssistantPanel.tsx`, `src/pages/marketing/MarketingFeaturesPage.tsx`, `agent-system/agent-info.md`.
+
+**README status:** Updated key features to include separated expiration planning lists.
+
+**TODO status:** Considered; `TODO.md` is not present and no roadmap item changed, so no TODO was created.
+
+**Website / marketing status:** Updated feature copy to mention marked-expired units and advisory candidates without overpromising compliance.
+
+**FAQ / getting started status:** FAQ updated to distinguish official marked expired from possible candidates. Getting Started considered and left unchanged because the existing high-level setup flow remained accurate.
+
+**Remaining documentation needed:** None for this accepted task.
+
+---
+
+## 2026-05-01 11:39 AM - Build/Review/Document Agent
+
+**Task:**
+Implement Expired Inventory Lists with official marked-expired reporting, optional manufacture-year candidates, printable lists, and AI query support.
+
+**Summary:**
+Completed the approved LARGE PBRD plan. Official expired lists now use `isExpired === true`; possible candidates are separate active/non-deleted extinguishers with manufacture year 6+ years old and not marked expired. Inventory, Dashboard, PrintableList, AI deterministic intents, backend AI memory queries, tests, and user-facing docs were updated.
+
+**Files Inspected:**
+- `src/services/extinguisherService.ts`
+- `src/pages/Inventory.tsx`
+- `src/pages/PrintableList.tsx`
+- `src/pages/Dashboard.tsx`
+- `src/services/aiQueryIntentService.ts`
+- `src/services/aiService.ts`
+- `src/types/aiQuery.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- related tests and documentation surfaces
+
+**Files Changed:**
+- `src/services/extinguisherService.ts`
+- `src/pages/Inventory.tsx`
+- `src/pages/PrintableList.tsx`
+- `src/pages/Dashboard.tsx`
+- `src/services/aiQueryIntentService.ts`
+- `src/services/aiService.ts`
+- `src/types/aiQuery.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- `src/services/aiQueryIntentService.test.ts`
+- `functions/src/__tests__/queryAiMemory.test.ts`
+- `README.md`
+- `src/pages/FaqPage.tsx`
+- `src/components/ai/AiAssistantPanel.tsx`
+- `src/pages/marketing/MarketingFeaturesPage.tsx`
+- `agent-system/agent-info.md`
+- `agent-system/lessons-learned.md`
+- `agent-system/error_log.jsonl`
+
+**Key Decisions:**
+- Kept official expired replacement lists strict to saved `isExpired` flags only.
+- Kept manufacture-year candidates advisory and separate from official expired results.
+- Preserved existing AI auth, membership, subscription, and feature gates before backend org-scoped reads.
+
+**Validation:**
+- Formatter: no root formatter script exists in `package.json`.
+- `ReadLints` on changed TS/TSX files: passed; README has pre-existing markdownlint warnings unrelated to the added feature bullet.
+- `pnpm lint`: passed.
+- `npm --prefix functions run lint`: passed.
+- `pnpm build`: passed; existing Vite large chunk warning remains.
+- `npm --prefix functions run build`: passed.
+- `pnpm test`: passed, 9 files / 84 tests.
+- `npm --prefix functions test -- "src/__tests__/queryAiMemory.test.ts"`: passed, 4 tests.
+
+**Review Verdict:**
+ACCEPTED
+
+**Risks / Blockers:**
+- No blocker. Residual scale risk: the optional candidate AI query filters up to 2000 org extinguishers in memory; a future indexed strategy may be useful for very large orgs.
+
+**Next Recommended Action:**
+Preview the Inventory filter and print modes with a small sample of marked expired and candidate extinguishers.
+
+**Handoff Notes:**
+Do not mix manufacture-year candidates into official expired lists. If future replacement workflow automation is added, keep advisory candidates clearly labeled until a user explicitly marks or replaces the unit.
+
+## 2026-05-01T16:41:00Z - Planning Mode
+
+**Task:**
+Plan fix for archived monthly workspaces still showing inspect, pass/fail, and edit actions.
+
+**Summary:**
+Inspected workspace archive UI flow. `WorkspaceDetail` knows `isArchived` and hides scan/search, but list rows and replaced links still navigate to `/dashboard/workspaces/:workspaceId/inspect-ext/:extId` and label actions as Inspect. `ExtinguisherDetail` resolves the route workspace but does not load that workspace's status, so it still shows inventory edit/replace/delete actions and passes role-only `canInspect` / `canReset` into `InspectionPanel`. Backend `saveInspection` already rejects archived workspaces, so the main gap is client-side read-only gating and clearer archived messaging.
+
+**Files Inspected:**
+- src/pages/WorkspaceDetail.tsx
+- src/pages/ExtinguisherDetail.tsx
+- src/pages/InspectionForm.tsx
+- src/components/inspection/InspectionPanel.tsx
+- src/services/workspaceService.ts
+- src/services/inspectionService.ts
+- functions/src/inspections/saveInspection.ts
+- functions/src/inspections/addExtinguisherToWorkspaceChecklist.ts
+
+**Files Changed:**
+- agent-system/agent-info.md
+
+**Key Decisions:**
+- Classify as LARGE because it touches archived monthly workspace source-of-truth behavior, even if the likely code edit is focused.
+- Keep backend mutation protections in place; build should add UI read-only gates instead of relying on failed callable attempts.
+- Archived workspace pages should allow viewing historical details and reports, but must not present inspect, pass/fail, reset, edit, replace, delete, restore, add-to-checklist, or current-month mutation actions for that archived workspace context.
+
+**Risks / Blockers:**
+- Need care not to disable normal inventory edits when entering `ExtinguisherDetail` from `/dashboard/inventory/:extId`; the read-only gate should apply only when the route is tied to an archived workspace.
+
+**Next Recommended Action:**
+Approve the plan, then run Build Mode to implement read-only gates and targeted regression coverage.
+
+**Handoff Notes:**
+Build should add a workspace-status read in `ExtinguisherDetail` for workspace-routed visits, compute route-level archived/read-only state, pass gated permissions to `InspectionPanel`, hide mutation buttons, change archived workspace row labels from Inspect to View, and add tests around archived workspace UI gating where feasible.
+
+## 2026-05-01T16:52:00Z - Build Mode
+
+**Task:**
+Implement archived monthly workspace read-only UI gating.
+
+**Summary:**
+Added a `getWorkspace` helper and used workspace status on workspace-routed inspection/detail pages to treat non-active route workspaces as read-only. Archived workspace list rows now show View/View old unit/View new unit instead of Inspect/Open copy, and archived workspace instructions no longer tell users to pass/fail. Extinguisher detail and legacy inspection routes now disable pass/fail/reset by passing gated permissions into `InspectionPanel`, hide edit/replace/delete/restore/add-to-checklist controls in archived workspace context, and show an archived read-only banner. Offline fallback uses cached workspace status when available.
+
+**Files Inspected:**
+- src/pages/WorkspaceDetail.tsx
+- src/pages/ExtinguisherDetail.tsx
+- src/pages/InspectionForm.tsx
+- src/services/workspaceService.ts
+- src/services/offlineCacheService.ts
+
+**Files Changed:**
+- src/pages/WorkspaceDetail.tsx
+- src/pages/ExtinguisherDetail.tsx
+- src/pages/InspectionForm.tsx
+- src/services/workspaceService.ts
+- agent-system/agent-info.md
+
+**Key Decisions:**
+- Gated mutating UI by workspace context, not global role, so normal inventory editing remains available from `/dashboard/inventory/:extId`.
+- Treated workspace-routed contexts as mutable only when the workspace status is `active`; archived and unresolved route workspaces do not expose mutation controls.
+- Kept historical detail navigation available for review, but removed inspect/pass/fail/edit affordances for archived context.
+
+**Validation:**
+- Formatter: no formatter script exists in root `package.json`.
+- `ReadLints` on changed TS/TSX files: passed.
+- `pnpm lint`: passed.
+- `pnpm build`: passed; existing Vite large chunk warning remains.
+- `pnpm test`: passed, 9 files / 84 tests.
+
+**Risks / Blockers:**
+- No blocker. Existing test suite has no page-level archived workspace UI tests, so this is validated by typecheck/lint plus code review rather than a new render test.
+
+**Next Recommended Action:**
+Run Review Mode to verify plan compliance, security/client trust boundaries, and regression risk.
+
+**Handoff Notes:**
+Review should verify archived workspace route context cannot show pass/fail/reset/edit/replace/delete/add-to-checklist controls, inventory routes remain editable for owner/admin, and backend archived write protections remain the source of truth.
+
+## 2026-05-01T16:54:00Z - Review Mode
+
+**Task:**
+Review archived monthly workspace read-only UI gating.
+
+**Summary:**
+Verified plan compliance and validation evidence. Review found one minor hardening gap where replace/delete modals could theoretically remain visible if a workspace became read-only after a modal was opened; fixed by gating modal visibility with `canEditInContext`. Re-ran final validation after the hardening edit.
+
+**Files Inspected:**
+- src/pages/WorkspaceDetail.tsx
+- src/pages/ExtinguisherDetail.tsx
+- src/pages/InspectionForm.tsx
+- src/services/workspaceService.ts
+- agent-system/agent-info.md
+
+**Files Changed:**
+- src/pages/ExtinguisherDetail.tsx
+- agent-system/agent-info.md
+
+**Key Decisions:**
+- Accepted the client-side UX gating because backend Cloud Functions still enforce archived workspace immutability for actual writes.
+- Confirmed read-only gating is scoped to workspace-routed detail/inspection pages and does not remove normal owner/admin inventory editing from `/dashboard/inventory/:extId`.
+- Documentation pass deferred: no README, FAQ, marketing, setup, pricing, or public workflow docs describe archived workspace edit controls, so no docs were made inaccurate by this bug fix.
+
+**Validation:**
+- Formatter: no formatter script exists in root `package.json`.
+- `ReadLints` on changed TS/TSX files: passed.
+- `git diff --check` on changed code files: passed.
+- `pnpm lint`: passed.
+- `pnpm build`: passed; existing Vite large chunk warning remains.
+- `pnpm test`: passed, 9 files / 84 tests.
+
+**Review Verdict:**
+ACCEPTED
+
+**Risks / Blockers:**
+- No blocker. Residual gap: the existing Vitest suite does not include page-level render tests for archived workspace UI states.
+
+**Next Recommended Action:**
+Manually open the archived April workspace and verify rows say View, the extinguisher detail page shows the archived read-only banner, and pass/fail/reset/edit/replace/delete/add-to-checklist controls are absent.
+
+**Handoff Notes:**
+If future page tests are added, include an archived workspace fixture for `ExtinguisherDetail` and `WorkspaceDetail` so read-only controls are covered by automated UI tests.

@@ -50,6 +50,8 @@ import {
   generateScannedAssetId,
   getAllActiveExtinguishers,
   isInventoryActiveRecord,
+  isOfficiallyExpiredExtinguisher,
+  isPossibleExpiredCandidate,
   type Extinguisher,
 } from '../services/extinguisherService.ts';
 import {
@@ -368,11 +370,10 @@ export default function Inventory() {
       if (complianceFilter && ext.complianceStatus !== complianceFilter) return false;
       if (expiringFilter) {
         const thisYear = new Date().getFullYear();
-        const isMarkedExpired =
-          (ext.expirationYear != null && ext.expirationYear < thisYear) || ext.isExpired === true;
+        if (expiringFilter === 'expired' && !isOfficiallyExpiredExtinguisher(ext)) return false;
+        if (expiringFilter === 'candidates' && !isPossibleExpiredCandidate(ext, thisYear)) return false;
         if (expiringFilter === 'thisYear' && ext.expirationYear !== thisYear) return false;
         if (expiringFilter === 'nextYear' && ext.expirationYear !== thisYear + 1) return false;
-        if (expiringFilter === 'expired' && !isMarkedExpired) return false;
       }
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -615,7 +616,12 @@ export default function Inventory() {
             </button>
           )}
           <button
-            onClick={() => navigate('/dashboard/inventory/print')}
+            onClick={() => {
+              const mode = expiringFilter === 'expired' || expiringFilter === 'candidates'
+                ? `?mode=${expiringFilter}`
+                : '';
+              navigate(`/dashboard/inventory/print${mode}`);
+            }}
             className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             <Printer className="h-4 w-4" />
@@ -735,6 +741,7 @@ export default function Inventory() {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
+              title="Clear search"
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
             >
               <X className="h-4 w-4" />
@@ -752,6 +759,7 @@ export default function Inventory() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {/* Category filter */}
         <select
+          aria-label="Category filter"
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
@@ -766,6 +774,7 @@ export default function Inventory() {
 
         {/* Maintenance schedule filter (not monthly Pass/Fail — that lives on workspace inspections) */}
         <select
+          aria-label="Maintenance filter"
           value={complianceFilter}
           onChange={(e) => setComplianceFilter(e.target.value)}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
@@ -780,15 +789,27 @@ export default function Inventory() {
 
         {/* Expiration filter */}
         <select
+          aria-label="Expiration filter"
           value={expiringFilter}
           onChange={(e) => setExpiringFilter(e.target.value)}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
         >
           <option value="">All Expirations</option>
-          <option value="expired">Already Expired</option>
+          <option value="expired">Marked Expired</option>
+          <option value="candidates">Possible Candidates (Mfg 6+ Years)</option>
           <option value="thisYear">Expiring This Year</option>
           <option value="nextYear">Expiring Next Year</option>
         </select>
+
+        {(expiringFilter === 'expired' || expiringFilter === 'candidates') && (
+          <button
+            onClick={() => navigate(`/dashboard/inventory/print?mode=${expiringFilter}`)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Printer className="h-4 w-4" />
+            Print {expiringFilter === 'expired' ? 'Expired' : 'Candidates'}
+          </button>
+        )}
 
         {/* Overdue quick-filter */}
         <button
@@ -961,6 +982,7 @@ export default function Inventory() {
                   <th className="w-10 px-3 py-3">
                     <input
                       type="checkbox"
+                      aria-label="Select all extinguishers on this page"
                       checked={selectedIds.size === paginatedItems.length && paginatedItems.length > 0}
                       onChange={toggleSelectAll}
                       className="rounded border-gray-300 text-red-600 focus:ring-red-500"
@@ -1045,6 +1067,7 @@ export default function Inventory() {
                     <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
+                        aria-label={`Select extinguisher ${ext.assetId}`}
                         checked={selectedIds.has(ext.id!)}
                         onChange={() => toggleSelectRow(ext.id!)}
                         className="rounded border-gray-300 text-red-600 focus:ring-red-500"
@@ -1157,6 +1180,7 @@ export default function Inventory() {
                   <div className="absolute left-3 top-3" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
+                      aria-label={`Select extinguisher ${ext.assetId}`}
                       checked={selectedIds.has(ext.id!)}
                       onChange={() => toggleSelectRow(ext.id!)}
                       className="rounded border-gray-300 text-red-600 focus:ring-red-500"
@@ -1255,6 +1279,7 @@ export default function Inventory() {
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <span>Show</span>
             <select
+              aria-label="Results per page"
               value={pageSize}
               onChange={(e) => {
                 setPageSize(Number(e.target.value));

@@ -72,6 +72,28 @@ function parseNoteStatus(text: string): 'open' | 'in_progress' | 'resolved' | un
 export function parseAiMemoryIntent(message: string, now = new Date()): AiMemoryQueryIntent | null {
   const normalized = message.toLowerCase();
 
+  const asksForExtinguisherList =
+    /\b(extinguisher|extinguishers|asset|assets|unit|units)\b/.test(normalized) &&
+    /\b(show|list|find|get|give|print|printable|which|all)\b/.test(normalized);
+  const asksForCandidateExpired =
+    (asksForExtinguisherList || /\b(candidate|candidates)\b/.test(normalized)) &&
+    /\b(possible|candidate|candidates|forgot|missed|mfg|manufacture|manufactured|older than|6\+|six years|6 years)\b/.test(normalized) &&
+    /\b(expired|expire|replacement|replace|old|older|age)\b/.test(normalized);
+  if (asksForCandidateExpired) {
+    return {
+      type: 'list_expired_candidates',
+    };
+  }
+
+  const asksForMarkedExpired =
+    asksForExtinguisherList &&
+    /\b(expired|marked expired|mark(ed)? as expired)\b/.test(normalized);
+  if (asksForMarkedExpired) {
+    return {
+      type: 'list_marked_expired',
+    };
+  }
+
   const asksInspectionStatus =
     /\b(extinguisher|asset|unit)\b/.test(normalized) &&
     /\b(checked|inspected|not yet inspected|pending|pass|passed|fail|failed|status)\b/.test(normalized);

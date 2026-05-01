@@ -85,6 +85,13 @@ export async function getActiveWorkspaceForCurrentMonth(orgId: string): Promise<
   return ws;
 }
 
+export async function getWorkspace(orgId: string, workspaceId: string): Promise<Workspace | null> {
+  const wsRef = doc(db, 'org', orgId, 'workspaces', workspaceId);
+  const snap = await getDoc(wsRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as Workspace;
+}
+
 /**
  * Create a new workspace via Cloud Function.
  */

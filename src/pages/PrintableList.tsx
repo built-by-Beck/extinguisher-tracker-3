@@ -6,16 +6,21 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Printer, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { hasFeature } from '../lib/planConfig.ts';
 import {
+  isInventoryActiveRecord,
+  isOfficiallyExpiredExtinguisher,
+  isPossibleExpiredCandidate,
   subscribeToExtinguishers,
   type Extinguisher,
 } from '../services/extinguisherService.ts';
 import { getComplianceLabel } from '../utils/compliance.ts';
+
+type PrintMode = 'all' | 'expired' | 'candidates';
 
 function formatDate(d: unknown): string {
   if (!d) return '';
@@ -42,19 +47,33 @@ interface PrintRow {
   location: string;
   category: string;
   status: string;
+  expiryStatus: string;
   mfgYear: string;
   expYear: string;
   lastInspection: string;
 }
 
-function toPrintRow(ext: Extinguisher): PrintRow {
+function resolvePrintMode(value: string | null): PrintMode {
+  return value === 'expired' || value === 'candidates' ? value : 'all';
+}
+
+function getModeTitle(mode: PrintMode): string {
+  if (mode === 'expired') return 'Marked Expired Extinguishers';
+  if (mode === 'candidates') return 'Possible Expired Candidates';
+  return 'Fire Extinguisher Inventory';
+}
+
+function toPrintRow(ext: Extinguisher, currentYear: number): PrintRow {
   const locationParts = [ext.parentLocation, ext.section, ext.vicinity].filter(Boolean);
+  const isExpired = isOfficiallyExpiredExtinguisher(ext);
+  const isCandidate = isPossibleExpiredCandidate(ext, currentYear);
   return {
     assetId: ext.assetId || '',
     serial: ext.serial || '',
     location: locationParts.join(' > ') || '',
     category: ext.category || '',
     status: (ext.complianceStatus ? getComplianceLabel(ext.complianceStatus) : ext.category || '').toUpperCase(),
+    expiryStatus: isExpired ? 'MARKED EXPIRED' : isCandidate ? 'POSSIBLE CANDIDATE' : '',
     mfgYear: ext.manufactureYear != null ? String(ext.manufactureYear) : '',
     expYear: ext.expirationYear != null ? String(ext.expirationYear) : '',
     lastInspection: formatDate(ext.lastMonthlyInspection),
@@ -63,9 +82,12 @@ function toPrintRow(ext: Extinguisher): PrintRow {
 
 export default function PrintableList() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { userProfile } = useAuth();
   const { org } = useOrg();
   const orgId = userProfile?.activeOrgId ?? '';
+  const mode = resolvePrintMode(searchParams.get('mode'));
+  const title = getModeTitle(mode);
 
   const canPrint = hasFeature(
     org?.featureFlags as Record<string, boolean> | null | undefined,
@@ -97,14 +119,21 @@ export default function PrintableList() {
   }, [orgId, org, canPrint, navigate]);
 
   const rows = useMemo(() => {
-    const mapped = items.map(toPrintRow);
+    const currentYear = new Date().getFullYear();
+    const filtered = items.filter((ext) => {
+      if (mode === 'all') return true;
+      if (!isInventoryActiveRecord(ext as unknown as Record<string, unknown>)) return false;
+      if (mode === 'expired') return isOfficiallyExpiredExtinguisher(ext);
+      return isPossibleExpiredCandidate(ext, currentYear);
+    });
+    const mapped = filtered.map((ext) => toPrintRow(ext, currentYear));
     mapped.sort((a, b) => {
       const loc = a.location.localeCompare(b.location);
       if (loc !== 0) return loc;
       return a.assetId.localeCompare(b.assetId, undefined, { numeric: true });
     });
     return mapped;
-  }, [items]);
+  }, [items, mode]);
 
   if (org && !canPrint) {
     return null;
@@ -137,7 +166,7 @@ export default function PrintableList() {
               <ArrowLeft className="h-4 w-4" />
               Back
             </button>
-            <h1 className="text-lg font-semibold">Printable Inventory List</h1>
+            <h1 className="text-lg font-semibold">{title}</h1>
           </div>
           <button
             onClick={() => window.print()}
@@ -152,7 +181,7 @@ export default function PrintableList() {
       {/* Print-only header */}
       <div className="print-only hidden px-4 pt-2">
         <div className="mx-auto flex max-w-[1400px] items-baseline justify-between">
-          <h1 className="text-xl font-bold">Fire Extinguisher Inventory</h1>
+          <h1 className="text-xl font-bold">{title}</h1>
           <div className="text-sm">Printed: {new Date().toLocaleString()}</div>
         </div>
       </div>
@@ -164,24 +193,41 @@ export default function PrintableList() {
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
         ) : rows.length === 0 ? (
-          <p className="py-10 text-center text-gray-500">No extinguishers found.</p>
+          <p className="py-10 text-center text-gray-500">
+            {mode === 'expired'
+              ? 'No extinguishers are marked expired.'
+              : mode === 'candidates'
+              ? 'No possible expired candidates found.'
+              : 'No extinguishers found.'}
+          </p>
         ) : (
           <>
             <div className="no-print mb-2 text-sm text-gray-700">
               Total: {rows.length} extinguisher{rows.length !== 1 ? 's' : ''}
+              {mode === 'expired' && (
+                <span className="ml-2 text-gray-500">
+                  Official list: only units marked expired are included.
+                </span>
+              )}
+              {mode === 'candidates' && (
+                <span className="ml-2 text-gray-500">
+                  Candidate list: manufacture year is 6+ years old and the unit is not marked expired.
+                </span>
+              )}
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full border border-gray-300 text-xs" style={{ tableLayout: 'fixed' }}>
+              <table className="w-full table-fixed border border-gray-300 text-xs">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="border border-gray-300 px-2 py-1 text-left" style={{ width: '110px' }}>Asset ID</th>
-                    <th className="border border-gray-300 px-2 py-1 text-left" style={{ width: '130px' }}>Serial</th>
-                    <th className="border border-gray-300 px-2 py-1 text-left" style={{ width: '250px' }}>Location</th>
-                    <th className="border border-gray-300 px-2 py-1 text-left" style={{ width: '110px' }}>Category</th>
-                    <th className="border border-gray-300 px-2 py-1 text-left" style={{ width: '100px' }}>Status</th>
-                    <th className="border border-gray-300 px-2 py-1 text-left" style={{ width: '80px' }}>Mfg Year</th>
-                    <th className="border border-gray-300 px-2 py-1 text-left" style={{ width: '80px' }}>Exp Year</th>
-                    <th className="border border-gray-300 px-2 py-1 text-left" style={{ width: '120px' }}>Last Inspection</th>
+                    <th className="w-[110px] border border-gray-300 px-2 py-1 text-left">Asset ID</th>
+                    <th className="w-[130px] border border-gray-300 px-2 py-1 text-left">Serial</th>
+                    <th className="w-[250px] border border-gray-300 px-2 py-1 text-left">Location</th>
+                    <th className="w-[110px] border border-gray-300 px-2 py-1 text-left">Category</th>
+                    <th className="w-[100px] border border-gray-300 px-2 py-1 text-left">Status</th>
+                    <th className="w-[120px] border border-gray-300 px-2 py-1 text-left">Expiry Flag</th>
+                    <th className="w-[80px] border border-gray-300 px-2 py-1 text-left">Mfg Year</th>
+                    <th className="w-[80px] border border-gray-300 px-2 py-1 text-left">Exp Year</th>
+                    <th className="w-[120px] border border-gray-300 px-2 py-1 text-left">Last Inspection</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -192,6 +238,7 @@ export default function PrintableList() {
                       <td className="break-words border border-gray-300 px-2 py-1">{r.location}</td>
                       <td className="break-words border border-gray-300 px-2 py-1">{r.category}</td>
                       <td className="break-words border border-gray-300 px-2 py-1">{r.status}</td>
+                      <td className="break-words border border-gray-300 px-2 py-1">{r.expiryStatus}</td>
                       <td className="break-words border border-gray-300 px-2 py-1">{r.mfgYear}</td>
                       <td className="break-words border border-gray-300 px-2 py-1">{r.expYear}</td>
                       <td className="break-words border border-gray-300 px-2 py-1">{r.lastInspection}</td>

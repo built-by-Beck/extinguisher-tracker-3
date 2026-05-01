@@ -35,6 +35,8 @@ const SUGGESTED_PROMPTS = [
   'Our jurisdiction uses NFPA 10 (2018). Explain annual requirements.',
   'Show all notes from this month',
   'Show extinguishers expiring next year',
+  'Show marked expired extinguishers',
+  'Show possible expired candidates',
   'How many extinguishers did we replace last month?',
   'What inspections are overdue?',
   'Summarize my compliance status and mention sections taking the longest time',
@@ -315,6 +317,7 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                       <div className="mt-2 flex items-center justify-between">
                         <span className="text-[10px] text-gray-500">Status</span>
                         <select
+                          aria-label={`Status for note ${note.id}`}
                           value={note.status}
                           disabled={!canManageNotes || noteBusyId === note.id}
                           onChange={(e) =>
@@ -346,7 +349,7 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                   <p className="mt-2 text-[11px] text-gray-400">
                     How to use AI: include your adopted NFPA edition in the prompt when it differs
                     from the default, and ask for overdue inspections, maintenance dates, section notes,
-                    or route pace guidance.
+                    route pace guidance, marked expired units, or possible expired candidates.
                   </p>
                 </div>
                 <div className="space-y-2">

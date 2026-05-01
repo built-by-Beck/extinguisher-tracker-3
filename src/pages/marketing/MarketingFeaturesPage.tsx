@@ -134,9 +134,9 @@ export default function MarketingFeaturesPage() {
           <FeatureBlock
             icon={RefreshCcw}
             title="Replacement and retirement lifecycle"
-            what="Track active records, replaced units, retired assets, serial changes, and lifecycle context without losing prior history."
+            what="Track active records, marked-expired units, advisory expired candidates, replaced units, retired assets, serial changes, and lifecycle context without losing prior history."
             why="Extinguishers do not stay static. Units get replaced, retired, moved, or corrected, and those changes need a clean trail."
-            outcome="A clearer active inventory with less confusion when old tags, old serials, or replacement chains come up later."
+            outcome="A clearer active inventory and a practical review queue for units that may need follow-up, without mixing advisory candidates into the official expired list."
           />
           <FeatureBlock
             icon={ClipboardCheck}

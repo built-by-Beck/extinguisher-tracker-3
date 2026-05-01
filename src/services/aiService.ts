@@ -102,6 +102,9 @@ export async function askAssistant(
         section: e.section,
         complianceStatus: e.complianceStatus,
         lifecycleStatus: e.lifecycleStatus,
+        manufactureYear: e.manufactureYear,
+        expirationYear: e.expirationYear,
+        isExpired: e.isExpired,
         lastMonthlyInspection: e.lastMonthlyInspection,
         lastAnnualInspection: e.lastAnnualInspection,
         nextMonthlyInspection: e.nextMonthlyInspection,
@@ -179,6 +182,12 @@ function formatDeterministicMemoryResponse(result: AiMemoryQueryResponse): strin
   if (result.intentType === 'list_expiring_by_year') {
     return formatExpiringResult(result.count, filters, result.expiringExtinguishers ?? []);
   }
+  if (result.intentType === 'list_marked_expired') {
+    return formatMarkedExpiredResult(result.count, filters, result.expiredExtinguishers ?? []);
+  }
+  if (result.intentType === 'list_expired_candidates') {
+    return formatExpiredCandidatesResult(result.count, filters, result.expiredCandidateExtinguishers ?? []);
+  }
   if (result.intentType === 'get_extinguisher_inspection_status') {
     return formatInspectionStatusResult(
       result.count,
@@ -230,6 +239,56 @@ function formatExpiringResult(
     ...items,
     '',
     '_If you want this grouped by location or exported, ask and I can format it._',
+  ].join('\n');
+}
+
+function formatMarkedExpiredResult(
+  count: number,
+  filters: string,
+  extinguishers: AiMemoryExpiringExtinguisher[],
+): string {
+  const items = extinguishers.map((ext) => {
+    const location = ext.section || ext.parentLocation || 'unassigned';
+    const mfg = ext.manufactureYear != null ? ` | mfg: ${ext.manufactureYear}` : '';
+    const exp = ext.expirationYear != null ? ` | exp: ${ext.expirationYear}` : '';
+    return `- ${ext.assetId} (${ext.serial || 'no serial'}) | ${location}${mfg}${exp}`;
+  });
+
+  return [
+    '### Marked expired extinguishers',
+    `Found **${count}** extinguisher(s) marked expired.`,
+    '',
+    '**Applied filters**',
+    filters,
+    '',
+    items.length > 0 ? '**Printable list**' : '**Printable list**\n- No extinguishers are marked expired.',
+    ...items,
+    '',
+    '_This official replacement list only includes units where the expired checkbox has been saved. Possible candidates are separate; ask for possible expired candidates if you want that advisory list too._',
+  ].join('\n');
+}
+
+function formatExpiredCandidatesResult(
+  count: number,
+  filters: string,
+  extinguishers: AiMemoryExpiringExtinguisher[],
+): string {
+  const items = extinguishers.map((ext) => {
+    const location = ext.section || ext.parentLocation || 'unassigned';
+    return `- ${ext.assetId} (${ext.serial || 'no serial'}) | ${location} | mfg: ${ext.manufactureYear ?? 'unknown'}`;
+  });
+
+  return [
+    '### Possible expired candidates',
+    `Found **${count}** active extinguisher(s) manufactured 6+ years ago that are not marked expired.`,
+    '',
+    '**Applied filters**',
+    filters,
+    '',
+    items.length > 0 ? '**Candidate list**' : '**Candidate list**\n- No possible candidates matched this rule.',
+    ...items,
+    '',
+    '_This is not the official expired list. It is only a follow-up list to help catch units someone may have forgotten to mark expired._',
   ].join('\n');
 }
 

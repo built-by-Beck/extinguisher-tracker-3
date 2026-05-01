@@ -42,6 +42,10 @@ const faqSections = [
         q: 'What should we do when an extinguisher is replaced?',
         a: 'Use the replacement or retirement workflow instead of overwriting history. The goal is to keep the active inventory clean while preserving what happened to the previous unit.',
       },
+      {
+        q: 'What is the difference between marked expired and possible expired candidates?',
+        a: 'Marked Expired is the official list: only active, non-deleted extinguishers where the expired flag has been saved. Possible Candidates is an advisory follow-up list for active units manufactured 6+ years ago that are not marked expired yet.',
+      },
     ],
   },
   {

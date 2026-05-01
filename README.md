@@ -38,6 +38,7 @@ The system is **organization-centric** — all operational data belongs to the o
 - **Inspection Routes** — Pre-configured walking routes for efficient field workflows
 - **Photo & GPS Documentation** — Capture photographic evidence and location data during inspections
 - **Lifecycle Tracking** — Full extinguisher history from installation through retirement
+- **Expiration Planning Lists** — Separate official marked-expired inventory from advisory 6+ year manufacture-date candidates
 - **Audit Logs** — Append-only, immutable compliance records for regulatory audits
 - **Reports & Exports** — Generate compliance reports in CSV, Excel, and JSON formats
 - **Legal Attestation** — Digital inspection sign-off for regulatory compliance

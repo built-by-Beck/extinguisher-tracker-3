@@ -143,3 +143,4 @@ Guarded the edit-page recalculation call with `extinguisher?.lifecycleStatus ===
 
 **Prevention rule:**
 Before calling lifecycle maintenance callables from shared edit flows, verify callable preconditions against active and non-active inventory states.
+

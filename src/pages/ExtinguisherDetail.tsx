@@ -52,7 +52,13 @@ import {
   type Inspection,
   type ChecklistData,
 } from '../services/inspectionService.ts';
-import { getActiveWorkspaceForCurrentMonth, createWorkspaceCall } from '../services/workspaceService.ts';
+import { getCachedWorkspace } from '../services/offlineCacheService.ts';
+import {
+  createWorkspaceCall,
+  getActiveWorkspaceForCurrentMonth,
+  getWorkspace,
+  type Workspace,
+} from '../services/workspaceService.ts';
 import { subscribeToLocations, type Location } from '../services/locationService.ts';
 import { useSectionTimer } from '../hooks/useSectionTimer.ts';
 import { resolveSectionTimerKey } from '../utils/sectionTimerKey.ts';
@@ -125,6 +131,7 @@ export default function ExtinguisherDetail() {
   // State for current inspection
   const [inspection, setInspection] = useState<Inspection | null | undefined>(undefined);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
+  const [workspaceContext, setWorkspaceContext] = useState<Workspace | null>(null);
   const [noActiveWorkspace, setNoActiveWorkspace] = useState(false);
   const [addingToChecklist, setAddingToChecklist] = useState(false);
   const [addToChecklistError, setAddToChecklistError] = useState<string | null>(null);
@@ -188,8 +195,20 @@ export default function ExtinguisherDetail() {
     setInspection(undefined);
     setNoActiveWorkspace(false);
     setActiveWorkspaceId(null);
+    setWorkspaceContext(null);
 
-    const resolvedWsId = workspaceId ?? (await getActiveWorkspaceForCurrentMonth(orgId))?.id ?? null;
+    let resolvedWorkspace: Workspace | null = null;
+    if (workspaceId) {
+      try {
+        resolvedWorkspace = await getWorkspace(orgId, workspaceId);
+      } catch {
+        const cached = await getCachedWorkspace(orgId, workspaceId);
+        resolvedWorkspace = cached ? (cached as unknown as Workspace) : null;
+      }
+    } else {
+      resolvedWorkspace = await getActiveWorkspaceForCurrentMonth(orgId);
+    }
+    const resolvedWsId = resolvedWorkspace?.id ?? null;
 
     if (!resolvedWsId) {
       setNoActiveWorkspace(true);
@@ -198,6 +217,7 @@ export default function ExtinguisherDetail() {
     }
 
     setActiveWorkspaceId(resolvedWsId);
+    setWorkspaceContext(resolvedWorkspace);
     const insp = await getInspectionForExtinguisherInWorkspace(orgId, extId, resolvedWsId);
 
     setInspection(insp ?? null);
@@ -226,6 +246,12 @@ export default function ExtinguisherDetail() {
     return subscribeToLocations(orgId, setLocations);
   }, [orgId]);
 
+  const isWorkspaceArchived = !!workspaceId && workspaceContext?.status === 'archived';
+  const isWorkspaceReadOnly = !!workspaceId && workspaceContext?.status !== 'active';
+  const canInspectInContext = canInspect && !isWorkspaceReadOnly;
+  const canResetInContext = canReset && !isWorkspaceReadOnly;
+  const canEditInContext = canEdit && !isWorkspaceReadOnly;
+
   // Callback when InspectionPanel saves/resets
   const handleInspectionUpdated = useCallback(() => {
     loadInspection().catch(() => setInspection(null));
@@ -233,7 +259,7 @@ export default function ExtinguisherDetail() {
   }, [loadInspection, refreshHistory]);
 
   async function handleRestore() {
-    if (!orgId || !extId) return;
+    if (!orgId || !extId || isWorkspaceReadOnly) return;
     setRestoring(true);
     try {
       await restoreExtinguisher(orgId, extId);
@@ -256,7 +282,7 @@ export default function ExtinguisherDetail() {
       if (
         activeWorkspaceId &&
         ext &&
-        canInspect &&
+        canInspectInContext &&
         hasFeature(org?.featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan)
       ) {
         const key = resolveSectionTimerKey(ext, locations, inspection ?? null);
@@ -267,7 +293,7 @@ export default function ExtinguisherDetail() {
     [
       activeWorkspaceId,
       ext,
-      canInspect,
+      canInspectInContext,
       org?.featureFlags,
       org?.plan,
       locations,
@@ -298,7 +324,7 @@ export default function ExtinguisherDetail() {
   }
 
   async function handleAddToCurrentChecklist() {
-    if (!orgId || !extId || !activeWorkspaceId) return;
+    if (!orgId || !extId || !activeWorkspaceId || isWorkspaceReadOnly) return;
     setAddingToChecklist(true);
     setAddToChecklistError(null);
     try {
@@ -312,7 +338,7 @@ export default function ExtinguisherDetail() {
   }
 
   async function handleDelete(reason: string) {
-    if (!orgId || !extId || !user) return;
+    if (!orgId || !extId || !user || isWorkspaceReadOnly) return;
     setDeleting(true);
     try {
       await softDeleteExtinguisher(orgId, extId, user.uid, reason);
@@ -382,6 +408,15 @@ export default function ExtinguisherDetail() {
         </div>
       )}
 
+      {isWorkspaceArchived && (
+        <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+          <span className="font-semibold text-gray-900">
+            {workspaceContext?.label ?? 'This workspace'} is archived.
+          </span>{' '}
+          Historical records are read-only, so inspection, pass/fail, reset, and edit actions are disabled here.
+        </div>
+      )}
+
       {/* Deleted banner */}
       {isDeleted && (
         <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3">
@@ -392,7 +427,7 @@ export default function ExtinguisherDetail() {
               {ext.deletionReason && <> Reason: {ext.deletionReason}</>}
             </span>
           </div>
-          {canEdit && (
+          {canEditInContext && (
             <button
               onClick={handleRestore}
               disabled={restoring}
@@ -416,7 +451,7 @@ export default function ExtinguisherDetail() {
             Print Tag
           </button>
         )}
-        {canEdit && extId && !isDeleted && (
+        {canEditInContext && extId && !isDeleted && (
           <button
             onClick={() => setReplaceOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-orange-300 px-3 py-2 text-sm font-medium text-orange-700 hover:bg-orange-50"
@@ -425,7 +460,7 @@ export default function ExtinguisherDetail() {
             Replace
           </button>
         )}
-        {canEdit && extId && (
+        {canEditInContext && extId && (
           <Link
             to={`/dashboard/inventory/${extId}/edit`}
             state={{ returnTo: location.pathname + location.search }}
@@ -435,7 +470,7 @@ export default function ExtinguisherDetail() {
             Edit
           </Link>
         )}
-        {canEdit && extId && !isDeleted && (
+        {canEditInContext && extId && !isDeleted && (
           <button
             onClick={() => setDeletePromptOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
@@ -545,6 +580,7 @@ export default function ExtinguisherDetail() {
           </div>
 
           {activeWorkspaceId &&
+            !isWorkspaceReadOnly &&
             hasFeature(
               org?.featureFlags as Record<string, boolean> | null | undefined,
               'sectionTimeTracking',
@@ -601,15 +637,19 @@ export default function ExtinguisherDetail() {
           {!noActiveWorkspace && inspection === null && (
             <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-5">
               <p className="text-sm font-semibold text-amber-900">
-                This extinguisher is not on this month&apos;s pending checklist.
+                {isWorkspaceReadOnly
+                  ? 'This extinguisher does not have an inspection record in this archived workspace.'
+                  : 'This extinguisher is not on this month&apos;s pending checklist.'}
               </p>
               <p className="mt-1 text-sm text-amber-800">
-                New inventory does not change an active monthly checklist until an owner or admin adds it.
+                {isWorkspaceReadOnly
+                  ? 'Archived monthly workspaces are read-only and cannot receive new checklist items.'
+                  : 'New inventory does not change an active monthly checklist until an owner or admin adds it.'}
               </p>
               {addToChecklistError && (
                 <p className="mt-2 text-sm text-red-600">{addToChecklistError}</p>
               )}
-              {canEdit && activeWorkspaceId ? (
+              {canEditInContext && activeWorkspaceId ? (
                 <button
                   type="button"
                   onClick={handleAddToCurrentChecklist}
@@ -643,8 +683,8 @@ export default function ExtinguisherDetail() {
               inspectionId={inspection.id!}
               workspaceId={activeWorkspaceId}
               inspection={inspection}
-              canInspect={canInspect}
-              canReset={canReset}
+              canInspect={canInspectInContext}
+              canReset={canResetInContext}
               isOnline={isOnline}
               inspectorName={user?.displayName ?? user?.email ?? 'Unknown'}
               previousNotes={history.find((h) => (h.status === 'pass' || h.status === 'fail') && h.notes)?.notes}
@@ -799,7 +839,7 @@ export default function ExtinguisherDetail() {
 
       {/* Delete Extinguisher Modal */}
       <PromptModal
-        open={deletePromptOpen}
+        open={deletePromptOpen && canEditInContext}
         title="Delete Extinguisher"
         message={`Are you sure you want to delete Asset #${ext.assetId}? This can be undone by an admin.`}
         placeholder="Reason for deletion (optional)"
@@ -811,7 +851,7 @@ export default function ExtinguisherDetail() {
       />
 
       {/* Replace Extinguisher Modal */}
-      {replaceOpen && orgId && extId && (
+      {replaceOpen && canEditInContext && orgId && extId && (
         <ReplaceExtinguisherModal
           orgId={orgId}
           oldExtinguisherId={extId}

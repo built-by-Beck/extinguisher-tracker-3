@@ -240,6 +240,7 @@ interface LeafExtinguisherTableProps {
   workspaceId: string;
   returnTo: string;
   navigate: NavigateFunction;
+  isArchived: boolean;
 }
 
 interface ReplacedPairRow {
@@ -272,11 +273,13 @@ function ReplacedPairTable({
   workspaceId,
   returnTo,
   navigate,
+  isArchived,
 }: {
   rows: ReplacedPairRow[];
   workspaceId: string;
   returnTo: string;
   navigate: NavigateFunction;
+  isArchived: boolean;
 }) {
   return (
     <div className="space-y-3">
@@ -298,7 +301,7 @@ function ReplacedPairTable({
               }
               className="text-xs font-semibold text-orange-700 hover:text-orange-900"
             >
-              Open old unit
+              {isArchived ? 'View old unit' : 'Open old unit'}
             </button>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
@@ -327,7 +330,7 @@ function ReplacedPairTable({
                     }
                     className="mt-2 text-xs font-semibold text-green-700 hover:text-green-900"
                   >
-                    Open new unit
+                    {isArchived ? 'View new unit' : 'Open new unit'}
                   </button>
                 </>
               ) : (
@@ -405,6 +408,7 @@ function LeafExtinguisherTable({
   workspaceId,
   returnTo,
   navigate,
+  isArchived,
 }: LeafExtinguisherTableProps) {
   return (
     <div className="space-y-2">
@@ -444,7 +448,9 @@ function LeafExtinguisherTable({
                   <Icon className="h-3 w-3" />
                   {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
                 </span>
-                <p className="mt-2 text-xs font-semibold text-red-600">Inspect</p>
+                <p className={`mt-2 text-xs font-semibold ${isArchived ? 'text-gray-500' : 'text-red-600'}`}>
+                  {isArchived ? 'View' : 'Inspect'}
+                </p>
               </div>
             </div>
             {(insp.inspectedByEmail || insp.notes) && (
@@ -1613,6 +1619,7 @@ export default function WorkspaceDetail() {
               workspaceId={workspaceId}
               returnTo={returnTo}
               navigate={navigate}
+              isArchived={!!isArchived}
             />
           ) : scopeListFilter === 'pending' && pendingScopeViewMode === 'grouped' ? (
             <div className="space-y-3">
@@ -1653,6 +1660,7 @@ export default function WorkspaceDetail() {
                           workspaceId={workspaceId}
                           returnTo={returnTo}
                           navigate={navigate}
+                          isArchived={!!isArchived}
                         />
                       </div>
                     )}
@@ -1693,6 +1701,7 @@ export default function WorkspaceDetail() {
                     workspaceId={workspaceId}
                     returnTo={returnTo}
                     navigate={navigate}
+                    isArchived={!!isArchived}
                   />
                 )}
               </section>
@@ -1722,6 +1731,7 @@ export default function WorkspaceDetail() {
                     workspaceId={workspaceId}
                     returnTo={returnTo}
                     navigate={navigate}
+                    isArchived={!!isArchived}
                   />
                 )}
               </section>
@@ -1738,6 +1748,7 @@ export default function WorkspaceDetail() {
                     workspaceId={workspaceId}
                     returnTo={returnTo}
                     navigate={navigate}
+                    isArchived={!!isArchived}
                   />
                 </section>
               )}
@@ -1752,6 +1763,7 @@ export default function WorkspaceDetail() {
               workspaceId={workspaceId}
               returnTo={returnTo}
               navigate={navigate}
+              isArchived={!!isArchived}
             />
           )}
           <ScopeStatusCards
@@ -1924,7 +1936,9 @@ export default function WorkspaceDetail() {
                             {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-red-600">Inspect</td>
+                        <td className={`whitespace-nowrap px-4 py-3 text-right text-sm font-medium ${isArchived ? 'text-gray-500' : 'text-red-600'}`}>
+                          {isArchived ? 'View' : 'Inspect'}
+                        </td>
                       </tr>
                     );
                   })}
@@ -2114,8 +2128,16 @@ export default function WorkspaceDetail() {
             <div className="space-y-6">
               <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
                 <p className="mb-2 text-xs text-gray-600">
-                  Open the month workspace, pick a location, then work the <span className="font-semibold">Pending</span> list.
-                  Pass or fail removes a unit from Pending and moves it under <span className="font-semibold">Checked</span>.
+                  {isArchived ? (
+                    <>
+                      This archived workspace is read-only. Open rows to review historical inspection records.
+                    </>
+                  ) : (
+                    <>
+                      Open the month workspace, pick a location, then work the <span className="font-semibold">Pending</span> list.
+                      Pass or fail removes a unit from Pending and moves it under <span className="font-semibold">Checked</span>.
+                    </>
+                  )}
                 </p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <button
@@ -2178,6 +2200,7 @@ export default function WorkspaceDetail() {
                         workspaceId={workspaceId!}
                         returnTo={returnTo}
                         navigate={navigate}
+                        isArchived={!!isArchived}
                       />
                     )}
                   </>
@@ -2204,6 +2227,7 @@ export default function WorkspaceDetail() {
                           workspaceId={workspaceId!}
                           returnTo={returnTo}
                           navigate={navigate}
+                          isArchived={!!isArchived}
                         />
                       )}
                     </div>
@@ -2228,6 +2252,7 @@ export default function WorkspaceDetail() {
                           workspaceId={workspaceId!}
                           returnTo={returnTo}
                           navigate={navigate}
+                          isArchived={!!isArchived}
                         />
                       )}
                     </div>
@@ -2250,6 +2275,7 @@ export default function WorkspaceDetail() {
                         workspaceId={workspaceId!}
                         returnTo={returnTo}
                         navigate={navigate}
+                        isArchived={!!isArchived}
                       />
                     )}
                   </>
@@ -2267,6 +2293,7 @@ export default function WorkspaceDetail() {
                 workspaceId={workspaceId!}
                 returnTo={returnTo}
                 navigate={navigate}
+                isArchived={!!isArchived}
               />
 
               {/* Leaf pagination (classic filtered mode only) */}
