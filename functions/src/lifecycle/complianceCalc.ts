@@ -40,6 +40,12 @@ export type OverdueFlag =
   | 'six_year_overdue'
   | 'hydro_overdue';
 
+export type MonthlyInspectionSchedule =
+  | 'rolling_30_days'
+  | 'calendar_month';
+
+export const DEFAULT_MONTHLY_INSPECTION_SCHEDULE: MonthlyInspectionSchedule = 'rolling_30_days';
+
 /** Minimal extinguisher shape needed for compliance calculation */
 export interface ExtinguisherForCalc {
   lifecycleStatus: string | null;
@@ -93,16 +99,89 @@ function addYearsToTimestamp(base: Date, years: number): Timestamp {
   return Timestamp.fromDate(result);
 }
 
+function getZonedDateParts(date: Date, timeZone: string): { year: number; month: number; day: number } {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const byType = new Map(parts.map((part) => [part.type, part.value]));
+    return {
+      year: Number(byType.get('year')),
+      month: Number(byType.get('month')),
+      day: Number(byType.get('day')),
+    };
+  } catch {
+    return {
+      year: date.getUTCFullYear(),
+      month: date.getUTCMonth() + 1,
+      day: date.getUTCDate(),
+    };
+  }
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date);
+    const byType = new Map(parts.map((part) => [part.type, part.value]));
+    const zonedAsUtc = Date.UTC(
+      Number(byType.get('year')),
+      Number(byType.get('month')) - 1,
+      Number(byType.get('day')),
+      Number(byType.get('hour')),
+      Number(byType.get('minute')),
+      Number(byType.get('second')),
+    );
+    return zonedAsUtc - date.getTime();
+  } catch {
+    return 0;
+  }
+}
+
+function zonedMidnightToUtc(year: number, month: number, day: number, timeZone: string): Date {
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  const firstPass = new Date(utcGuess.getTime() - getTimeZoneOffsetMs(utcGuess, timeZone));
+  const secondPass = new Date(utcGuess.getTime() - getTimeZoneOffsetMs(firstPass, timeZone));
+  return secondPass;
+}
+
+export function normalizeMonthlyInspectionSchedule(value: unknown): MonthlyInspectionSchedule {
+  return value === 'calendar_month' ? 'calendar_month' : DEFAULT_MONTHLY_INSPECTION_SCHEDULE;
+}
+
 // ---------------------------------------------------------------------------
 // P4-01 Exported calculation functions
 // ---------------------------------------------------------------------------
 
 /**
- * Returns the next monthly inspection due date (lastInspection + 30 days).
- * If lastInspection is null, returns a Timestamp for 30 days from now.
+ * Returns the next monthly inspection due date.
+ * - rolling_30_days: lastInspection + 30 days.
+ * - calendar_month: first day of the next calendar month.
+ * If lastInspection is null, uses the current date as the base.
  */
-export function calculateNextMonthlyInspection(lastInspection: Timestamp | null): Timestamp {
+export function calculateNextMonthlyInspection(
+  lastInspection: Timestamp | null,
+  schedule: MonthlyInspectionSchedule = DEFAULT_MONTHLY_INSPECTION_SCHEDULE,
+  timeZone = 'UTC',
+): Timestamp {
   const base = lastInspection ? lastInspection.toDate() : new Date();
+  if (schedule === 'calendar_month') {
+    const parts = getZonedDateParts(base, timeZone);
+    const nextMonth = parts.month === 12 ? 1 : parts.month + 1;
+    const nextYear = parts.month === 12 ? parts.year + 1 : parts.year;
+    return Timestamp.fromDate(zonedMidnightToUtc(nextYear, nextMonth, 1, timeZone));
+  }
   return addDaysToTimestamp(base, 30);
 }
 

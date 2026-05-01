@@ -49,7 +49,8 @@ describe('saveInspection Atomicity Logic', () => {
       .mockResolvedValueOnce(mockOrgSnap)
       .mockResolvedValueOnce(mockInspSnap)
       .mockResolvedValueOnce(mockWsSnap)
-      .mockResolvedValueOnce(mockExtSnap);
+      .mockResolvedValueOnce(mockExtSnap)
+      .mockResolvedValueOnce(mockOrgSnap);
 
     adminDb.runTransaction.mockImplementation(async (cb) => await cb(mockTx));
     adminDb.doc.mockReturnValue(mockMemberDoc);
@@ -79,13 +80,16 @@ describe('saveInspection Atomicity Logic', () => {
     };
 
     const mockOrgSnap = { exists: true, data: () => ({ subscriptionStatus: 'active' }) };
-    const mockInspSnap = { exists: true, data: () => ({ status: 'pending', workspaceId: 'ws-1' }) };
+    const mockInspSnap = { exists: true, data: () => ({ status: 'pending', workspaceId: 'ws-1', extinguisherId: 'ext-1' }) };
     const mockWsSnap = { exists: true, data: () => ({ status: 'archived' }) };
+    const mockExtSnap = { exists: true, data: () => ({ lifecycleStatus: 'active' }) };
 
     mockTx.get
       .mockResolvedValueOnce(mockOrgSnap)
       .mockResolvedValueOnce(mockInspSnap)
-      .mockResolvedValueOnce(mockWsSnap);
+      .mockResolvedValueOnce(mockWsSnap)
+      .mockResolvedValueOnce(mockExtSnap)
+      .mockResolvedValueOnce(mockOrgSnap);
 
     adminDb.runTransaction.mockImplementation(async (cb) => await cb(mockTx));
     adminDb.doc.mockReturnValue(mockMemberDoc);

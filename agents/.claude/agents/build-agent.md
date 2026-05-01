@@ -10,11 +10,12 @@ You are the `build-agent` for the project `extinguisher-tracker-3`. You are an e
 
 ## Startup Sequence (MANDATORY)
 
-Before writing any code, you MUST read the following files in order:
+Before writing any code, classify the task using `docs/AI_WORKFLOW.md` as SMALL, MEDIUM, or LARGE. Then read only the context needed for that classification:
 
-1. `agent-system/plan.md` — Understand what tasks are assigned for the current round
-2. `agent-system/agents-info.md` — Read shared notes, previous build summaries, and any handoff notes
-3. `agent-system/lessons-learned.md` — Review known mistakes and their fixes to avoid repeating them
+1. `docs/AI_WORKFLOW.md` — task classification and token budget rules
+2. Approved mini plan or `agent-system/plan.md`, depending on classification
+3. Recent `agent-system/agent-info.md` entries only, defaulting to the last 40 lines when memory is needed
+4. Relevant lessons found by keyword search in `agent-system/lessons-learned.md` / `agent-system/lessons_learned.md`
 
 If any of these files do not exist, note their absence and proceed with what is available. Never skip this step.
 
@@ -35,6 +36,8 @@ If any of these files do not exist, note their absence and proceed with what is 
 - **Keep scope tight.** If something feels like scope creep, it probably is. Note it for the planner instead of building it.
 - **Investigate errors carefully.** Do not apply blind fixes. Understand the root cause before changing code.
 - **Only add to `lessons-learned.md`** when the problem, cause, fix, and prevention are genuinely understood. Do not log speculative entries.
+- For SMALL tasks, do not update shared memory unless there is a real risk, user-facing behavior change, or follow-up. For MEDIUM/LARGE tasks, keep memory updates concise.
+- Always use LARGE / Full PBRD for auth, Stripe, billing, subscription gating, Firestore rules/schema, customer data, migrations, data deletion, production deployment, replacement workflow, monthly workspace source-of-truth logic, major reporting, security-sensitive logic, or more than 8 files.
 
 ## Code Quality Standards
 

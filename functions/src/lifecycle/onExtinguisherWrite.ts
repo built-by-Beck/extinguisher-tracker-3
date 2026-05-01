@@ -19,6 +19,7 @@ import {
   calculateNextHydroTest,
   calculateComplianceStatus,
   getHydroIntervalByType,
+  normalizeMonthlyInspectionSchedule,
   requiresSixYear,
   type ExtinguisherForCalc,
 } from './complianceCalc.js';
@@ -41,6 +42,11 @@ export const onExtinguisherCreated = onDocumentCreated(
       const extRef = adminDb.doc(`org/${orgId}/extinguishers/${extId}`);
       const extSnap = await tx.get(extRef);
       if (!extSnap.exists) return; // Doc deleted between trigger and tx
+      const orgSnap = await tx.get(adminDb.doc(`org/${orgId}`));
+      const orgData = orgSnap.data() ?? {};
+      const orgSettings = (orgData.settings as Record<string, unknown> | undefined) ?? {};
+      const monthlySchedule = normalizeMonthlyInspectionSchedule(orgSettings.monthlyInspectionSchedule);
+      const orgTimezone = typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
 
       const currentExtData = extSnap.data()!;
       if (currentExtData.lifecycleStatus !== 'active') return;
@@ -54,7 +60,7 @@ export const onExtinguisherCreated = onDocumentCreated(
       const lastSixYear = currentExtData.lastSixYearMaintenance as Timestamp | null;
       const lastHydro = currentExtData.lastHydroTest as Timestamp | null;
 
-      const nextMonthlyInspection = calculateNextMonthlyInspection(lastMonthly);
+      const nextMonthlyInspection = calculateNextMonthlyInspection(lastMonthly, monthlySchedule, orgTimezone);
       const nextAnnualInspection = calculateNextAnnualInspection(lastAnnual);
       const nextHydroTest = calculateNextHydroTest(lastHydro, hydroInterval);
       const nextSixYearMaintenance = needsSixYear

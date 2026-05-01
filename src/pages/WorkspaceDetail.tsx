@@ -44,7 +44,10 @@ import {
   subscribeToInspections,
   type Inspection,
 } from '../services/inspectionService.ts';
-import type { Workspace, SectionNotesMap } from '../services/workspaceService.ts';
+import {
+  type Workspace,
+  type SectionNotesMap,
+} from '../services/workspaceService.ts';
 import { getReport } from '../services/reportService.ts';
 import { ReportDownloadButton } from '../components/reports/ReportDownloadButton.tsx';
 import type { Report } from '../types/report.ts';
@@ -1177,32 +1180,11 @@ export default function WorkspaceDetail() {
     let combined: Inspection[] = [];
 
     if (!isArchived) {
-      const extMap = new Map<string, Extinguisher>();
       const trackedExtIds = new Set(extinguishers.map((e) => e.id!));
-      for (const ext of extinguishers) {
-        if (!ext.locationId) extMap.set(ext.id!, ext);
-      }
-      const handledExtIds = new Set<string>();
       for (const insp of inspections) {
         // Skip orphaned inspections — they belong in the __deleted__ bucket, not unassigned
         if (!insp.locationId && trackedExtIds.has(insp.extinguisherId)) {
           combined.push(insp);
-          handledExtIds.add(insp.extinguisherId);
-        }
-      }
-      for (const ext of extMap.values()) {
-        if (!handledExtIds.has(ext.id!)) {
-          combined.push({
-            id: `dummy-${ext.id}`,
-            extinguisherId: ext.id!,
-            workspaceId: workspaceId!,
-            assetId: ext.assetId,
-            status: 'pending',
-            inspectedAt: null,
-            inspectedBy: null,
-            section: ext.section || '',
-            locationId: null,
-          } as unknown as Inspection);
         }
       }
       combined = dedupeInspectionsByExtinguisherLatest(combined);
@@ -1227,7 +1209,7 @@ export default function WorkspaceDetail() {
       });
     }
     return combined;
-  }, [showUnassigned, inspections, extinguishers, filters, searchQuery, isArchived, workspaceId]);
+  }, [showUnassigned, inspections, extinguishers, filters, searchQuery, isArchived]);
   const unassignedScopeStats = useMemo(() => {
     let passed = 0;
     let failed = 0;

@@ -43,6 +43,8 @@ const commonTimezones = [
   'UTC',
 ];
 
+type MonthlyInspectionSchedule = 'rolling_30_days' | 'calendar_month';
+
 function DataMaintenanceSection({ orgId }: { orgId: string }) {
   const [cleaning, setCleaning] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -104,6 +106,8 @@ export default function OrgSettings() {
 
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('');
+  const [monthlyInspectionSchedule, setMonthlyInspectionSchedule] =
+    useState<MonthlyInspectionSchedule>('rolling_30_days');
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -124,6 +128,11 @@ export default function OrgSettings() {
     if (org) {
       setName(org.name);
       setTimezone(org.settings?.timezone ?? 'America/New_York');
+      setMonthlyInspectionSchedule(
+        org.settings?.monthlyInspectionSchedule === 'calendar_month'
+          ? 'calendar_month'
+          : 'rolling_30_days',
+      );
 
       // Sync guest access state
       if (org.guestAccess?.enabled) {
@@ -204,6 +213,7 @@ export default function OrgSettings() {
       await updateDoc(orgDocRef, {
         name: name.trim(),
         'settings.timezone': timezone,
+        'settings.monthlyInspectionSchedule': monthlyInspectionSchedule,
         updatedAt: serverTimestamp(),
       });
       setSaveMessage('Settings saved successfully.');
@@ -275,6 +285,26 @@ export default function OrgSettings() {
               <option key={tz} value={tz}>{tz}</option>
             ))}
           </select>
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="monthly-inspection-schedule" className="mb-1 block text-sm font-medium text-gray-700">
+            Monthly Inspection Due Dates
+          </label>
+          <select
+            id="monthly-inspection-schedule"
+            value={monthlyInspectionSchedule}
+            onChange={(e) => setMonthlyInspectionSchedule(e.target.value as MonthlyInspectionSchedule)}
+            disabled={!canEdit}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500"
+          >
+            <option value="rolling_30_days">Rolling 30 days after the last inspection</option>
+            <option value="calendar_month">Reset to the 1st of each month</option>
+          </select>
+          <p className="mt-1 text-xs text-gray-500">
+            This controls the extinguisher Next Monthly Inspection date and reminder timing.
+            Monthly workspaces still use their own inspection rows for progress.
+          </p>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 /**
  * Single source of truth for workspace inspection counts and scoped row lists.
- * Active monthly progress is derived from inspection rows only.
+ * Active monthly progress is derived from real inspection rows only.
  *
  * Author: built_by_Beck
  */

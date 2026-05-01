@@ -35,6 +35,9 @@ const ext1: Extinguisher = {
   serial: 'S1',
   section: '',
   locationId: 'floor1',
+  category: 'standard',
+  lifecycleStatus: 'active',
+  deletedAt: null,
 } as Extinguisher;
 
 const ext2: Extinguisher = {
@@ -43,6 +46,9 @@ const ext2: Extinguisher = {
   serial: 'S2',
   section: '',
   locationId: 'floor1',
+  category: 'standard',
+  lifecycleStatus: 'active',
+  deletedAt: null,
 } as Extinguisher;
 
 function insp(partial: Partial<Inspection> & Pick<Inspection, 'id' | 'extinguisherId' | 'status'>): Inspection {
@@ -184,7 +190,7 @@ describe('buildLocationStatsMap vs collectInspectionRowsForScope', () => {
     expect(scopeRows[0]!.status).toBe('pass');
   });
 
-  it('does not create pending rows from live inventory when inspection docs are missing', () => {
+  it('does not count blank next-inspection inventory as pending until repair creates a row', () => {
     const inspections: Inspection[] = [
       insp({
         id: 'done-old',
@@ -198,7 +204,7 @@ describe('buildLocationStatsMap vs collectInspectionRowsForScope', () => {
         status: 'pass',
         updatedAt: { seconds: 20, nanoseconds: 0 } as unknown,
       }),
-      // ext2 has no inspection doc and must not count as pending until explicitly enrolled.
+      // ext2 has no inspection doc and blank Next Inspection; it is not a real monthly checklist row.
     ];
     const extinguishers = [ext1, ext2];
     const hasLocationIdData = detectHasLocationIdData(inspections, extinguishers);

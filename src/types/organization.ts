@@ -32,6 +32,7 @@ export interface OrgFeatureFlags {
  */
 export interface OrgSettings {
   timezone: string;
+  monthlyInspectionSchedule?: 'rolling_30_days' | 'calendar_month';
   sections: string[];
   defaultChecklistItems: string[];
 }

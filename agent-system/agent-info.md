@@ -92,6 +92,45 @@ Manual smoke test the new sidebar tab with a Pro org and Basic org, then deploy 
 **Handoff Notes:**
 Reviewer should verify Pro gating, Firestore rules, no hardcoded custom asset types/checklists, old extinguisher flows still excluded from asset rows, and workspace counts include asset inspections only for Pro+ orgs.
 
+## 2026-04-30 - Planning Mode
+
+**Task:**
+Remove the operational rule that blank `Next Inspection` (`--`) means an extinguisher must be added to the current Pending checklist.
+
+**Summary:**
+Inspected the workspace pending/stat utilities, workspace repair UI, backend repair callable, relevant tests, and prior project memory. The code already keeps normal pending counts/list rows tied to real inspection rows, but the first-use repair path still uses blank `nextMonthlyInspection` as the eligibility trigger for synthetic repair candidates and backend row creation. User clarified that was a one-time migration deal and must not remain as an operational rule because future months will not have blank `Next Inspection` values after the first completed checks.
+
+**Files Inspected:**
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/utils/workspaceInspectionStats.ts`
+- `src/utils/workspaceInspectionStats.test.ts`
+- `functions/src/inspections/recalculateWorkspaceStats.ts`
+- `functions/src/inspections/extinguisherInspectionRows.ts`
+- `functions/src/__tests__/repairWorkspaceChecklist.test.ts`
+- `functions/src/__tests__/extinguisherInspectionRows.test.ts`
+- `package.json`
+- `functions/package.json`
+
+**Files Changed:**
+- `agent-system/agent-info.md`
+
+**Key Decisions:**
+- Plan should remove blank `Next Inspection` as a current operational/pending trigger.
+- Pending should remain sourced from real current workspace inspection rows.
+- If a repair callable remains, it should only dedupe/recalculate existing rows or be renamed/re-scoped; it must not create rows based on `--`.
+
+**Risks / Blockers:**
+- Build must decide whether to fully remove the first-use repair banner/call path or leave a non-row-creating cleanup/recalculate action. The safest narrow fix is removing the blank-triggered candidate UI and backend creation branch.
+
+**Next Recommended Action:**
+Await user approval, then enter Build Mode to remove the blank `Next Inspection` repair trigger and update tests.
+
+**Handoff Notes:**
+Build Mode should remove `collectFirstUseRepairCandidateRows` and its WorkspaceDetail banner usage, remove `hasBlankNextMonthlyInspection` gating/row creation from `repairWorkspaceChecklist`, and update frontend/functions tests so blank `Next Inspection` no longer creates or previews pending work. Review Mode must verify no remaining `--`/blank Next Inspection logic affects pending counts, lists, or repair creation.
+
 ## 2026-04-27 - Planning Mode
 
 **Task:**
@@ -101,6 +140,7 @@ Full-program review request for errors, unnecessary code, and needed fixes.
 Started strict Plan -> Build -> Review flow. Read PBR workflow skills, project memory, package scripts, README, lint/test configuration, and active project structure. Identified `extinguisher-tracker-3` as the active app and scoped the review away from sibling legacy folders unless the user explicitly expands scope.
 
 **Files Inspected:**
+
 - `agent-system/agent-info.md`
 - `agent-system/lessons_learned.md`
 - `agent-system/error_log.jsonl`
@@ -247,3 +287,322 @@ Added deterministic backend helpers for extinguisher monthly inspection rows, ch
 - Fixed both issues by adding target-aware inspection identities, preserving asset rows in active scoped lists, moving enrollment validation before legacy row acknowledgement, and adding subscription validation to repair/recalculate.
 - Reviewer verified plan compliance, security checks, row-derived active counts, explicit owner/admin enrollment, conservative active-workspace repair, and preservation of custom asset separation.
 - Decision: approved after fixes.
+
+## 2026-04-27 - Build Mode
+
+**Task:**
+Implement Fix Pending Counts Plan.
+
+**Implementation Summary:**
+Aligned active workspace counts with the operational rule that blank `Next Inspection` means unchecked. Active workspace UI utilities now surface eligible active standard extinguishers with blank `nextMonthlyInspection` and no current-month inspection row as pending work, without overriding existing pass/fail rows. `WorkspaceDetail` now shows an owner/admin repair action that calls `repairWorkspaceChecklist`, and backend repair now backfills only missing rows that also have blank `nextMonthlyInspection`.
+
+**Files Changed:**
+- `src/utils/workspaceInspectionStats.ts`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/utils/workspaceInspectionStats.test.ts`
+- `functions/src/inspections/extinguisherInspectionRows.ts`
+- `functions/src/inspections/recalculateWorkspaceStats.ts`
+- `functions/src/__tests__/extinguisherInspectionRows.test.ts`
+- `functions/src/__tests__/repairWorkspaceChecklist.test.ts`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Plan Compliance:**
+- Blank `Next Inspection` is used as a missing-row clue only when no current-month extinguisher row exists.
+- Existing pass/fail rows remain authoritative and are not put back into Pending.
+- Repair stays owner/admin-only, subscription-checked, active-workspace-only, and does not alter custom asset row handling.
+
+**Validation:**
+- Formatter: no formatter script exists in `package.json`.
+- App targeted test: passed, `pnpm vitest run src/utils/workspaceInspectionStats.test.ts`.
+- Functions targeted tests: passed, `npm run test -- --runInBand src/__tests__/repairWorkspaceChecklist.test.ts src/__tests__/extinguisherInspectionRows.test.ts`.
+- App tests: passed, 83 tests (`pnpm test`).
+- App lint: passed (`pnpm lint`).
+- App build/typecheck: passed (`pnpm build`) with existing Vite large chunk warning.
+- Functions tests: passed, 50 tests (`npm run test`) with existing ts-jest/VM warnings.
+- Functions lint: passed (`npm run lint` in `functions`).
+- Functions build/typecheck: passed (`npm run build` in `functions`).
+- IDE diagnostics: existing Microsoft Edge Tools accessibility warnings remain in older `WorkspaceDetail` controls; ESLint passes.
+
+**Review Notes:**
+- Review initially found backend repair could over-enroll missing active extinguishers with populated `nextMonthlyInspection`.
+- Fixed by adding `hasBlankNextMonthlyInspection` and applying it to repair backfill, with regression tests.
+- Reviewer re-approved plan compliance, security, tests, and simplicity after the fix.
+
+## 2026-04-27 - Build Mode
+
+**Task:**
+Implement First-Use Repair Only Plan.
+
+**Implementation Summary:**
+Revised the pending-count fix so blank `Next Inspection` is only a first-use/current-month repair candidate signal, not normal monthly pending logic. Normal workspace stats, scoped rows, and Unassigned rows now use real current-month inspection rows only. The owner/admin repair banner remains available to create real Pending rows for this first-use gap, and backend repair keeps the blank-next guard while also skipping superseded active-stale extinguishers.
+
+**Files Changed:**
+- `src/utils/workspaceInspectionStats.ts`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/utils/workspaceInspectionStats.test.ts`
+- `functions/src/inspections/extinguisherInspectionRows.ts`
+- `functions/src/inspections/recalculateWorkspaceStats.ts`
+- `functions/src/__tests__/extinguisherInspectionRows.test.ts`
+- `functions/src/__tests__/repairWorkspaceChecklist.test.ts`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Plan Compliance:**
+- Normal monthly pending now means a real current-month inspection row with `status: pending`.
+- Blank `Next Inspection` is limited to first-use repair candidate detection and backend repair backfill.
+- Repair remains owner/admin-only, subscription-checked, active-workspace-only, pass/fail-preserving, and target-aware.
+- Future months remain driven by workspace creation/seeding and real inspection rows.
+
+**Validation:**
+- Formatter: no formatter script exists in `package.json`.
+- App targeted test: passed, `pnpm vitest run src/utils/workspaceInspectionStats.test.ts` (12 tests).
+- Functions targeted tests: passed, `npm run test -- --runInBand src/__tests__/repairWorkspaceChecklist.test.ts src/__tests__/extinguisherInspectionRows.test.ts` (8 tests).
+- App tests: passed, 83 tests (`pnpm test`).
+- App lint: passed (`pnpm lint`).
+- App build/typecheck: passed (`pnpm build`) with existing Vite large chunk warning.
+- Functions tests: passed, 51 tests (`npm run test`) with existing VM/ts-jest warnings.
+- Functions lint: passed (`npm run lint` in `functions`).
+- Functions build/typecheck: passed (`npm run build` in `functions`).
+- IDE diagnostics: existing Microsoft Edge Tools accessibility warnings remain in older `WorkspaceDetail` controls; ESLint passes.
+
+**Review Notes:**
+- Review initially found two issues: an older Unassigned dummy pending path and backend repair eligibility drift for superseded extinguishers.
+- Fixed both by removing Unassigned dummy rows and adding backend superseded-id filtering plus regression coverage.
+- Reviewer approved plan compliance, security, simplicity, tests, inspector scope, blank-next usage, and custom asset separation.
+
+## 2026-04-27 - Live Data Repair
+
+**Task:**
+Add missing first-use checklist rows to the live April 2026 workspace.
+
+**Summary:**
+Used Firebase CLI authentication to run a direct Firestore repair against project `extinguisher-tracker-3`, org `GlnLjwWl1ZEQUgVZJDlz` (`Beck-Publishing`), workspace `2026-04` (`Apr '26`). The repair created real pending inspection rows for eligible active standard extinguishers with blank `nextMonthlyInspection` and no current-month row, skipped superseded stale extinguishers, deleted one duplicate pending row, and refreshed workspace stats.
+
+**Result:**
+- Rows before repair: 608
+- Rows created: 235
+- Duplicate pending rows deleted: 1
+- Updated workspace stats: 842 total, 449 passed, 101 failed, 292 pending, 65% complete
+- Verified `Building D`: 97 total, 10 passed, 9 failed, 78 pending
+
+**Files Changed:**
+- `agent-system/agent-info.md`
+
+**Notes:**
+- No plan files were edited.
+- This was a live Firestore data repair, not a code deploy.
+
+## 2026-04-30 - Build Mode
+
+**Task:**
+Release all updates live and remove blank `Next Inspection` as an operational pending rule.
+
+**Implementation Summary:**
+Prepared the release with the corrected monthly checklist rule: pending work is driven by real current-month inspection rows only. Removed the first-use repair candidate helper and WorkspaceDetail repair banner, and changed `repairWorkspaceChecklist` so it no longer creates missing rows from blank `nextMonthlyInspection`; it now only dedupes pending duplicates and recalculates stats. Kept normal workspace creation and explicit owner/admin add-to-checklist flows intact for creating real checklist rows.
+
+**Files Changed:**
+- `src/utils/workspaceInspectionStats.ts`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/utils/workspaceInspectionStats.test.ts`
+- `functions/src/inspections/extinguisherInspectionRows.ts`
+- `functions/src/inspections/recalculateWorkspaceStats.ts`
+- `functions/src/__tests__/extinguisherInspectionRows.test.ts`
+- `functions/src/__tests__/repairWorkspaceChecklist.test.ts`
+- `functions/src/__tests__/saveInspection.test.ts`
+- `functions/jest.config.js`
+- `agent-system/error_log.jsonl`
+
+**Validation:**
+- App tests: passed, 81 tests (`pnpm test`).
+- App lint: passed (`pnpm lint`) after final cleanup.
+- App build/typecheck: passed (`pnpm build`) with existing large chunk warning.
+- Functions targeted tests: passed (`repairWorkspaceChecklist`, `extinguisherInspectionRows`).
+- Functions tests: passed, 31 tests (`npm run test`) after ignoring generated `lib/` tests.
+- Functions lint: passed (`npm run lint` in `functions`).
+- Functions build/typecheck: passed (`npm run build` in `functions`).
+
+**Review Notes:**
+- Code search verified no live app/function path treats blank `Next Inspection` or `--` as normal pending logic.
+- Remaining `buildPendingExtinguisherInspectionSeed` usages are legitimate real-row creation paths: workspace creation and explicit add-to-checklist.
+
+## 2026-04-28 - Build/Review
+
+**Task:**
+Fix replace extinguisher save failures that surfaced as a generic `internal` error.
+
+**Implementation Summary:**
+Hardened the replacement callable so an active extinguisher missing its permanent asset slot now fails with a clear `failed-precondition` message before any transaction writes. The audit log now writes the normalized canonical slot value instead of reading the raw legacy field again, preventing undefined legacy values from becoming generic callable failures. Added a focused callable regression test for successful in-place replacement and the missing-asset precondition.
+
+**Files Inspected:**
+- `functions/src/lifecycle/replaceExtinguisher.ts`
+- `src/components/extinguisher/ReplaceExtinguisherModal.tsx`
+- `src/services/lifecycleService.ts`
+- `src/services/extinguisherService.ts`
+- `firestore.rules`
+- `functions/src/__tests__/addExtinguisherToWorkspaceChecklist.test.ts`
+
+**Files Changed:**
+- `functions/src/lifecycle/replaceExtinguisher.ts`
+- `functions/src/__tests__/replaceExtinguisher.test.ts`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Plan Compliance:**
+- Kept the fix scoped to the replacement callable and its tests.
+- Preserved the invariant that asset number is the permanent slot and replacement updates the same extinguisher document.
+- Did not change frontend behavior because the backend can now return the clearer precondition message through the existing modal error display.
+
+**Validation:**
+- Formatter: no formatter script exists in `functions/package.json`.
+- Functions targeted test: passed, `npm run test -- --runInBand src/__tests__/replaceExtinguisher.test.ts` (2 tests).
+- Functions full tests: passed, `npm run test -- --runInBand` (54 tests).
+- Functions lint: passed, `npm run lint`.
+- Functions build/typecheck: passed, `npm run build`.
+- Validation note: a combined PowerShell command using `&&` failed before npm ran; reran the checks separately and logged the lesson.
+
+**Review Notes:**
+- Independent Review accepted the focused replacement callable fix with minor process/test hygiene concerns.
+- Review verified plan compliance, owner/admin/subscription checks remained intact, replacement history and audit writes still occur in the transaction, and tests cover the successful write plus the legacy missing-slot failure.
+- Minor concerns: Build memory should not prewrite review verdicts before Review runs; the new test follows existing local `@ts-nocheck` test style but future tests should avoid disabling type checks where practical.
+
+**Risks / Blockers:**
+- If production still reports `internal`, the next step is to inspect Cloud Functions logs for a different uncaught error class such as missing deployed indexes or transient Firestore failure.
+
+**Next Recommended Action:**
+Deploy Functions so the callable change reaches the live replacement workflow.
+
+## 2026-04-28 - PBRD Document Agent Setup
+
+**Task:**
+Create the Document Agent and update the project agent workflow from PBR to PBRD.
+
+**Summary:**
+Added the Document Agent as the final Plan -> Build -> Review -> Document stage for Cursor, Claude, and Codex agent systems. Updated workflow documentation so accepted review work now hands off to documentation before a task is considered closed.
+
+**Files Inspected:**
+
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+- `AGENTS.md`
+- `CLAUDE.md`
+- `CODEX.md`
+- `README.md`
+- `docs/AI_WORKFLOW.md`
+- `agents/.claude/agents/plan-agent.md`
+- `agents/.claude/agents/build-agent.md`
+- `agents/.claude/agents/review-agent.md`
+- `agents/.codex/agents/plan-agent.md`
+- `agents/.codex/agents/build-agent.md`
+- `agents/.codex/agents/review-agent.md`
+
+**Files Updated:**
+
+- `.cursor/agents/document-agent.md`
+- `agents/.claude/agents/document-agent.md`
+- `agents/.codex/agents/document-agent.md`
+- `agents/.claude/agents/review-agent.md`
+- `agents/.codex/agents/review-agent.md`
+- `AGENTS.md`
+- `CLAUDE.md`
+- `CODEX.md`
+- `README.md`
+- `docs/AI_WORKFLOW.md`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+
+**README Status:**
+Updated AI workflow and agent-system references from PBR to PBRD.
+
+**TODO Status:**
+No `TODO.md` was present in the active project, and this setup did not require creating a roadmap file.
+
+**Website / Marketing Page Status:**
+No website or marketing page copy was changed because this is an internal agent workflow capability, not a product feature.
+
+**FAQ / Getting Started Status:**
+No user-facing FAQ or onboarding content was changed because the new agent affects internal development workflow only.
+
+**Documentation Still Needed:**
+None for this PBRD setup pass.
+
+**Validation Notes:**
+Stale workflow search found no remaining active old three-stage agent labels. Remaining `Plan -> Build -> Review` / `Plan → Build → Review` matches are updated PBRD strings or historical memory entries.
+
+**Review Verdict:**
+ACCEPTED
+
+## 2026-04-28 - PBRD Lite Token Reduction
+
+**Task:**
+Reduce PBRD token usage by adding SMALL/MEDIUM/LARGE task classification and conditional Document Agent rules.
+
+**Summary:**
+Updated the workflow control files so SMALL tasks use PBRD Lite, MEDIUM tasks use focused Plan + Build + Review, and LARGE/high-risk tasks keep Full PBRD. Added token budget defaults that avoid full memory reads, full lessons reads, full plan rewrites, all-agent runs, and automatic Document passes for tiny changes.
+
+**Files Updated:**
+
+- `.cursor/rules/pbrd-lite.mdc`
+- `.cursor/agents/document-agent.md`
+- `agents/.claude/agents/plan-agent.md`
+- `agents/.claude/agents/build-agent.md`
+- `agents/.claude/agents/review-agent.md`
+- `agents/.claude/agents/document-agent.md`
+- `agents/.codex/agents/plan-agent.md`
+- `agents/.codex/agents/build-agent.md`
+- `agents/.codex/agents/review-agent.md`
+- `agents/.codex/agents/document-agent.md`
+- `AGENTS.md`
+- `CLAUDE.md`
+- `CODEX.md`
+- `README.md`
+- `docs/AI_WORKFLOW.md`
+- `agent-system/agent-info.md`
+
+**Validation Notes:**
+Workflow-only change; no production logic was touched. Full PBRD remains required for auth, Stripe, billing, subscription gating, Firestore rules/schema, customer data, migrations, data deletion, deployment, replacement workflow, monthly workspace source-of-truth logic, major reporting, and security-sensitive work.
+
+## 2026-04-30 - Monthly Inspection Schedule Settings Plan
+
+**Task:**
+Plan a user-selectable monthly extinguisher due-date behavior: current rolling 30-day scheduling versus resetting monthly due dates to the first of each month.
+
+**Summary:**
+Inspected workspace creation, inspection save, lifecycle recalculation, org settings UI/types, and prior monthly checklist lessons. Current workspaces already seed all active standard extinguishers for each month, while lifecycle due dates/reminders still use `lastMonthlyInspection + 30 days`.
+
+**Files Inspected:**
+- `functions/src/workspaces/createWorkspace.ts`
+- `functions/src/inspections/saveInspection.ts`
+- `functions/src/inspections/extinguisherInspectionRows.ts`
+- `functions/src/lifecycle/complianceCalc.ts`
+- `functions/src/lifecycle/recalculateLifecycle.ts`
+- `functions/src/lifecycle/batchRecalculate.ts`
+- `functions/src/lifecycle/onExtinguisherWrite.ts`
+- `functions/src/lifecycle/replaceExtinguisher.ts`
+- `src/pages/OrgSettings.tsx`
+- `src/types/organization.ts`
+- `src/services/workspaceService.ts`
+- `src/pages/Workspaces.tsx`
+- `src/utils/workspaceInspectionStats.ts`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Changed:**
+- `agent-system/agent-info.md`
+
+**Key Decisions:**
+- Classify as LARGE / Full PBRD because it changes monthly inspection source-of-truth behavior.
+- Plan should preserve rolling 30-day behavior as default and add an org setting for calendar-month scheduling.
+- Build must avoid treating inventory due-date fields as normal workspace pending rows; workspace pending remains real inspection rows only.
+
+**Risks / Blockers:**
+- Need user approval before Build edits.
+- Timezone handling for "first of the month" should align with org settings where practical.
+
+**Next Recommended Action:**
+Get plan approval, then run Build Mode with focused implementation and validation.
+
+**Handoff Notes:**
+Implement a reusable monthly due schedule helper, apply it to inspection save and lifecycle recalculation paths, expose the setting in organization settings, add tests, then run Review.

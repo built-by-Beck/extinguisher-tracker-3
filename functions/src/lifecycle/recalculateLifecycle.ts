@@ -19,6 +19,7 @@ import {
   calculateNextHydroTest,
   calculateComplianceStatus,
   getHydroIntervalByType,
+  normalizeMonthlyInspectionSchedule,
   requiresSixYear,
   type ExtinguisherForCalc,
 } from './complianceCalc.js';
@@ -40,6 +41,11 @@ export const recalculateExtinguisherLifecycle = onCall(async (request) => {
   const extRef = adminDb.doc(`org/${orgId}/extinguishers/${extinguisherId}`);
   const extSnap = await extRef.get();
   if (!extSnap.exists) throwNotFound('Extinguisher not found.');
+  const orgSnap = await adminDb.doc(`org/${orgId}`).get();
+  const orgData = orgSnap.data() ?? {};
+  const orgSettings = (orgData.settings as Record<string, unknown> | undefined) ?? {};
+  const monthlySchedule = normalizeMonthlyInspectionSchedule(orgSettings.monthlyInspectionSchedule);
+  const orgTimezone = typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
 
   const extData = extSnap.data()!;
 
@@ -62,7 +68,7 @@ export const recalculateExtinguisherLifecycle = onCall(async (request) => {
   const hydroInterval = ext.hydroTestIntervalYears ?? getHydroIntervalByType(extType);
   const needsSixYear = ext.requiresSixYearMaintenance ?? requiresSixYear(extType);
 
-  const nextMonthlyInspection = calculateNextMonthlyInspection(ext.lastMonthlyInspection);
+  const nextMonthlyInspection = calculateNextMonthlyInspection(ext.lastMonthlyInspection, monthlySchedule, orgTimezone);
   const nextAnnualInspection = calculateNextAnnualInspection(ext.lastAnnualInspection);
   const nextHydroTest = calculateNextHydroTest(ext.lastHydroTest, hydroInterval);
   const nextSixYearMaintenance = needsSixYear

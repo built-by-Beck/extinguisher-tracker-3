@@ -25,9 +25,18 @@ import {
   calculateNextHydroTest,
   calculateComplianceStatus,
   getHydroIntervalByType,
+  normalizeMonthlyInspectionSchedule,
   requiresSixYear,
   type ExtinguisherForCalc,
 } from './complianceCalc.js';
+
+function requireStringField(value: unknown, message: string): string {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  if (!trimmed) {
+    throwFailedPrecondition(message);
+  }
+  return trimmed;
+}
 
 interface NewExtinguisherData {
   assetId: string;
@@ -79,6 +88,11 @@ export const replaceExtinguisher = onCall(async (request) => {
 
   return await adminDb.runTransaction(async (tx) => {
     await validateSubscriptionTx(tx, orgId);
+    const orgSnap = await tx.get(adminDb.doc(`org/${orgId}`));
+    const orgData = orgSnap.data() ?? {};
+    const orgSettings = (orgData.settings as Record<string, unknown> | undefined) ?? {};
+    const monthlySchedule = normalizeMonthlyInspectionSchedule(orgSettings.monthlyInspectionSchedule);
+    const orgTimezone = typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
 
     const extRef = adminDb.doc(`org/${orgId}/extinguishers/${oldExtinguisherId}`);
     const extSnap = await tx.get(extRef);
@@ -90,7 +104,10 @@ export const replaceExtinguisher = onCall(async (request) => {
       throwFailedPrecondition('Only active extinguishers can be replaced.');
     }
 
-    const oldAssetId = String(oldExtData.assetId ?? '').trim();
+    const oldAssetId = requireStringField(
+      oldExtData.assetId,
+      'Extinguisher asset number is missing. Add an asset number before replacing this extinguisher.',
+    );
     const requestedAssetId = newExtinguisherData.assetId?.trim();
     if (requestedAssetId && requestedAssetId !== oldAssetId) {
       throwFailedPrecondition('Asset number is the permanent slot and cannot be changed during replacement.');
@@ -144,7 +161,7 @@ export const replaceExtinguisher = onCall(async (request) => {
     const hydroInterval = getHydroIntervalByType(extType);
     const needsSixYear = requiresSixYear(extType);
 
-    const nextMonthlyInspection = calculateNextMonthlyInspection(null);
+    const nextMonthlyInspection = calculateNextMonthlyInspection(null, monthlySchedule, orgTimezone);
     const nextAnnualInspection = calculateNextAnnualInspection(null);
     const nextHydroTest = calculateNextHydroTest(null, hydroInterval);
     const nextSixYearMaintenance = needsSixYear ? calculateNextSixYearMaintenance(null) : null;
@@ -217,7 +234,7 @@ export const replaceExtinguisher = onCall(async (request) => {
       entityId: oldExtinguisherId,
       details: {
         extinguisherId: oldExtinguisherId,
-        oldAssetId: oldExtData.assetId,
+        oldAssetId,
         newAssetId: oldAssetId,
         previousSerial: oldExtData.serial ?? null,
         newSerial,

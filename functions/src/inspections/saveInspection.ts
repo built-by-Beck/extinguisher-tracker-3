@@ -9,6 +9,7 @@ import {
   calculateNextMonthlyInspection,
   calculateComplianceStatus,
   getHydroIntervalByType,
+  normalizeMonthlyInspectionSchedule,
   requiresSixYear,
   type ExtinguisherForCalc,
 } from '../lifecycle/complianceCalc.js';
@@ -89,14 +90,17 @@ export const saveInspection = onCall(async (request) => {
       ? null
       : adminDb.doc(`org/${orgId}/extinguishers/${inspData.extinguisherId}`);
     const extSnap = extRef ? await tx.get(extRef) : null;
+    const orgSnap = await tx.get(adminDb.doc(`org/${orgId}`));
+    const orgData = orgSnap.data() ?? {};
+    const orgSettings = (orgData.settings as Record<string, unknown> | undefined) ?? {};
+    const monthlySchedule = normalizeMonthlyInspectionSchedule(orgSettings.monthlyInspectionSchedule);
+    const orgTimezone = typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
 
     // 3. Validation logic
     if (wsSnap.exists && wsSnap.data()?.status === 'archived') {
       throwFailedPrecondition('Cannot modify inspections in an archived workspace.');
     }
     if (targetType === 'asset') {
-      const orgSnap = await tx.get(adminDb.doc(`org/${orgId}`));
-      const orgData = orgSnap.data() ?? {};
       if (
         !canUseCustomAssetInspections(
           typeof orgData.plan === 'string' ? orgData.plan : null,
@@ -190,8 +194,7 @@ export const saveInspection = onCall(async (request) => {
     if (targetType !== 'asset' && extRef && extSnap?.exists) {
       const extData = extSnap.data()!;
 
-      // nextMonthlyInspection = now + 30 days (inspection just completed)
-      const nextMonthlyInspection = calculateNextMonthlyInspection(now);
+      const nextMonthlyInspection = calculateNextMonthlyInspection(now, monthlySchedule, orgTimezone);
 
       // Build calc input with the freshly updated monthly date
       const extType = (extData.extinguisherType as string | null) ?? '';

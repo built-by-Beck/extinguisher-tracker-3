@@ -110,6 +110,7 @@ export const createOrganization = onCall<CreateOrgInput, Promise<CreateOrgOutput
       // Default settings
       settings: {
         timezone: orgTimezone,
+        monthlyInspectionSchedule: 'rolling_30_days',
         sections: [],
         defaultChecklistItems: [],
       },

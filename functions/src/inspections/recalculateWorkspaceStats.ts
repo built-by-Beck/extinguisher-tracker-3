@@ -12,11 +12,6 @@ import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { validateSubscription } from '../utils/subscription.js';
 import { throwInvalidArgument, throwFailedPrecondition, throwNotFound } from '../utils/errors.js';
-import {
-  buildPendingExtinguisherInspectionSeed,
-  deterministicExtinguisherInspectionId,
-  isMonthlyWorkspaceExtinguisher,
-} from './extinguisherInspectionRows.js';
 
 interface LooseInspection {
   id: string;
@@ -153,15 +148,7 @@ export const repairWorkspaceChecklist = onCall(async (request) => {
     throwFailedPrecondition('Repair is only supported for active workspaces.');
   }
 
-  const [extSnap, inspSnap] = await Promise.all([
-    adminDb.collection(`org/${orgId}/extinguishers`).where('deletedAt', '==', null).get(),
-    adminDb.collection(`org/${orgId}/inspections`).where('workspaceId', '==', workspaceId).get(),
-  ]);
-
-  const existingInspections: LooseInspection[] = inspSnap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Record<string, unknown>),
-  })) as LooseInspection[];
+  const inspSnap = await adminDb.collection(`org/${orgId}/inspections`).where('workspaceId', '==', workspaceId).get();
 
   const byIdentity = new Map<string, typeof inspSnap.docs>();
   for (const doc of inspSnap.docs) {
@@ -173,7 +160,7 @@ export const repairWorkspaceChecklist = onCall(async (request) => {
   }
 
   let duplicatesDeleted = 0;
-  let rowsCreated = 0;
+  const rowsCreated = 0;
   let batch = adminDb.batch();
   let batchCount = 0;
 
@@ -196,27 +183,6 @@ export const repairWorkspaceChecklist = onCall(async (request) => {
         batch = adminDb.batch();
         batchCount = 0;
       }
-    }
-  }
-
-  const seenExtinguisherIds = new Set(
-    existingInspections
-      .filter((insp) => insp.targetType !== 'asset' && insp.extinguisherId)
-      .map((insp) => insp.extinguisherId as string),
-  );
-
-  for (const extDoc of extSnap.docs) {
-    if (!isMonthlyWorkspaceExtinguisher(extDoc.data())) continue;
-    if (seenExtinguisherIds.has(extDoc.id)) continue;
-    const inspectionId = deterministicExtinguisherInspectionId(extDoc.id, workspaceId);
-    const ref = adminDb.doc(`org/${orgId}/inspections/${inspectionId}`);
-    batch.set(ref, buildPendingExtinguisherInspectionSeed(extDoc.id, workspaceId, extDoc.data()));
-    rowsCreated++;
-    batchCount++;
-    if (batchCount >= 499) {
-      await batch.commit();
-      batch = adminDb.batch();
-      batchCount = 0;
     }
   }
 
