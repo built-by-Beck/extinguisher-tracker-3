@@ -90,6 +90,16 @@ Fix: Reran staging with a PowerShell-safe semicolon separator.
 
 Prevention: For release commands in this Windows workspace, use semicolons for PowerShell command separation or run the whole command through `bash -lc`; do not use raw bash `&&` in PowerShell.
 
+## 2026-04-30 - Use PowerShell Here-Strings For Commit Messages
+
+Error: During release commit, bash heredoc quoting was attempted from inside PowerShell and PowerShell parsed the heredoc redirection before bash received it.
+
+Impact: The first commit attempt opened Git without a usable message, and the second attempt failed at PowerShell parsing.
+
+Fix: Used a PowerShell here-string assigned to `$msg` and passed it to `git commit -m $msg`.
+
+Prevention: In this Windows workspace, use PowerShell here-strings for multi-line commit messages unless running the entire command from an actual bash shell context.
+
 ## 2026-04-28 - Avoid Unsupported Lookaround In Ripgrep Validation
 
 Error: A validation search used a negative lookahead pattern with the default `rg` regex engine, which does not support lookaround.
