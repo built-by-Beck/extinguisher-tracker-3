@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ClipboardList, MapPinned, Package, Sparkles, Users, Wrench } from 'lucide-react';
+import { Bell, ClipboardList, FileText, MapPinned, Package, Printer, Share2, Sparkles, Users, WifiOff, Wrench } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { marketingSeo } from './marketingSeo.ts';
@@ -17,7 +17,7 @@ const steps = [
   },
   {
     title: 'Load inventory quickly',
-    body: 'Add units manually or import your spreadsheet to get operational fast.',
+    body: 'Add units manually or import your spreadsheet, then connect records to barcodes, QR links, and printable tag workflows.',
     icon: Package,
   },
   {
@@ -27,12 +27,27 @@ const steps = [
   },
   {
     title: 'Run inspections and track outcomes',
-    body: 'Create your current workspace, inspect assets, and keep pace with timer-backed section workflows.',
+    body: 'Create your current workspace, inspect assets, capture photos, add notes, and keep pace with timer-backed section workflows.',
     icon: ClipboardList,
   },
   {
+    title: 'Keep field work synced',
+    body: 'Use mobile and offline-oriented workflows so low-signal areas do not stop the route. Check the sync queue before relying on final records.',
+    icon: WifiOff,
+  },
+  {
+    title: 'Turn on reminders and review reports',
+    body: 'Use notifications, reports, exports, and audit logs to see what is due, what failed, and what evidence is ready to share.',
+    icon: FileText,
+  },
+  {
+    title: 'Print, share, and expand the program',
+    body: 'Print lists or tags, invite team members, share limited guest access, and add custom asset inspections when your program grows.',
+    icon: Share2,
+  },
+  {
     title: 'Use AI while you work',
-    body: 'Ask in-app AI for maintenance and compliance help without stopping to search external sites.',
+    body: 'Ask in-app AI for maintenance, NFPA-aligned guidance, inventory questions, and operational note recall without stopping to search external sites.',
     icon: Sparkles,
   },
 ] as const;
@@ -48,7 +63,8 @@ export default function MarketingGettingStartedPage() {
           <div className="max-w-3xl">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">Getting Started</h1>
             <p className="mt-4 text-lg text-gray-600">
-              A straightforward path from first login to your first completed inspection cycle.
+              A straightforward path from first login to a stronger extinguisher program: inventory, inspections,
+              evidence, reminders, reports, sharing, and cleanup.
             </p>
           </div>
 
@@ -73,8 +89,35 @@ export default function MarketingGettingStartedPage() {
 
           <div className="mt-8 rounded-xl border border-blue-200 bg-blue-50 p-5">
             <p className="text-sm text-blue-900">
-              AI guidance defaults to NFPA 10 (2022). Teams should align final decisions with their locally adopted edition.
+              AI guidance defaults to NFPA 10 (2022). The placement calculator and AI assistant are planning and
+              guidance tools; teams should align final decisions with their locally adopted edition and AHJ direction.
             </p>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {[
+              {
+                title: 'Field evidence',
+                body: 'Use photos, notes, GPS context, QR lookup, and offline sync support while work is happening.',
+                icon: Bell,
+              },
+              {
+                title: 'Physical workflow',
+                body: 'Use printable lists and tag printing to connect the digital record to the real extinguisher.',
+                icon: Printer,
+              },
+              {
+                title: 'Program expansion',
+                body: 'Use custom asset inspections, guest access, and team roles as your operation grows.',
+                icon: Users,
+              },
+            ].map(({ title, body, icon: Icon }) => (
+              <article key={title} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <Icon className="h-5 w-5 text-red-600" aria-hidden />
+                <h2 className="mt-3 text-sm font-semibold text-gray-900">{title}</h2>
+                <p className="mt-2 text-sm text-gray-600">{body}</p>
+              </article>
+            ))}
           </div>
 
           <div className="mt-10 rounded-2xl bg-gray-900 px-6 py-10 text-center">

@@ -109,3 +109,37 @@ Impact: The stale-workflow-reference check failed before producing useful result
 Fix: Reran the validation search with a simpler supported pattern and manually verified that remaining matches were either updated PBRD references or historical memory entries.
 
 Prevention: For validation searches in this workspace, avoid lookaround unless the tool explicitly supports PCRE2; prefer simple patterns plus manual review.
+
+## 2026-05-01 - Avoid Dynamic Boolean ARIA Values In JSX For Edge Diagnostics
+
+**What happened:**
+The first report button stability edit added `aria-busy={loading}` / `aria-busy={generating}`, and Edge Tools diagnostics flagged those expressions as invalid ARIA attribute values.
+
+**Root cause:**
+The JSX was valid for React, but the IDE accessibility diagnostic expected static valid ARIA values and reported the dynamic boolean expression.
+
+**Why it was avoidable:**
+The buttons were already disabled during loading, so `aria-busy` was not required for the fix or test.
+
+**Fix used:**
+Removed the dynamic `aria-busy` attributes and adjusted the regression test to assert the disabled state plus stable SVG count.
+
+**Prevention rule:**
+For loading buttons in this app, prefer native `disabled` state unless ARIA is necessary; if ARIA is needed, verify the exact attribute value against IDE accessibility diagnostics before moving to command validation.
+
+## 2026-05-01 - Guard Lifecycle Recalculation By Active Status
+
+**What happened:**
+The initial service checkbox edit called `recalculateLifecycle` after every extinguisher edit save.
+
+**Root cause:**
+The edit page can render retired/replaced records, but the lifecycle recalculation callable only accepts active extinguishers and throws for non-active records.
+
+**Why it was avoidable:**
+The callable precondition was visible in `functions/src/lifecycle/recalculateLifecycle.ts` and needed to be checked against all records reachable from the shared edit form.
+
+**Fix used:**
+Guarded the edit-page recalculation call with `extinguisher?.lifecycleStatus === 'active'`.
+
+**Prevention rule:**
+Before calling lifecycle maintenance callables from shared edit flows, verify callable preconditions against active and non-active inventory states.

@@ -13,6 +13,10 @@ const faqSections = [
         q: 'Where do I invite team members?',
         a: 'Go to Settings and open the Members area. Owners/Admins can invite users and assign roles.',
       },
+      {
+        q: 'How should roles be used?',
+        a: 'Use owner/admin access for people managing setup, billing, members, and program configuration. Inspector and viewer access should stay focused on field work and record visibility.',
+      },
     ],
   },
   {
@@ -30,6 +34,14 @@ const faqSections = [
         q: 'Where can I find the import format?',
         a: 'Use the Import Guide from Inventory for templates and exact column expectations.',
       },
+      {
+        q: 'How do barcode, QR, and tag printing fit together?',
+        a: 'Barcode search and QR links help field users reach the right record quickly. Printable lists and tag printing help connect the digital record back to physical equipment and route paperwork.',
+      },
+      {
+        q: 'What should we do when an extinguisher is replaced?',
+        a: 'Use the replacement or retirement workflow instead of overwriting history. The goal is to keep the active inventory clean while preserving what happened to the previous unit.',
+      },
     ],
   },
   {
@@ -46,6 +58,35 @@ const faqSections = [
       {
         q: 'Which NFPA edition does AI use?',
         a: 'AI guidance defaults to NFPA 10 (2022). If your jurisdiction adopts another edition, include that in your prompt and verify final decisions internally.',
+      },
+      {
+        q: 'Does the placement calculator guarantee compliance?',
+        a: 'No. Treat it as a planning aid. Final placement and compliance decisions should be confirmed against your adopted code edition, internal policy, qualified judgment, and AHJ direction.',
+      },
+      {
+        q: 'What should we do after working offline?',
+        a: 'Open the Sync Queue and confirm queued work has synced before treating reports or dashboard totals as final.',
+      },
+    ],
+  },
+  {
+    title: 'Reports, sharing, and advanced workflows',
+    items: [
+      {
+        q: 'Where do notifications and reminders show up?',
+        a: 'Use Notifications to review due, overdue, and follow-up activity. Reports and dashboards help summarize the overall program status.',
+      },
+      {
+        q: 'Where can I see audit history?',
+        a: 'Open Audit Logs to review important activity and changes. These records help reconstruct what happened without relying on memory or side notes.',
+      },
+      {
+        q: 'Can outside reviewers see records?',
+        a: 'Guest access is designed for limited visibility when someone needs to review shared information without becoming a full team member.',
+      },
+      {
+        q: 'Can we inspect non-extinguisher assets?',
+        a: 'Yes. Custom asset inspections support recurring checks for other assets that need structured inspection records, notes, and follow-up tracking.',
       },
     ],
   },

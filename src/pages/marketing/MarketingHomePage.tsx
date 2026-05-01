@@ -1,20 +1,27 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  Bell,
   Building2,
+  Camera,
   CheckCircle2,
   ClipboardList,
   Church,
   Factory,
+  FileText,
   HeartPulse,
   MapPin,
+  Printer,
+  RefreshCcw,
   School,
   ShieldCheck,
+  Share2,
   Wrench,
   Bot,
   Calculator,
   DatabaseZap,
   Barcode,
+  WifiOff,
 } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
@@ -46,11 +53,11 @@ export default function MarketingHomePage() {
         <Section className="py-14 sm:py-20">
           <div className="max-w-3xl">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-              AI-powered extinguisher software built for busy maintenance teams
+              Field-built extinguisher software for teams that cannot afford missed checks
             </h1>
             <p className="mt-5 text-lg text-gray-600 sm:text-xl">
-              Extinguisher Tracker helps your team run faster in the field: ask AI for NFPA guidance while you work, use
-              auto timers to keep routes moving, and keep audit-ready records without jumping between apps or spreadsheets.
+              Extinguisher Tracker brings inventory, inspections, AI guidance, offline-ready field work, reports,
+              reminders, and audit history into one system built around the way life safety work actually happens.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
@@ -89,6 +96,8 @@ export default function MarketingHomePage() {
                 'Lost data: tags, locations, and units get out of sync',
                 'Weak audit trail when fire marshals or inspectors ask for records',
                 'Crews need a workflow that works on phones, not just clipboards',
+                'Disconnected tools make replacement history, guest access, and reports harder than they should be',
+                'Field teams lose time when bad signal, missing photos, or unclear follow-ups break the route',
               ].map((item) => (
                 <li key={item} className="flex gap-3 rounded-lg border border-gray-100 bg-gray-50 p-4">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden />
@@ -102,8 +111,8 @@ export default function MarketingHomePage() {
         <Section>
           <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">What Extinguisher Tracker does</h2>
           <p className="mt-4 max-w-3xl text-gray-600">
-            We built a system for real route work: AI support inside the app, auto timer pacing, fast phone inspections,
-            and clear reporting for fire marshals and safety leads. No more surprises during survey season.
+            It covers the full program: setup, inventory, tags, mobile inspections, custom asset checks, evidence,
+            reminders, reports, guest sharing, lifecycle changes, and the cleanup tools that keep records trustworthy.
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
@@ -124,7 +133,7 @@ export default function MarketingHomePage() {
               },
               {
                 title: 'Placement Calculator',
-                body: 'Not sure how many units you need? Use our calculator to ensure your facility meets coverage rules.',
+                body: 'Plan extinguisher quantities and coverage with an advisory calculator that keeps local AHJ review in the loop.',
                 icon: Calculator,
               },
               {
@@ -134,7 +143,7 @@ export default function MarketingHomePage() {
               },
               {
                 title: 'Inspection Workflow',
-                body: 'Standardized checks ensure every unit is inspected the right way, every single time.',
+                body: 'Monthly workspaces, structured checks, follow-ups, and section timers help crews finish routes consistently.',
                 icon: ClipboardList,
               },
               {
@@ -146,6 +155,41 @@ export default function MarketingHomePage() {
                 title: 'Data Cleanup Tools',
                 body: 'Keep your records clean with automatic duplicate detection and easy backup restoration.',
                 icon: DatabaseZap,
+              },
+              {
+                title: 'Offline Field Work',
+                body: 'Keep moving in low-signal areas with offline support and a sync queue for inspection work.',
+                icon: WifiOff,
+              },
+              {
+                title: 'Photo, GPS & Notes',
+                body: 'Attach field evidence to inspection work so records show more than a pass or fail checkbox.',
+                icon: Camera,
+              },
+              {
+                title: 'Reports & Audit Logs',
+                body: 'Generate reports and preserve a durable activity trail for leadership, audits, and internal reviews.',
+                icon: FileText,
+              },
+              {
+                title: 'Tags, QR Links & Print',
+                body: 'Create scannable workflows with QR links, printable lists, and bulk tag printing for larger programs.',
+                icon: Printer,
+              },
+              {
+                title: 'Guest Sharing',
+                body: 'Share limited guest access when outside reviewers need visibility without giving them full admin rights.',
+                icon: Share2,
+              },
+              {
+                title: 'Lifecycle Tracking',
+                body: 'Track replacement and retirement history so old serials, new assets, and active records stay clear.',
+                icon: RefreshCcw,
+              },
+              {
+                title: 'Reminders & Notifications',
+                body: 'Use in-app notifications and reminder workflows to keep overdue work from disappearing.',
+                icon: Bell,
               },
             ].map(({ title, body, icon: Icon }) => (
               <div key={title} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -194,9 +238,14 @@ export default function MarketingHomePage() {
         <Section>
           <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Built for the real world</h2>
           <p className="mt-4 max-w-3xl text-gray-600">
-            This product exists because inspection programs are messy: people leave, locations change, and
-            inspectors show up unannounced. We focus on what crews need on the floor: AI guidance, fast lookup,
-            timer-backed workflow rhythm, clear status, and a durable record.
+            This product exists because inspection programs are messy: people leave, locations change, devices lose
+            signal, extinguishers get replaced, and inspectors show up unannounced. Every major feature is there
+            because it solves a real operational need, not because it looked good on a software checklist.
+          </p>
+          <p className="mt-4 max-w-3xl text-gray-600">
+            It was independently built by someone with life safety field experience who also writes software, which is
+            why the product stays focused on practical work: find the asset, complete the check, preserve the evidence,
+            and know what still needs attention.
           </p>
           <p className="mt-4 max-w-3xl text-sm text-gray-500">
             AI guidance references NFPA 10 (2022) by default. Your organization should align responses with the edition adopted

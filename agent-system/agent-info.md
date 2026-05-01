@@ -762,3 +762,171 @@ Use `docs/pbrd-kit/INSTALL.md` to copy the package into the next project, then r
 
 **Handoff Notes:**
 When installing in another repo, copy `docs/pbrd-kit/templates/` into the project root and keep `docs/pbrd-kit/skills/` available as the portable role-instruction source.
+
+## 2026-05-01 10:50 CT - Build/Review Mode
+
+**Task:**
+Add service checkboxes for 6-year maintenance and hydro testing on extinguisher create/edit forms.
+
+**Summary:**
+Implemented the approved service checkbox plan. `ExtinguisherForm` now exposes explicit service history checkboxes and writes server timestamp sentinels to `lastSixYearMaintenance` / `lastHydroTest` only when checked. `createExtinguisher` preserves submitted service dates. `ExtinguisherEdit` recalculates lifecycle dates after active extinguisher edits so next 6-year/hydro dates and compliance status refresh immediately.
+
+**Files Inspected:**
+- src/components/extinguisher/ExtinguisherForm.tsx
+- src/services/extinguisherService.ts
+- src/pages/ExtinguisherEdit.tsx
+- src/pages/ExtinguisherCreate.tsx
+- src/services/lifecycleService.ts
+- functions/src/lifecycle/complianceCalc.ts
+- functions/src/lifecycle/recalculateLifecycle.ts
+- functions/src/lifecycle/onExtinguisherWrite.ts
+
+**Files Changed:**
+- src/components/extinguisher/ExtinguisherForm.tsx
+- src/services/extinguisherService.ts
+- src/pages/ExtinguisherEdit.tsx
+- agent-system/agent-info.md
+- agent-system/lessons_learned.md
+- agent-system/error_log.jsonl
+
+**Key Decisions:**
+- Used `serverTimestamp()` for service completion dates so Firestore records authoritative save time instead of browser clock time.
+- Limited lifecycle recalculation after edit to active extinguishers because the existing callable rejects retired/replaced records.
+- Did not change backend lifecycle calculations, Firestore rules, billing, Stripe, or workspace source-of-truth logic.
+
+**Validation:**
+- `ReadLints` on changed source files: passed.
+- `pnpm lint`: passed.
+- `pnpm build`: passed; existing Vite large chunk warning remains.
+- `pnpm test`: passed, 9 files / 82 tests.
+- Formatter: no formatter script is configured in `package.json`.
+- Functions build/tests: not run because no functions source changed.
+
+**Review Verdict:**
+ACCEPTED
+
+**Risks / Blockers:**
+- No blocker. Service date checkboxes record "today" only; they do not let users backdate prior service events.
+
+**Next Recommended Action:**
+Manually create or edit an extinguisher with each checkbox checked in the emulator/app and confirm detail page next due dates update after the lifecycle callable completes.
+
+**Handoff Notes:**
+If backdated service records become necessary, add explicit date inputs and route the write through a validation path rather than overloading these immediate-completion checkboxes.
+
+## 2026-05-01 - Build/Review Mode
+
+**Task:**
+Fix archived April workspace PDF generation crash shown by the global ErrorBoundary.
+
+**Summary:**
+Stabilized report download button DOM during async generation by keeping format and spinner icons mounted in one fixed icon slot. Updated the Reports page subscription to depend only on `orgId` and preserve the selected workspace when report snapshots update. Added a focused React Testing Library regression test for the PDF download button.
+
+**Files Inspected:**
+- `src/components/ErrorBoundary.tsx`
+- `src/pages/Reports.tsx`
+- `src/components/reports/ReportDownloadButton.tsx`
+- `src/services/reportService.ts`
+- `functions/src/reports/generateReport.ts`
+- `functions/src/reports/pdfGenerator.ts`
+- `functions/src/workspaces/archiveWorkspace.ts`
+
+**Files Changed:**
+- `src/components/reports/ReportDownloadButton.tsx`
+- `src/components/reports/ReportDownloadButton.test.tsx`
+- `src/pages/Reports.tsx`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Key Decisions:**
+- Kept the fix frontend-only because backend report permissions, archive snapshots, signed URLs, and PDF generation flow did not need schema or auth changes.
+- Used no-emit typechecks instead of full app/functions builds to respect the approved boundary against touching generated `dist/` and `functions/lib/` outputs.
+- Document pass deferred because no docs, setup instructions, feature claims, or workflow copy changed.
+
+**Validation:**
+- `ReadLints` on changed app files: passed.
+- `pnpm test -- src/components/reports/ReportDownloadButton.test.tsx`: passed.
+- `pnpm lint`: passed.
+- `pnpm exec tsc -b --pretty false`: passed.
+- `pnpm test`: passed, 9 files / 82 tests.
+- `npm --prefix functions run lint`: passed.
+- `npm --prefix functions exec tsc -- --noEmit --pretty false`: passed.
+- Formatter: no formatter script exists in root or functions package.
+
+**Review Verdict:**
+ACCEPTED
+
+**Risks / Blockers:**
+- No blocker. The browser DOM error could not be reproduced from terminal-only evidence, so the fix targets the isolated likely React commit path and is covered by the new stable-icon regression test.
+
+**Next Recommended Action:**
+Retry April PDF generation from the archived workspace/report page in the browser with the dev app or deployed build.
+
+**Handoff Notes:**
+Future report UI loading states should avoid replacing adjacent SVG/icon nodes during async Firestore snapshot updates.
+
+## 2026-05-01 - Build/Review/Document Mode
+
+**Task:**
+Implement the approved marketing feature coverage plan without editing the plan file.
+
+**Summary:**
+Expanded public marketing, About, Pricing FAQ, public FAQ, public Getting Started, in-app Getting Started, and in-app FAQ copy so major implemented features are represented: offline sync, guest sharing, custom asset inspections, notifications, audit logs, tag printing, QR workflows, GPS/photo evidence, lifecycle replacement/retirement, team roles, reports/exports, AI guidance, and data cleanup. Reframed founder copy around an independently built, field-informed product without employer or workplace-test claims. Removed unsafe compliance wording, including the placement calculator guarantee and OSHA-compliant framing.
+
+**Files Inspected:**
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+- `src/routes/index.tsx`
+- `src/pages/marketing/MarketingHomePage.tsx`
+- `src/pages/marketing/MarketingFeaturesPage.tsx`
+- `src/pages/marketing/MarketingHowItWorksPage.tsx`
+- `src/pages/marketing/AboutPage.tsx`
+- `src/pages/marketing/MarketingFaqPage.tsx`
+- `src/pages/marketing/MarketingGettingStartedPage.tsx`
+- `src/pages/marketing/marketingPricingCopy.ts`
+- `src/pages/marketing/marketingSeo.ts`
+- `src/components/marketing/PublicMarketingLayout.tsx`
+- `src/pages/GettingStarted.tsx`
+- `src/pages/FaqPage.tsx`
+
+**Files Changed:**
+- `src/pages/marketing/MarketingHomePage.tsx`
+- `src/pages/marketing/MarketingFeaturesPage.tsx`
+- `src/pages/marketing/MarketingHowItWorksPage.tsx`
+- `src/pages/marketing/AboutPage.tsx`
+- `src/pages/marketing/MarketingFaqPage.tsx`
+- `src/pages/marketing/MarketingGettingStartedPage.tsx`
+- `src/pages/marketing/marketingPricingCopy.ts`
+- `src/pages/marketing/marketingSeo.ts`
+- `src/components/marketing/PublicMarketingLayout.tsx`
+- `src/pages/GettingStarted.tsx`
+- `src/pages/FaqPage.tsx`
+- `agent-system/agent-info.md`
+
+**Key Decisions:**
+- Used the existing About page instead of adding a new route, keeping the marketing site simple.
+- Kept all changes copy/layout only; no product behavior, permissions, data model, billing logic, or backend code changed.
+- Used advisory wording for AI, placement calculator, NFPA alignment, and compliance support to avoid overpromising legal outcomes.
+- Did not update `lessons_learned.md` or `error_log.jsonl` because no preventable mistake or meaningful failure occurred.
+
+**Validation:**
+- Risky wording search for compliance guarantees and employer/workplace claims: passed.
+- `ReadLints` on changed files: passed.
+- Formatter: no formatter script exists in root `package.json`.
+- `pnpm lint`: passed.
+- `pnpm build`: passed; existing Vite large chunk warning remains.
+- `pnpm test`: passed, 9 files / 82 tests.
+
+**Review Verdict:**
+ACCEPTED
+
+**Risks / Blockers:**
+- No blocker. Residual risk is normal marketing copy nuance: future feature/pricing changes should keep public copy aligned with implemented routes and plan entitlements.
+
+**Next Recommended Action:**
+Preview the marketing pages visually to make sure the longer feature and FAQ copy still feels balanced on mobile and desktop.
+
+**Handoff Notes:**
+Future public copy should preserve the independent field-built story while avoiding employer/workplace-development references and avoiding guaranteed compliance claims.

@@ -1,5 +1,17 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, ClipboardList, FileCheck2, MapPinned, Package, Sparkles, Users, Wrench } from 'lucide-react';
+import {
+  ArrowRight,
+  ClipboardList,
+  FileCheck2,
+  MapPinned,
+  Package,
+  Printer,
+  Share2,
+  Sparkles,
+  Users,
+  WifiOff,
+  Wrench,
+} from 'lucide-react';
 
 const steps = [
   {
@@ -19,7 +31,7 @@ const steps = [
   },
   {
     title: 'Add or import extinguishers',
-    body: 'Start with quick manual entry or import your spreadsheet. You can clean up missing fields after import.',
+    body: 'Start with quick manual entry or import your spreadsheet. Add barcode/QR context where you have it, then clean up missing fields after import.',
     icon: Package,
     links: [
       { to: '/dashboard/inventory', label: 'Go to inventory' },
@@ -37,17 +49,43 @@ const steps = [
   },
   {
     title: 'Create a workspace and start inspections',
-    body: 'Create the current month workspace, assign scope, and inspect extinguishers. Use section timing to keep routes on pace.',
+    body: 'Create the current month workspace, assign scope, and inspect extinguishers. Use section timing, photos, notes, and GPS context to keep routes on pace with better evidence.',
     icon: ClipboardList,
     links: [{ to: '/dashboard/workspaces', label: 'Open inspections' }],
   },
   {
+    title: 'Check offline sync before closing the day',
+    body: 'If crews worked in low-signal areas, review the sync queue so queued inspection work reaches the system before reports are treated as final.',
+    icon: WifiOff,
+    links: [{ to: '/dashboard/sync-queue', label: 'Open sync queue' }],
+  },
+  {
+    title: 'Print lists and tags for the field',
+    body: 'Use printable inventory lists and tag printing when you need physical labels, backup paper, or handoff packets for routes.',
+    icon: Printer,
+    links: [
+      { to: '/dashboard/inventory/print', label: 'Print inventory list' },
+      { to: '/dashboard/inventory/print-tags', label: 'Print tags' },
+    ],
+  },
+  {
     title: 'Review status and generate reports',
-    body: 'Track pass/fail trends, close follow-ups, and export records for leadership, auditors, and fire marshals.',
+    body: 'Track pass/fail trends, notifications, audit logs, follow-ups, and exports for leadership, auditors, and fire marshals.',
     icon: FileCheck2,
     links: [
       { to: '/dashboard', label: 'View dashboard' },
+      { to: '/dashboard/notifications', label: 'Open notifications' },
       { to: '/dashboard/reports', label: 'Open reports' },
+      { to: '/dashboard/audit-logs', label: 'Open audit logs' },
+    ],
+  },
+  {
+    title: 'Expand access and inspection scope',
+    body: 'Invite users by role, use guest access when limited visibility is enough, and add custom asset inspections for other recurring safety checks.',
+    icon: Share2,
+    links: [
+      { to: '/dashboard/members', label: 'Manage members' },
+      { to: '/dashboard/custom-asset-inspections', label: 'Open custom assets' },
     ],
   },
 ] as const;
@@ -96,8 +134,9 @@ export default function GettingStarted() {
       <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-5">
         <p className="flex items-start gap-2 text-sm text-blue-900">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-          Ask AI for guidance while working: compliance questions, overdue checks, and inventory summaries.
-          AI responses default to NFPA 10 (2022); confirm against your locally adopted edition before final decisions.
+          Ask AI for guidance while working: compliance questions, overdue checks, inventory summaries, and operational
+          note recall. AI responses default to NFPA 10 (2022); confirm against your locally adopted edition and AHJ
+          direction before final decisions.
         </p>
       </div>
 

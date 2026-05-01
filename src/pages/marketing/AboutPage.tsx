@@ -23,8 +23,8 @@ export default function AboutPage() {
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">About Extinguisher Tracker</h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
-              We are on a mission to modernize fire safety compliance with practical AI, smarter workflow timing,
-              and tools that help busy facilities teams move faster with fewer mistakes.
+              Extinguisher Tracker was built independently from field-level life safety experience and software
+              development skill, with each feature added because real extinguisher programs needed it.
             </p>
           </div>
         </div>
@@ -35,23 +35,24 @@ export default function AboutPage() {
             <div>
               <h2 className="text-3xl font-bold text-gray-900">Our Mission</h2>
               <p className="mt-4 text-gray-600">
-                Extinguisher Tracker was created to solve a common problem: managing fire extinguisher
-                inspections is time-consuming, error-prone, and often relies on outdated paper-based
-                systems.
+                Extinguisher Tracker was created to solve a common problem: fire extinguisher programs collect a lot
+                of important information, but too much of that information gets trapped in paper, spreadsheets, and
+                disconnected tools.
               </p>
               <p className="mt-4 text-gray-600">
-                We believe that fire safety compliance should be simple, efficient, and accessible to
-                organizations of all sizes. Our cloud-based platform eliminates paperwork, reduces
-                inspection time, and provides instant access to compliance documentation.
+                The product is intentionally practical. Inventory, locations, inspections, tags, reminders, reports,
+                custom asset checks, offline sync, audit logs, lifecycle tracking, and AI support all exist because
+                those are real needs that show up when teams are responsible for life safety work.
               </p>
               <p className="mt-4 text-gray-600">
-                The AI assistant is designed for real working conditions: if a tech needs a fast answer on a code-related
-                question, they can ask in-app instead of searching the web or flipping through scattered notes.
+                The builder behind the product is part of a rare overlap: someone with life safety field experience
+                who also builds software. That combination keeps the program focused on useful workflow instead of
+                bloated screens, vague dashboards, or features that sound good but do not help the person doing the work.
               </p>
               <p className="mt-4 text-gray-600">
-                Built by safety-minded people for safety-focused teams, Extinguisher Tracker combines
-                industry knowledge with modern technology to deliver a solution that actually works in
-                the field.
+                Extinguisher Tracker is developed separately and independently. The story is simple: identify a real
+                need in extinguisher program management, build the tool that should have existed, and keep improving
+                it around practical field use.
               </p>
             </div>
 
@@ -72,7 +73,7 @@ export default function AboutPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">Our Team</h3>
-                    <p className="text-sm text-gray-600">Built by Beck Publishing</p>
+                    <p className="text-sm text-gray-600">Built by a field-informed software developer</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -81,7 +82,7 @@ export default function AboutPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">Our Values</h3>
-                    <p className="text-sm text-gray-600">Quality, reliability, and customer success</p>
+                    <p className="text-sm text-gray-600">Practicality, reliability, and clear records</p>
                   </div>
                 </div>
               </div>
@@ -99,22 +100,22 @@ export default function AboutPage() {
               <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-gray-900">Built for the Field</h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  Designed by people who understand real-world inspections. We know the challenges of
-                  working across buildings, connectivity gaps, and tight schedules.
+                  Designed around real-world inspection conditions: buildings with poor signal, changing locations,
+                  tight routes, missing data, and the need to prove what happened later.
                 </p>
               </article>
               <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-bold text-gray-900">Always Improving</h3>
+                <h3 className="text-lg font-bold text-gray-900">No Junk Features</h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  We regularly ship new features driven by customer feedback. Your input directly
-                  shapes the future of the product.
+                  Features are added when they solve a real workflow problem: faster lookup, cleaner records,
+                  evidence capture, reminders, lifecycle clarity, or better handoffs.
                 </p>
               </article>
               <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-bold text-gray-900">Responsive Support</h3>
+                <h3 className="text-lg font-bold text-gray-900">Built Independently</h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  Our support team responds quickly and actually understands fire safety. We are here
-                  to help you succeed, not just sell software.
+                  The product was developed as its own independent software project, with a focus on solving the
+                  problems extinguisher programs face without tying the story to any outside organization.
                 </p>
               </article>
             </div>
@@ -129,9 +130,9 @@ export default function AboutPage() {
             </div>
             <h2 className="text-3xl font-bold text-gray-900">Compliance &amp; Standards</h2>
             <p className="mt-4 text-gray-600">
-              Extinguisher Tracker is designed to help you meet NFPA 10 and OSHA fire safety
-              requirements. Our inspection checklists cover standard monthly criteria, ensuring
-              comprehensive compliance documentation.
+              Extinguisher Tracker is designed to support NFPA-aligned inspection workflows, documentation, and
+              internal accountability. It helps teams organize the work and preserve evidence while final compliance
+              decisions remain tied to adopted codes, qualified judgment, and local authority requirements.
             </p>
             <p className="mt-3 text-sm text-gray-500">
               AI guidance references NFPA 10 (2022) by default, and organizations should use the edition adopted by their
@@ -143,8 +144,8 @@ export default function AboutPage() {
                 <p className="mt-1 text-sm text-gray-600">Monthly inspection requirements</p>
               </div>
               <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 className="font-bold text-gray-900">OSHA Compliant</h3>
-                <p className="mt-1 text-sm text-gray-600">Documentation standards</p>
+                <h3 className="font-bold text-gray-900">Documentation Support</h3>
+                <p className="mt-1 text-sm text-gray-600">Records for internal safety programs</p>
               </div>
               <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h3 className="font-bold text-gray-900">Audit Ready</h3>

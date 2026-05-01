@@ -12,7 +12,7 @@ const extraFaq = [
   },
   {
     q: 'Can AI help while technicians are in the field?',
-    a: 'Yes. AI can provide quick guidance on maintenance and compliance questions without leaving the app workflow.',
+    a: 'Yes. AI can provide quick guidance on maintenance and compliance questions without leaving the app workflow. It is support for trained decision-making, not a replacement for local code review or qualified judgment.',
   },
   {
     q: 'What NFPA edition does AI reference?',
@@ -21,6 +21,22 @@ const extraFaq = [
   {
     q: 'Do we need perfect data before starting?',
     a: 'No. Import what you have, then use Data Organizer to close gaps over time.',
+  },
+  {
+    q: 'Can we track more than extinguishers?',
+    a: 'Yes. Custom asset inspections let teams build recurring inspection workflows for other assets that need structured checks, notes, and follow-up visibility.',
+  },
+  {
+    q: 'What happens when an extinguisher is replaced or retired?',
+    a: 'Lifecycle tools help keep the active inventory clean while preserving replacement and retirement context, so old records do not get mixed up with the current asset list.',
+  },
+  {
+    q: 'Can we print tags or work from QR codes?',
+    a: 'Yes. The product supports QR-oriented workflows, printable inventory lists, and tag printing so the digital record connects back to the physical extinguisher.',
+  },
+  {
+    q: 'How do reminders, notifications, and audit logs fit together?',
+    a: 'Notifications help surface due or overdue work, reports summarize program status, and audit logs preserve important activity for later review.',
   },
 ] as const;
 

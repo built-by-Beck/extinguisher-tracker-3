@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuth.ts';
 import {
   subscribeToLocations,
@@ -47,6 +48,8 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
   const [vicinity, setVicinity] = useState(initialData?.vicinity ?? '');
   const [parentLocation, setParentLocation] = useState(initialData?.parentLocation ?? '');
   const [barcode, setBarcode] = useState(initialData?.barcode ?? '');
+  const [sixYearServiceCompleted, setSixYearServiceCompleted] = useState(false);
+  const [hydroServiceCompleted, setHydroServiceCompleted] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -65,6 +68,8 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
       setVicinity(initialData.vicinity ?? '');
       setParentLocation(initialData.parentLocation ?? '');
       setBarcode(initialData.barcode ?? '');
+      setSixYearServiceCompleted(false);
+      setHydroServiceCompleted(false);
     }
   }, [initialData]);
 
@@ -96,7 +101,7 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
     }
 
     try {
-      await onSubmit({
+      const payload: Partial<Extinguisher> = {
         assetId: assetId.trim(),
         serial: serial.trim(),
         manufacturer: manufacturer.trim() || null,
@@ -111,7 +116,16 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
         vicinity: vicinity.trim(),
         parentLocation: parentLocation.trim(),
         barcode: barcode.trim() || null,
-      });
+      };
+
+      if (sixYearServiceCompleted) {
+        payload.lastSixYearMaintenance = serverTimestamp();
+      }
+      if (hydroServiceCompleted) {
+        payload.lastHydroTest = serverTimestamp();
+      }
+
+      await onSubmit(payload);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An error occurred.';
       setError(message);
@@ -275,6 +289,44 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
               placeholder="e.g., 2032"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Service history */}
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <h3 className="mb-2 text-sm font-semibold text-gray-900 uppercase tracking-wide">Service History</h3>
+        <p className="mb-4 text-sm text-gray-500">
+          Check these only when the extinguisher was just serviced. This resets the next due date from today.
+        </p>
+        <div className="space-y-3">
+          <label className="flex items-start gap-3 rounded-lg border border-gray-200 px-3 py-3 text-sm">
+            <input
+              type="checkbox"
+              checked={sixYearServiceCompleted}
+              onChange={(e) => setSixYearServiceCompleted(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+            />
+            <span>
+              <span className="block font-medium text-gray-900">6-year maintenance completed</span>
+              <span className="block text-gray-500">
+                Records today as the last 6-year maintenance date for this extinguisher.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-3 rounded-lg border border-gray-200 px-3 py-3 text-sm">
+            <input
+              type="checkbox"
+              checked={hydroServiceCompleted}
+              onChange={(e) => setHydroServiceCompleted(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+            />
+            <span>
+              <span className="block font-medium text-gray-900">Hydro test completed</span>
+              <span className="block text-gray-500">
+                Records today as the last hydrostatic test date for this extinguisher.
+              </span>
+            </span>
+          </label>
         </div>
       </div>
 
