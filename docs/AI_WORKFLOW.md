@@ -113,6 +113,7 @@ Never skip review for Firestore rules, auth, Stripe, billing, subscription gatin
 ## Review agent
 
 - Scale checks to risk. For SMALL/MEDIUM tasks, run targeted checks first. For LARGE/high-risk work, run full relevant lint, typecheck, and tests.
+- Security review is required for SaaS/customer-data risk. Check for customer data exposure across tenants/users, org-scoped queries and strict tenant isolation, role and permission enforcement, client-side trust assumptions that need server/rules enforcement, Firestore rules/schema coverage for touched data paths, Stripe webhook/source-of-truth boundaries when billing is touched, data deletion/export/report/log/PII leakage risks, and copy that overpromises compliance or privacy guarantees.
 - Grep for risky patterns: `paginated` + `.length` used as a total, duplicate `map.set` loops over inspections without dedupe, or copy that implies “this month for the org” when data is filtered (e.g. Inventory table filters).
 - Confirm UI copy matches behavior (e.g. “Filtered inventory table only” vs org-wide workspace strip).
 - For AI-facing copy, keep edition messaging consistent: NFPA 10 (2022) default reference and explicit note that organizations may operate under different locally adopted editions.

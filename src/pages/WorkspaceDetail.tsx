@@ -1383,18 +1383,32 @@ export default function WorkspaceDetail() {
         </div>
 
         {/* Progress bar */}
-        <div className="mt-3 h-3 rounded-full bg-gray-200">
+        <div
+          className="mt-3 h-3 rounded-full bg-gray-200"
+          aria-label={`${currentViewStats.passed} passed and ${currentViewStats.failed} failed out of ${currentViewStats.total} extinguishers`}
+        >
           {currentViewStats.total > 0 && (
-            <div className="flex h-3 overflow-hidden rounded-full">
-              <div
-                className="bg-green-500 transition-all"
-                style={{ width: `${(currentViewStats.passed / currentViewStats.total) * 100}%` }}
+            <svg
+              className="h-3 w-full overflow-hidden rounded-full"
+              viewBox="0 0 100 12"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <rect
+                className="fill-green-500 transition-all"
+                x="0"
+                y="0"
+                width={(currentViewStats.passed / currentViewStats.total) * 100}
+                height="12"
               />
-              <div
-                className="bg-red-500 transition-all"
-                style={{ width: `${(currentViewStats.failed / currentViewStats.total) * 100}%` }}
+              <rect
+                className="fill-red-500 transition-all"
+                x={(currentViewStats.passed / currentViewStats.total) * 100}
+                y="0"
+                width={(currentViewStats.failed / currentViewStats.total) * 100}
+                height="12"
               />
-            </div>
+            </svg>
           )}
         </div>
 
@@ -1533,10 +1547,14 @@ export default function WorkspaceDetail() {
             )}
             {(scopeListFilter !== 'pending' || pendingScopeViewMode === 'table') && (
               <>
-                <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                <label
+                  htmlFor="workspace-scope-sort-mode"
+                  className="text-xs font-medium uppercase tracking-wide text-gray-500"
+                >
                   Sort mode
                 </label>
                 <select
+                  id="workspace-scope-sort-mode"
                   value={sortMode}
                   onChange={(e) => setSortMode(e.target.value as InspectionSortMode)}
                   className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
@@ -1550,10 +1568,14 @@ export default function WorkspaceDetail() {
             )}
             {scopeListFilter === 'pending' && pendingScopeViewMode === 'grouped' && (
               <>
-                <label className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                <label
+                  htmlFor="workspace-pending-location-filter"
+                  className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500"
+                >
                   Location
                 </label>
                 <select
+                  id="workspace-pending-location-filter"
                   value={pendingGroupedLocationFilter}
                   onChange={(e) => setPendingGroupedLocationFilter(e.target.value)}
                   className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
@@ -1565,10 +1587,14 @@ export default function WorkspaceDetail() {
                     </option>
                   ))}
                 </select>
-                <label className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                <label
+                  htmlFor="workspace-pending-asset-sort"
+                  className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500"
+                >
                   Asset
                 </label>
                 <select
+                  id="workspace-pending-asset-sort"
                   value={pendingGroupedAssetDir}
                   onChange={(e) => setPendingGroupedAssetDir(e.target.value as 'asc' | 'desc')}
                   className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
@@ -2012,6 +2038,8 @@ export default function WorkspaceDetail() {
               />
               {searchQuery && (
                 <button
+                  type="button"
+                  aria-label="Clear search"
                   onClick={() => setSearchQuery('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
                 >
@@ -2035,8 +2063,14 @@ export default function WorkspaceDetail() {
               </button>
             )}
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium uppercase tracking-wide text-gray-500">Sort mode</label>
+              <label
+                htmlFor="workspace-leaf-sort-mode"
+                className="text-xs font-medium uppercase tracking-wide text-gray-500"
+              >
+                Sort mode
+              </label>
               <select
+                id="workspace-leaf-sort-mode"
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as InspectionSortMode)}
                 className="rounded-md border-gray-300 py-2 text-sm focus:border-red-500 focus:ring-red-500"
@@ -2241,6 +2275,7 @@ export default function WorkspaceDetail() {
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <span>Show</span>
                     <select
+                      aria-label="Rows per page"
                       value={leafPageSize}
                       onChange={(e) => { setLeafPageSize(Number(e.target.value)); setLeafPage(1); }}
                       className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"

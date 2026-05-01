@@ -606,3 +606,159 @@ Get plan approval, then run Build Mode with focused implementation and validatio
 
 **Handoff Notes:**
 Implement a reusable monthly due schedule helper, apply it to inspection save and lifecycle recalculation paths, expose the setting in organization settings, add tests, then run Review.
+
+## 2026-04-30 - Build/Review/Document
+
+**Task:**
+Fix debugger-reported Microsoft Edge Tools diagnostics in `src/pages/WorkspaceDetail.tsx`, especially the unlabeled select near line 1539.
+
+**Summary:**
+Cleared the WorkspaceDetail accessibility/style diagnostics by associating visible labels with their selects, adding an accessible label/type to the icon-only clear-search button, and replacing inline progress-bar width styles with SVG geometry attributes.
+
+**Files Inspected:**
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+- `src/pages/WorkspaceDetail.tsx`
+- `.cursor/plans/fix_project_errors_aa33e9d2.plan.md`
+
+**Files Changed:**
+- `src/pages/WorkspaceDetail.tsx`
+- `agent-system/agent-info.md`
+
+**Key Decisions:**
+- Kept the change limited to UI accessibility/style fixes; no checklist, filtering, sorting, or pagination business logic changed.
+- Used `htmlFor`/`id` for visible select labels and `aria-label` for contextual/icon-only controls.
+- Did not update product docs because this was a narrow accessibility cleanup with no user-facing workflow change.
+
+**Validation:**
+- IDE diagnostics: passed for `src/pages/WorkspaceDetail.tsx`.
+- App lint: passed (`pnpm lint`).
+- App build/typecheck: passed (`pnpm build`).
+- App tests: passed, 81 tests (`pnpm test`).
+- Formatter: no formatter script exists in root `package.json`.
+
+**Review Verdict:**
+ACCEPTED
+
+**Risks / Blockers:**
+- None identified. Existing Vite large chunk warning remains unrelated to this fix.
+
+**Next Recommended Action:**
+No follow-up required for the reported debugger diagnostics.
+
+**Handoff Notes:**
+Future accessibility fixes should prefer semantic labels/ARIA over suppressing Microsoft Edge Tools diagnostics.
+
+## 2026-05-01 - PBRD Security Review Hardening
+
+**Task:**
+Strengthen the current PBRD Review stage so future reviews explicitly check SaaS/customer-data security risks.
+
+**Summary:**
+Added explicit SaaS security review expectations for customer data exposure, tenant isolation, role/permission enforcement, server/rules trust boundaries, Firestore/Storage coverage, Stripe billing boundaries, data export/report/log PII leakage, and overpromised compliance/privacy/security copy.
+
+**Files Inspected:**
+
+- `agent-system/agent-info.md`
+- `docs/AI_WORKFLOW.md`
+- `.cursor/rules/pbrd-lite.mdc`
+- `C:\Users\David\.cursor\skills\pbr-build-mode\SKILL.md`
+- `C:\Users\David\.cursor\skills\pbr-review-mode\SKILL.md`
+
+**Files Changed:**
+
+- `docs/AI_WORKFLOW.md`
+- `.cursor/rules/pbrd-lite.mdc`
+- `C:\Users\David\.cursor\skills\pbr-review-mode\SKILL.md`
+- `agent-system/agent-info.md`
+
+**Key Decisions:**
+
+- Kept this build scoped to current PBRD security review hardening; portable PBRD packaging remains separate.
+- Treated customer data exposure, tenant isolation, and permission/role changes as high-risk review/classification concerns.
+- Did not update product README/marketing docs because this was an internal workflow/process change.
+
+**Validation:**
+
+- Readback searches confirmed the checklist appears in workflow docs, the Cursor rule, and the active Review skill.
+- `ReadLints`: passed for `docs/AI_WORKFLOW.md`, `.cursor/rules/pbrd-lite.mdc`, and the active Review skill.
+- App formatter/lint/typecheck/tests: not applicable; markdown/workflow instructions only.
+
+**Review Verdict:**
+ACCEPTED
+
+**Risks / Blockers:**
+
+- None identified.
+
+**Next Recommended Action:**
+Run the separate portable PBRD kit build so the reusable package includes these hardened security review rules and token-budget controls.
+
+**Handoff Notes:**
+Future Review passes should explicitly check SaaS/customer-data security risks whenever work touches auth, billing, Firestore/Storage, customer data, exports, reports, logs, permissions, deletion, or other trust boundaries.
+
+## 2026-05-01 - Portable PBRD Package
+
+**Task:**
+Package the PBRD system for reuse in other projects and across Cursor, Claude terminal, Codex terminal, and generic AI coding tools.
+
+**Summary:**
+Created a portable PBRD kit under `docs/pbrd-kit/` with install docs, copy-ready Cursor/terminal templates, shared memory templates, role instructions, token-budget rules, task classification, hard gates, lessons/error logging guidance, and the hardened SaaS security review checklist.
+
+**Files Inspected:**
+
+- `agent-system/agent-info.md`
+- `C:\Users\David\.cursor\skills\pbr-build-mode\SKILL.md`
+- `C:\Users\David\.cursor\skills\pbr-workflow-orchestrator\SKILL.md`
+- `C:\Users\David\.cursor\skills\pbr-planning-mode\SKILL.md`
+- `C:\Users\David\.cursor\skills\pbr-review-mode\SKILL.md`
+- `.cursor/agents/document-agent.md`
+
+**Files Changed:**
+
+- `docs/pbrd-kit/README.md`
+- `docs/pbrd-kit/INSTALL.md`
+- `docs/pbrd-kit/templates/.cursor/rules/pbrd-lite.mdc`
+- `docs/pbrd-kit/templates/.cursor/agents/document-agent.md`
+- `docs/pbrd-kit/templates/agent-system/agent-info.md`
+- `docs/pbrd-kit/templates/agent-system/plan.md`
+- `docs/pbrd-kit/templates/agent-system/lessons_learned.md`
+- `docs/pbrd-kit/templates/agent-system/error_log.jsonl`
+- `docs/pbrd-kit/templates/AGENTS.md`
+- `docs/pbrd-kit/templates/CLAUDE.md`
+- `docs/pbrd-kit/templates/CODEX.md`
+- `docs/pbrd-kit/templates/terminal/terminal-startup-prompt.md`
+- `docs/pbrd-kit/skills/pbr-workflow-orchestrator.md`
+- `docs/pbrd-kit/skills/pbr-planning-mode.md`
+- `docs/pbrd-kit/skills/pbr-build-mode.md`
+- `docs/pbrd-kit/skills/pbr-review-mode.md`
+- `docs/pbrd-kit/skills/pbr-document-mode.md`
+- `agent-system/agent-info.md`
+
+**Key Decisions:**
+
+- Packaged the system as repo-local source material so it can be versioned here and copied into future projects.
+- Included `AGENTS.md`, `CLAUDE.md`, and `CODEX.md` templates so terminal agents that read repo instructions receive the same PBRD rules.
+- Included a generic terminal startup prompt for AI tools that do not automatically read repository instruction files.
+- Kept the package documentation-only; no app code changed.
+
+**Validation:**
+
+- Confirmed the package contains 17 files across docs, templates, terminal prompt, memory templates, Cursor files, and role instructions.
+- `ReadLints`: passed for `docs/pbrd-kit`.
+- Content search confirmed token controls, task sizing, Claude/Codex/Cursor adapters, and SaaS security review language are present.
+- App formatter/lint/typecheck/tests: not applicable; documentation/template work only.
+
+**Review Verdict:**
+ACCEPTED
+
+**Risks / Blockers:**
+
+- No blocker. Tools that do not read repo instructions automatically still need the included terminal startup prompt.
+
+**Next Recommended Action:**
+Use `docs/pbrd-kit/INSTALL.md` to copy the package into the next project, then replace placeholders for that project's stack, high-risk areas, and validation commands.
+
+**Handoff Notes:**
+When installing in another repo, copy `docs/pbrd-kit/templates/` into the project root and keep `docs/pbrd-kit/skills/` available as the portable role-instruction source.

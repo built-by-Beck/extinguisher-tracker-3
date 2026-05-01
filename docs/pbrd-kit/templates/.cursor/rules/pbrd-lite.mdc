@@ -1,0 +1,32 @@
+---
+description: Portable PBRD Lite and Full PBRD workflow with token-budget controls.
+alwaysApply: true
+---
+
+# PBRD Lite + Full PBRD
+
+Before editing, classify the task:
+
+- **SMALL**: 1-3 files; no auth, billing, Stripe, subscription gating, Firestore/Storage rules, schema, customer data, migrations, deployment, data deletion, customer data exposure risk, tenant isolation risk, permission/role changes, or security-sensitive logic. Use PBRD Lite: minimal file reads, recent memory only if needed, keyword-search lessons if needed, 1-3 bullet mini plan, smallest change, changed-file review, and no Document pass unless user-facing behavior or docs changed.
+- **MEDIUM**: 4-8 files or workflow/user-facing behavior change, but no high-risk systems. Use focused Plan + Build + Review. Read relevant memory only and run Document only if user-facing behavior, setup, app workflow, data model, or feature docs changed.
+- **LARGE**: Always Full PBRD for auth, billing, Stripe, subscription gating, Firestore/Storage rules, schema, customer data, customer data exposure risk, tenant isolation risk, permission/role changes, migrations, data deletion, production deployment, security-sensitive logic, major reporting, major workflow changes, or more than 8 files.
+
+## Token Budget Rules
+
+- Do not read full large files or all memory by default.
+- Prefer the latest relevant section of `agent-system/agent-info.md`.
+- Search `agent-system/lessons_learned.md` by keyword before reading broad sections.
+- Search `agent-system/error_log.jsonl` by relevant area before broad reads.
+- Do not scan the whole repo for SMALL tasks.
+- Explain why broader reads are needed before doing them.
+- Keep plans, reviews, memory entries, and final responses concise.
+
+## Hard Gates
+
+- Gate A: no Build without an approved Plan for non-trivial work.
+- Gate B: no acceptance without Review verdict.
+- Gate C: no task close without Document pass or explicit documented deferral when docs/user-facing behavior changed.
+
+## Security Review
+
+Never skip review for LARGE/high-risk work. Review must explicitly check SaaS security risks when applicable: customer data exposure, tenant isolation, org-scoped queries, role/permission enforcement, client trust boundaries, Firestore/Storage rules, Stripe billing source-of-truth boundaries, deletion/export/report/log PII leakage, and overpromised compliance/privacy/security copy.
