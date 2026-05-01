@@ -25,16 +25,49 @@ export interface OrgFeatureFlags {
   guestAccess: boolean;
   /** Elite/Enterprise: Invite and manage team members */
   teamMembers: boolean;
+  /** Pro+: Organization profile branding and logo display */
+  organizationBranding: boolean;
 }
 
 /**
  * Organization-level settings.
  */
+export type NfpaEdition = '2022' | '2018' | '2013' | '2010' | 'other';
+
 export interface OrgSettings {
   timezone: string;
   monthlyInspectionSchedule?: 'rolling_30_days' | 'calendar_month';
+  nfpaEdition?: NfpaEdition;
+  nfpaEditionLabel?: string;
+  localComplianceNotes?: string;
   sections: string[];
   defaultChecklistItems: string[];
+}
+
+/**
+ * Public organization profile fields managed by the org creator.
+ */
+export interface OrgProfile {
+  displayName: string;
+  website: string;
+  phone: string;
+  supportEmail: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  region: string;
+  postalCode: string;
+  country: string;
+}
+
+/**
+ * Organization branding metadata. Logo bytes live in Firebase Storage.
+ */
+export interface OrgBranding {
+  logoPath: string | null;
+  logoContentType: string | null;
+  logoUpdatedAt: Timestamp | null;
+  logoUpdatedBy: string | null;
 }
 
 /**
@@ -67,6 +100,8 @@ export interface Organization {
 
   // Organization settings
   settings: OrgSettings;
+  profile?: OrgProfile;
+  branding?: OrgBranding;
 
   // Guest access configuration (Elite/Enterprise only, null when disabled)
   guestAccess?: GuestAccessConfig | null;

@@ -17,6 +17,10 @@ const faqSections = [
         q: 'How should roles be used?',
         a: 'Use owner/admin access for people managing setup, billing, members, and program configuration. Inspector and viewer access should stay focused on field work and record visibility.',
       },
+      {
+        q: 'Can users upload profile photos or organization logos?',
+        a: 'Users choose from preset avatars instead of uploading personal profile photos. Organization logo branding is available to the organization creator on Pro, Elite, and Enterprise plans with strict image type, size, path, and permission checks.',
+      },
     ],
   },
   {
@@ -40,7 +44,11 @@ const faqSections = [
       },
       {
         q: 'What should we do when an extinguisher is replaced?',
-        a: 'Use the replacement or retirement workflow instead of overwriting history. The goal is to keep the active inventory clean while preserving what happened to the previous unit.',
+        a: 'Use Replace Extinguisher from the active unit detail page instead of overwriting history by hand. The modal confirms the old unit, lets admins reuse the existing asset/location ID or intentionally enter a new asset ID, archives the old serial/barcode/unit details, and updates the active record with the replacement unit.',
+      },
+      {
+        q: 'Where can we review old replaced units or return one as a spare?',
+        a: 'Open Replaced Extinguishers from the sidebar. It shows each retired old unit beside its current replacement, lets owners/admins track waiting-for-service, sent-for-service, discarded, or returned status, and can create a returned old unit as a new active spare record with a unique spare asset ID.',
       },
       {
         q: 'What is the difference between marked expired and possible expired candidates?',
@@ -61,7 +69,7 @@ const faqSections = [
       },
       {
         q: 'Which NFPA edition does AI use?',
-        a: 'AI guidance defaults to NFPA 10 (2022). If your jurisdiction adopts another edition, include that in your prompt and verify final decisions internally.',
+        a: 'AI uses the NFPA reference configured in Organization Settings. New organizations fall back to NFPA 10 (2022) until an owner/admin selects another edition or adds AHJ-specific notes; final decisions still need qualified internal review.',
       },
       {
         q: 'Does the placement calculator guarantee compliance?',

@@ -144,3 +144,88 @@ Guarded the edit-page recalculation call with `extinguisher?.lifecycleStatus ===
 **Prevention rule:**
 Before calling lifecycle maintenance callables from shared edit flows, verify callable preconditions against active and non-active inventory states.
 
+## 2026-05-01 - Do Not Reintroduce TsNocheck In Function Tests
+
+**What happened:**
+A new `addExtinguisherToWorkspaceChecklist` function test was added with `/* eslint-disable @typescript-eslint/ban-ts-comment */` and `// @ts-nocheck`, repeating a pattern previously removed from release-blocking tests.
+
+**Root cause:**
+Firestore and callable mocks were typed by disabling the whole test file instead of adding narrow test-local mock types.
+
+**Why it was avoidable:**
+The existing 2026-04-14 lesson already called out avoiding `@ts-nocheck` in test files, and nearby new tests showed typechecking could remain enabled.
+
+**Fix used:**
+Removed both suppression headers and introduced typed test-local mock handles for `adminDb.doc`, `adminDb.collection`, and `adminDb.runTransaction`.
+
+**Prevention rule:**
+For new or edited function tests, use focused mock types/casts for Firebase and Firestore seams; do not add file-level `@ts-nocheck` or `ban-ts-comment` disables to bypass test typing.
+
+
+## 2026-05-01 - Avoid Control Character Regexes In Validators
+
+**What happened:**
+New profile callable validators used control-character ranges in regular expressions, and ESLint blocked them with `no-control-regex` during validation.
+
+**Root cause:**
+The validation logic was correct in intent, but used a regex style that this repo's lint configuration rejects.
+
+**Why it was avoidable:**
+Previous validation lessons emphasize checking IDE/lint compatibility for defensive validation code before moving through quality gates.
+
+**Fix used:**
+Replaced the regex checks with explicit character-code helper functions and reran app/functions lint, build, and tests successfully.
+
+**Prevention rule:**
+For server-side text validators in this repo, prefer small character-code helpers over control-character regex ranges so ESLint and validation behavior stay aligned.
+
+## 2026-05-01 - Replacement Duplicate Checks Must Not Limit Before Active Filtering
+
+**What happened:**
+Review found replacement and returned-to-spare duplicate checks queried matching extinguisher rows with a result limit before filtering to lifecycle-active inventory.
+
+**Root cause:**
+The implementation reused the common pattern of limiting duplicate preflight reads even though legacy/inactive duplicate rows can occupy the limited result set ahead of an active conflict.
+
+**Why it was avoidable:**
+The replacement workflow relies on active asset, serial, and barcode uniqueness as a server-side invariant, so query completeness matters more than preflight read minimization.
+
+**Fix used:**
+Removed the server-side limits from replacement and returned-to-spare duplicate scans, removed matching client fallback limits, and added regression tests for active conflicts that would have been missed by limited queries.
+
+**Prevention rule:**
+For server-authoritative uniqueness checks that filter by active inventory state in application code, do not apply query limits before active filtering unless the active predicate is fully represented in Firestore query constraints.
+
+## 2026-05-01 - Validate Direct Callable Replacement Payload Types Before Trimming
+
+**What happened:**
+Review found direct callable input could send a truthy non-string replacement serial and hit `.trim()` instead of returning a clean validation error.
+
+**Root cause:**
+The callable checked serial truthiness first and only assumed the client TypeScript type afterward.
+
+**Why it was avoidable:**
+Cloud Function callable inputs are untrusted JSON, and runtime type checks must protect every string operation.
+
+**Fix used:**
+Changed replacement serial validation to require a string before trimming, kept the whitespace-only check, and added regression tests for both whitespace and non-string serial values.
+
+**Prevention rule:**
+For callable request payloads, validate runtime types before string normalization even when the client service type already declares the field shape.
+
+## 2026-05-01 - Use PowerShell Separators During Release Audits
+
+**What happened:**
+During the release audit, two git inspection commands used bash-style `&&` in the Windows PowerShell shell and failed before producing output.
+
+**Root cause:**
+The command syntax did not match the active shell, repeating an already known Windows release-flow pitfall.
+
+**Why it was avoidable:**
+Existing project memory already warned to use semicolons or an explicit bash shell in this workspace.
+
+**Fix used:**
+Reran the same git inspection commands with PowerShell-safe semicolon separators.
+
+**Prevention rule:**
+For this Windows workspace, use semicolons for multi-command PowerShell release/audit commands unless explicitly running the full command under bash.

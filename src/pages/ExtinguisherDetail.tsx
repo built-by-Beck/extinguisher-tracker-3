@@ -855,7 +855,7 @@ export default function ExtinguisherDetail() {
         <ReplaceExtinguisherModal
           orgId={orgId}
           oldExtinguisherId={extId}
-          oldAssetId={ext.assetId}
+          oldExtinguisher={ext}
           onClose={() => setReplaceOpen(false)}
         />
       )}

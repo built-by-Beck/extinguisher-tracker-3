@@ -167,7 +167,7 @@ export async function isAssetIdTaken(orgId: string, assetId: string, excludeId?:
   const strictHit = excludeId ? snap.docs.some((d) => d.id !== excludeId) : !snap.empty;
   if (strictHit) return true;
 
-  const q2 = query(col, where('assetId', '==', assetId), where('deletedAt', '==', null), limit(16));
+  const q2 = query(col, where('assetId', '==', assetId), where('deletedAt', '==', null));
   snap = await getDocs(q2);
   return snap.docs.some((d) => {
     if (excludeId && d.id === excludeId) return false;
@@ -191,7 +191,7 @@ export async function isSerialTaken(orgId: string, serial: string, excludeId?: s
   const strictHit = excludeId ? snap.docs.some((d) => d.id !== excludeId) : !snap.empty;
   if (strictHit) return true;
 
-  const q2 = query(col, where('serial', '==', serial), where('deletedAt', '==', null), limit(16));
+  const q2 = query(col, where('serial', '==', serial), where('deletedAt', '==', null));
   snap = await getDocs(q2);
   return snap.docs.some((d) => {
     if (excludeId && d.id === excludeId) return false;
@@ -217,7 +217,7 @@ export async function isBarcodeTaken(orgId: string, barcode: string, excludeId?:
   const strictHit = excludeId ? snap.docs.some((d) => d.id !== excludeId) : !snap.empty;
   if (strictHit) return true;
 
-  const q2 = query(col, where('barcode', '==', trimmed), where('deletedAt', '==', null), limit(16));
+  const q2 = query(col, where('barcode', '==', trimmed), where('deletedAt', '==', null));
   snap = await getDocs(q2);
   return snap.docs.some((d) => {
     if (excludeId && d.id === excludeId) return false;
@@ -501,22 +501,7 @@ export async function findExtinguisherByCode(
     const snap = await getDocs(q);
     const hit = snap.docs.find((d) => isInventoryActiveRecord(d.data() as Record<string, unknown>));
     if (hit) {
-      const ext = { id: hit.id, ...hit.data() } as Extinguisher;
-      // #region agent log
-      fetch('http://127.0.0.1:7590/ingest/60982b77-4867-44d4-bb0e-2b2e4905ad1d', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6badb8' },
-        body: JSON.stringify({
-          sessionId: '6badb8',
-          location: 'extinguisherService.ts:findExtinguisherByCode',
-          message: 'match_strict',
-          data: { field, extId: ext.id, lifecycle: ext.lifecycleStatus ?? null },
-          timestamp: Date.now(),
-          hypothesisId: 'H1',
-        }),
-      }).catch(() => {});
-      // #endregion
-      return ext;
+      return { id: hit.id, ...hit.data() } as Extinguisher;
     }
   }
 
@@ -525,39 +510,10 @@ export async function findExtinguisherByCode(
     const snap = await getDocs(q);
     const hit = snap.docs.find((d) => isInventoryActiveRecord(d.data() as Record<string, unknown>));
     if (hit) {
-      const ext = { id: hit.id, ...hit.data() } as Extinguisher;
-      // #region agent log
-      fetch('http://127.0.0.1:7590/ingest/60982b77-4867-44d4-bb0e-2b2e4905ad1d', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6badb8' },
-        body: JSON.stringify({
-          sessionId: '6badb8',
-          location: 'extinguisherService.ts:findExtinguisherByCode',
-          message: 'match_legacy_fallback',
-          data: { field, extId: ext.id, lifecycle: ext.lifecycleStatus ?? null },
-          timestamp: Date.now(),
-          hypothesisId: 'H4',
-        }),
-      }).catch(() => {});
-      // #endregion
-      return ext;
+      return { id: hit.id, ...hit.data() } as Extinguisher;
     }
   }
 
-  // #region agent log
-  fetch('http://127.0.0.1:7590/ingest/60982b77-4867-44d4-bb0e-2b2e4905ad1d', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6badb8' },
-    body: JSON.stringify({
-      sessionId: '6badb8',
-      location: 'extinguisherService.ts:findExtinguisherByCode',
-      message: 'no_match',
-      data: { trimmedLen: code.trim().length },
-      timestamp: Date.now(),
-      hypothesisId: 'H1',
-    }),
-  }).catch(() => {});
-  // #endregion
   return null;
 }
 
@@ -641,10 +597,22 @@ export async function getAllActiveExtinguishers(orgId: string): Promise<Extingui
 
 export interface ReplacementHistoryRow {
   id: string;
+  orgId?: string;
+  currentExtinguisherId?: string;
   replacedAt: unknown;
   reason: string | null;
+  notes?: string | null;
+  previousAssetId?: string | null;
   previousSerial: string | null;
   previousBarcode: string | null;
+  newAssetId?: string | null;
+  newSerial?: string | null;
+  newBarcode?: string | null;
+  waitingForService?: boolean;
+  sentForService?: boolean;
+  discarded?: boolean;
+  returned?: boolean;
+  returnedSpareExtinguisherId?: string | null;
   priorSnapshot?: Record<string, unknown>;
 }
 
@@ -663,10 +631,22 @@ export function subscribeToReplacementHistory(
       const data = d.data();
       return {
         id: d.id,
+        orgId: (data.orgId as string | undefined) ?? undefined,
+        currentExtinguisherId: (data.currentExtinguisherId as string | undefined) ?? undefined,
         replacedAt: data.replacedAt,
         reason: (data.reason as string | null) ?? null,
+        notes: (data.notes as string | null) ?? null,
+        previousAssetId: (data.previousAssetId as string | null) ?? null,
         previousSerial: (data.previousSerial as string | null) ?? null,
         previousBarcode: (data.previousBarcode as string | null) ?? null,
+        newAssetId: (data.newAssetId as string | null) ?? null,
+        newSerial: (data.newSerial as string | null) ?? null,
+        newBarcode: (data.newBarcode as string | null) ?? null,
+        waitingForService: data.waitingForService === true,
+        sentForService: data.sentForService === true,
+        discarded: data.discarded === true,
+        returned: data.returned === true,
+        returnedSpareExtinguisherId: (data.returnedSpareExtinguisherId as string | null) ?? null,
         priorSnapshot: data.priorSnapshot as Record<string, unknown> | undefined,
       };
     });

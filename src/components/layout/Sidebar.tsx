@@ -50,8 +50,8 @@ const navItems: NavItem[] = [
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
   { to: '/dashboard/custom-asset-inspections', label: 'Custom Asset Inspections', icon: ClipboardCheck, end: false },
   {
-    to: '/dashboard/inventory?category=replaced',
-    label: 'Retired extinguishers',
+    to: '/dashboard/replaced-extinguishers',
+    label: 'Replaced extinguishers',
     icon: Archive,
     end: false,
   },

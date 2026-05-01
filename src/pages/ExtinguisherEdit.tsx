@@ -332,7 +332,7 @@ export default function ExtinguisherEdit() {
         <ReplaceExtinguisherModal
           orgId={orgId}
           oldExtinguisherId={extId}
-          oldAssetId={extinguisher.assetId}
+          oldExtinguisher={extinguisher}
           onClose={() => setShowReplaceModal(false)}
         />
       )}

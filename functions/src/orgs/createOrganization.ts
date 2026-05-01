@@ -111,8 +111,29 @@ export const createOrganization = onCall<CreateOrgInput, Promise<CreateOrgOutput
       settings: {
         timezone: orgTimezone,
         monthlyInspectionSchedule: 'rolling_30_days',
+        nfpaEdition: '2022',
+        nfpaEditionLabel: '',
+        localComplianceNotes: '',
         sections: [],
         defaultChecklistItems: [],
+      },
+      profile: {
+        displayName: trimmedName,
+        website: '',
+        phone: '',
+        supportEmail: email,
+        addressLine1: '',
+        addressLine2: '',
+        city: '',
+        region: '',
+        postalCode: '',
+        country: '',
+      },
+      branding: {
+        logoPath: null,
+        logoContentType: null,
+        logoUpdatedAt: null,
+        logoUpdatedBy: null,
       },
     });
 
@@ -135,6 +156,8 @@ export const createOrganization = onCall<CreateOrgInput, Promise<CreateOrgOutput
     batch.set(
       userRef,
       {
+        displayName: email.split('@')[0] ?? 'Owner',
+        avatarId: 'helmet-red',
         defaultOrgId: orgId,
         activeOrgId: orgId,
         updatedAt: now,

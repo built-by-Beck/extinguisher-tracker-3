@@ -16,7 +16,7 @@ const extraFaq = [
   },
   {
     q: 'What NFPA edition does AI reference?',
-    a: 'By default AI references NFPA 10 (2022). If your jurisdiction uses another adopted edition, include it in your prompt and validate final decisions internally.',
+    a: 'AI references the NFPA edition configured in Organization Settings. New organizations fall back to NFPA 10 (2022) until changed; final decisions should still be validated against the locally adopted edition, internal policy, and AHJ direction.',
   },
   {
     q: 'Do we need perfect data before starting?',
@@ -27,8 +27,12 @@ const extraFaq = [
     a: 'Yes. Custom asset inspections let teams build recurring inspection workflows for other assets that need structured checks, notes, and follow-up visibility.',
   },
   {
+    q: 'Can we add profile pictures or organization branding?',
+    a: 'User profiles use preset avatars instead of personal photo uploads. Organization creators can add a small logo on Pro, Elite, and Enterprise plans, with image type, size, permission, and Storage path restrictions.',
+  },
+  {
     q: 'What happens when an extinguisher is replaced or retired?',
-    a: 'Lifecycle tools help keep the active inventory clean while preserving replacement and retirement context, so old records do not get mixed up with the current asset list.',
+    a: 'The replacement flow confirms the old unit, archives its prior serial/barcode/unit details, updates the active record with the current unit, and provides a Replaced Extinguishers view for retired-unit status. If an old unit returns from service, owners/admins can add it back as active spare inventory with a new spare asset ID.',
   },
   {
     q: 'Can we print tags or work from QR codes?',

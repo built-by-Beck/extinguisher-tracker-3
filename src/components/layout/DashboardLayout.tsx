@@ -14,7 +14,9 @@ const BANNER_PREF_KEY = 'ex3-hide-banner';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
+  '/dashboard/profile': 'Profile',
   '/dashboard/inventory': 'Inventory',
+  '/dashboard/replaced-extinguishers': 'Replaced Extinguishers',
   '/dashboard/custom-asset-inspections': 'Custom Asset Inspections',
   '/dashboard/members': 'Members',
   '/dashboard/workspaces': 'Inspections',
@@ -34,7 +36,9 @@ const PAGE_TITLES: Record<string, string> = {
 /** Per-page header colors — fire-protection palette with blue/green accents */
 const PAGE_COLORS: Record<string, { bg: string; bgHidden: string }> = {
   '/dashboard':              { bg: 'bg-gray-900',    bgHidden: 'bg-gray-800' },
+  '/dashboard/profile':      { bg: 'bg-slate-900',   bgHidden: 'bg-slate-800' },
   '/dashboard/inventory':    { bg: 'bg-amber-800',   bgHidden: 'bg-amber-700' },
+  '/dashboard/replaced-extinguishers': { bg: 'bg-orange-900', bgHidden: 'bg-orange-800' },
   '/dashboard/custom-asset-inspections': { bg: 'bg-indigo-900', bgHidden: 'bg-indigo-800' },
   '/dashboard/workspaces':   { bg: 'bg-red-800',     bgHidden: 'bg-red-700' },
   '/dashboard/locations':    { bg: 'bg-blue-800',    bgHidden: 'bg-blue-700' },

@@ -1,5 +1,13 @@
 import type { Timestamp } from 'firebase/firestore';
 
+export type PresetAvatarId =
+  | 'helmet-red'
+  | 'shield-blue'
+  | 'clipboard-green'
+  | 'building-slate'
+  | 'spark-amber'
+  | 'hydrant-purple';
+
 /**
  * usr/{uid} — User Profile
  *
@@ -9,6 +17,7 @@ import type { Timestamp } from 'firebase/firestore';
 export interface UserProfile {
   displayName: string;
   email: string;
+  avatarId?: PresetAvatarId;
   photoURL: string | null;
   defaultOrgId: string | null;
   activeOrgId: string | null;

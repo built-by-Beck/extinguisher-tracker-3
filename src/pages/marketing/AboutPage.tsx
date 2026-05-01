@@ -135,8 +135,8 @@ export default function AboutPage() {
               decisions remain tied to adopted codes, qualified judgment, and local authority requirements.
             </p>
             <p className="mt-3 text-sm text-gray-500">
-              AI guidance references NFPA 10 (2022) by default, and organizations should use the edition adopted by their
-              local authority having jurisdiction.
+              AI guidance references the NFPA edition configured in Organization Settings, with NFPA 10 (2022) as the
+              new-org fallback. Organizations should use the edition adopted by their local authority having jurisdiction.
             </p>
             <div className="mt-8 grid gap-6 sm:grid-cols-3">
               <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

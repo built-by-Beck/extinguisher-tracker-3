@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import {
   Menu,
   ChevronDown,
@@ -7,12 +8,28 @@ import {
   User,
   Building2,
 } from 'lucide-react';
+import { storage } from '../../lib/firebase.ts';
+import { hasFeature } from '../../lib/planConfig.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { NotificationBell } from '../notifications/NotificationBell.tsx';
+import { PresetAvatar } from '../profile/PresetAvatar.tsx';
 
 interface TopbarProps {
   onMenuClick: () => void;
+}
+
+function isSafeStorageUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === 'https:' &&
+      (parsed.hostname.endsWith('.googleapis.com') ||
+        parsed.hostname.endsWith('.firebasestorage.app'))
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function Topbar({ onMenuClick }: TopbarProps) {
@@ -21,9 +38,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const navigate = useNavigate();
 
   const orgId = userProfile?.activeOrgId ?? '';
+  const canUseBranding = hasFeature(org?.featureFlags, 'organizationBranding', org?.plan);
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
+  const [orgLogoUrl, setOrgLogoUrl] = useState('');
   const userMenuRef = useRef<HTMLDivElement>(null);
   const orgMenuRef = useRef<HTMLDivElement>(null);
 
@@ -41,6 +60,27 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  useEffect(() => {
+    const logoPath = org?.branding?.logoPath;
+    if (!logoPath || !canUseBranding) {
+      setOrgLogoUrl('');
+      return;
+    }
+
+    let cancelled = false;
+    getDownloadURL(storageRef(storage, logoPath))
+      .then((url) => {
+        if (!cancelled && isSafeStorageUrl(url)) setOrgLogoUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setOrgLogoUrl('');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canUseBranding, org?.branding?.logoPath]);
+
   async function handleSignOut() {
     await signOut();
     navigate('/login');
@@ -49,6 +89,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   async function handleSwitchOrg(id: string) {
     await switchOrg(id);
     setOrgMenuOpen(false);
+  }
+
+  function handleNavigateProfile() {
+    setUserMenuOpen(false);
+    navigate('/dashboard/profile');
   }
 
   return (
@@ -70,7 +115,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               onClick={() => setOrgMenuOpen(!orgMenuOpen)}
               className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-900 hover:bg-gray-100"
             >
-              <Building2 className="h-4 w-4 text-gray-500" />
+              {orgLogoUrl ? (
+                <img src={orgLogoUrl} alt="" className="h-5 w-5 rounded object-contain" />
+              ) : (
+                <Building2 className="h-4 w-4 text-gray-500" />
+              )}
               {org?.name ?? 'Select Org'}
               <ChevronDown className="h-4 w-4 text-gray-400" />
             </button>
@@ -92,7 +141,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           </div>
         ) : (
           <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-            <Building2 className="h-4 w-4 text-gray-500" />
+            {orgLogoUrl ? (
+              <img src={orgLogoUrl} alt="" className="h-5 w-5 rounded object-contain" />
+            ) : (
+              <Building2 className="h-4 w-4 text-gray-500" />
+            )}
             {org?.name ?? 'No Organization'}
           </div>
         )}
@@ -107,9 +160,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             onClick={() => setUserMenuOpen(!userMenuOpen)}
             className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-700">
-              <User className="h-4 w-4" />
-            </div>
+            <PresetAvatar avatarId={userProfile?.avatarId} size="sm" />
             <span className="hidden font-medium sm:inline">
               {user?.displayName ?? user?.email ?? 'User'}
             </span>
@@ -124,6 +175,13 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                 </p>
                 <p className="truncate text-xs text-gray-500">{user?.email}</p>
               </div>
+              <button
+                onClick={handleNavigateProfile}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <User className="h-4 w-4" />
+                Profile
+              </button>
               <button
                 onClick={handleSignOut}
                 className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"

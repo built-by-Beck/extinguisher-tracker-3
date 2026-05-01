@@ -16,6 +16,10 @@ export { acceptInvite } from './invites/acceptInvite.js';
 export { changeMemberRole } from './members/changeMemberRole.js';
 export { removeMember } from './members/removeMember.js';
 
+// Profile management
+export { updateUserProfile } from './profiles/updateUserProfile.js';
+export { updateOrganizationProfile } from './profiles/updateOrganizationProfile.js';
+
 // Billing (Stripe)
 export { createCheckoutSession } from './billing/createCheckoutSession.js';
 export { createPortalSession } from './billing/createPortalSession.js';
@@ -48,6 +52,10 @@ export { addExtinguisherToWorkspaceChecklist } from './inspections/addExtinguish
 export { recalculateExtinguisherLifecycle } from './lifecycle/recalculateLifecycle.js';
 export { batchRecalculateLifecycle } from './lifecycle/batchRecalculate.js';
 export { replaceExtinguisher } from './lifecycle/replaceExtinguisher.js';
+export {
+  listReplacementHistory,
+  updateReplacementHistoryStatus,
+} from './lifecycle/updateReplacementHistoryStatus.js';
 export { dedupeActiveExtinguishersByAssetId } from './lifecycle/dedupeActiveExtinguishersByAssetId.js';
 export { repairStaleReplacementLinks } from './lifecycle/repairStaleReplacementLinks.js';
 export { retireExtinguisher } from './lifecycle/retireExtinguisher.js';

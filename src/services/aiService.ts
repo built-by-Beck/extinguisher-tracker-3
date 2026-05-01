@@ -10,6 +10,7 @@ import { geminiModel } from '../lib/firebase.ts';
 import type { Extinguisher } from './extinguisherService.ts';
 import type { Inspection } from './inspectionService.ts';
 import type { SectionNotesMap } from './workspaceService.ts';
+import type { NfpaEdition } from '../types/organization.ts';
 import { APP_KNOWLEDGE_BASE } from '../lib/aiKnowledgeBase.ts';
 import { parseAiMemoryIntent } from './aiQueryIntentService.ts';
 import { queryAiMemoryCall } from './aiQueryService.ts';
@@ -37,8 +38,9 @@ Your role:
 Rules:
 - Be concise and practical — users are busy inspectors and facility managers
 - When analyzing data, reference specific extinguisher asset IDs
-- Always cite NFPA 10 when relevant
+- Cite the organization's selected NFPA 10 reference when relevant
 - If you don't know something, say so — don't guess on safety-critical info
+- Do not present app guidance as a legal compliance guarantee; defer final decisions to the adopted local code, qualified judgment, and AHJ direction
 - Never suggest skipping required inspections or maintenance
 - Format responses with markdown for readability
 
@@ -47,6 +49,13 @@ ${APP_KNOWLEDGE_BASE}`;
 export interface AiMessage {
   role: 'user' | 'assistant';
   content: string;
+}
+
+function formatNfpaReference(edition?: NfpaEdition, customLabel?: string): string {
+  if (edition === 'other') {
+    return customLabel?.trim() || 'Other / AHJ-specific NFPA 10 reference';
+  }
+  return `NFPA 10 (${edition ?? '2022'})`;
 }
 
 /**
@@ -63,6 +72,9 @@ export async function askAssistant(
     activeWorkspaceLabel?: string | null;
     inspections?: Inspection[];
     sectionNotes?: SectionNotesMap;
+    nfpaEdition?: NfpaEdition;
+    nfpaEditionLabel?: string;
+    localComplianceNotes?: string;
   },
 ): Promise<string> {
   const lastMessage = messages[messages.length - 1];
@@ -83,6 +95,10 @@ export async function askAssistant(
     const parts: string[] = [];
     if (context.orgName) {
       parts.push(`Organization: ${context.orgName}`);
+    }
+    parts.push(`Selected compliance reference: ${formatNfpaReference(context.nfpaEdition, context.nfpaEditionLabel)}`);
+    if (context.localComplianceNotes?.trim()) {
+      parts.push(`Local AHJ / internal policy notes: ${context.localComplianceNotes.trim()}`);
     }
     if (context.complianceSummary) {
       parts.push(`Compliance Summary: ${JSON.stringify(context.complianceSummary)}`);

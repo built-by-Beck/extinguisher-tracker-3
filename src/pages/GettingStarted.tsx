@@ -11,14 +11,16 @@ import {
   Users,
   WifiOff,
   Wrench,
+  Archive,
 } from 'lucide-react';
 
 const steps = [
   {
     title: 'Create your account and organization',
-    body: 'Sign up, create your organization, and invite the team members who will inspect, review, and manage compliance.',
+    body: 'Sign up, create your organization, choose a preset profile avatar, and invite the team members who will inspect, review, and manage compliance. Organization creators can manage organization profile details from Profile.',
     icon: Users,
     links: [
+      { to: '/dashboard/profile', label: 'Open profile' },
       { to: '/dashboard/settings', label: 'Open organization settings' },
       { to: '/dashboard/members', label: 'Invite members' },
     ],
@@ -37,6 +39,12 @@ const steps = [
       { to: '/dashboard/inventory', label: 'Go to inventory' },
       { to: '/dashboard/import-guide', label: 'Read import guide' },
     ],
+  },
+  {
+    title: 'Manage replacements and spare returns',
+    body: 'When a physical unit is replaced, confirm the old details, choose whether to reuse or change the asset ID, and review archived retired-unit details from Replaced Extinguishers. Returned old units can be added back as active spare inventory with a new spare asset ID.',
+    icon: Archive,
+    links: [{ to: '/dashboard/replaced-extinguishers', label: 'Open replaced extinguishers' }],
   },
   {
     title: 'Run Data Organizer cleanup',
@@ -135,8 +143,8 @@ export default function GettingStarted() {
         <p className="flex items-start gap-2 text-sm text-blue-900">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
           Ask AI for guidance while working: compliance questions, overdue checks, inventory summaries, and operational
-          note recall. AI responses default to NFPA 10 (2022); confirm against your locally adopted edition and AHJ
-          direction before final decisions.
+          note recall. AI uses the NFPA reference configured in Settings, with NFPA 10 (2022) as the new-org fallback;
+          confirm against your locally adopted edition and AHJ direction before final decisions.
         </p>
       </div>
 

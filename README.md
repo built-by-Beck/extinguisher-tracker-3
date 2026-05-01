@@ -37,7 +37,7 @@ The system is **organization-centric** — all operational data belongs to the o
 - **Location Hierarchy** — Organize assets by building, floor, section, and vicinity
 - **Inspection Routes** — Pre-configured walking routes for efficient field workflows
 - **Photo & GPS Documentation** — Capture photographic evidence and location data during inspections
-- **Lifecycle Tracking** — Full extinguisher history from installation through retirement
+- **Lifecycle Tracking** — Replacement history archives prior unit details, tracks retired service status, and supports returned spare inventory
 - **Expiration Planning Lists** — Separate official marked-expired inventory from advisory 6+ year manufacture-date candidates
 - **Audit Logs** — Append-only, immutable compliance records for regulatory audits
 - **Reports & Exports** — Generate compliance reports in CSV, Excel, and JSON formats
@@ -45,13 +45,15 @@ The system is **organization-centric** — all operational data belongs to the o
 - **Tag / QR Label Printing** — Generate and print asset tags for physical extinguishers
 - **Multi-Tenant Isolation** — Strict data separation between organizations at every layer
 - **Role-Based Access** — Owner, Admin, Inspector, and Viewer roles with granular permissions
+- **Secure Profiles & Branding** — Users choose preset avatars; organization creators can manage org profile details, with Pro+ logo branding on a locked-down Storage path
 - **Real-Time Collaboration** — Multiple inspectors working simultaneously with live updates
 - **Data Restore Tools** — JSON backup restoration with automatic duplicate detection
 
 ### AI reference edition policy
 
-- AI guidance defaults to **NFPA 10 (2022)** references.
-- Organizations operating under different adopted editions should align AI usage to local AHJ requirements.
+- AI guidance uses the organization's configured NFPA reference from Settings.
+- New organizations fall back to **NFPA 10 (2022)** until an owner or admin changes the reference.
+- Organizations operating under different adopted editions can add local AHJ/internal policy notes as AI context.
 - AI responses are operational guidance and should be validated by qualified personnel before final compliance decisions.
 
 ## Tech Stack
@@ -122,7 +124,7 @@ extinguisher-tracker-3/
 | **Elite** | $199/mo | 500 included (+$10/200 additional) | Large facilities, universities, industrial campuses |
 | **Enterprise** | Custom | Unlimited | Custom compliance workflows, SLA support |
 
-All plans include core inventory and inspection features. Higher tiers unlock barcode scanning, GPS capture, inspection photos, AI assistant, route optimization, advanced analytics, lifecycle compliance tracking, and priority support.
+All plans include core inventory, inspection features, and preset user avatars. Higher tiers unlock barcode scanning, GPS capture, inspection photos, AI assistant, organization logo branding, route optimization, advanced analytics, lifecycle compliance tracking, and priority support.
 
 Contact: **info@extinguishertracker.com**
 

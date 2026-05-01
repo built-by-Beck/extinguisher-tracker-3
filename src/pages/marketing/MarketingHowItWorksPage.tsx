@@ -50,7 +50,7 @@ const steps = [
   {
     step: 8,
     title: 'Optimize and Scale with AI',
-    body: 'Use the AI Maintenance Assistant for in-app NFPA 10 guidance (2022 default), quick inventory questions, and operational note recall while you work.',
+    body: 'Use the AI Maintenance Assistant for in-app NFPA 10 guidance based on your configured reference, quick inventory questions, and operational note recall while you work.',
     icon: Bot,
   },
 ] as const;
@@ -92,8 +92,9 @@ export default function MarketingHowItWorksPage() {
             ))}
           </ol>
           <p className="mt-8 max-w-3xl text-sm text-gray-500">
-            AI responses use NFPA 10 (2022) by default. Because jurisdictions and organizations may adopt different editions,
-            your team should confirm final decisions against your adopted standard.
+            AI responses use the NFPA reference configured in Organization Settings, with NFPA 10 (2022) as the new-org
+            fallback. Because jurisdictions and organizations may adopt different editions, your team should confirm
+            final decisions against your adopted standard.
           </p>
 
           <div className="mt-14 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import fft from 'firebase-functions-test';
 import { adminDb } from '../utils/admin.js';
@@ -7,12 +5,43 @@ import { addExtinguisherToWorkspaceChecklist } from '../inspections/addExtinguis
 
 const testEnv = fft();
 
-adminDb.doc = jest.fn();
-adminDb.collection = jest.fn();
-adminDb.runTransaction = jest.fn();
+type TestSnap = {
+  exists: boolean;
+  data: () => Record<string, unknown>;
+};
+
+type TestDocRef = {
+  path: string;
+  get?: ReturnType<typeof jest.fn<() => Promise<TestSnap | undefined>>>;
+};
+
+type TestQuery = {
+  where: ReturnType<typeof jest.fn<() => TestQuery>>;
+  limit: ReturnType<typeof jest.fn<() => TestQuery>>;
+  get: ReturnType<typeof jest.fn<() => Promise<{ empty: boolean; docs: Array<{ id: string }> }>>>;
+};
+
+type TestTx = {
+  get: ReturnType<typeof jest.fn<(ref: TestDocRef) => Promise<TestSnap>>>;
+  set: ReturnType<typeof jest.fn>;
+  update: ReturnType<typeof jest.fn>;
+};
+
+const mockDoc = jest.fn<(path: string) => TestDocRef>();
+const mockCollection = jest.fn<(path: string) => TestQuery>();
+const mockRunTransaction = jest.fn<(cb: (tx: TestTx) => Promise<unknown>) => Promise<unknown>>();
+
+const mockAdminDb = adminDb as unknown as {
+  doc: typeof mockDoc;
+  collection: typeof mockCollection;
+  runTransaction: typeof mockRunTransaction;
+};
+
+mockAdminDb.doc = mockDoc;
+mockAdminDb.collection = mockCollection;
+mockAdminDb.runTransaction = mockRunTransaction;
 
 describe('addExtinguisherToWorkspaceChecklist', () => {
-  const wrapped = testEnv.wrap(addExtinguisherToWorkspaceChecklist);
   const baseRequest = {
     auth: { uid: 'owner-1', token: { email: 'owner@test.com' } },
     data: {
@@ -21,6 +50,9 @@ describe('addExtinguisherToWorkspaceChecklist', () => {
       extinguisherId: 'ext-1',
     },
   };
+  const wrapped = testEnv.wrap(addExtinguisherToWorkspaceChecklist) as (
+    request: typeof baseRequest,
+  ) => Promise<unknown>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -37,17 +69,10 @@ describe('addExtinguisherToWorkspaceChecklist', () => {
     deterministicExists?: boolean;
     legacyExists?: boolean;
   } = {}) {
-    const refs = new Map<string, { path: string }>();
-    adminDb.doc.mockImplementation((path: string) => {
-      const ref = { path };
-      refs.set(path, ref);
-      return ref;
-    });
-
-    const memberSnap = { exists: true, data: () => ({ role: memberRole, status: 'active' }) };
-    const orgSnap = { exists: true, data: () => ({ subscriptionStatus: 'active' }) };
-    const wsSnap = { exists: true, data: () => ({ status: workspaceStatus }) };
-    const extSnap = {
+    const memberSnap: TestSnap = { exists: true, data: () => ({ role: memberRole, status: 'active' }) };
+    const orgSnap: TestSnap = { exists: true, data: () => ({ subscriptionStatus: 'active' }) };
+    const wsSnap: TestSnap = { exists: true, data: () => ({ status: workspaceStatus }) };
+    const extSnap: TestSnap = {
       exists: true,
       data: () => ({
         assetId: 'FE-001',
@@ -57,33 +82,34 @@ describe('addExtinguisherToWorkspaceChecklist', () => {
         deletedAt: null,
       }),
     };
-    const inspSnap = { exists: deterministicExists, data: () => ({}) };
+    const inspSnap: TestSnap = { exists: deterministicExists, data: () => ({}) };
 
-    const directSnaps = new Map<string, unknown>([
+    const directSnaps = new Map<string, TestSnap>([
       ['org/org-1/members/owner-1', memberSnap],
       ['org/org-1', orgSnap],
       ['org/org-1/workspaces/2026-04', wsSnap],
       ['org/org-1/extinguishers/ext-1', extSnap],
     ]);
 
-    adminDb.doc.mockImplementation((path: string) => ({
+    mockAdminDb.doc.mockImplementation((path) => ({
       path,
-      get: jest.fn().mockResolvedValue(directSnaps.get(path)),
+      get: jest.fn(() => Promise.resolve(directSnaps.get(path))),
     }));
 
-    const legacyGet = jest.fn().mockResolvedValue(
+    const legacyGet = jest.fn(() => Promise.resolve(
       legacyExists
         ? { empty: false, docs: [{ id: 'legacy-row' }] }
         : { empty: true, docs: [] },
-    );
-    const legacyChain = {
-      where: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
+    ));
+    const legacyChain = {} as TestQuery;
+    Object.assign(legacyChain, {
+      where: jest.fn(() => legacyChain),
+      limit: jest.fn(() => legacyChain),
       get: legacyGet,
-    };
-    adminDb.collection.mockReturnValue(legacyChain);
+    });
+    mockAdminDb.collection.mockReturnValue(legacyChain);
 
-    const tx = {
+    const tx: TestTx = {
       get: jest.fn((ref: { path: string }) => {
         if (ref.path === 'org/org-1') return Promise.resolve(orgSnap);
         if (ref.path === 'org/org-1/workspaces/2026-04') return Promise.resolve(wsSnap);
@@ -94,8 +120,8 @@ describe('addExtinguisherToWorkspaceChecklist', () => {
       set: jest.fn(),
       update: jest.fn(),
     };
-    adminDb.runTransaction.mockImplementation(async (cb) => await cb(tx));
-    return { tx, legacyGet, refs };
+    mockAdminDb.runTransaction.mockImplementation(async (cb) => await cb(tx));
+    return { tx, legacyGet };
   }
 
   it('creates one deterministic pending row and updates stats', async () => {
@@ -138,6 +164,6 @@ describe('addExtinguisherToWorkspaceChecklist', () => {
     setupDocs({ workspaceStatus: 'archived', legacyExists: true });
 
     await expect(wrapped(baseRequest)).rejects.toThrow(/Only active workspaces/);
-    expect(adminDb.runTransaction).not.toHaveBeenCalled();
+    expect(mockAdminDb.runTransaction).not.toHaveBeenCalled();
   });
 });

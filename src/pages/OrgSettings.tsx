@@ -24,6 +24,7 @@ import { ManageBilling } from '../components/billing/ManageBilling.tsx';
 import { BillingStatus } from '../components/billing/BillingStatus.tsx';
 import { toggleGuestAccessCall } from '../services/guestService.ts';
 import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
+import type { NfpaEdition } from '../types/organization.ts';
 
 const commonTimezones = [
   'America/New_York',
@@ -44,6 +45,20 @@ const commonTimezones = [
 ];
 
 type MonthlyInspectionSchedule = 'rolling_30_days' | 'calendar_month';
+
+const nfpaEditionOptions: Array<{ value: NfpaEdition; label: string }> = [
+  { value: '2022', label: 'NFPA 10 (2022)' },
+  { value: '2018', label: 'NFPA 10 (2018)' },
+  { value: '2013', label: 'NFPA 10 (2013)' },
+  { value: '2010', label: 'NFPA 10 (2010)' },
+  { value: 'other', label: 'Other / AHJ-specific' },
+];
+
+function normalizeNfpaEdition(value: unknown): NfpaEdition {
+  return nfpaEditionOptions.some((option) => option.value === value)
+    ? value as NfpaEdition
+    : '2022';
+}
 
 function DataMaintenanceSection({ orgId }: { orgId: string }) {
   const [cleaning, setCleaning] = useState(false);
@@ -108,6 +123,9 @@ export default function OrgSettings() {
   const [timezone, setTimezone] = useState('');
   const [monthlyInspectionSchedule, setMonthlyInspectionSchedule] =
     useState<MonthlyInspectionSchedule>('rolling_30_days');
+  const [nfpaEdition, setNfpaEdition] = useState<NfpaEdition>('2022');
+  const [nfpaEditionLabel, setNfpaEditionLabel] = useState('');
+  const [localComplianceNotes, setLocalComplianceNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -133,6 +151,9 @@ export default function OrgSettings() {
           ? 'calendar_month'
           : 'rolling_30_days',
       );
+      setNfpaEdition(normalizeNfpaEdition(org.settings?.nfpaEdition));
+      setNfpaEditionLabel(org.settings?.nfpaEditionLabel ?? '');
+      setLocalComplianceNotes(org.settings?.localComplianceNotes ?? '');
 
       // Sync guest access state
       if (org.guestAccess?.enabled) {
@@ -211,9 +232,11 @@ export default function OrgSettings() {
     try {
       const orgDocRef = doc(db, 'org', orgId);
       await updateDoc(orgDocRef, {
-        name: name.trim(),
         'settings.timezone': timezone,
         'settings.monthlyInspectionSchedule': monthlyInspectionSchedule,
+        'settings.nfpaEdition': nfpaEdition,
+        'settings.nfpaEditionLabel': nfpaEdition === 'other' ? nfpaEditionLabel.trim() : '',
+        'settings.localComplianceNotes': localComplianceNotes.trim(),
         updatedAt: serverTimestamp(),
       });
       setSaveMessage('Settings saved successfully.');
@@ -257,10 +280,20 @@ export default function OrgSettings() {
             id="org-name"
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={!canEdit}
+            readOnly
+            disabled
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500"
           />
+          <p className="mt-1 text-xs text-gray-500">
+            Organization name and profile branding are managed from the Profile page by the organization creator.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard/profile')}
+            className="mt-2 text-sm font-medium text-red-600 hover:text-red-700"
+          >
+            Open Profile
+          </button>
         </div>
 
         <div className="mb-4">
@@ -304,6 +337,69 @@ export default function OrgSettings() {
           <p className="mt-1 text-xs text-gray-500">
             This controls the extinguisher Next Monthly Inspection date and reminder timing.
             Monthly workspaces still use their own inspection rows for progress.
+          </p>
+        </div>
+      </div>
+
+      {/* Compliance preferences */}
+      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-2 text-lg font-semibold text-gray-900">Compliance Preferences</h2>
+        <p className="mb-4 text-sm text-gray-500">
+          Choose the NFPA 10 edition your organization references. This guides AI responses,
+          reminders, and internal notes, but final compliance decisions should still be checked
+          against your adopted local code, qualified judgment, and AHJ direction.
+        </p>
+
+        <div className="mb-4">
+          <label htmlFor="nfpa-edition" className="mb-1 block text-sm font-medium text-gray-700">
+            NFPA Documentation Reference
+          </label>
+          <select
+            id="nfpa-edition"
+            value={nfpaEdition}
+            onChange={(e) => setNfpaEdition(e.target.value as NfpaEdition)}
+            disabled={!canEdit}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500"
+          >
+            {nfpaEditionOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {nfpaEdition === 'other' && (
+          <div className="mb-4">
+            <label htmlFor="nfpa-edition-label" className="mb-1 block text-sm font-medium text-gray-700">
+              Custom Reference Label
+            </label>
+            <input
+              id="nfpa-edition-label"
+              type="text"
+              value={nfpaEditionLabel}
+              onChange={(e) => setNfpaEditionLabel(e.target.value)}
+              disabled={!canEdit}
+              placeholder="Example: NFPA 10 (2018) with local AHJ amendments"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500"
+            />
+          </div>
+        )}
+
+        <div>
+          <label htmlFor="local-compliance-notes" className="mb-1 block text-sm font-medium text-gray-700">
+            AHJ / Local Policy Notes
+          </label>
+          <textarea
+            id="local-compliance-notes"
+            value={localComplianceNotes}
+            onChange={(e) => setLocalComplianceNotes(e.target.value)}
+            disabled={!canEdit}
+            rows={4}
+            placeholder="Example: City fire marshal follows the 2018 edition with local annual documentation requirements."
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            These notes are advisory context for your organization and AI assistant. They do not
+            replace review by a qualified person or the authority having jurisdiction.
           </p>
         </div>
       </div>
@@ -414,10 +510,11 @@ export default function OrgSettings() {
               {!guestEnabled && (
                 <div className="flex flex-wrap items-end gap-3">
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                    <label htmlFor="guest-access-expiration" className="mb-1 block text-sm font-medium text-gray-700">
                       Access Expiration Date
                     </label>
                     <input
+                      id="guest-access-expiration"
                       type="date"
                       value={guestExpiresAt}
                       min={new Date().toISOString().split('T')[0]}

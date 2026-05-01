@@ -123,7 +123,7 @@ export default function MarketingHomePage() {
               },
               {
                 title: 'AI Maintenance Helper',
-                body: 'Get instant in-app answers for NFPA 10 (2022 default) and maintenance questions instead of searching Google mid-route.',
+                body: 'Get instant in-app answers using your configured NFPA reference and maintenance context instead of searching Google mid-route.',
                 icon: Bot,
               },
               {
@@ -248,8 +248,9 @@ export default function MarketingHomePage() {
             and know what still needs attention.
           </p>
           <p className="mt-4 max-w-3xl text-sm text-gray-500">
-            AI guidance references NFPA 10 (2022) by default. Your organization should align responses with the edition adopted
-            in your jurisdiction and internal policy.
+            AI guidance references the NFPA edition configured in Organization Settings, with NFPA 10 (2022) as the
+            new-org fallback. Your organization should align responses with the edition adopted in your jurisdiction
+            and internal policy.
           </p>
         </Section>
 

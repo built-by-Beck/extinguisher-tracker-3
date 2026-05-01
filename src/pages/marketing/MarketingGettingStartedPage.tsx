@@ -89,8 +89,9 @@ export default function MarketingGettingStartedPage() {
 
           <div className="mt-8 rounded-xl border border-blue-200 bg-blue-50 p-5">
             <p className="text-sm text-blue-900">
-              AI guidance defaults to NFPA 10 (2022). The placement calculator and AI assistant are planning and
-              guidance tools; teams should align final decisions with their locally adopted edition and AHJ direction.
+              AI guidance uses the NFPA reference configured in Settings, with NFPA 10 (2022) as the new-org fallback.
+              The placement calculator and AI assistant are planning and guidance tools; teams should align final
+              decisions with their locally adopted edition and AHJ direction.
             </p>
           </div>
 

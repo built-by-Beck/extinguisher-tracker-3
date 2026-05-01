@@ -48,6 +48,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       customAssetInspections: false,
       guestAccess: false,
       teamMembers: false,
+      organizationBranding: false,
     },
   },
   pro: {
@@ -72,6 +73,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       customAssetInspections: true,
       guestAccess: false,
       teamMembers: false,
+      organizationBranding: true,
     },
   },
   elite: {
@@ -96,6 +98,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       customAssetInspections: true,
       guestAccess: true,
       teamMembers: true,
+      organizationBranding: true,
     },
   },
   enterprise: {
@@ -120,6 +123,7 @@ export const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
       customAssetInspections: true,
       guestAccess: true,
       teamMembers: true,
+      organizationBranding: true,
     },
   },
 };

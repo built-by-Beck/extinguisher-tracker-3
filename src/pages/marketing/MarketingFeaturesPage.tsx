@@ -99,7 +99,7 @@ export default function MarketingFeaturesPage() {
           <FeatureBlock
             icon={Bot}
             title="AI Maintenance Assistant"
-            what="A built-in AI assistant that answers maintenance and compliance questions using NFPA 10 (2022) as the default reference."
+            what="A built-in AI assistant that answers maintenance and compliance questions using the NFPA reference configured in Organization Settings."
             why="Busy crews should not need to stop and search external sites for code context or app notes."
             outcome="Faster decisions, fewer workflow interruptions, and consistent guidance while inspections are in progress."
           />
@@ -134,9 +134,9 @@ export default function MarketingFeaturesPage() {
           <FeatureBlock
             icon={RefreshCcw}
             title="Replacement and retirement lifecycle"
-            what="Track active records, marked-expired units, advisory expired candidates, replaced units, retired assets, serial changes, and lifecycle context without losing prior history."
+            what="Confirm the old unit during replacement, reuse or intentionally change the asset ID, archive old serial/barcode/unit details, track retired service status, and return serviced old units as active spare inventory with a new spare asset ID."
             why="Extinguishers do not stay static. Units get replaced, retired, moved, or corrected, and those changes need a clean trail."
-            outcome="A clearer active inventory and a practical review queue for units that may need follow-up, without mixing advisory candidates into the official expired list."
+            outcome="A clearer active inventory, side-by-side old/current replacement history, and a practical follow-up queue for retired units that may be serviced, discarded, or reused as spares."
           />
           <FeatureBlock
             icon={ClipboardCheck}
@@ -221,6 +221,13 @@ export default function MarketingFeaturesPage() {
             what="Invite team members, separate access by organization, and use roles for owners, admins, inspectors, and viewers."
             why="The person inspecting in the field does not always need the same access as an owner or administrator."
             outcome="Cleaner collaboration across facilities, teams, and outside stakeholders."
+          />
+          <FeatureBlock
+            icon={Building2}
+            title="Profiles and organization branding"
+            what="Users choose safe preset avatars, while organization creators can maintain profile details and add a small logo on Pro, Elite, and Enterprise plans."
+            why="Profile identity should be useful without opening broad personal photo uploads or unrestricted media paths."
+            outcome="A more polished workspace with branding controls protected by creator-only permissions, plan gates, and strict Storage rules."
           />
           <FeatureBlock
             icon={Share2}

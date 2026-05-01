@@ -1185,3 +1185,455 @@ Open the dashboard at the problematic viewport/zoom and scroll the left nav to c
 
 **Handoff Notes:**
 If the sidebar grows again, keep the middle navigation as the only scrollable region or consider grouping lower-priority links to reduce height pressure.
+
+## 2026-05-01 - Build/Review Mode
+
+**Task:**
+Verify and fix the reported `@ts-nocheck` regression in `addExtinguisherToWorkspaceChecklist.test.ts`.
+
+**Summary:**
+Confirmed the issue existed: the new function test started with `/* eslint-disable @typescript-eslint/ban-ts-comment */` and `// @ts-nocheck`, despite the 2026-04-14 lesson to avoid `@ts-nocheck` in tests. Removed the suppression headers and added focused test-local mock types for the Firestore/callable test doubles. Completed review with no production code changes.
+
+**Files Inspected:**
+- functions/src/__tests__/addExtinguisherToWorkspaceChecklist.test.ts
+- functions/src/__tests__/complianceCalc.test.ts
+- functions/src/__tests__/extinguisherInspectionRows.test.ts
+- functions/src/inspections/addExtinguisherToWorkspaceChecklist.ts
+- functions/src/utils/admin.ts
+- functions/package.json
+- functions/tsconfig.json
+- agent-system/agent-info.md
+- agent-system/lessons_learned.md
+- agent-system/lessons-learned.md
+- agent-system/error_log.jsonl
+
+**Files Changed:**
+- functions/src/__tests__/addExtinguisherToWorkspaceChecklist.test.ts
+- agent-system/agent-info.md
+- agent-system/lessons_learned.md
+- agent-system/error_log.jsonl
+
+**Key Decisions:**
+- Scoped cleanup to the reported new regression file and did not mix in older legacy function tests that still have `@ts-nocheck`.
+- Kept production code and test assertions unchanged; only the test mock typing changed.
+- Logged a repeated-bug lesson because the issue contradicted an existing project lesson.
+
+**Validation:**
+- `ReadLints` on `functions/src/__tests__/addExtinguisherToWorkspaceChecklist.test.ts`: passed.
+- Initial targeted function test failed at TypeScript compile time due Jest mock type inference; fixed typed mock helpers.
+- `npm run test -- --runInBand src/__tests__/addExtinguisherToWorkspaceChecklist.test.ts` from `functions/`: passed, 3 tests.
+- `npm run build` from `functions/`: passed.
+- Initial `npm run lint` from `functions/` failed on `prefer-const`; fixed and reran.
+- `npm run lint` from `functions/`: passed.
+
+**Review Verdict:**
+ACCEPTED
+
+**Risks / Blockers:**
+- No blocker. Older function test files still contain `@ts-nocheck`, but those were intentionally left out of this scoped fix.
+
+**Next Recommended Action:**
+If desired, plan a separate cleanup pass for the older function tests that still use file-level TypeScript suppression.
+
+**Handoff Notes:**
+Future function tests should prefer narrow mock types/casts around Firebase test doubles instead of disabling TypeScript across the file.
+
+## 2026-05-01 - Build/Review Mode
+
+**Task:**
+Add 6-year maintenance and hydro test completion controls to the replacement flow.
+
+**Summary:**
+Implemented the approved LARGE / Full PBRD replacement-workflow plan. The replace extinguisher modal now includes the same service-history checkboxes as the add/edit extinguisher form, and selected service completions are sent to the replace callable. The backend records service completion timestamps server-side during replacement and calculates the next 6-year/hydro due dates from those timestamps.
+
+**Files Inspected:**
+- `src/components/extinguisher/ExtinguisherForm.tsx`
+- `src/components/extinguisher/ReplaceExtinguisherModal.tsx`
+- `src/pages/ExtinguisherCreate.tsx`
+- `src/pages/ExtinguisherEdit.tsx`
+- `src/services/lifecycleService.ts`
+- `functions/src/lifecycle/replaceExtinguisher.ts`
+- `functions/src/lifecycle/recalculateLifecycle.ts`
+- `functions/src/lifecycle/complianceCalc.ts`
+- `functions/src/__tests__/replaceExtinguisher.test.ts`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Changed:**
+- `src/components/extinguisher/ReplaceExtinguisherModal.tsx`
+- `src/services/lifecycleService.ts`
+- `functions/src/lifecycle/replaceExtinguisher.ts`
+- `functions/src/__tests__/replaceExtinguisher.test.ts`
+- `agent-system/agent-info.md`
+
+**Plan Compliance:**
+- Added service-history controls to replacement without changing asset-slot invariants, duplicate checks, tenant boundaries, role checks, subscription checks, or audit logging.
+- Kept due-date calculation server-side; the client only sends boolean service selections.
+- Added replacement regression coverage for unchecked and checked service completion behavior.
+
+**Validation:**
+- `ReadLints` on changed files: passed.
+- `npm run test -- --runInBand src/__tests__/replaceExtinguisher.test.ts` in `functions`: passed, 3 tests.
+- `pnpm lint`: passed.
+- `pnpm build`: passed with the existing large chunk warning.
+- `pnpm test`: passed, 84 tests.
+- `npm run lint` in `functions`: passed.
+- `npm run build` in `functions`: passed.
+- `npm run test` in `functions`: passed, 34 tests, with existing Node VM experimental warnings.
+- `git diff --check`: passed.
+
+**Review Verdict:**
+ACCEPTED
+
+**Risks / Blockers:**
+- No blocker. Residual risk is visual/manual only: confirm the service-history section is comfortably reachable in the replacement modal on the smallest supported screens.
+
+**Documentation Gate:**
+- Document pass completed with no docs changes needed; this exposes existing service controls on another manual entry surface and does not change setup, pricing, public marketing, or user-facing feature descriptions.
+
+**Next Recommended Action:**
+Manual smoke test replacing an extinguisher with each checkbox selected and verify the detail page shows updated Last/Next Six-Year Maintenance and Last/Next Hydro Test dates.
+
+**Handoff Notes:**
+Future replacement-flow changes should keep service timestamps server-owned and preserve the in-place asset-slot invariant.
+
+## 2026-05-01 - Planning Mode
+
+**Task:**
+Add organization settings for selecting the NFPA documentation edition/version to follow, plus adjacent settings ideas if appropriate.
+
+**Summary:**
+Inspected the existing organization settings page, org settings type, Firestore org update rules, org creation defaults, compliance calculation helpers, and AI assistant copy/service references. The smallest safe approach is to store an org-level `settings.nfpaEdition` value, expose it in Organization Settings for owners/admins, default new organizations to NFPA 10 2022, and pass/display that edition in AI guidance copy. Avoid changing compliance calculation intervals unless a real edition-specific rule table is defined and reviewed.
+
+**Files Inspected:**
+- `src/pages/OrgSettings.tsx`
+- `src/types/organization.ts`
+- `functions/src/orgs/createOrganization.ts`
+- `functions/src/lifecycle/complianceCalc.ts`
+- `firestore.rules`
+- `src/services/aiService.ts`
+- `src/components/ai/AiAssistantPanel.tsx`
+- `package.json`
+- `functions/package.json`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Changed:**
+- `agent-system/agent-info.md`
+
+**Key Decisions:**
+- Classify as MEDIUM because this is a user-facing settings/workflow change across frontend types, org defaults, AI copy/context, and documentation.
+- Treat NFPA edition selection as advisory/org preference first, not a silent rules-engine change.
+- Suggested adjacent settings should stay in the same compliance preferences area only if they map to existing behavior, such as monthly due date method and AI/local-jurisdiction guidance.
+
+**Risks / Blockers:**
+- Different NFPA editions may have nuanced requirements; changing lifecycle calculations without a verified per-edition rules table could create false compliance claims.
+- Current settings writes are direct Firestore updates; Review should verify no restricted org billing fields are touched.
+
+**Next Recommended Action:**
+Await user approval of the plan, then enter Build Mode to implement the scoped settings changes and run validation.
+
+**Handoff Notes:**
+Build Mode should add a typed `nfpaEdition` setting, default it during org creation, add a settings UI section explaining advisory/local AHJ usage, update AI assistant prompts/copy to use the selected edition, and avoid altering compliance math except for already-existing monthly schedule behavior. Review Mode must verify plan compliance, security, tests, and no overpromised compliance/legal language.
+
+## 2026-05-01 - Build/Review/Document
+
+**Task:**
+Implement NFPA documentation reference settings.
+
+**Summary:**
+Added organization-level NFPA compliance preferences so owners/admins can choose the NFPA 10 reference edition, provide an AHJ-specific/custom label, and store local compliance notes. AI assistant context and prompts now use the selected organization reference instead of assuming NFPA 10 (2022), while compliance calculations remain unchanged and advisory/non-guarantee language is preserved.
+
+**Files Changed:**
+- `src/types/organization.ts`
+- `functions/src/orgs/createOrganization.ts`
+- `src/pages/OrgSettings.tsx`
+- `src/components/ai/AiAssistantPanel.tsx`
+- `src/services/aiService.ts`
+- `README.md`
+- `docs/AI_WORKFLOW.md`
+- `src/pages/FaqPage.tsx`
+- `src/pages/GettingStarted.tsx`
+- marketing/pricing/terms copy files with stale hard-coded NFPA 10 (2022) default text
+- `agent-system/agent-info.md`
+
+**Plan Compliance:**
+- Added the planned typed org settings and new-org defaults.
+- Added the planned Compliance Preferences settings UI with NFPA edition selector, custom AHJ-specific label, and local policy notes.
+- Passed the selected NFPA preference into the AI assistant context and updated stale default-reference copy.
+- Did not change lifecycle/compliance math, pricing, feature gating, or restricted org billing/security fields.
+
+**Validation:**
+- Formatter: no formatter script exists in `package.json`.
+- `ReadLints` on changed code: passed. README markdown warnings remain pre-existing style warnings.
+- `pnpm lint`: passed.
+- `pnpm build`: passed with existing Vite large chunk warning.
+- `pnpm test`: passed, 84 tests.
+- `npm run lint` in `functions`: passed.
+- `npm run build` in `functions`: passed.
+- `npm run test` in `functions`: passed, 34 tests, with existing Node VM experimental warnings.
+- `git diff --check`: passed, with existing line-ending warnings for unrelated changed files.
+
+**Review Verdict:**
+ACCEPTED
+
+**Documentation Gate:**
+Complete. Stale copy that said AI always defaults to NFPA 10 (2022) was updated to describe configurable org references with NFPA 10 (2022) as the fallback for new/unconfigured orgs.
+
+**Risks / Blockers:**
+- No blocker. Edition selection is advisory context only; verified edition-specific compliance rule tables would require a separate plan before changing calculations.
+
+**Next Recommended Action:**
+Manual smoke test Settings as an owner/admin: select 2018, save, reopen AI assistant, and confirm the panel references NFPA 10 (2018). Then test `Other / AHJ-specific` with a custom label and local notes.
+
+**Handoff Notes:**
+Future NFPA edition work should not alter compliance due-date calculations without a verified edition-specific rules matrix and review for legal/compliance-copy risk.
+
+---
+
+## 2026-05-01 - Document Mode
+
+**Task:** Document accepted NFPA Documentation Settings implementation without editing `agent-system/plan.md`.
+
+**What changed:** Updated stale README, FAQ, getting started, marketing, pricing, terms, and internal AI workflow copy so AI guidance is described as using the organization-configured NFPA reference from Settings, with NFPA 10 (2022) as the new-organization fallback. Preserved advisory/non-guarantee language and did not change pricing numbers, plan gating, compliance calculations, or the plan file.
+
+**Files inspected:** `agent-system/agent-info.md`, `agent-system/agents-info.md`, `agent-system/lessons_learned.md`, `agent-system/lessons-learned.md`, `README.md`, `docs/AI_WORKFLOW.md`, `src/types/organization.ts`, `functions/src/orgs/createOrganization.ts`, `src/pages/OrgSettings.tsx`, `src/components/ai/AiAssistantPanel.tsx`, `src/services/aiService.ts`, `src/pages/FaqPage.tsx`, `src/pages/GettingStarted.tsx`, `src/pages/marketing/*`.
+
+**Files updated:** `README.md`, `docs/AI_WORKFLOW.md`, `src/pages/FaqPage.tsx`, `src/pages/GettingStarted.tsx`, `src/pages/marketing/AboutPage.tsx`, `src/pages/marketing/MarketingFaqPage.tsx`, `src/pages/marketing/MarketingFeaturesPage.tsx`, `src/pages/marketing/MarketingGettingStartedPage.tsx`, `src/pages/marketing/MarketingHomePage.tsx`, `src/pages/marketing/MarketingHowItWorksPage.tsx`, `src/pages/marketing/TermsPage.tsx`, `src/pages/marketing/marketingPricingCopy.ts`, `agent-system/agent-info.md`.
+
+**Documentation status:** README updated. TODO not present, so no TODO update. Website/marketing, FAQ, getting started, pricing copy, terms, and internal workflow note updated where stale. No remaining documentation gap found for this change.
+
+**Validation:** Stale hard-coded AI-default phrasing search returned no matches. `ReadLints` showed existing README markdownlint warnings unrelated to the edited copy. `pnpm lint`, `pnpm build`, and `pnpm test` passed; build retained the existing large chunk warning. `npm run lint` in `functions/` failed on unrelated pre-existing `no-control-regex` errors in profile update functions, so functions build/test were not run after that failure. `git diff --check` passed with existing line-ending warnings for untouched files.
+
+## 2026-05-01 - Build Mode
+
+**Task:**
+Implement secure user and organization profiles with preset user avatars and Pro+ creator-only organization logo branding.
+
+**Implementation Summary:**
+Added a `/dashboard/profile` page, preset-only user avatars, creator-only organization profile editing through Cloud Functions, Pro/Elite/Enterprise organization logo upload to a fixed Firebase Storage path, and safe topbar avatar/logo display. Hardened Firestore profile writes and Storage paths so profile/org branding changes do not rely on UI-only gates.
+
+**Files Changed:**
+- `src/types/user.ts`
+- `src/types/organization.ts`
+- `src/types/index.ts`
+- `src/lib/planConfig.ts`
+- `src/contexts/AuthContext.tsx`
+- `src/services/profileService.ts`
+- `src/components/profile/PresetAvatar.tsx`
+- `src/pages/Profile.tsx`
+- `src/routes/index.tsx`
+- `src/components/layout/Topbar.tsx`
+- `src/components/layout/DashboardLayout.tsx`
+- `src/pages/OrgSettings.tsx`
+- `functions/src/billing/planConfig.ts`
+- `functions/src/orgs/createOrganization.ts`
+- `functions/src/profiles/updateUserProfile.ts`
+- `functions/src/profiles/updateOrganizationProfile.ts`
+- `functions/src/index.ts`
+- `firestore.rules`
+- `storage.rules`
+
+**Plan Compliance:**
+- Added profile/branding types, plan flags, org defaults, user avatar defaults, profile callables, route/UI, topbar display, and rules hardening from the approved plan.
+- User profile pictures are preset avatars only; no user upload path was added.
+- Organization logo upload is fixed-path, small-file, image-only, creator-only, and Pro/Elite/Enterprise-gated in UI, callable validation, and Storage rules.
+- Organization name/profile/branding updates are blocked from direct client `org` document writes and handled through the callable.
+
+**Validation Results:**
+- Formatter: no formatter script exists in `package.json`.
+- IDE diagnostics: passed on changed files.
+- App lint: initially failed on no-control-regex in new validators, then passed after replacing regex checks with character-code validation.
+- Functions lint: initially failed on the same no-control-regex issue, then passed.
+- App build/typecheck: passed, with existing Vite large chunk warning.
+- Functions build/typecheck: passed.
+- App tests: passed, 84 tests.
+- Functions tests: passed, 34 tests, with existing VM Modules warnings.
+- `git diff --check`: passed, with line-ending warnings only.
+
+**Risks / Follow-Ups:**
+- Manual smoke test still recommended for logo upload/removal in Firebase emulators and for Basic vs Pro visual gating.
+- Existing inspection photo uploads remain as pre-existing product behavior; this change only gates organization branding/photo uploads as requested.
+
+**Handoff to Review Mode:**
+Review should verify creator-only organization profile authorization, Pro+ logo gating across UI/callable/Storage rules, narrowed Firestore user/org writes, safe rendering of storage URLs, no user-uploaded profile pictures, and no cross-org exposure.
+
+## 2026-05-01 - Review Mode
+
+**Task:**
+Review secure user and organization profile implementation.
+
+**Review Findings:**
+- No blocking findings.
+- Minor concern: manual emulator smoke testing is still recommended for real Storage logo upload/remove behavior and Basic-vs-Pro UI behavior because automated rule-emulator tests are not currently configured.
+
+**Plan Compliance:**
+- Verified the approved plan was followed: preset user avatars only, profile route added, creator-only organization profile callable added, Pro/Elite/Enterprise branding gate added, exact logo path used, and direct org profile/branding writes blocked by Firestore rules.
+- No user-uploaded profile photo path was introduced.
+- Existing inspection photo upload behavior was preserved and kept outside this branding scope.
+
+**Validation Audit:**
+- Formatter: no formatter script exists.
+- IDE diagnostics: passed.
+- App lint: passed after fixing validator lint issue.
+- Functions lint: passed after fixing validator lint issue.
+- App build/typecheck: passed with existing large chunk warning.
+- Functions build/typecheck: passed.
+- App tests: passed, 84 tests.
+- Functions tests: passed, 34 tests, with existing VM Modules warnings.
+- `git diff --check`: passed with line-ending warnings only.
+
+**Security and Simplicity:**
+- Customer data remains org-scoped; profile callables require auth and active membership where org data is touched.
+- Organization profile edits require `org.createdBy === uid` server-side and client direct writes to `name`, `profile`, and `branding` are denied.
+- Organization logo upload is gated by creator identity, active/trialing subscription or Enterprise, Pro/Elite/Enterprise plan/feature flag, fixed path, image content type, and 512 KB size limit.
+- User profile updates are limited to display name and allowlisted avatar IDs; Auth `photoURL` is cleared and no custom user upload path exists.
+- Public/security copy does not overpromise compliance or security guarantees.
+
+**Review Verdict:**
+ACCEPTED WITH MINOR CONCERNS
+
+**Required Fixes:**
+- None.
+
+**Documentation Gate:**
+Required because this is user-facing and plan-gated; proceed to Document Mode.
+
+## 2026-05-01 - Document Mode
+
+**Task:**
+Document secure user and organization profiles with Pro+ creator-only organization branding.
+
+**What I Inspected:**
+- `agent-system/agent-info.md`
+- `README.md`
+- `src/pages/FaqPage.tsx`
+- `src/pages/GettingStarted.tsx`
+- `src/pages/marketing/MarketingFeaturesPage.tsx`
+- `src/pages/marketing/MarketingFaqPage.tsx`
+- `src/pages/marketing/marketingPricingCopy.ts`
+- Actual implementation files for profiles, profile callables, plan config, Firestore rules, and Storage rules.
+
+**What I Updated:**
+- `README.md` now lists secure profiles/branding and notes Pro+ logo branding in plan-value copy.
+- `src/pages/GettingStarted.tsx` now points new users to Profile for avatar/org profile setup.
+- `src/pages/FaqPage.tsx` and `src/pages/marketing/MarketingFaqPage.tsx` now explain preset user avatars and Pro+ organization logo branding restrictions.
+- `src/pages/marketing/MarketingFeaturesPage.tsx` now includes profiles and organization branding.
+- `src/pages/marketing/marketingPricingCopy.ts` now lists organization logo branding on Pro+ plan copy.
+
+**Validation:**
+- IDE diagnostics: only existing README markdownlint warnings surfaced; changed TS/TSX files were clean.
+- `pnpm lint`: passed.
+- `pnpm build`: passed with existing Vite large chunk warning.
+- `pnpm test`: passed, 84 tests.
+- `npm run lint` in `functions`: passed.
+- `npm run build` in `functions`: passed.
+- `npm run test` in `functions`: passed, 34 tests, with existing VM Modules warnings.
+- `git diff --check`: passed with line-ending warnings only.
+
+**Documentation Status:**
+README, in-app getting started/FAQ, public features/FAQ, and pricing copy were updated. No TODO file was present. No plan file was edited.
+
+**PBRD Documentation Step:**
+Complete.
+
+## 2026-05-01 - Build/Review Final
+
+**Task:**
+Implement the approved replacement workflow plan.
+
+**Summary:**
+Built the improved in-place replacement workflow: the modal now confirms old extinguisher details, lets owner/admin users reuse or intentionally replace the asset ID, archives old unit data automatically, adds a Replaced Extinguishers page with side-by-side old/current unit details, tracks retired-unit service statuses, and can return an archived old unit into active spare inventory with a new spare asset ID.
+
+**Files Changed:**
+- `functions/src/lifecycle/replaceExtinguisher.ts`
+- `functions/src/lifecycle/updateReplacementHistoryStatus.ts`
+- `functions/src/index.ts`
+- `functions/src/__tests__/replaceExtinguisher.test.ts`
+- `functions/src/__tests__/updateReplacementHistoryStatus.test.ts`
+- `src/components/extinguisher/ReplaceExtinguisherModal.tsx`
+- `src/pages/ReplacedExtinguishers.tsx`
+- `src/services/lifecycleService.ts`
+- `src/services/extinguisherService.ts`
+- `src/pages/ExtinguisherDetail.tsx`
+- `src/pages/ExtinguisherEdit.tsx`
+- `src/routes/index.tsx`
+- `src/components/layout/Sidebar.tsx`
+- `src/components/layout/DashboardLayout.tsx`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Plan Compliance:**
+- Followed the approved plan, including the intentional asset ID reuse/change choice.
+- Kept the current in-place replacement model while archiving prior physical-unit data under replacement history.
+- Returned units become separate active spare inventory records only through the owner/admin callable with duplicate checks.
+
+**Validation:**
+- Formatter: no formatter script exists.
+- IDE diagnostics / `ReadLints` on changed files: passed.
+- Targeted functions tests: passed, 11 tests.
+- `pnpm lint`: passed.
+- `pnpm build`: passed with existing Vite large chunk warning.
+- `pnpm test`: passed, 84 tests.
+- `npm run lint` in `functions`: passed.
+- `npm run build` in `functions`: passed.
+- `npm run test` in `functions`: passed, 41 tests, with existing VM Modules warnings.
+- `git diff --check`: passed with Windows line-ending warnings only.
+
+**Review Verdict:**
+ACCEPTED WITH MINOR CONCERNS; the minor client-side concerns were cleaned up afterward by removing limited fallback duplicate preflights and leftover localhost debug ingest calls from `src/services/extinguisherService.ts`.
+
+**Documentation Gate:**
+Complete. Document Mode inspected actual implementation and found README, FAQ, Getting Started, marketing, and pricing copy already current; no plan file was edited.
+
+**Risks / Follow-Ups:**
+- Manual emulator smoke test recommended for the replacement modal, Replaced Extinguishers page, status updates, and returned-to-spare creation against real Firestore indexes/data.
+
+## 2026-05-01 - Document Mode
+
+**Task:**
+Document replacement workflow update after Review verdict ACCEPTED WITH MINOR CONCERNS and cleanup of duplicate preflight/debug ingest concerns.
+
+**What I Inspected:**
+- `src/components/extinguisher/ReplaceExtinguisherModal.tsx`
+- `src/pages/ReplacedExtinguishers.tsx`
+- `src/routes/index.tsx`
+- `src/components/layout/Sidebar.tsx`
+- `src/services/lifecycleService.ts`
+- `src/services/extinguisherService.ts`
+- `functions/src/lifecycle/replaceExtinguisher.ts`
+- `functions/src/lifecycle/updateReplacementHistoryStatus.ts`
+- `functions/src/__tests__/replaceExtinguisher.test.ts`
+- `functions/src/__tests__/updateReplacementHistoryStatus.test.ts`
+- `README.md`
+- `src/pages/GettingStarted.tsx`
+- `src/pages/FaqPage.tsx`
+- `src/pages/marketing/MarketingFeaturesPage.tsx`
+- `src/pages/marketing/MarketingFaqPage.tsx`
+- `src/pages/marketing/MarketingGettingStartedPage.tsx`
+- `src/pages/marketing/marketingPricingCopy.ts`
+- `agent-system/lessons_learned.md`
+
+**What I Updated:**
+- `agent-system/agent-info.md` only. Existing README, in-app FAQ/Getting Started, and public marketing FAQ/features/pricing copy already described the implemented replacement workflow accurately.
+
+**README Status:**
+Current. It already lists lifecycle tracking with archived prior-unit details, retired service status, and returned spare inventory.
+
+**TODO Status:**
+No `TODO.md` exists. No roadmap change was needed for this completed replacement workflow.
+
+**Website / Marketing Page Status:**
+Current. Public Features and FAQ already describe old-unit confirmation, intentional asset ID reuse/change, archived serial/barcode/unit details, retired service status, side-by-side replacement history, and returned spare inventory.
+
+**FAQ / Getting Started Status:**
+Current. In-app FAQ and Getting Started already explain how to use Replace Extinguisher, where to review replaced units, and how returned units become active spares with a new spare asset ID.
+
+**Documentation Still Needed:**
+None for this pass. No plan file was edited.
+
+**PBRD Documentation Step:**
+Complete.

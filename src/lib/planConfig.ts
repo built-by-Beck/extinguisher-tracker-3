@@ -50,6 +50,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     customAssetInspections: false,
     guestAccess: false,
     teamMembers: false,
+    organizationBranding: false,
   },
   pro: {
     manualBarcodeEntry: true,
@@ -67,6 +68,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     customAssetInspections: true,
     guestAccess: false,
     teamMembers: false,
+    organizationBranding: true,
   },
   elite: {
     manualBarcodeEntry: true,
@@ -84,6 +86,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     customAssetInspections: true,
     guestAccess: true,
     teamMembers: true,
+    organizationBranding: true,
   },
   enterprise: {
     manualBarcodeEntry: true,
@@ -101,6 +104,7 @@ const PLAN_FEATURE_FLAGS: Record<PlanName, Record<string, boolean>> = {
     customAssetInspections: true,
     guestAccess: true,
     teamMembers: true,
+    organizationBranding: true,
   },
 };
 
