@@ -1611,6 +1611,94 @@ Commit the report generation fix and IAM/memory notes when ready.
 **Handoff Notes:**
 Final validation passed: `npm --prefix functions run build`, `npm --prefix functions run lint`, and `firebase deploy --only functions:generateReport`.
 
+## 2026-05-04 - Plan/Build/Review/Document Mode
+
+**Task:**
+Add configurable report scopes and sorting to the Reports page generator.
+
+**Summary:**
+Planned and implemented focused on-demand report generation for failed or expired extinguishers, passed extinguishers, pending / not inspected extinguishers, and replacement candidates. Reports page generator now sends a selected scope and sort order to `generateReport`, with location as the default and asset ID as the alternate. Backend generates option-specific artifacts without overwriting the canonical full-report file paths. Added pure report option helpers and regression tests for filtering, stats, storage suffixes, and location/asset sorting. Review verdict: ACCEPTED WITH MINOR CONCERNS because direct end-to-end artifact download verification was not run against live data in this pass.
+
+**Files Inspected:**
+- src/pages/Reports.tsx
+- src/components/reports/ReportDownloadButton.tsx
+- src/services/reportService.ts
+- src/types/report.ts
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/reports/finderFields.ts
+- functions/src/workspaces/archiveWorkspace.ts
+- BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md
+- README.md
+- src/pages/FaqPage.tsx
+- src/pages/GettingStarted.tsx
+
+**Files Changed:**
+- BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md
+- README.md
+- agent-system/agent-info.md
+- functions/src/__tests__/reportOptions.test.ts
+- functions/src/reports/finderFields.ts
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/reports/reportOptions.ts
+- functions/src/workspaces/archiveWorkspace.ts
+- src/pages/FaqPage.tsx
+- src/pages/GettingStarted.tsx
+- src/pages/Reports.tsx
+- src/services/reportService.ts
+- src/types/report.ts
+
+**Key Decisions:**
+- Keep archived workspace quick-download buttons as full-report downloads.
+- Put configurable scope/sort controls only on the Reports page generator, per user choice.
+- Generate focused files under distinct Storage names so filtered reports never overwrite canonical full reports.
+- Treat replacement candidates as active rows not marked expired with manufacture year at least six years old.
+
+**Risks / Blockers:**
+- No live/emulator generated artifact was downloaded in this pass; validation covered pure filtering/sorting and type/build/lint.
+
+**Next Recommended Action:**
+Have the user generate each focused report type from the Reports page and verify the downloaded output order/content before release commit/deploy.
+
+**Handoff Notes:**
+Validation passed: `pnpm lint`, `pnpm build`, `npm --prefix functions run build`, `npm --prefix functions run lint`, `npm --prefix functions test -- reportOptions.test.ts`, and `pnpm exec vitest run src/components/reports/ReportDownloadButton.test.tsx`.
+
+## 2026-05-04 - Build/Review Mode
+
+**Task:**
+Release focused report options and rename visible app/report branding to ExtinguisherTracker.
+
+**Summary:**
+Changed user-facing app and generated report branding from EX3 / Extinguisher Tracker / Extinguisher Tracker 3 to ExtinguisherTracker across `src`, `functions/src`, and `index.html`. Verified no old brand strings remain in those program sources. Kept the focused report scope/sort implementation in place and reran release validation.
+
+**Files Inspected:**
+- src
+- functions/src
+- index.html
+- functions/src/reports/pdfGenerator.ts
+- src/components/layout/Sidebar.tsx
+- src/components/marketing/PublicMarketingLayout.tsx
+
+**Files Changed:**
+- src/*
+- functions/src/*
+- index.html
+- agent-system/agent-info.md
+
+**Key Decisions:**
+- Treat source comments in shipped program files as part of the branding sweep to avoid stale EX3 references in bundled source/build tooling.
+- Leave repository specs/docs outside deployed program source unless already part of the report options documentation update.
+
+**Risks / Blockers:**
+- None known. Existing Vite bundle-size warning remains unchanged.
+
+**Next Recommended Action:**
+Commit, push the PR branch, and deploy the validated release.
+
+**Handoff Notes:**
+Validation passed after branding changes: `pnpm lint`, `pnpm build`, `npm --prefix functions run build`, `npm --prefix functions run lint`, `npm --prefix functions test -- reportOptions.test.ts`, and `pnpm exec vitest run src/components/reports/ReportDownloadButton.test.tsx`.
+
 ## 2026-05-01 - Build/Review Final
 
 **Task:**
@@ -1792,3 +1880,52 @@ Run Document Mode to confirm/update relevant documentation surfaces and complete
 
 **Handoff Notes:**
 Document Mode should verify `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md` reflects the new finder fields and decide whether any README/FAQ/marketing copy needs updates.
+
+## 2026-05-04 - Document Mode
+
+**Task:**
+Document Finder Fields Everywhere after Review verdict ACCEPTED WITH MINOR CONCERNS.
+
+**Summary:**
+Inspected the actual report and AI implementation and confirmed existing documentation/marketing/FAQ/getting-started surfaces already describe that listed extinguishers include asset number, serial number, location, section, and vicinity. No public docs needed edits; Document Mode completion is done.
+
+**Files Inspected:**
+- `functions/src/reports/finderFields.ts`
+- `functions/src/workspaces/archiveWorkspace.ts`
+- `functions/src/reports/generateReport.ts`
+- `functions/src/reports/pdfGenerator.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- `src/services/aiService.ts`
+- `src/types/aiQuery.ts`
+- `src/types/report.ts`
+- `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md`
+- `README.md`
+- `src/pages/Reports.tsx`
+- `src/pages/FaqPage.tsx`
+- `src/pages/GettingStarted.tsx`
+- `src/pages/marketing/MarketingHomePage.tsx`
+- `src/pages/marketing/MarketingFeaturesPage.tsx`
+- `src/pages/marketing/MarketingHowItWorksPage.tsx`
+- `src/pages/marketing/MarketingFaqPage.tsx`
+- `src/pages/marketing/MarketingGettingStartedPage.tsx`
+- `agent-system/lessons_learned.md`
+- `agent-system/lessons-learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Updated:**
+- `agent-system/agent-info.md`
+
+**README Status:**
+Current. Key Features already describes AI extinguisher lists and report/export outputs with asset, serial, location, section, and vicinity details.
+
+**TODO Status:**
+No `TODO.md` file was present, so no TODO/roadmap update was needed.
+
+**Website / Marketing Page Status:**
+Current. Public home, features, how-it-works, FAQ, and getting-started copy already include the finder-field detail where relevant.
+
+**FAQ / Getting Started Status:**
+Current. In-app FAQ, in-app Getting Started, public FAQ, and public Getting Started already describe report finder fields and AI inventory-list context accurately.
+
+**Documentation Still Needed:**
+No documentation gap found for the user-facing change. Residual non-doc test gap remains from Review: report CSV/PDF/JSON artifact finder-field output and legacy regeneration do not have direct tests.

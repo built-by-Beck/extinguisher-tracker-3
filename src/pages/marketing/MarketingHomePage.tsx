@@ -56,7 +56,7 @@ export default function MarketingHomePage() {
               Field-built extinguisher software for teams that cannot afford missed checks
             </h1>
             <p className="mt-5 text-lg text-gray-600 sm:text-xl">
-              Extinguisher Tracker brings inventory, inspections, AI guidance, offline-ready field work, reports,
+              ExtinguisherTracker brings inventory, inspections, AI guidance, offline-ready field work, reports,
               reminders, and audit history into one system built around the way life safety work actually happens.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -109,7 +109,7 @@ export default function MarketingHomePage() {
         </div>
 
         <Section>
-          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">What Extinguisher Tracker does</h2>
+          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">What ExtinguisherTracker does</h2>
           <p className="mt-4 max-w-3xl text-gray-600">
             It covers the full program: setup, inventory, tags, mobile inspections, custom asset checks, evidence,
             reminders, reports, guest sharing, lifecycle changes, and the cleanup tools that keep records trustworthy.

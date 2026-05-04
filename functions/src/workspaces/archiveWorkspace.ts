@@ -16,6 +16,11 @@ interface InspectionResultData {
   locationName: string;
   section: string;
   vicinity: string;
+  manufactureYear: number | null;
+  expirationYear: number | null;
+  isExpired: boolean;
+  lifecycleStatus: string | null;
+  complianceStatus: string | null;
   status: string;
   inspectedAt: unknown;
   inspectedBy: string | null;
@@ -66,6 +71,11 @@ export const archiveWorkspace = onCall(async (request) => {
       locationName: data.locationName ?? '',
       section: data.section ?? '',
       vicinity: data.vicinity ?? '',
+      manufactureYear: typeof data.manufactureYear === 'number' ? data.manufactureYear : null,
+      expirationYear: typeof data.expirationYear === 'number' ? data.expirationYear : null,
+      isExpired: data.isExpired === true,
+      lifecycleStatus: typeof data.lifecycleStatus === 'string' ? data.lifecycleStatus : null,
+      complianceStatus: typeof data.complianceStatus === 'string' ? data.complianceStatus : null,
       status: data.status ?? 'pending',
       inspectedAt: data.inspectedAt ?? null,
       inspectedBy: data.inspectedBy ?? null,

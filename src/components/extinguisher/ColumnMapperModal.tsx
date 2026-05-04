@@ -1,5 +1,5 @@
 /**
- * Column Mapper — lets users map their file's column names to EX3 fields
+ * Column Mapper — lets users map their file's column names to ExtinguisherTracker fields
  * before importing. Auto-suggests matches based on common naming patterns.
  *
  * Author: built_by_Beck
@@ -8,7 +8,7 @@
 import { useState, useMemo } from 'react';
 import { ArrowRight, Check, AlertTriangle, X, Eye, EyeOff } from 'lucide-react';
 
-/** The EX3 fields that imported data can map to */
+/** The ExtinguisherTracker fields that imported data can map to */
 export interface TargetField {
   key: string;
   label: string;

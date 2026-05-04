@@ -1,5 +1,5 @@
 /**
- * IndexedDB schema and database utility for EX3 offline sync.
+ * IndexedDB schema and database utility for ExtinguisherTracker offline sync.
  *
  * Database: 'ex3-offline', version 1
  * Stores:

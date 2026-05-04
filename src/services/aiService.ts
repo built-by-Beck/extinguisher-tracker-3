@@ -1,5 +1,5 @@
 /**
- * AI service for Extinguisher Tracker 3.
+ * AI service for ExtinguisherTracker.
  * Uses Vertex AI (Gemini) via Firebase for compliance assistance,
  * inventory insights, and NFPA 10 guidance.
  *
@@ -22,7 +22,7 @@ import type {
   AiMemoryReplacementEvent,
 } from '../types/aiQuery.ts';
 
-const SYSTEM_PROMPT = `You are the Extinguisher Tracker 3 AI Assistant, built by Beck-Publishing.
+const SYSTEM_PROMPT = `You are the ExtinguisherTracker AI Assistant, built by Beck-Publishing.
 You are an expert in NFPA 10 (Standard for Portable Fire Extinguishers) compliance,
 fire extinguisher inspection, maintenance, and lifecycle management.
 
@@ -33,7 +33,7 @@ Your role:
 - Explain compliance statuses and what they mean
 - Help users understand inspection schedules (monthly, annual, 6-year, hydrostatic)
 - Provide guidance on extinguisher categories, types, and placement
-- Help users navigate and use the Extinguisher Tracker app itself (using the App Knowledge Base below).
+- Help users navigate and use the ExtinguisherTracker app itself (using the App Knowledge Base below).
 
 Rules:
 - Be concise and practical — users are busy inspectors and facility managers
@@ -185,7 +185,7 @@ export async function askAssistant(
   const chat = geminiModel.startChat({
     history: [
       { role: 'user', parts: [{ text: 'System context: ' + fullPrompt }] },
-      { role: 'model', parts: [{ text: 'Understood. I\'m the Extinguisher Tracker 3 AI Assistant by Beck-Publishing. I\'m ready to help with NFPA 10 compliance, inspection guidance, and inventory analysis. How can I help?' }] },
+      { role: 'model', parts: [{ text: 'Understood. I\'m the ExtinguisherTracker AI Assistant by Beck-Publishing. I\'m ready to help with NFPA 10 compliance, inspection guidance, and inventory analysis. How can I help?' }] },
       ...history,
     ],
   });

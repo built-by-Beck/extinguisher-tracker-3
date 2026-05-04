@@ -112,8 +112,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         {/* Brand header */}
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 px-3">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Extinguisher Tracker" className="h-9 w-9 rounded-lg object-contain" />
-            <span className="text-base font-bold leading-tight text-gray-900">Extinguisher<br /><span className="text-red-600">Tracker</span></span>
+            <img src="/logo.png" alt="ExtinguisherTracker" className="h-9 w-9 rounded-lg object-contain" />
+            <span className="text-base font-bold leading-tight text-gray-900">Extinguisher<span className="text-red-600">Tracker</span></span>
           </div>
           <button
             onClick={onClose}

@@ -1,5 +1,5 @@
 /**
- * EX3 Cloud Functions entry point.
+ * ExtinguisherTracker Cloud Functions entry point.
  * All callable, HTTPS, and triggered functions are exported from here.
  *
  * Author: built_by_Beck

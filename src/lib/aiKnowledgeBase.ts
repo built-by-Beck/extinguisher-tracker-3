@@ -1,11 +1,11 @@
 /**
  * Internal Knowledge Base for the AI Assistant.
- * Provides the AI with information about how the Extinguisher Tracker program works
+ * Provides the AI with information about how the ExtinguisherTracker program works
  * so it can help users with app navigation and operations.
  */
 
 export const APP_KNOWLEDGE_BASE = `
-### Extinguisher Tracker 3 - App Navigation & How-To Guide
+### ExtinguisherTracker - App Navigation & How-To Guide
 
 The AI Assistant should use this information to answer user questions about how to use the app.
 

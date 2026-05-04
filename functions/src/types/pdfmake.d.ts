@@ -1,6 +1,6 @@
 /**
  * Minimal type declarations for pdfmake v0.3.x.
- * Only the types needed by EX3 report generation are declared here.
+ * Only the types needed by ExtinguisherTracker report generation are declared here.
  *
  * Author: built_by_Beck
  */

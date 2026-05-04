@@ -118,7 +118,7 @@ export const marketingFaq: MarketingFaqItem[] = [
   },
   {
     q: 'What does the product track besides monthly extinguisher checks?',
-    a: 'Extinguisher Tracker also supports locations, tags, QR links, photos, GPS context, lifecycle replacement and retirement history, returned spare inventory, custom asset inspections, notifications, reports, exports, and audit logs depending on plan access.',
+    a: 'ExtinguisherTracker also supports locations, tags, QR links, photos, GPS context, lifecycle replacement and retirement history, returned spare inventory, custom asset inspections, notifications, reports, exports, and audit logs depending on plan access.',
   },
   {
     q: 'Can AI answer NFPA questions while my team is working?',

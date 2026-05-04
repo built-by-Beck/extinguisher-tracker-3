@@ -9,6 +9,11 @@ export interface FinderFieldRow {
   locationName: string;
   section: string;
   vicinity: string;
+  manufactureYear: number | null;
+  expirationYear: number | null;
+  isExpired: boolean;
+  lifecycleStatus: string | null;
+  complianceStatus: string | null;
 }
 
 export interface InspectionResultSource {
@@ -19,10 +24,23 @@ export interface InspectionResultSource {
   locationName?: unknown;
   section?: unknown;
   vicinity?: unknown;
+  manufactureYear?: unknown;
+  expirationYear?: unknown;
+  isExpired?: unknown;
+  lifecycleStatus?: unknown;
+  complianceStatus?: unknown;
 }
 
 function stringOrEmpty(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+function numberOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function boolOrFalse(value: unknown): boolean {
+  return value === true;
 }
 
 function toFinderFieldRow(data: InspectionResultSource): FinderFieldRow {
@@ -34,6 +52,11 @@ function toFinderFieldRow(data: InspectionResultSource): FinderFieldRow {
     locationName: stringOrEmpty(data.locationName),
     section: stringOrEmpty(data.section),
     vicinity: stringOrEmpty(data.vicinity),
+    manufactureYear: numberOrNull(data.manufactureYear),
+    expirationYear: numberOrNull(data.expirationYear),
+    isExpired: boolOrFalse(data.isExpired),
+    lifecycleStatus: stringOrEmpty(data.lifecycleStatus) || null,
+    complianceStatus: stringOrEmpty(data.complianceStatus) || null,
   };
 }
 
@@ -49,6 +72,11 @@ function mergeFinderFields(
     locationName: row.locationName || stringOrEmpty(extinguisher.locationName),
     section: row.section || stringOrEmpty(extinguisher.section),
     vicinity: row.vicinity || stringOrEmpty(extinguisher.vicinity),
+    manufactureYear: row.manufactureYear ?? numberOrNull(extinguisher.manufactureYear),
+    expirationYear: row.expirationYear ?? numberOrNull(extinguisher.expirationYear),
+    isExpired: row.isExpired || boolOrFalse(extinguisher.isExpired),
+    lifecycleStatus: row.lifecycleStatus || stringOrEmpty(extinguisher.lifecycleStatus) || null,
+    complianceStatus: row.complianceStatus || stringOrEmpty(extinguisher.complianceStatus) || null,
   };
 }
 
@@ -82,6 +110,8 @@ export function hasFinderFields(rows: InspectionResultSource[] | undefined): boo
     'serial' in row &&
     'parentLocation' in row &&
     'locationName' in row &&
-    'vicinity' in row
+    'vicinity' in row &&
+    'manufactureYear' in row &&
+    'isExpired' in row
   ));
 }

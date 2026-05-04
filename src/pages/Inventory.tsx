@@ -1,5 +1,5 @@
 /**
- * Inventory page for EX3.
+ * Inventory page for ExtinguisherTracker.
  * Table/card view with sortable columns, enhanced search, filters, pagination.
  *
  * Author: built_by_Beck

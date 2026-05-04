@@ -94,7 +94,7 @@ const faqSections = [
       },
       {
         q: 'What details are included in compliance reports?',
-        a: 'Archived workspace reports can be generated as PDF, CSV, or JSON. Each listed extinguisher includes the asset number, serial number, location, section, vicinity, inspection status, inspector details, and notes when available.',
+        a: 'Archived workspace reports can be generated as PDF, CSV, or JSON. Each listed extinguisher includes the asset number, serial number, location, section, vicinity, inspection status, inspector details, and notes when available. On the Reports page, you can also generate focused reports for failed or expired units, passed units, pending inspections, or replacement candidates, sorted by location or asset ID.',
       },
       {
         q: 'Can outside reviewers see records?',

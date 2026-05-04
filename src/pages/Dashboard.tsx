@@ -1,5 +1,5 @@
 /**
- * Dashboard page for EX3.
+ * Dashboard page for ExtinguisherTracker.
  * Shows stat cards, compliance overview, quick actions, and admin overview.
  *
  * Author: built_by_Beck

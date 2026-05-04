@@ -37,7 +37,7 @@ export default function PrivacyPage() {
           <div className="mt-10">
             <Section num={1} title="Introduction">
               <p>
-                Extinguisher Tracker (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed
+                ExtinguisherTracker (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed
                 to protecting your privacy. This Privacy Policy explains how we collect, use, disclose,
                 and safeguard your information when you use our service.
               </p>
@@ -226,7 +226,7 @@ export default function PrivacyPage() {
 
             <Section num={14} title="Multi-Tenant Data Isolation">
               <p>
-                Extinguisher Tracker is a multi-tenant platform. Each organization&apos;s data is
+                ExtinguisherTracker is a multi-tenant platform. Each organization&apos;s data is
                 logically isolated and accessible only to authorized members of that organization. We
                 enforce strict access controls at the database level to prevent cross-organization data
                 access. Organization owners control member access and permissions within their

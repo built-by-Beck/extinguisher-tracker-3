@@ -126,7 +126,7 @@ export function DashboardLayout() {
             <div className={`relative ${pageColors.bg} transition-colors duration-300`}>
               <img
                 src="/extinguisherTracker2.png"
-                alt="Extinguisher Tracker"
+                alt="ExtinguisherTracker"
                 className="mx-auto block w-[96%] object-contain py-1"
               />
               <div className="absolute inset-0 flex items-end justify-center pb-3 sm:pb-5">

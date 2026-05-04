@@ -1,5 +1,5 @@
 /**
- * Audit log service for EX3.
+ * Audit log service for ExtinguisherTracker.
  * Provides cursor-based pagination for browsing org audit logs.
  * Admin-only in the UI; Firestore rules enforce owner/admin read access.
  *

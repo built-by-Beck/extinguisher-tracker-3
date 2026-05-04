@@ -359,11 +359,11 @@ export function InspectionPanel({
         </div>
       )}
 
-      {/* EX3 NFPA 10 Inspection Checklist */}
+      {/* ExtinguisherTracker NFPA 10 Inspection Checklist */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-1 flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-red-500" />
-          <h2 className="text-lg font-semibold text-gray-900">EX3 NFPA 10 Inspection Checklist</h2>
+          <h2 className="text-lg font-semibold text-gray-900">ExtinguisherTracker NFPA 10 Inspection Checklist</h2>
         </div>
         <p className="mb-4 text-xs text-gray-400">
           Based on NFPA 10 Section 7.2.2 — Standard for Portable Fire Extinguishers

@@ -78,7 +78,7 @@ const steps = [
   },
   {
     title: 'Review status and generate reports',
-    body: 'Track pass/fail trends, notifications, audit logs, follow-ups, and reports that identify each listed extinguisher by asset number, serial number, location, section, and vicinity.',
+    body: 'Track pass/fail trends, notifications, audit logs, follow-ups, and reports that identify each listed extinguisher by asset number, serial number, location, section, and vicinity. Build focused reports for failed or expired units, passed units, pending inspections, or replacement candidates, sorted by location by default.',
     icon: FileCheck2,
     links: [
       { to: '/dashboard', label: 'View dashboard' },

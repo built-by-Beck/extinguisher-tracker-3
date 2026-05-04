@@ -280,6 +280,20 @@ System must:
 - verify org scope
 - optionally log audit event
 
+On-demand report generation may request a focused scope and sort order. Supported scopes:
+
+- failed or expired extinguishers
+- passed extinguishers
+- pending / not inspected extinguishers
+- replacement candidates
+
+Supported sort orders:
+
+- location (default)
+- asset ID
+
+Focused on-demand artifacts are generated as separate files and must not overwrite the archived workspace's canonical full-report artifact paths.
+
 ---
 
 ## Plan Rules

@@ -25,15 +25,15 @@ type PublicMarketingLayoutProps = {
 export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? { title: 'Extinguisher Tracker', subtitle: '' };
+  const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? { title: 'ExtinguisherTracker', subtitle: '' };
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-6 sm:px-6">
           <Link to="/" className="flex items-center gap-3.5" onClick={() => setMobileOpen(false)}>
-            <img src="/logo.png" alt="Extinguisher Tracker" className="h-24 w-24 rounded-xl object-contain sm:h-28 sm:w-28" />
-            <span className="text-3xl font-bold tracking-tight text-gray-900">Extinguisher <span className="text-red-600">Tracker</span></span>
+            <img src="/logo.png" alt="ExtinguisherTracker" className="h-24 w-24 rounded-xl object-contain sm:h-28 sm:w-28" />
+            <span className="text-3xl font-bold tracking-tight text-gray-900">Extinguisher<span className="text-red-600">Tracker</span></span>
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
@@ -141,7 +141,7 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
       <div className="relative bg-gray-900">
         <img
           src="/extinguisherTracker2.png"
-          alt="Extinguisher Tracker — Fire Extinguisher Tracking Made Simple"
+          alt="ExtinguisherTracker — Fire Extinguisher Tracking Made Simple"
           className="mx-auto block w-[96%] object-contain py-1"
         />
         <div className="absolute inset-0 flex items-end justify-center pb-4 sm:pb-6">
@@ -171,8 +171,8 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
           <div className="flex flex-col gap-8 sm:flex-row sm:justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <img src="/logo.png" alt="Extinguisher Tracker" className="h-8 w-8 rounded-lg object-contain" />
-                <p className="text-sm font-semibold text-red-600">Extinguisher Tracker</p>
+                <img src="/logo.png" alt="ExtinguisherTracker" className="h-8 w-8 rounded-lg object-contain" />
+                <p className="text-sm font-semibold text-red-600">ExtinguisherTracker</p>
               </div>
               <p className="mt-2 max-w-sm text-sm text-gray-600">
                 Field-built inspection and compliance workflow software for teams responsible for fire extinguisher programs.
@@ -233,7 +233,7 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
             </div>
           </div>
           <p className="mt-8 text-xs text-gray-500">
-            © {new Date().getFullYear()} Extinguisher Tracker. All rights reserved.
+            © {new Date().getFullYear()} ExtinguisherTracker. All rights reserved.
           </p>
         </div>
       </footer>

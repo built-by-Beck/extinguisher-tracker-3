@@ -40,7 +40,7 @@ The system is **organization-centric** — all operational data belongs to the o
 - **Lifecycle Tracking** — Replacement history archives prior unit details, tracks retired service status, and supports returned spare inventory
 - **Expiration Planning Lists** — Separate official marked-expired inventory from advisory 6+ year manufacture-date candidates
 - **Audit Logs** — Append-only, immutable compliance records for regulatory audits
-- **Reports & Exports** — Generate compliance reports in PDF, CSV, and JSON formats with asset, serial, location, section, and vicinity details for listed extinguishers
+- **Reports & Exports** — Generate compliance reports in PDF, CSV, and JSON formats with asset, serial, location, section, and vicinity details; create focused reports for failed or expired units, passed units, pending inspections, or replacement candidates, sorted by location or asset ID
 - **Legal Attestation** — Digital inspection sign-off for regulatory compliance
 - **Tag / QR Label Printing** — Generate and print asset tags for physical extinguishers
 - **Multi-Tenant Isolation** — Strict data separation between organizations at every layer

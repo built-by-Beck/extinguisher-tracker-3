@@ -52,8 +52,8 @@ export default function AcceptInvite() {
       <div className="w-full max-w-md rounded-lg bg-white p-8 shadow">
         {/* Brand */}
         <div className="mb-6 flex flex-col items-center gap-3">
-          <img src="/logo.png" alt="Extinguisher Tracker" className="h-32 w-32 rounded-2xl object-contain drop-shadow-xl" />
-          <span className="text-2xl font-bold text-gray-900">Extinguisher Tracker</span>
+          <img src="/logo.png" alt="ExtinguisherTracker" className="h-32 w-32 rounded-2xl object-contain drop-shadow-xl" />
+          <span className="text-2xl font-bold text-gray-900">ExtinguisherTracker</span>
         </div>
 
         {/* Loading auth */}
