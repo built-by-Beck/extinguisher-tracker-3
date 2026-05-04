@@ -17,7 +17,11 @@ const FONTS_PATH = path.join(pdfmakeDir, 'fonts', 'Roboto');
 
 export interface ReportResultRow {
   assetId: string;
+  serial: string;
+  parentLocation: string;
+  locationName: string;
   section: string;
+  vicinity: string;
   status: string;
   inspectedAt: string;
   inspectedBy: string;
@@ -44,8 +48,7 @@ export interface ReportPDFData {
  * Returns the PDF as a Buffer.
  */
 export async function generateInspectionReportPDF(data: ReportPDFData): Promise<Buffer> {
-  const pdfmake = new PdfMake();
-  pdfmake.addFonts({
+  PdfMake.addFonts({
     Roboto: {
       normal: path.join(FONTS_PATH, 'Roboto-Regular.ttf'),
       bold: path.join(FONTS_PATH, 'Roboto-Medium.ttf'),
@@ -67,31 +70,39 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
     minute: '2-digit',
     timeZoneName: 'short',
   });
+  const displayLocation = (row: ReportResultRow) => row.parentLocation || row.locationName || '--';
 
   // Table rows: header row + data rows
   const tableHeaderRow: ContentText[] = [
-    { text: 'Asset ID', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
-    { text: 'Section', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
-    { text: 'Status', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
-    { text: 'Inspected At', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
-    { text: 'Inspected By', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
-    { text: 'Notes', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
+    { text: 'Asset Number', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Serial Number', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Location', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Section', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Vicinity', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Status', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Inspected At', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Inspected By', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Notes', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
   ];
 
   const tableDataRows: ContentText[][] = data.results.map((r) => [
-    { text: r.assetId || '--', fontSize: 9, margin: [4, 3, 4, 3] },
-    { text: r.section || '--', fontSize: 9, margin: [4, 3, 4, 3] },
-    { text: r.status || '--', fontSize: 9, margin: [4, 3, 4, 3] },
-    { text: r.inspectedAt || '--', fontSize: 9, margin: [4, 3, 4, 3] },
-    { text: r.inspectedBy || '--', fontSize: 9, margin: [4, 3, 4, 3] },
+    { text: r.assetId || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.serial || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: displayLocation(r), fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.section || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.vicinity || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.status || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.inspectedAt || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.inspectedBy || '--', fontSize: 8, margin: [3, 3, 3, 3] },
     {
       text: r.notes ? (r.notes.length > 60 ? r.notes.slice(0, 57) + '...' : r.notes) : '--',
-      fontSize: 9,
-      margin: [4, 3, 4, 3],
+      fontSize: 8,
+      margin: [3, 3, 3, 3],
     },
   ]);
 
   const docDefinition: DocumentDefinition = {
+    pageOrientation: 'landscape',
     pageMargins: [40, 60, 40, 60],
     defaultStyle: { font: 'Roboto', fontSize: 10 },
     styles: {
@@ -172,7 +183,7 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
             {
               table: {
                 headerRows: 1,
-                widths: ['auto', 'auto', 'auto', 'auto', '*', '*'] as (string | number)[],
+                widths: ['auto', 'auto', '*', '*', '*', 'auto', 'auto', '*', '*'] as (string | number)[],
                 body: [tableHeaderRow, ...tableDataRows],
               },
               layout: 'lightHorizontalLines',
@@ -200,6 +211,6 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
     },
   };
 
-  const pdfDoc = pdfmake.createPdf(docDefinition);
+  const pdfDoc = PdfMake.createPdf(docDefinition);
   return pdfDoc.getBuffer();
 }

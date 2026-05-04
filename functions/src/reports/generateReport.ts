@@ -20,6 +20,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { FieldValue } from 'firebase-admin/firestore';
 import { generateInspectionReportPDF } from './pdfGenerator.js';
 import type { ReportResultRow } from './pdfGenerator.js';
+import { enrichFinderFields, hasFinderFields } from './finderFields.js';
 
 type ReportFormat = 'csv' | 'pdf' | 'json';
 
@@ -47,6 +48,22 @@ function timestampToString(ts: unknown): string {
   return '';
 }
 
+function debugReportLog(hypothesisId: string, message: string, data: Record<string, unknown>) {
+  fetch('http://127.0.0.1:7842/ingest/21545bb1-6e23-40cd-ab67-ad19a1e5e25c', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'd3826d' },
+    body: JSON.stringify({
+      sessionId: 'd3826d',
+      runId: 'initial-report-generation',
+      hypothesisId,
+      location: 'functions/src/reports/generateReport.ts',
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+}
+
 interface ReportDocData {
   workspaceId: string;
   monthYear: string;
@@ -65,8 +82,13 @@ interface ReportDocData {
 }
 
 interface ReportResultFirestore {
+  extinguisherId: string;
   assetId: string;
+  serial: string;
+  parentLocation: string;
+  locationName: string;
   section: string;
+  vicinity: string;
   status: string;
   inspectedAt: unknown;
   inspectedBy: string | null;
@@ -75,7 +97,52 @@ interface ReportResultFirestore {
   checklistData: Record<string, string> | null;
 }
 
+async function buildReportResultsFromInspections(orgId: string, workspaceId: string) {
+  const inspSnap = await adminDb
+    .collection(`org/${orgId}/inspections`)
+    .where('workspaceId', '==', workspaceId)
+    .get();
+
+  let passed = 0;
+  let failed = 0;
+  let pending = 0;
+  const results: ReportResultFirestore[] = [];
+
+  inspSnap.forEach((d) => {
+    const data = d.data();
+    const status = data.status as string;
+    if (status === 'pass') passed++;
+    else if (status === 'fail') failed++;
+    else pending++;
+
+    results.push({
+      extinguisherId: data.extinguisherId ?? '',
+      assetId: data.assetId ?? '',
+      serial: data.serial ?? '',
+      parentLocation: data.parentLocation ?? '',
+      locationName: data.locationName ?? '',
+      section: data.section ?? '',
+      vicinity: data.vicinity ?? '',
+      status: data.status ?? 'pending',
+      inspectedAt: data.inspectedAt ?? null,
+      inspectedBy: data.inspectedBy ?? null,
+      inspectedByEmail: data.inspectedByEmail ?? null,
+      notes: data.notes ?? '',
+      checklistData: data.checklistData ?? null,
+    });
+  });
+
+  return {
+    totalExtinguishers: inspSnap.size,
+    passedCount: passed,
+    failedCount: failed,
+    pendingCount: pending,
+    results: await enrichFinderFields(orgId, results),
+  };
+}
+
 export const generateReport = onCall(async (request) => {
+  try {
   const { uid } = validateAuth(request);
   const { orgId, workspaceId, format } = request.data as {
     orgId: string;
@@ -86,6 +153,13 @@ export const generateReport = onCall(async (request) => {
   if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
   if (!workspaceId || typeof workspaceId !== 'string') throwInvalidArgument('workspaceId is required.');
   if (!isValidFormat(format)) throwInvalidArgument('format must be one of: csv, pdf, json.');
+
+  // #region agent log
+  debugReportLog('H1,H2,H3,H4', 'generateReport request validated', {
+    format,
+    workspaceIdPresent: Boolean(workspaceId),
+  });
+  // #endregion
 
   // Any active member can generate/download reports
   const member = await validateMembership(orgId, uid, ['owner', 'admin', 'inspector', 'viewer']);
@@ -100,36 +174,17 @@ export const generateReport = onCall(async (request) => {
   const reportRef = adminDb.doc(`org/${orgId}/reports/${workspaceId}`);
   let reportSnap = await reportRef.get();
 
+  // #region agent log
+  debugReportLog('H1,H2', 'workspace and report snapshots loaded', {
+    workspaceStatus: wsData.status ?? null,
+    workspaceArchivedAtPresent: Boolean(wsData.archivedAt),
+    reportExists: reportSnap.exists,
+  });
+  // #endregion
+
   if (!reportSnap.exists) {
     // Build results array from inspections (on-demand for workspaces archived before Phase 5)
-    const inspSnap = await adminDb
-      .collection(`org/${orgId}/inspections`)
-      .where('workspaceId', '==', workspaceId)
-      .get();
-
-    let passed = 0;
-    let failed = 0;
-    let pending = 0;
-    const results: ReportResultFirestore[] = [];
-
-    inspSnap.forEach((d) => {
-      const data = d.data();
-      const status = data.status as string;
-      if (status === 'pass') passed++;
-      else if (status === 'fail') failed++;
-      else pending++;
-
-      results.push({
-        assetId: data.assetId ?? '',
-        section: data.section ?? '',
-        status: data.status ?? 'pending',
-        inspectedAt: data.inspectedAt ?? null,
-        inspectedBy: data.inspectedBy ?? null,
-        inspectedByEmail: data.inspectedByEmail ?? null,
-        notes: data.notes ?? '',
-        checklistData: data.checklistData ?? null,
-      });
-    });
+    const snapshot = await buildReportResultsFromInspections(orgId, workspaceId);
 
     const newReportDoc: ReportDocData & {
       archivedAt: unknown;
@@ -142,11 +197,11 @@ export const generateReport = onCall(async (request) => {
       label: wsData.label ?? '',
       archivedAt: wsData.archivedAt ?? null,
       archivedBy: wsData.archivedBy ?? uid,
-      totalExtinguishers: inspSnap.size,
-      passedCount: passed,
-      failedCount: failed,
-      pendingCount: pending,
-      results,
+      totalExtinguishers: snapshot.totalExtinguishers,
+      passedCount: snapshot.passedCount,
+      failedCount: snapshot.failedCount,
+      pendingCount: snapshot.pendingCount,
+      results: snapshot.results,
       csvDownloadUrl: null,
       csvFilePath: null,
       pdfDownloadUrl: null,
@@ -161,16 +216,61 @@ export const generateReport = onCall(async (request) => {
     reportSnap = await reportRef.get();
   }
 
-  const reportData = reportSnap.data() as ReportDocData;
+  let reportData = reportSnap.data() as ReportDocData;
+  let forceRegenerate = false;
+  if (!hasFinderFields(reportData.results)) {
+    const snapshot = await buildReportResultsFromInspections(orgId, workspaceId);
+    await reportRef.update({
+      totalExtinguishers: snapshot.totalExtinguishers,
+      passedCount: snapshot.passedCount,
+      failedCount: snapshot.failedCount,
+      pendingCount: snapshot.pendingCount,
+      results: snapshot.results,
+      csvDownloadUrl: null,
+      csvFilePath: null,
+      pdfDownloadUrl: null,
+      pdfFilePath: null,
+      jsonDownloadUrl: null,
+      jsonFilePath: null,
+      generatedAt: FieldValue.serverTimestamp(),
+    });
+    reportData = {
+      ...reportData,
+      totalExtinguishers: snapshot.totalExtinguishers,
+      passedCount: snapshot.passedCount,
+      failedCount: snapshot.failedCount,
+      pendingCount: snapshot.pendingCount,
+      results: snapshot.results,
+      csvDownloadUrl: null,
+      csvFilePath: null,
+      pdfDownloadUrl: null,
+      pdfFilePath: null,
+      jsonDownloadUrl: null,
+      jsonFilePath: null,
+    };
+    forceRegenerate = true;
+  }
   const filePathKey = `${format}FilePath` as 'csvFilePath' | 'pdfFilePath' | 'jsonFilePath';
   const existingFilePath = reportData[filePathKey];
+
+  // #region agent log
+  debugReportLog('H2,H3,H4', 'report data prepared for generation', {
+    format,
+    resultCount: Array.isArray(reportData.results) ? reportData.results.length : 'not-array',
+    totalExtinguishers: reportData.totalExtinguishers,
+    passedCount: reportData.passedCount,
+    failedCount: reportData.failedCount,
+    pendingCount: reportData.pendingCount,
+    existingFilePathPresent: Boolean(existingFilePath),
+  });
+  // #endregion
 
   const bucket = getStorage().bucket();
   const storagePath = `org/${orgId}/reports/${workspaceId}/report.${format}`;
 
   let downloadUrl: string;
 
-  if (existingFilePath) {
+  if (existingFilePath && !forceRegenerate) {
     // File already generated — just re-sign a fresh URL
     const existingFile = bucket.file(existingFilePath);
     const [freshUrl] = await existingFile.getSignedUrl({
@@ -178,17 +278,36 @@ export const generateReport = onCall(async (request) => {
       expires: Date.now() + 60 * 60 * 1000,
     });
     downloadUrl = freshUrl;
+    // #region agent log
+    debugReportLog('H4', 'existing report file re-signed', { format });
+    // #endregion
   } else {
     // Generate the file for the first time
     const results = reportData.results ?? [];
 
     if (format === 'csv') {
-      const csvHeaders = ['assetId', 'section', 'status', 'inspectedAt', 'inspectedBy', 'inspectedByEmail', 'notes'];
+      const csvHeaders = [
+        'assetId',
+        'serial',
+        'parentLocation',
+        'locationName',
+        'section',
+        'vicinity',
+        'status',
+        'inspectedAt',
+        'inspectedBy',
+        'inspectedByEmail',
+        'notes',
+      ];
       const lines: string[] = [csvHeaders.join(',')];
       for (const r of results) {
         lines.push([
           escapeCSVField(r.assetId),
+          escapeCSVField(r.serial),
+          escapeCSVField(r.parentLocation),
+          escapeCSVField(r.locationName),
           escapeCSVField(r.section),
+          escapeCSVField(r.vicinity),
           escapeCSVField(r.status),
           escapeCSVField(timestampToString(r.inspectedAt)),
           escapeCSVField(r.inspectedBy),
@@ -218,7 +337,11 @@ export const generateReport = onCall(async (request) => {
           },
           results: results.map((r) => ({
             assetId: r.assetId,
+            serial: r.serial,
+            parentLocation: r.parentLocation,
+            locationName: r.locationName,
             section: r.section,
+            vicinity: r.vicinity,
             status: r.status,
             inspectedAt: timestampToString(r.inspectedAt),
             inspectedBy: r.inspectedBy,
@@ -243,13 +366,25 @@ export const generateReport = onCall(async (request) => {
 
       const pdfRows: ReportResultRow[] = results.map((r) => ({
         assetId: r.assetId,
+        serial: r.serial,
+        parentLocation: r.parentLocation,
+        locationName: r.locationName,
         section: r.section,
+        vicinity: r.vicinity,
         status: r.status,
         inspectedAt: timestampToString(r.inspectedAt),
         inspectedBy: r.inspectedByEmail ?? r.inspectedBy ?? '',
         notes: r.notes,
         checklistData: r.checklistData,
       }));
+
+      // #region agent log
+      debugReportLog('H3', 'pdf rows prepared', {
+        rowCount: pdfRows.length,
+        statsTotal: reportData.totalExtinguishers,
+        orgNamePresent: Boolean(orgName),
+      });
+      // #endregion
 
       const pdfBuffer = await generateInspectionReportPDF({
         orgName,
@@ -281,6 +416,9 @@ export const generateReport = onCall(async (request) => {
       generatedAt: FieldValue.serverTimestamp(),
     };
     await reportRef.update(updatePayload);
+    // #region agent log
+    debugReportLog('H4', 'new report file saved and report doc updated', { format });
+    // #endregion
   }
 
   // Write audit log
@@ -294,4 +432,15 @@ export const generateReport = onCall(async (request) => {
   });
 
   return { downloadUrl, reportId: workspaceId };
+  } catch (err) {
+    const error = err as { name?: unknown; code?: unknown; message?: unknown };
+    // #region agent log
+    debugReportLog('H1,H2,H3,H4,H5', 'generateReport threw before completion', {
+      errorName: typeof error.name === 'string' ? error.name : null,
+      errorCode: typeof error.code === 'string' ? error.code : null,
+      errorMessage: typeof error.message === 'string' ? error.message : String(err),
+    });
+    // #endregion
+    throw err;
+  }
 });

@@ -79,6 +79,7 @@ declare module 'pdfmake' {
     content: ContentElement[];
     styles?: Record<string, Style>;
     defaultStyle?: Style;
+    pageOrientation?: 'portrait' | 'landscape';
     pageMargins?: [number, number, number, number];
     footer?: (currentPage: number, pageCount: number) => ContentElement;
     header?: (currentPage: number, pageCount: number) => ContentElement;
@@ -98,10 +99,13 @@ declare module 'pdfmake' {
     getDataUrl(): Promise<string>;
   }
 
-  /** pdfmake v0.3.x default export class */
-  export default class PdfMake {
+  /** pdfmake v0.3.x default export instance */
+  interface PdfMake {
     addFonts(fonts: Record<string, FontEntry>): void;
     setFonts(fonts: Record<string, FontEntry>): void;
     createPdf(docDefinition: DocumentDefinition): OutputDocument;
   }
+
+  const pdfMake: PdfMake;
+  export default pdfMake;
 }
