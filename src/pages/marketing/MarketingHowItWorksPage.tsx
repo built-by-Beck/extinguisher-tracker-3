@@ -32,7 +32,7 @@ const steps = [
   {
     step: 5,
     title: 'Generate reports and keep durable history',
-    body: 'Export, print, or summarize reports, audit logs, and activity history when leadership, partners, or internal QA needs evidence.',
+    body: 'Export, print, or summarize reports with asset number, serial number, location, section, and vicinity details when leadership, partners, or internal QA needs evidence.',
     icon: FileText,
   },
   {
@@ -50,7 +50,7 @@ const steps = [
   {
     step: 8,
     title: 'Optimize and Scale with AI',
-    body: 'Use the AI Maintenance Assistant for in-app NFPA 10 guidance based on your configured reference, quick inventory questions, and operational note recall while you work.',
+    body: 'Use the AI Maintenance Assistant for in-app NFPA 10 guidance based on your configured reference, quick inventory lists with finder details, and operational note recall while you work.',
     icon: Bot,
   },
 ] as const;

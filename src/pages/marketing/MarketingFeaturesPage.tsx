@@ -99,9 +99,9 @@ export default function MarketingFeaturesPage() {
           <FeatureBlock
             icon={Bot}
             title="AI Maintenance Assistant"
-            what="A built-in AI assistant that answers maintenance and compliance questions using the NFPA reference configured in Organization Settings."
-            why="Busy crews should not need to stop and search external sites for code context or app notes."
-            outcome="Faster decisions, fewer workflow interruptions, and consistent guidance while inspections are in progress."
+            what="A built-in AI assistant that answers maintenance and compliance questions using the NFPA reference configured in Organization Settings, and lists extinguishers with asset number, serial number, location, section, and vicinity details."
+            why="Busy crews should not need to stop and search external sites for code context, app notes, or which physical unit a list item refers to."
+            outcome="Faster decisions, fewer workflow interruptions, and clearer field handoffs while inspections are in progress."
           />
           <FeatureBlock
             icon={Clock3}
@@ -183,8 +183,8 @@ export default function MarketingFeaturesPage() {
           <FeatureBlock
             icon={FileDown}
             title="Compliance-oriented reporting"
-            what="Reporting and exports that summarize status, history, and program health for internal review."
-            why="You need answers when leadership, auditors, or partners ask what the status is."
+            what="PDF, CSV, and JSON reports that summarize status, history, and each listed extinguisher's asset number, serial number, location, section, and vicinity."
+            why="You need answers when leadership, auditors, or partners ask what the status is and where each unit can be found."
             outcome="Less manual assembly in spreadsheets when questions land in your inbox."
           />
           <FeatureBlock

@@ -29,7 +29,7 @@ The system is **organization-centric** — all operational data belongs to the o
 - **Barcode & QR Scanning** — Use your phone camera to instantly look up extinguishers in the field
 - **NFPA 10 Compliance Engine** — Monthly, annual, 6-year maintenance, and hydrostatic testing intervals tracked automatically
 - **Inspection Workspaces** — Organize monthly inspections by workspace with section progress tracking
-- **AI Maintenance Helper** — Built-in assistant trained on NFPA 10 standards for on-the-fly compliance questions
+- **AI Maintenance Helper** — Built-in assistant trained on NFPA 10 standards for on-the-fly compliance questions and extinguisher lists with asset, serial, location, section, and vicinity details
 - **Section Auto Timer** — Automatically tracks section timing to keep inspection routes on pace
 - **Placement Calculator** — Determine required extinguisher quantities and types based on hazard class and floor area
 - **Offline Support** — Perform inspections in areas with no connectivity; data syncs automatically when back online
@@ -40,7 +40,7 @@ The system is **organization-centric** — all operational data belongs to the o
 - **Lifecycle Tracking** — Replacement history archives prior unit details, tracks retired service status, and supports returned spare inventory
 - **Expiration Planning Lists** — Separate official marked-expired inventory from advisory 6+ year manufacture-date candidates
 - **Audit Logs** — Append-only, immutable compliance records for regulatory audits
-- **Reports & Exports** — Generate compliance reports in CSV, Excel, and JSON formats
+- **Reports & Exports** — Generate compliance reports in PDF, CSV, and JSON formats with asset, serial, location, section, and vicinity details for listed extinguishers
 - **Legal Attestation** — Digital inspection sign-off for regulatory compliance
 - **Tag / QR Label Printing** — Generate and print asset tags for physical extinguishers
 - **Multi-Tenant Isolation** — Strict data separation between organizations at every layer

@@ -42,6 +42,10 @@ const extraFaq = [
     q: 'How do reminders, notifications, and audit logs fit together?',
     a: 'Notifications help surface due or overdue work, reports summarize program status, and audit logs preserve important activity for later review.',
   },
+  {
+    q: 'What do reports include?',
+    a: 'Archived workspace reports can be generated as PDF, CSV, or JSON and include finder details for each listed extinguisher: asset number, serial number, location, section, and vicinity.',
+  },
 ] as const;
 
 export default function MarketingFaqPage() {

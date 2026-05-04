@@ -37,7 +37,7 @@ const steps = [
   },
   {
     title: 'Turn on reminders and review reports',
-    body: 'Use notifications, reports, exports, and audit logs to see what is due, what failed, and what evidence is ready to share.',
+    body: 'Use notifications, reports, exports, and audit logs to see what is due, what failed, and which asset, serial number, location, section, and vicinity each record belongs to.',
     icon: FileText,
   },
   {
@@ -47,7 +47,7 @@ const steps = [
   },
   {
     title: 'Use AI while you work',
-    body: 'Ask in-app AI for maintenance, NFPA-aligned guidance, inventory questions, and operational note recall without stopping to search external sites.',
+    body: 'Ask in-app AI for maintenance, NFPA-aligned guidance, inventory lists, and operational note recall without stopping to search external sites.',
     icon: Sparkles,
   },
 ] as const;

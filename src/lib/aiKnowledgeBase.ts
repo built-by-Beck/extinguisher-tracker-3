@@ -22,6 +22,7 @@ The AI Assistant should use this information to answer user questions about how 
 - **Customizing the view:** In both the Inventory and Workspace/Location tables, you can click the **"Columns"** button to toggle which information is visible (Asset ID, Serial, Building, Vicinity, Section, etc.).
 - **How to delete a workspace:** Go to the "Inspections" page. On any workspace card (Active or Archived), click the "Delete" (trash can) button. Note: This permanently deletes the workspace and all its inspection records. Only Owners/Admins can delete workspaces.
 - **How to archive a workspace:** Once inspections are complete, go to the "Inspections" page and click "Archive" on the workspace. This makes it read-only and generates a final compliance report.
+- **What reports include:** Compliance reports are available from the "Reports" page after a workspace is archived. PDF, CSV, and JSON exports include each listed extinguisher's asset number, serial number, location, section, and vicinity so users can find the physical unit quickly.
 
 **3. Locations**
 - **How locations work:** Locations are strictly hierarchical. You build your tree of Buildings, Floors, and Rooms in the "Locations" page.
@@ -30,6 +31,9 @@ The AI Assistant should use this information to answer user questions about how 
 **4. Users and Settings**
 - **How to add a team member:** Go to "Settings" -> "Members" tab. Click "Invite Member", type their email, and select their role (Admin, User, Viewer).
 - **How to change a plan:** Go to "Settings" -> "Billing" tab.
+
+**5. AI extinguisher lists**
+- When answering inventory, expired, expiring, or inspection-status list questions, include asset number, serial number, location, section, and vicinity for every listed extinguisher whenever that data is available.
 
 *If a user asks how to do something not listed here, guide them to look through the main sidebar navigation (Dashboard, Inspections, Inventory, Data Organizer, Locations, Settings).*
 `;

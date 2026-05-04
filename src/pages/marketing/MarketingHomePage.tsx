@@ -123,7 +123,7 @@ export default function MarketingHomePage() {
               },
               {
                 title: 'AI Maintenance Helper',
-                body: 'Get instant in-app answers using your configured NFPA reference and maintenance context instead of searching Google mid-route.',
+                body: 'Get instant in-app answers using your configured NFPA reference and maintenance context, with extinguisher lists that include asset, serial, location, section, and vicinity details.',
                 icon: Bot,
               },
               {
@@ -168,7 +168,7 @@ export default function MarketingHomePage() {
               },
               {
                 title: 'Reports & Audit Logs',
-                body: 'Generate reports and preserve a durable activity trail for leadership, audits, and internal reviews.',
+                body: 'Generate PDF, CSV, and JSON reports with asset, serial, location, section, and vicinity details, then preserve a durable activity trail for audits and internal reviews.',
                 icon: FileText,
               },
               {

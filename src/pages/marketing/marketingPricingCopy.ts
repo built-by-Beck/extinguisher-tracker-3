@@ -122,7 +122,7 @@ export const marketingFaq: MarketingFaqItem[] = [
   },
   {
     q: 'Can AI answer NFPA questions while my team is working?',
-    a: 'Yes. Pro, Elite, and Enterprise include in-app AI assistance for maintenance and compliance questions so teams do not need to leave the workflow. AI guidance uses the NFPA reference configured in Settings; new organizations fall back to NFPA 10 (2022), and your organization should align final decisions to its locally adopted edition.',
+    a: 'Yes. Pro, Elite, and Enterprise include in-app AI assistance for maintenance and compliance questions so teams do not need to leave the workflow. When AI lists extinguishers, it includes finder details such as asset number, serial number, location, section, and vicinity when available. AI guidance uses the NFPA reference configured in Settings; new organizations fall back to NFPA 10 (2022), and your organization should align final decisions to its locally adopted edition.',
   },
   {
     q: 'Does the calculator guarantee code compliance?',

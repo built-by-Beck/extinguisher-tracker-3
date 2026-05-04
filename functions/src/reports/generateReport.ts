@@ -48,22 +48,6 @@ function timestampToString(ts: unknown): string {
   return '';
 }
 
-function debugReportLog(hypothesisId: string, message: string, data: Record<string, unknown>) {
-  fetch('http://127.0.0.1:7842/ingest/21545bb1-6e23-40cd-ab67-ad19a1e5e25c', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'd3826d' },
-    body: JSON.stringify({
-      sessionId: 'd3826d',
-      runId: 'initial-report-generation',
-      hypothesisId,
-      location: 'functions/src/reports/generateReport.ts',
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-}
-
 interface ReportDocData {
   workspaceId: string;
   monthYear: string;
@@ -142,7 +126,6 @@ async function buildReportResultsFromInspections(orgId: string, workspaceId: str
 }
 
 export const generateReport = onCall(async (request) => {
-  try {
   const { uid } = validateAuth(request);
   const { orgId, workspaceId, format } = request.data as {
     orgId: string;
@@ -153,13 +136,6 @@ export const generateReport = onCall(async (request) => {
   if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
   if (!workspaceId || typeof workspaceId !== 'string') throwInvalidArgument('workspaceId is required.');
   if (!isValidFormat(format)) throwInvalidArgument('format must be one of: csv, pdf, json.');
-
-  // #region agent log
-  debugReportLog('H1,H2,H3,H4', 'generateReport request validated', {
-    format,
-    workspaceIdPresent: Boolean(workspaceId),
-  });
-  // #endregion
 
   // Any active member can generate/download reports
   const member = await validateMembership(orgId, uid, ['owner', 'admin', 'inspector', 'viewer']);
@@ -173,14 +149,6 @@ export const generateReport = onCall(async (request) => {
   // 2. Load or create report doc
   const reportRef = adminDb.doc(`org/${orgId}/reports/${workspaceId}`);
   let reportSnap = await reportRef.get();
-
-  // #region agent log
-  debugReportLog('H1,H2', 'workspace and report snapshots loaded', {
-    workspaceStatus: wsData.status ?? null,
-    workspaceArchivedAtPresent: Boolean(wsData.archivedAt),
-    reportExists: reportSnap.exists,
-  });
-  // #endregion
 
   if (!reportSnap.exists) {
     // Build results array from inspections (on-demand for workspaces archived before Phase 5)
@@ -253,18 +221,6 @@ export const generateReport = onCall(async (request) => {
   const filePathKey = `${format}FilePath` as 'csvFilePath' | 'pdfFilePath' | 'jsonFilePath';
   const existingFilePath = reportData[filePathKey];
 
-  // #region agent log
-  debugReportLog('H2,H3,H4', 'report data prepared for generation', {
-    format,
-    resultCount: Array.isArray(reportData.results) ? reportData.results.length : 'not-array',
-    totalExtinguishers: reportData.totalExtinguishers,
-    passedCount: reportData.passedCount,
-    failedCount: reportData.failedCount,
-    pendingCount: reportData.pendingCount,
-    existingFilePathPresent: Boolean(existingFilePath),
-  });
-  // #endregion
-
   const bucket = getStorage().bucket();
   const storagePath = `org/${orgId}/reports/${workspaceId}/report.${format}`;
 
@@ -278,9 +234,6 @@ export const generateReport = onCall(async (request) => {
       expires: Date.now() + 60 * 60 * 1000,
     });
     downloadUrl = freshUrl;
-    // #region agent log
-    debugReportLog('H4', 'existing report file re-signed', { format });
-    // #endregion
   } else {
     // Generate the file for the first time
     const results = reportData.results ?? [];
@@ -378,14 +331,6 @@ export const generateReport = onCall(async (request) => {
         checklistData: r.checklistData,
       }));
 
-      // #region agent log
-      debugReportLog('H3', 'pdf rows prepared', {
-        rowCount: pdfRows.length,
-        statsTotal: reportData.totalExtinguishers,
-        orgNamePresent: Boolean(orgName),
-      });
-      // #endregion
-
       const pdfBuffer = await generateInspectionReportPDF({
         orgName,
         label: reportData.label,
@@ -416,9 +361,6 @@ export const generateReport = onCall(async (request) => {
       generatedAt: FieldValue.serverTimestamp(),
     };
     await reportRef.update(updatePayload);
-    // #region agent log
-    debugReportLog('H4', 'new report file saved and report doc updated', { format });
-    // #endregion
   }
 
   // Write audit log
@@ -432,15 +374,4 @@ export const generateReport = onCall(async (request) => {
   });
 
   return { downloadUrl, reportId: workspaceId };
-  } catch (err) {
-    const error = err as { name?: unknown; code?: unknown; message?: unknown };
-    // #region agent log
-    debugReportLog('H1,H2,H3,H4,H5', 'generateReport threw before completion', {
-      errorName: typeof error.name === 'string' ? error.name : null,
-      errorCode: typeof error.code === 'string' ? error.code : null,
-      errorMessage: typeof error.message === 'string' ? error.message : String(err),
-    });
-    // #endregion
-    throw err;
-  }
 });

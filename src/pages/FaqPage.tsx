@@ -93,6 +93,10 @@ const faqSections = [
         a: 'Open Audit Logs to review important activity and changes. These records help reconstruct what happened without relying on memory or side notes.',
       },
       {
+        q: 'What details are included in compliance reports?',
+        a: 'Archived workspace reports can be generated as PDF, CSV, or JSON. Each listed extinguisher includes the asset number, serial number, location, section, vicinity, inspection status, inspector details, and notes when available.',
+      },
+      {
         q: 'Can outside reviewers see records?',
         a: 'Guest access is designed for limited visibility when someone needs to review shared information without becoming a full team member.',
       },

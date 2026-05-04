@@ -39,6 +39,8 @@ export interface AiMemoryExpiringExtinguisher {
   serial: string;
   section: string;
   parentLocation: string;
+  locationName: string;
+  vicinity: string;
   manufactureYear: number | null;
   expirationYear: number | null;
   isExpired: boolean;
@@ -61,6 +63,10 @@ export interface AiMemoryInspectionStatusMatch {
   inspectionId: string;
   extinguisherId: string;
   assetId: string;
+  serial: string;
+  parentLocation: string;
+  locationName: string;
+  vicinity: string;
   status: string;
   section: string;
   workspaceId: string;

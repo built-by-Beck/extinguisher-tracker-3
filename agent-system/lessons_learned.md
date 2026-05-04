@@ -229,3 +229,20 @@ Reran the same git inspection commands with PowerShell-safe semicolon separators
 
 **Prevention rule:**
 For this Windows workspace, use semicolons for multi-command PowerShell release/audit commands unless explicitly running the full command under bash.
+
+## 2026-05-04 - Avoid Long-Lived Token URLs For Compliance Reports
+
+**What happened:**
+While fixing report generation, a Firebase Storage token URL workaround was briefly considered for a proven `iam.serviceAccounts.signBlob` signing failure.
+
+**Root cause:**
+The code workaround would have bypassed the IAM issue but changed report download links from short-lived signed URLs to long-lived bearer URLs.
+
+**Why it was avoidable:**
+Report generation handles compliance artifacts, so download URL lifetime and sharing behavior must be reviewed as a security property before replacing infrastructure permissions with code behavior.
+
+**Fix used:**
+Reverted the token URL workaround, kept short-lived signed URLs, and left the proven signing issue for a scoped IAM permission fix.
+
+**Prevention rule:**
+For report/export downloads, prefer short-lived signed URLs or authenticated delivery; do not replace signing failures with persistent token URLs without explicit security review and user approval.

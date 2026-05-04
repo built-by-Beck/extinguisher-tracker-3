@@ -8,8 +8,13 @@
 export type ReportFormat = 'csv' | 'pdf' | 'json';
 
 export interface ReportResult {
+  extinguisherId: string;
   assetId: string;
+  serial: string;
+  parentLocation: string;
+  locationName: string;
   section: string;
+  vicinity: string;
   status: string;
   inspectedAt: unknown;
   inspectedBy: string | null;

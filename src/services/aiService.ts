@@ -38,6 +38,7 @@ Your role:
 Rules:
 - Be concise and practical — users are busy inspectors and facility managers
 - When analyzing data, reference specific extinguisher asset IDs
+- When listing extinguishers, include asset number, serial number, location, and vicinity for every listed extinguisher
 - Cite the organization's selected NFPA 10 reference when relevant
 - If you don't know something, say so — don't guess on safety-critical info
 - Do not present app guidance as a legal compliance guarantee; defer final decisions to the adopted local code, qualified judgment, and AHJ direction
@@ -113,6 +114,9 @@ export async function askAssistant(
       const summary = context.extinguishers.slice(0, 50).map((e) => ({
         assetId: e.assetId,
         serial: e.serial,
+        parentLocation: e.parentLocation,
+        locationName: (e as Extinguisher & { locationName?: string }).locationName,
+        vicinity: e.vicinity,
         category: e.category,
         extinguisherType: e.extinguisherType,
         section: e.section,
@@ -135,6 +139,9 @@ export async function askAssistant(
       const inspectionSummary = context.inspections.slice(0, 300).map((i) => ({
         assetId: i.assetId,
         extinguisherId: i.extinguisherId,
+        serial: i.serial,
+        parentLocation: i.parentLocation,
+        locationName: i.locationName,
         status: i.status,
         locationId: i.locationId,
         section: i.section,
@@ -234,14 +241,33 @@ function formatNotesResult(count: number, filters: string, notes: AiMemoryNoteRe
   ].join('\n');
 }
 
+type FinderDetails = Pick<
+  AiMemoryExpiringExtinguisher,
+  'assetId' | 'serial' | 'parentLocation' | 'locationName' | 'section' | 'vicinity'
+>;
+
+function displayField(value: string | null | undefined, fallback = '--'): string {
+  return value?.trim() || fallback;
+}
+
+function formatFinderDetails(row: FinderDetails): string {
+  const location = displayField(row.parentLocation || row.locationName, 'unassigned');
+  return [
+    `asset number: ${displayField(row.assetId)}`,
+    `serial number: ${displayField(row.serial, 'no serial')}`,
+    `location: ${location}`,
+    `section: ${displayField(row.section)}`,
+    `vicinity: ${displayField(row.vicinity)}`,
+  ].join(' | ');
+}
+
 function formatExpiringResult(
   count: number,
   filters: string,
   extinguishers: AiMemoryExpiringExtinguisher[],
 ): string {
   const items = extinguishers.slice(0, 20).map((ext) => {
-    const location = ext.section || ext.parentLocation || 'unassigned';
-    return `- ${ext.assetId} (${ext.serial}) | ${location} | status: ${ext.lifecycleStatus ?? 'unknown'}`;
+    return `- ${formatFinderDetails(ext)} | status: ${ext.lifecycleStatus ?? 'unknown'}`;
   });
 
   return [
@@ -264,10 +290,9 @@ function formatMarkedExpiredResult(
   extinguishers: AiMemoryExpiringExtinguisher[],
 ): string {
   const items = extinguishers.map((ext) => {
-    const location = ext.section || ext.parentLocation || 'unassigned';
     const mfg = ext.manufactureYear != null ? ` | mfg: ${ext.manufactureYear}` : '';
     const exp = ext.expirationYear != null ? ` | exp: ${ext.expirationYear}` : '';
-    return `- ${ext.assetId} (${ext.serial || 'no serial'}) | ${location}${mfg}${exp}`;
+    return `- ${formatFinderDetails(ext)}${mfg}${exp}`;
   });
 
   return [
@@ -290,8 +315,7 @@ function formatExpiredCandidatesResult(
   extinguishers: AiMemoryExpiringExtinguisher[],
 ): string {
   const items = extinguishers.map((ext) => {
-    const location = ext.section || ext.parentLocation || 'unassigned';
-    return `- ${ext.assetId} (${ext.serial || 'no serial'}) | ${location} | mfg: ${ext.manufactureYear ?? 'unknown'}`;
+    return `- ${formatFinderDetails(ext)} | mfg: ${ext.manufactureYear ?? 'unknown'}`;
   });
 
   return [
@@ -346,7 +370,7 @@ function formatInspectionStatusResult(
       ? new Date(row.inspectedAt).toLocaleString()
       : 'not inspected yet';
     const noteSuffix = row.notes ? ` | note: ${row.notes}` : '';
-    return `- ${row.assetId} | ${checked} | section: ${row.section || 'unassigned'} | ${inspectedWhen}${noteSuffix}`;
+    return `- ${formatFinderDetails(row)} | ${checked} | ${inspectedWhen}${noteSuffix}`;
   });
 
   return [

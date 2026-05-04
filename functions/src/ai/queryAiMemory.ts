@@ -92,6 +92,25 @@ function isActiveExtinguisher(data: DocumentData): boolean {
   return ls === 'active' || ls == null || ls === '';
 }
 
+function stringOrEmpty(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+async function loadExtinguishersById(orgId: string, ids: string[]): Promise<Map<string, DocumentData>> {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  const extinguisherById = new Map<string, DocumentData>();
+  if (uniqueIds.length === 0) return extinguisherById;
+
+  const refs = uniqueIds.map((id) => adminDb.doc(`org/${orgId}/extinguishers/${id}`));
+  const snaps = await adminDb.getAll(...refs);
+  snaps.forEach((snap, index) => {
+    if (snap.exists) {
+      extinguisherById.set(uniqueIds[index], snap.data() ?? {});
+    }
+  });
+  return extinguisherById;
+}
+
 function toExtinguisherResult(d: QueryDocumentSnapshot<DocumentData>) {
   const data = d.data();
   return {
@@ -100,6 +119,8 @@ function toExtinguisherResult(d: QueryDocumentSnapshot<DocumentData>) {
     serial: (data.serial as string) ?? '',
     section: (data.section as string) ?? '',
     parentLocation: (data.parentLocation as string) ?? '',
+    locationName: (data.locationName as string) ?? '',
+    vicinity: (data.vicinity as string) ?? '',
     manufactureYear: (data.manufactureYear as number | null) ?? null,
     expirationYear: (data.expirationYear as number | null) ?? null,
     isExpired: data.isExpired === true,
@@ -367,14 +388,24 @@ export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
         )
       : exactSnap.docs;
 
+    const extinguisherById = await loadExtinguishersById(
+      orgId,
+      sourceDocs.map((d) => stringOrEmpty(d.data().extinguisherId)),
+    );
+
     const inspectionStatusMatches = sourceDocs.map((d) => {
       const data = d.data();
+      const extinguisher = extinguisherById.get(stringOrEmpty(data.extinguisherId));
       return {
         inspectionId: d.id,
-        extinguisherId: (data.extinguisherId as string) ?? '',
-        assetId: (data.assetId as string) ?? '',
+        extinguisherId: stringOrEmpty(data.extinguisherId),
+        assetId: stringOrEmpty(data.assetId),
+        serial: stringOrEmpty(data.serial) || stringOrEmpty(extinguisher?.serial),
+        parentLocation: stringOrEmpty(data.parentLocation) || stringOrEmpty(extinguisher?.parentLocation),
+        locationName: stringOrEmpty(data.locationName) || stringOrEmpty(extinguisher?.locationName),
+        vicinity: stringOrEmpty(data.vicinity) || stringOrEmpty(extinguisher?.vicinity),
         status: (data.status as string) ?? 'pending',
-        section: (data.section as string) ?? '',
+        section: stringOrEmpty(data.section) || stringOrEmpty(extinguisher?.section),
         workspaceId,
         workspaceLabel,
         inspectedAt: toIso(data.inspectedAt),

@@ -101,8 +101,9 @@ export default function Reports() {
       <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
         <p>
           Compliance reports are generated from archived workspaces. Each report includes
-          pass/fail counts, inspector details, and a full breakdown by location — ready to
-          hand to a fire marshal or keep on file for your records.
+          pass/fail counts, inspector details, and extinguisher finder fields — asset number,
+          serial number, location, section, and vicinity — ready to hand to a fire marshal or
+          keep on file for your records.
         </p>
       </div>
 

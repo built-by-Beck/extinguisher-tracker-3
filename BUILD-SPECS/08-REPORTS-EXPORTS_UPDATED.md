@@ -241,7 +241,11 @@ Inspection export must include:
 
 - `workspaceId`
 - `assetId`
+- `serial`
+- `parentLocation`
+- `locationName`
 - `section`
+- `vicinity`
 - `status`
 - `inspectedAt`
 - `inspectedBy`

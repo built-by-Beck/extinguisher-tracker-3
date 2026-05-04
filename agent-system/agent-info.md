@@ -1539,6 +1539,78 @@ README, in-app getting started/FAQ, public features/FAQ, and pricing copy were u
 **PBRD Documentation Step:**
 Complete.
 
+## 2026-05-04 - Plan/Build/Review Mode
+
+**Task:**
+Debug archived April report generation returning "internal".
+
+**Summary:**
+Used Firebase Function logs as runtime evidence after the local debug log was not created. Confirmed `generateReport` failed on PDF generation with `TypeError: pdfmake_1.default is not a constructor`, and also observed a proven Storage signing failure: `iam.serviceAccounts.signBlob` denied. Implemented the code-side PDF fix by using the pdfmake v0.3 default instance and updating local pdfmake typings to match runtime. Kept temporary debug instrumentation active for post-fix verification. Reverted a contemplated Firebase token URL workaround during review because long-lived report URLs are a security tradeoff; the remaining signing issue should be fixed via scoped IAM approval.
+
+**Files Inspected:**
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/types/pdfmake.d.ts
+- functions/package.json
+- agent-system/lessons_learned.md
+- agent-system/error_log.jsonl
+
+**Files Changed:**
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/types/pdfmake.d.ts
+- agent-system/agent-info.md
+
+**Key Decisions:**
+- Treat this as evidence-confirmed backend failure, not a client display issue.
+- Keep signed URLs for report downloads instead of switching to long-lived Firebase token URLs.
+- Request approval before applying IAM changes or deploying production functions.
+
+**Risks / Blockers:**
+- Production verification still requires deploying `generateReport` and granting the function service account `iam.serviceAccounts.signBlob` permission.
+
+**Next Recommended Action:**
+Approve scoped IAM binding and deploy `functions:generateReport`, then reproduce report generation and inspect logs before removing instrumentation.
+
+**Handoff Notes:**
+Build validation passed with `npm --prefix functions run build` and `npm --prefix functions run lint`. A prior build failed because the pdfmake declaration still described a constructor; it was fixed by changing the declaration to a default instance.
+
+## 2026-05-04 - Review/Document Mode
+
+**Task:**
+Complete archived April report generation debug cycle.
+
+**Summary:**
+Verified with deployed function logs that the pdfmake constructor error stopped after deploying `generateReport`, then confirmed the remaining `internal` error was `iam.serviceAccounts.signBlob` denied. Applied service-account-level Token Creator first, then project-level Token Creator for the function runtime service account after logs proved the scoped self-binding was insufficient. User confirmed report generation worked. Removed temporary debug instrumentation from `functions/src/reports/generateReport.ts`, rebuilt, linted, and redeployed the clean function.
+
+**Files Inspected:**
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/types/pdfmake.d.ts
+- agent-system/agent-info.md
+
+**Files Changed:**
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/types/pdfmake.d.ts
+- agent-system/agent-info.md
+- agent-system/lessons_learned.md
+- agent-system/error_log.jsonl
+
+**Key Decisions:**
+- Keep report downloads on short-lived signed URLs.
+- Use IAM permissions, not persistent Firebase Storage token URLs, to resolve signing.
+- Remove all temporary debug fetch instrumentation after user-confirmed success.
+
+**Risks / Blockers:**
+- Project-level Token Creator is broader than the attempted service-account-level binding; it was required by runtime evidence but should be revisited if a narrower signing configuration is later proven.
+
+**Next Recommended Action:**
+Commit the report generation fix and IAM/memory notes when ready.
+
+**Handoff Notes:**
+Final validation passed: `npm --prefix functions run build`, `npm --prefix functions run lint`, and `firebase deploy --only functions:generateReport`.
+
 ## 2026-05-01 - Build/Review Final
 
 **Task:**
@@ -1637,3 +1709,86 @@ None for this pass. No plan file was edited.
 
 **PBRD Documentation Step:**
 Complete.
+
+## 2026-05-04 - Build Mode
+
+**Task:**
+Implement Finder Fields Everywhere plan for reports and AI extinguisher list responses.
+
+**Summary:**
+Added finder fields (`assetId`, `serial`, location fields, `section`, `vicinity`) to report snapshots, report CSV/JSON/PDF artifacts, AI memory payloads, deterministic AI list formatting, and Gemini fallback context/prompt. Existing report docs missing finder fields now rebuild their snapshot and regenerate artifacts on the next report generation request.
+
+**Files Inspected:**
+- `functions/src/reports/generateReport.ts`
+- `functions/src/reports/pdfGenerator.ts`
+- `functions/src/workspaces/archiveWorkspace.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- `src/services/aiService.ts`
+- `src/types/aiQuery.ts`
+- `src/types/report.ts`
+- `functions/src/__tests__/queryAiMemory.test.ts`
+- `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md`
+
+**Files Changed:**
+- `functions/src/reports/finderFields.ts`
+- `functions/src/workspaces/archiveWorkspace.ts`
+- `functions/src/reports/generateReport.ts`
+- `functions/src/reports/pdfGenerator.ts`
+- `src/types/report.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- `src/types/aiQuery.ts`
+- `src/services/aiService.ts`
+- `src/services/aiService.test.ts`
+- `functions/src/__tests__/queryAiMemory.test.ts`
+- `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md`
+
+**Key Decisions:**
+- Asset number maps to `assetId`; location uses `parentLocation` first with `locationName` fallback while retaining `section`.
+- Reports enrich vicinity from org-scoped extinguisher docs because inspection rows do not reliably store it.
+- AI list bullets use a shared formatter so every extinguisher row includes asset number, serial number, location, section, and vicinity.
+
+**Risks / Blockers:**
+- Existing generated report files are not deleted from Storage, but their Firestore artifact paths are cleared when legacy snapshots are detected so fresh files are generated.
+
+**Next Recommended Action:**
+Review Mode should verify plan compliance, report regeneration behavior, org-scoped reads, AI list formatting, and validation evidence.
+
+**Handoff Notes:**
+Build validation passed: `npm --prefix functions run build`, `npm --prefix functions run test -- queryAiMemory.test.ts`, `pnpm test src/services/aiService.test.ts`, `pnpm build`, `pnpm lint`, and edited-file `ReadLints`.
+
+## 2026-05-04 - Review Mode
+
+**Task:**
+Review Finder Fields Everywhere build output.
+
+**Summary:**
+Review verified plan compliance, org-scoped reads, authorization boundaries, AI list formatting, legacy report regeneration behavior, and validation evidence. Verdict: ACCEPTED WITH MINOR CONCERNS.
+
+**Files Inspected:**
+- `functions/src/reports/finderFields.ts`
+- `functions/src/workspaces/archiveWorkspace.ts`
+- `functions/src/reports/generateReport.ts`
+- `functions/src/reports/pdfGenerator.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- `src/services/aiService.ts`
+- `src/types/aiQuery.ts`
+- `src/types/report.ts`
+- `functions/src/__tests__/queryAiMemory.test.ts`
+- `src/services/aiService.test.ts`
+- `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md`
+
+**Files Changed:**
+- none
+
+**Key Decisions:**
+- Accepted because no blocking plan, security, or regression issues were found.
+- Minor concern: report artifact finder-field output and legacy regeneration do not have direct unit/integration tests.
+
+**Risks / Blockers:**
+- Residual test gap for report CSV/PDF/JSON artifact content.
+
+**Next Recommended Action:**
+Run Document Mode to confirm/update relevant documentation surfaces and complete the PBR flow.
+
+**Handoff Notes:**
+Document Mode should verify `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md` reflects the new finder fields and decide whether any README/FAQ/marketing copy needs updates.
