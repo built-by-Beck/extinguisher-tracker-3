@@ -1,5 +1,4 @@
 import type { Extinguisher } from '../../services/extinguisherService.ts';
-import { formatDueDate } from '../../utils/compliance.ts';
 
 interface TagLabelProps {
   extinguisher: Extinguisher;
@@ -49,14 +48,21 @@ export function TagLabel({ extinguisher, orgName, qrDataUrl, labelSize }: TagLab
             {extinguisher.extinguisherType}
           </div>
         )}
+        {extinguisher.extinguisherSize && (
+          <div className="truncate leading-tight" style={{ fontSize: cfg.bodyText }}>
+            {extinguisher.extinguisherSize}
+          </div>
+        )}
         {location && (
           <div className="truncate leading-tight" style={{ fontSize: cfg.bodyText }}>
             {location}
           </div>
         )}
-        <div className="truncate leading-tight" style={{ fontSize: cfg.bodyText }}>
-          Next: {formatDueDate(extinguisher.nextMonthlyInspection)}
-        </div>
+        {extinguisher.vicinity && (
+          <div className="truncate leading-tight" style={{ fontSize: cfg.bodyText }}>
+            {extinguisher.vicinity}
+          </div>
+        )}
         {orgName && (
           <div className="truncate leading-tight text-gray-500" style={{ fontSize: cfg.orgText }}>
             {orgName}
