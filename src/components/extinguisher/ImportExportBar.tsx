@@ -80,12 +80,15 @@ function parseTXTToRows(content: string): Record<string, string>[] {
 
 async function parseExcelToRows(file: File): Promise<Record<string, string>[]> {
   const allRows = await readXlsxFile(file);
-  if (allRows.length < 1) return [];
+  if (allRows.length === 0) return [];
   const [headerRow, ...dataRows] = allRows;
+  const headers = headerRow.map((h) => (h != null ? String(h) : ''));
   return dataRows.map((row) => {
     const record: Record<string, string> = {};
-    headerRow.forEach((header, idx) => {
-      record[String(header ?? '')] = String(row[idx] ?? '');
+    headers.forEach((header, idx) => {
+      if (header) {
+        record[header] = String(row[idx] ?? '');
+      }
     });
     return record;
   });
