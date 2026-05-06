@@ -18,8 +18,13 @@ import {
 
 function formatTimestamp(ts: unknown): string {
   if (!ts) return '—';
+  // Firestore Timestamp with toDate() (client-side Firestore SDK)
   if (typeof ts === 'object' && ts !== null && 'toDate' in ts && typeof (ts as { toDate: () => Date }).toDate === 'function') {
     return (ts as { toDate: () => Date }).toDate().toLocaleDateString();
+  }
+  // Serialized Firestore Timestamp from Cloud Function: { _seconds, _nanoseconds }
+  if (typeof ts === 'object' && ts !== null && '_seconds' in ts && typeof (ts as { _seconds: unknown })._seconds === 'number') {
+    return new Date((ts as { _seconds: number })._seconds * 1000).toLocaleDateString();
   }
   const d = new Date(String(ts));
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
