@@ -8,7 +8,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { httpsCallable } from 'firebase/functions';
 import { Upload, Download, Loader2, FileJson, X, FileSpreadsheet, HelpCircle } from 'lucide-react';
-import { read, utils } from 'xlsx';
+import readXlsxFile from 'read-excel-file';
 import { functions } from '../../lib/firebase.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { ColumnMapperModal, TARGET_FIELDS } from './ColumnMapperModal.tsx';
@@ -78,12 +78,17 @@ function parseTXTToRows(content: string): Record<string, string>[] {
   return rows;
 }
 
-function parseExcelToRows(buffer: ArrayBuffer): Record<string, string>[] {
-  const workbook = read(buffer, { type: 'array' });
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) return [];
-  const sheet = workbook.Sheets[sheetName];
-  return utils.sheet_to_json<Record<string, string>>(sheet, { raw: false, defval: '' });
+async function parseExcelToRows(file: File): Promise<Record<string, string>[]> {
+  const allRows = await readXlsxFile(file);
+  if (allRows.length < 1) return [];
+  const [headerRow, ...dataRows] = allRows;
+  return dataRows.map((row) => {
+    const record: Record<string, string> = {};
+    headerRow.forEach((header, idx) => {
+      record[String(header ?? '')] = String(row[idx] ?? '');
+    });
+    return record;
+  });
 }
 
 function applyMapping(
@@ -106,7 +111,7 @@ function columnsMatchExpected(columns: string[]): boolean {
   return required.every((key) => columns.includes(key));
 }
 
-const ACCEPTED_EXTENSIONS = '.csv,.xls,.xlsx,.json,.txt';
+const ACCEPTED_EXTENSIONS = '.csv,.xlsx,.json,.txt';
 
 export function ImportExportBar({ onImportJSON }: ImportExportBarProps) {
   const { userProfile } = useAuth();
@@ -163,9 +168,11 @@ export function ImportExportBar({ onImportJSON }: ImportExportBarProps) {
 
       let rows: Record<string, string>[];
 
-      if (ext === 'xls' || ext === 'xlsx') {
-        const buffer = await file.arrayBuffer();
-        rows = parseExcelToRows(buffer);
+      if (ext === 'xlsx') {
+        rows = await parseExcelToRows(file);
+      } else if (ext === 'xls') {
+        setError('Legacy .xls format is not supported. Please save the file as .xlsx and try again.');
+        return;
       } else if (ext === 'txt') {
         const text = await file.text();
         rows = parseTXTToRows(text);
@@ -207,9 +214,9 @@ export function ImportExportBar({ onImportJSON }: ImportExportBarProps) {
     if (!file) return;
 
     const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-    const validExts = ['csv', 'xls', 'xlsx', 'json', 'txt'];
+    const validExts = ['csv', 'xlsx', 'json', 'txt'];
     if (!validExts.includes(ext)) {
-      setError(`Unsupported file type: .${ext}. Use CSV, Excel, JSON, or TXT.`);
+      setError(`Unsupported file type: .${ext}. Use CSV, Excel (.xlsx), JSON, or TXT.`);
       return;
     }
 

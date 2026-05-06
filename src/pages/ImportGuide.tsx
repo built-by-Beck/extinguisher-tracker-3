@@ -179,7 +179,7 @@ export default function ImportGuide() {
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-            <span><strong>Excel</strong> (.xlsx or .xls)</span>
+            <span><strong>Excel</strong> (.xlsx)</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
