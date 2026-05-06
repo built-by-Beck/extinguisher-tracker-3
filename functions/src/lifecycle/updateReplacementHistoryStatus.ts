@@ -62,18 +62,6 @@ function isInventoryActive(data: DocumentData): boolean {
   return ls === 'active' || ls == null || ls === '';
 }
 
-function replacementMillis(row: Record<string, unknown>): number {
-  const replacedAt = row.replacedAt;
-  if (
-    typeof replacedAt === 'object' &&
-    replacedAt !== null &&
-    'toMillis' in replacedAt &&
-    typeof replacedAt.toMillis === 'function'
-  ) {
-    return replacedAt.toMillis();
-  }
-  return 0;
-}
 
 async function assertNoActiveConflict(
   tx: FirebaseFirestore.Transaction,
@@ -254,38 +242,17 @@ export const listReplacementHistory = onCall(async (request) => {
 
   await validateMembership(normalizedOrgId, uid, ['owner', 'admin', 'inspector', 'viewer']);
 
-  // Query replaced extinguishers by both the current and legacy field name
-  const extRef = adminDb.collection(`org/${normalizedOrgId}/extinguishers`);
-  const [byStatus, byCategory] = await Promise.all([
-    extRef.where('lifecycleStatus', '==', 'replaced').get(),
-    extRef.where('category', '==', 'replaced').get(),
-  ]);
+  const snap = await adminDb
+    .collectionGroup('replacementHistory')
+    .where('orgId', '==', normalizedOrgId)
+    .orderBy('replacedAt', 'desc')
+    .limit(500)
+    .get();
 
-  // Deduplicate by document ID
-  const seen = new Set<string>();
-  const replacedExtIds: string[] = [];
-  for (const doc of [...byStatus.docs, ...byCategory.docs]) {
-    if (!seen.has(doc.id)) {
-      seen.add(doc.id);
-      replacedExtIds.push(doc.id);
-    }
-  }
-
-  // Fetch each extinguisher's replacementHistory subcollection directly
-  const historySnaps = await Promise.all(
-    replacedExtIds.map((extId) =>
-      adminDb.collection(`org/${normalizedOrgId}/extinguishers/${extId}/replacementHistory`).get()
-    )
-  );
-
-  const rows: Array<Record<string, unknown> & { id: string }> = historySnaps
-    .flatMap((snap) =>
-      snap.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as Record<string, unknown>),
-      }))
-    )
-    .sort((a, b) => replacementMillis(b) - replacementMillis(a));
+  const rows: Array<Record<string, unknown> & { id: string }> = snap.docs.map((doc) => ({
+    id: doc.id,
+    ...(doc.data() as Record<string, unknown>),
+  }));
 
   return { rows };
 });
