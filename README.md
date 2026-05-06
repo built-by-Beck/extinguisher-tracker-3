@@ -29,7 +29,7 @@ The system is **organization-centric** — all operational data belongs to the o
 - **Barcode & QR Scanning** — Use your phone camera to instantly look up extinguishers in the field
 - **NFPA 10 Compliance Engine** — Monthly, annual, 6-year maintenance, and hydrostatic testing intervals tracked automatically
 - **Inspection Workspaces** — Organize monthly inspections by workspace with section progress tracking
-- **AI Maintenance Helper** — Built-in assistant trained on NFPA 10 standards for on-the-fly compliance questions and extinguisher lists with asset, serial, location, section, and vicinity details
+- **AI Maintenance Helper** — Pro+ assistant for on-the-fly compliance questions, temporary photo questions, and extinguisher lists with asset, serial, location, section, and vicinity details
 - **Section Auto Timer** — Automatically tracks section timing to keep inspection routes on pace
 - **Placement Calculator** — Determine required extinguisher quantities and types based on hazard class and floor area
 - **Offline Support** — Perform inspections in areas with no connectivity; data syncs automatically when back online

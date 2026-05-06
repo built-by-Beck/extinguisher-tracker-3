@@ -272,24 +272,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {hasPlan && org?.subscriptionStatus === 'past_due' && (
-        <div className="mb-6 flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-orange-600" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-orange-800">Payment past due</p>
-            <p className="text-sm text-orange-700">
-              Please update your payment method to avoid service interruption.
-            </p>
-          </div>
-          <button
-            onClick={() => navigate('/dashboard/settings')}
-            className="rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
-          >
-            Manage Billing
-          </button>
-        </div>
-      )}
-
       {org?.plan === 'basic' && (
         <div className="mb-6 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
           <AlertTriangle className="h-5 w-5 shrink-0 text-blue-600" />

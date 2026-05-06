@@ -84,6 +84,10 @@ export default function PrivacyPage() {
                 If AI assistant features are enabled for your plan, prompts and responses may be processed and stored to provide
                 the feature, improve response quality, and support operational troubleshooting.
               </p>
+              <p>
+                Photos attached inside the AI assistant are temporary question attachments for analysis and are not uploaded
+                to Firebase Storage or saved as inspection photos by ExtinguisherTracker.
+              </p>
             </Section>
 
             <Section num={4} title="Cookies and Tracking Technologies">

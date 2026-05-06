@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { AlertTriangle, ChevronDown, ChevronUp, XCircle } from 'lucide-react';
 import { Sidebar } from './Sidebar.tsx';
 import { Topbar } from './Topbar.tsx';
 import { OfflineBanner } from '../offline/OfflineBanner.tsx';
@@ -86,6 +86,7 @@ export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bannerHidden, setBannerHidden] = useState(() => localStorage.getItem(BANNER_PREF_KEY) === '1');
   const location = useLocation();
+  const navigate = useNavigate();
   const { org } = useOrg();
   const isCalculatorPage = location.pathname.endsWith('/calculator');
   const pageTitle = getPageTitle(location.pathname, location.search);
@@ -98,11 +99,19 @@ export function DashboardLayout() {
       return next;
     });
   }, []);
-  const hasAiAccess = org?.featureFlags ? hasFeature(
-    org.featureFlags as unknown as Record<string, boolean>,
+  const hasAiAccess = hasFeature(
+    org?.featureFlags as unknown as Record<string, boolean> | undefined,
     'aiAssistant',
-    org.plan
-  ) : false;
+    org?.plan,
+  );
+
+  const isEnterprise = org?.plan === 'enterprise';
+  const subStatus = org?.subscriptionStatus ?? null;
+  const subscriptionBlocked = !isEnterprise && (subStatus === 'canceled' || subStatus === 'unpaid');
+  const subscriptionPastDue = !isEnterprise && subStatus === 'past_due';
+  // Allow Settings through even when blocked so users can resubscribe
+  const isSettingsPage = location.pathname === '/dashboard/settings';
+  const blockContent = subscriptionBlocked && !isSettingsPage;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -119,6 +128,22 @@ export function DashboardLayout() {
 
         {/* Plan-based ad banner (only on publisher content pages) */}
         <DashboardAdBanner />
+
+        {/* Subscription past-due banner — shown on every page */}
+        {subscriptionPastDue && (
+          <div className="flex shrink-0 items-center gap-3 border-b border-orange-200 bg-orange-50 px-4 py-2.5">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-orange-600" />
+            <p className="flex-1 text-sm font-medium text-orange-800">
+              Payment past due — please update your payment method to avoid losing access.
+            </p>
+            <button
+              onClick={() => navigate('/dashboard/settings')}
+              className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-700"
+            >
+              Manage Billing
+            </button>
+          </div>
+        )}
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
@@ -167,7 +192,29 @@ export function DashboardLayout() {
               <h2 className="text-lg font-bold text-gray-900">{pageTitle}</h2>
             </div>
           )}
-          <Outlet />
+          {blockContent ? (
+            <div className="flex flex-1 items-center justify-center p-12">
+              <div className="max-w-md text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+                  <XCircle className="h-8 w-8 text-red-500" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Subscription Ended</h2>
+                <p className="mt-2 text-sm text-gray-600">
+                  Your subscription is no longer active. Renew your plan to continue using
+                  ExtinguisherTracker. Your data is preserved and will be fully accessible once
+                  you resubscribe.
+                </p>
+                <button
+                  onClick={() => navigate('/dashboard/settings')}
+                  className="mt-6 rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-red-700"
+                >
+                  Resubscribe
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
 
         {/* Global AI assistant for Pro, Elite, and Enterprise */}

@@ -12,11 +12,11 @@ const extraFaq = [
   },
   {
     q: 'Can AI help while technicians are in the field?',
-    a: 'Yes. AI can provide quick guidance on maintenance and compliance questions without leaving the app workflow. It is support for trained decision-making, not a replacement for local code review or qualified judgment.',
+    a: 'Yes. On Pro, Elite, and Enterprise plans, the built-in AI assistant is available throughout the app. Ask compliance questions like "How far apart should extinguishers be in a Class B hazard area per NFPA 2022?", get live overdue summaries ("Which units are past their annual inspection date?"), draft inspection notes from rough field descriptions ("Write a follow-up note for Unit A-12: gauge slightly low, recheck in 30 days"), or upload a temporary photo for analysis. The AI keeps session context so follow-up questions build naturally without starting over. It is built for active field work — reducing context switching, saving note-writing time, and providing code answers without searching external PDFs.',
   },
   {
     q: 'What NFPA edition does AI reference?',
-    a: 'AI references the NFPA edition configured in Organization Settings. New organizations fall back to NFPA 10 (2022) until changed; final decisions should still be validated against the locally adopted edition, internal policy, and AHJ direction.',
+    a: 'AI references the NFPA edition configured in Organization Settings. New organizations fall back to NFPA 10 (2022) until changed. Final decisions should still be validated against the locally adopted edition, internal policy, and AHJ direction.',
   },
   {
     q: 'Do we need perfect data before starting?',

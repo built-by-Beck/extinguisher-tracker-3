@@ -99,9 +99,9 @@ export default function MarketingFeaturesPage() {
           <FeatureBlock
             icon={Bot}
             title="AI Maintenance Assistant"
-            what="A built-in AI assistant that answers maintenance and compliance questions using the NFPA reference configured in Organization Settings, and lists extinguishers with asset number, serial number, location, section, and vicinity details."
-            why="Busy crews should not need to stop and search external sites for code context, app notes, or which physical unit a list item refers to."
-            outcome="Faster decisions, fewer workflow interruptions, and clearer field handoffs while inspections are in progress."
+            what='A built-in Pro+ AI assistant available throughout the app. Ask compliance questions like "How far apart should extinguishers be in a Class B hazard area per NFPA 2022?" — request live status summaries like "Which units are overdue for annual inspection?" — draft inspection notes from rough field descriptions like "Write a follow-up note for Unit A-12: gauge slightly low, recheck in 30 days" — or upload a temporary photo and ask whether a gauge reading or visible damage warrants a flag. The AI uses the NFPA reference configured in Organization Settings, retains session context so follow-up questions build naturally, and can list extinguishers with asset number, serial number, location, section, and vicinity details.'
+            why="Field crews should not have to stop mid-route to search PDF code references, compose note language from scratch, or guess which physical unit a list item refers to. Every minute spent searching is a minute the route falls behind."
+            outcome="On-demand code answers, faster note capture, live overdue summaries, and photo analysis — all without leaving the app or switching context during active inspection work."
           />
           <FeatureBlock
             icon={Clock3}

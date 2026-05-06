@@ -122,8 +122,8 @@ export default function MarketingHomePage() {
                 icon: Barcode,
               },
               {
-                title: 'AI Maintenance Helper',
-                body: 'Get instant in-app answers using your configured NFPA reference and maintenance context, with extinguisher lists that include asset, serial, location, section, and vicinity details.',
+                title: 'AI Maintenance Assistant',
+                body: 'Ask compliance questions, get overdue summaries, draft inspection notes, and analyze temporary photos — all without leaving the app. Ask things like "How far apart should extinguishers be per NFPA 2022?" and get an immediate answer referenced to your configured NFPA edition. Available on Pro, Elite, and Enterprise plans.',
                 icon: Bot,
               },
               {
@@ -205,6 +205,58 @@ export default function MarketingHomePage() {
             </Link>
           </p>
         </Section>
+
+        <div className="border-y border-gray-200 bg-gray-950">
+          <Section>
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-16">
+              <div className="lg:max-w-md lg:shrink-0">
+                <div className="flex items-center gap-3">
+                  <Bot className="h-8 w-8 text-red-400" aria-hidden />
+                  <h2 className="text-2xl font-bold text-white sm:text-3xl">Your on-call compliance expert</h2>
+                </div>
+                <p className="mt-4 text-gray-300">
+                  The Pro+ AI assistant is built for people actively working a route — not for
+                  sitting at a desk with time to search a PDF. Ask anything and get a referenced
+                  answer in seconds.
+                </p>
+                <ul className="mt-6 space-y-2">
+                  {[
+                    'Compliance code lookups — NFPA 10 and your configured edition',
+                    'Live overdue summaries from your actual inventory',
+                    'Note drafting from rough field descriptions',
+                    'Temporary photo analysis without attaching to the record',
+                    'Context-aware follow-up questions in the same session',
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2 text-sm text-gray-300">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex-1">
+                <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Example questions</p>
+                <div className="space-y-3">
+                  {[
+                    'Can you tell me how far extinguishers are supposed to be apart according to NFPA 2022?',
+                    'Which extinguishers in Building A are overdue for their annual inspection?',
+                    'Write a follow-up note for Unit A-12: gauge slightly low, passed visual check, recheck in 30 days.',
+                    'I am uploading a photo of this pressure gauge — does the reading look normal?',
+                    'What are the six-year maintenance requirements for a dry chemical extinguisher?',
+                    'Summarize everything currently failing or overdue in inventory.',
+                  ].map((q) => (
+                    <div key={q} className="rounded-lg border border-gray-700 bg-gray-900 px-4 py-3">
+                      <p className="text-sm text-gray-200">"{q}"</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-4 text-xs text-gray-500">
+                  AI references the NFPA edition configured in Organization Settings. Confirm final decisions with your AHJ and internally adopted code edition.
+                </p>
+              </div>
+            </div>
+          </Section>
+        </div>
 
         <div className="border-y border-gray-200 bg-white">
           <Section>

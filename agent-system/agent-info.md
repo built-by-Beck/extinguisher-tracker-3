@@ -1929,3 +1929,121 @@ Current. In-app FAQ, in-app Getting Started, public FAQ, and public Getting Star
 
 **Documentation Still Needed:**
 No documentation gap found for the user-facing change. Residual non-doc test gap remains from Review: report CSV/PDF/JSON artifact finder-field output and legacy regeneration do not have direct tests.
+
+## 2026-05-04 11:35 CT - Document Mode Recheck
+
+**Task:**
+Rechecked documentation for Finder Fields Everywhere after Review verdict ACCEPTED WITH MINOR CONCERNS.
+
+**Feature / Change Documented:**
+Report and AI extinguisher list outputs include finder fields for listed extinguishers: `assetId`, serial number, `parentLocation` / `locationName`, section, and vicinity.
+
+**Files Inspected:**
+- `functions/src/reports/finderFields.ts`
+- `functions/src/workspaces/archiveWorkspace.ts`
+- `functions/src/reports/generateReport.ts`
+- `functions/src/reports/pdfGenerator.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- `src/services/aiService.ts`
+- `src/types/aiQuery.ts`
+- `src/types/report.ts`
+- `src/services/aiService.test.ts`
+- `functions/src/__tests__/queryAiMemory.test.ts`
+- `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md`
+- `README.md`
+- `src/pages/Reports.tsx`
+- `src/pages/FaqPage.tsx`
+- `src/pages/GettingStarted.tsx`
+- `src/pages/marketing/MarketingHomePage.tsx`
+- `src/pages/marketing/MarketingFeaturesPage.tsx`
+- `src/pages/marketing/MarketingHowItWorksPage.tsx`
+- `src/pages/marketing/MarketingFaqPage.tsx`
+- `src/pages/marketing/MarketingGettingStartedPage.tsx`
+- `src/lib/aiKnowledgeBase.ts`
+- `agent-system/agents-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/lessons-learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Updated:**
+- `agent-system/agent-info.md`
+
+**README Status:**
+Current. Key Features already describes AI extinguisher lists and report/export outputs with asset, serial, location, section, and vicinity details.
+
+**TODO Status:**
+No `TODO.md` file exists, so no TODO/roadmap update was needed.
+
+**Website / Marketing Page Status:**
+Current. Public home, features, how-it-works, FAQ, and getting-started copy already mention finder-field details where relevant.
+
+**FAQ / Getting Started Status:**
+Current. In-app FAQ, in-app Getting Started, public FAQ, public Getting Started, and AI knowledge-base guidance already describe report finder fields and AI inventory-list context accurately.
+
+**Documentation Still Needed:**
+None for this user-facing change. Residual non-doc test gap remains from Review: report CSV/PDF/JSON artifact finder-field output and legacy report regeneration do not have direct tests.
+
+**PBRD Documentation Gate:**
+Complete. No plan file was edited.
+
+## 2026-05-04 - AI Photo Questions Build/Review/Document
+
+**PBR Stage / Gate Status:**
+Build executed from the approved attached AI Photo Questions plan. Gate A satisfied before edits. Review verdict: ACCEPTED. Document pass completed for the user-visible AI photo capability.
+
+**Summary:**
+Added Pro+ AI Assistant support for one temporary camera/upload photo question. The selected image is validated as JPEG, PNG, or WebP, capped at 4 MB, previewed locally, sent to Gemini as inline multimodal data with the user's question, and not uploaded to Firebase Storage or written to Firestore. Text-only deterministic AI memory behavior remains unchanged.
+
+**Files Changed:**
+- `src/services/aiService.ts`
+- `src/components/ai/AiAssistantPanel.tsx`
+- `src/components/layout/DashboardLayout.tsx`
+- `src/services/aiService.test.ts`
+- `README.md`
+- `src/pages/FaqPage.tsx`
+- `src/pages/GettingStarted.tsx`
+- `src/pages/marketing/MarketingHomePage.tsx`
+- `src/pages/marketing/MarketingFeaturesPage.tsx`
+- `src/pages/marketing/PrivacyPage.tsx`
+
+**Plan Compliance:**
+- Extended `AiMessage` with optional image attachments and sends latest user image attachments as Gemini `inlineData`.
+- Skips deterministic Firestore-backed AI memory routing when an image is attached.
+- Added temporary photo pick/change/remove UI inside `AiAssistantPanel`.
+- Fixed AI panel gating to use `hasFeature(org?.featureFlags, 'aiAssistant', org?.plan)` so plan fallback works when feature flags are absent.
+- Reused the existing `aiAssistant` Pro+ feature flag; no new plan flag was added.
+
+**Validation Results:**
+- `pnpm test -- src/services/aiService.test.ts`: pass, 2 tests.
+- `pnpm build`: pass.
+- `pnpm lint`: pass.
+- Formatter: no repo formatter script exists, so no formatter command was run.
+
+**Review Notes:**
+No image persistence path was added. Images live only in React state/chat memory as base64 attachments and are sent directly to Gemini for the current question. Basic plan users remain gated out of the global AI Assistant entry point by plan config.
+
+**Diagnostics / Residual Warnings:**
+IDE diagnostics still show a browser-support warning for `input[capture]`, which is intentional to support mobile camera capture. Existing README markdown style warnings remain unrelated to this change.
+
+## 2026-05-04 - AI Photo Camera/File Split Fix
+
+**PBR Stage / Gate Status:**
+Focused Build/Review correction to the approved AI Photo Questions feature after live testing showed the camera icon opened the file explorer instead of a live camera preview. Plan Mode was requested for the camera-permission behavior change and declined, so the patch stayed narrowly scoped to `AiAssistantPanel`.
+
+**Summary:**
+Separated AI photo controls into a real camera button and a folder upload button. The camera button now calls `navigator.mediaDevices.getUserMedia`, requests browser camera permission, shows a temporary live preview, and captures a JPEG into the same temporary AI attachment path. The folder button opens the file picker only. Camera streams are stopped on cancel, capture, or panel close.
+
+**Files Changed:**
+- `src/components/ai/AiAssistantPanel.tsx`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+
+**Validation Results:**
+- `pnpm test -- src/services/aiService.test.ts`: pass, 2 tests.
+- `pnpm build`: pass.
+- `pnpm lint`: pass.
+- `ReadLints` for `AiAssistantPanel`: no diagnostics.
+- `firebase deploy --only hosting`: pass, deployed to production Hosting.
+
+**Review Notes:**
+No persistence paths were added. Captured and uploaded images remain temporary React state/base64 chat attachments for Gemini vision only.

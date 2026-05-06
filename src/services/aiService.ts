@@ -50,6 +50,14 @@ ${APP_KNOWLEDGE_BASE}`;
 export interface AiMessage {
   role: 'user' | 'assistant';
   content: string;
+  imageAttachments?: AiImageAttachment[];
+}
+
+export interface AiImageAttachment {
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  data: string;
+  name?: string;
+  size?: number;
 }
 
 function formatNfpaReference(edition?: NfpaEdition, customLabel?: string): string {
@@ -79,8 +87,10 @@ export async function askAssistant(
   },
 ): Promise<string> {
   const lastMessage = messages[messages.length - 1];
+  const latestImageAttachments = lastMessage.imageAttachments ?? [];
+  const hasImageAttachment = latestImageAttachments.length > 0;
   const intent = parseAiMemoryIntent(lastMessage.content);
-  if (context?.orgId && intent) {
+  if (context?.orgId && intent && !hasImageAttachment) {
     try {
       const result = await queryAiMemoryCall({ orgId: context.orgId, intent });
       return formatDeterministicMemoryResponse(result);
@@ -190,7 +200,25 @@ export async function askAssistant(
     ],
   });
 
-  const result = await chat.sendMessage(lastMessage.content);
+  const messageParts = hasImageAttachment
+    ? [
+        {
+          text: [
+            lastMessage.content,
+            '',
+            'The user attached an image for this question. Analyze only what is visible in the image and do not claim that the image was stored.',
+          ].join('\n'),
+        },
+        ...latestImageAttachments.map((image) => ({
+          inlineData: {
+            mimeType: image.mimeType,
+            data: image.data,
+          },
+        })),
+      ]
+    : lastMessage.content;
+
+  const result = await chat.sendMessage(messageParts);
   return result.response.text();
 }
 

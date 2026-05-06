@@ -62,6 +62,12 @@ const steps = [
     links: [{ to: '/dashboard/workspaces', label: 'Open inspections' }],
   },
   {
+    title: 'Use the AI assistant as your on-call compliance partner',
+    body: 'On Pro, Elite, and Enterprise plans, the AI assistant is available throughout the app. Ask compliance questions ("How far apart should extinguishers be in a Class B hazard area per NFPA 2022?"), get overdue summaries ("Which units are past their annual inspection date?"), draft inspection notes from rough field descriptions ("Write a follow-up note for Unit A-12: gauge was slightly low, recheck in 30 days"), or upload a temporary photo for analysis. The AI uses your configured NFPA reference and keeps session context so follow-up questions build naturally without starting over.',
+    icon: Sparkles,
+    links: [{ to: '/dashboard/faq', label: 'See AI example questions' }],
+  },
+  {
     title: 'Check offline sync before closing the day',
     body: 'If crews worked in low-signal areas, review the sync queue so queued inspection work reaches the system before reports are treated as final.',
     icon: WifiOff,
@@ -140,12 +146,15 @@ export default function GettingStarted() {
       </div>
 
       <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-5">
-        <p className="flex items-start gap-2 text-sm text-blue-900">
-          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-          Ask AI for guidance while working: compliance questions, overdue checks, inventory summaries, and operational
-          note recall. AI uses the NFPA reference configured in Settings, with NFPA 10 (2022) as the new-org fallback;
-          confirm against your locally adopted edition and AHJ direction before final decisions.
-        </p>
+        <div className="flex items-start gap-3">
+          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+          <div>
+            <p className="text-sm font-semibold text-blue-900">Pro+ tip: the AI is built for active field work</p>
+            <p className="mt-1 text-sm text-blue-800">
+              Ask compliance questions like <span className="font-medium">"Can you tell me how far extinguishers are supposed to be apart according to NFPA 2022?"</span> — request an overdue summary, upload a temporary photo for analysis, or say <span className="font-medium">"Draft a follow-up note for this unit: tamper seal broken, gauge in green, needs recheck next week"</span> and get clean note language ready to copy. The AI retains context within the session so follow-up questions build naturally. Confirm final decisions against your locally adopted code edition and AHJ direction.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 rounded-xl bg-gray-900 px-6 py-8 text-center">

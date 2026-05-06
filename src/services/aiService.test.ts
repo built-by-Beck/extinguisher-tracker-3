@@ -3,6 +3,8 @@ import { askAssistant } from './aiService.ts';
 
 const mocks = vi.hoisted(() => ({
   queryAiMemoryCall: vi.fn(),
+  sendMessage: vi.fn(),
+  startChat: vi.fn(),
 }));
 
 vi.mock('./aiQueryService.ts', () => ({
@@ -11,7 +13,7 @@ vi.mock('./aiQueryService.ts', () => ({
 
 vi.mock('../lib/firebase.ts', () => ({
   geminiModel: {
-    startChat: vi.fn(),
+    startChat: mocks.startChat,
     generateContent: vi.fn(),
   },
 }));
@@ -19,6 +21,16 @@ vi.mock('../lib/firebase.ts', () => ({
 describe('askAssistant deterministic memory formatting', () => {
   beforeEach(() => {
     mocks.queryAiMemoryCall.mockReset();
+    mocks.sendMessage.mockReset();
+    mocks.startChat.mockReset();
+    mocks.sendMessage.mockResolvedValue({
+      response: {
+        text: () => 'Vision response',
+      },
+    });
+    mocks.startChat.mockReturnValue({
+      sendMessage: mocks.sendMessage,
+    });
   });
 
   it('includes finder fields for extinguisher list responses', async () => {
@@ -55,5 +67,40 @@ describe('askAssistant deterministic memory formatting', () => {
     expect(response).toContain('serial number: S-100');
     expect(response).toContain('location: Main Building');
     expect(response).toContain('vicinity: Beside front desk');
+  });
+
+  it('skips deterministic memory and sends Gemini image parts for photo questions', async () => {
+    const response = await askAssistant(
+      [
+        {
+          role: 'user',
+          content: 'give me a printable list of all expired extinguishers in this photo',
+          imageAttachments: [
+            {
+              mimeType: 'image/jpeg',
+              data: 'base64-image-data',
+              name: 'extinguisher.jpg',
+              size: 1024,
+            },
+          ],
+        },
+      ],
+      { orgId: 'org-1' },
+    );
+
+    expect(response).toBe('Vision response');
+    expect(mocks.queryAiMemoryCall).not.toHaveBeenCalled();
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.sendMessage).toHaveBeenCalledWith([
+      expect.objectContaining({
+        text: expect.stringContaining('give me a printable list'),
+      }),
+      {
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: 'base64-image-data',
+        },
+      },
+    ]);
   });
 });

@@ -246,3 +246,20 @@ Reverted the token URL workaround, kept short-lived signed URLs, and left the pr
 
 **Prevention rule:**
 For report/export downloads, prefer short-lived signed URLs or authenticated delivery; do not replace signing failures with persistent token URLs without explicit security review and user approval.
+
+## 2026-05-04 - Do Not Use File Input Capture As A Real Camera Feed
+
+**What happened:**
+The first AI photo implementation used a single camera icon backed by `<input type="file" capture="environment">`. On the user's live environment, clicking the camera icon opened the file explorer instead of immediately requesting camera permission and showing a camera feed.
+
+**Root cause:**
+`capture` on file inputs is only a browser hint, not a guaranteed live camera experience. Desktop browsers commonly open the file picker, and even mobile behavior varies.
+
+**Why it was avoidable:**
+The user asked for camera permission and a camera-style interaction, which requires `navigator.mediaDevices.getUserMedia` plus a live `<video>` preview rather than relying on the file-picker capture hint.
+
+**Fix used:**
+Split AI photo controls into two buttons: a camera button that requests `getUserMedia`, displays a temporary video preview, captures a JPEG, and stops the stream; and a folder button that opens the file picker.
+
+**Prevention rule:**
+When a UI promises a camera button with live permission/preview, implement `getUserMedia`; reserve file inputs for explicit upload/folder picker flows.

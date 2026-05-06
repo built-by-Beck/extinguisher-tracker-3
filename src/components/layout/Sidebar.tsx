@@ -48,7 +48,7 @@ const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/dashboard/workspaces', label: 'Inspections', icon: ClipboardList, end: false },
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
-  { to: '/dashboard/custom-asset-inspections', label: 'Custom Asset Inspections', icon: ClipboardCheck, end: false },
+  { to: '/dashboard/custom-asset-inspections', label: 'Custom Asset Inspections', icon: ClipboardCheck, end: false, requiredFeature: 'customAssetInspections' },
   {
     to: '/dashboard/replaced-extinguishers',
     label: 'Replaced extinguishers',
