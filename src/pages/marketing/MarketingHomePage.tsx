@@ -313,25 +313,28 @@ export default function MarketingHomePage() {
               Four tiers so you can match capability to portfolio size. Details and FAQs live on the pricing page.
             </p>
             <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {['Basic', 'Pro', 'Elite', 'Enterprise'].map((name) => (
-                <div
+              {[
+                { name: 'Basic', blurb: 'Inventory, workflow, reports, and timers for small operations.' },
+                { name: 'Pro', blurb: 'AI guidance, camera scanning, GPS/photo evidence, and custom asset inspections.', recommended: true },
+                { name: 'Elite', blurb: 'Team invites, bulk tags, guest sharing, and advanced data tools.' },
+                { name: 'Enterprise', blurb: 'Custom contracts, dedicated setup, and unlimited scale.' },
+              ].map(({ name, blurb, recommended }) => (
+                <Link
                   key={name}
-                  className={`rounded-xl border bg-white p-6 shadow-sm ${
-                    name === 'Pro' ? 'border-red-200 ring-2 ring-red-100' : 'border-gray-200'
+                  to={`/plans/${name.toLowerCase()}`}
+                  className={`group block rounded-xl border bg-white p-6 shadow-sm transition-shadow hover:shadow-md ${
+                    recommended ? 'border-red-200 ring-2 ring-red-100' : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  {name === 'Pro' ? (
+                  {recommended ? (
                     <p className="text-xs font-semibold uppercase tracking-wide text-red-600">Recommended</p>
                   ) : (
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Plan</p>
                   )}
                   <p className="mt-2 text-xl font-bold text-gray-900">{name}</p>
-                  <p className="mt-2 text-sm text-gray-600">
-                    {name === 'Enterprise'
-                      ? 'Custom setup and contract terms.'
-                      : 'Simple access based on your team size and units.'}
-                  </p>
-                </div>
+                  <p className="mt-2 text-sm text-gray-600">{blurb}</p>
+                  <p className="mt-4 text-xs font-medium text-red-600 group-hover:underline">See what's included →</p>
+                </Link>
               ))}
             </div>
             <div className="mt-8">
