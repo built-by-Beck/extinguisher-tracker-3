@@ -254,12 +254,37 @@ export const listReplacementHistory = onCall(async (request) => {
 
   await validateMembership(normalizedOrgId, uid, ['owner', 'admin', 'inspector', 'viewer']);
 
-  const snap = await adminDb.collectionGroup('replacementHistory').where('orgId', '==', normalizedOrgId).limit(500).get();
-  const rows: Array<Record<string, unknown> & { id: string }> = snap.docs
-    .map((doc) => ({
+  // Query replaced extinguishers by both the current and legacy field name
+  const extRef = adminDb.collection(`org/${normalizedOrgId}/extinguishers`);
+  const [byStatus, byCategory] = await Promise.all([
+    extRef.where('lifecycleStatus', '==', 'replaced').get(),
+    extRef.where('category', '==', 'replaced').get(),
+  ]);
+
+  // Deduplicate by document ID
+  const seen = new Set<string>();
+  const replacedExtIds: string[] = [];
+  for (const doc of [...byStatus.docs, ...byCategory.docs]) {
+    if (!seen.has(doc.id)) {
+      seen.add(doc.id);
+      replacedExtIds.push(doc.id);
+    }
+  }
+
+  // Fetch each extinguisher's replacementHistory subcollection directly
+  const historySnaps = await Promise.all(
+    replacedExtIds.map((extId) =>
+      adminDb.collection(`org/${normalizedOrgId}/extinguishers/${extId}/replacementHistory`).get()
+    )
+  );
+
+  const rows: Array<Record<string, unknown> & { id: string }> = historySnaps
+    .flatMap((snap) =>
+      snap.docs.map((doc) => ({
         id: doc.id,
         ...(doc.data() as Record<string, unknown>),
       }))
+    )
     .sort((a, b) => replacementMillis(b) - replacementMillis(a));
 
   return { rows };
