@@ -218,9 +218,9 @@ export default function MarketingFeaturesPage() {
           <FeatureBlock
             icon={Users}
             title="Organizations, roles, and invites"
-            what="Invite team members, separate access by organization, and use roles for owners, admins, inspectors, and viewers."
+            what="Separate access by organization and assign roles for owners, admins, inspectors, and viewers. Team member invites and role management are available on Elite and Enterprise plans."
             why="The person inspecting in the field does not always need the same access as an owner or administrator."
-            outcome="Cleaner collaboration across facilities, teams, and outside stakeholders."
+            outcome="Cleaner collaboration across facilities, teams, and outside stakeholders — with access controlled by role and plan."
           />
           <FeatureBlock
             icon={Building2}

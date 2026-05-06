@@ -7,7 +7,7 @@ import { marketingSeo } from './marketingSeo.ts';
 const steps = [
   {
     title: 'Create your account and organization',
-    body: 'Sign up, create your organization, and invite the people who run inspections and compliance reviews.',
+    body: 'Sign up and create your organization. Your account is the hub for your extinguisher program — inventory, inspections, and records all live under the organization you set up.',
     icon: Users,
   },
   {
@@ -42,7 +42,7 @@ const steps = [
   },
   {
     title: 'Print, share, and expand the program',
-    body: 'Print lists or tags, invite team members, share limited guest access, and add custom asset inspections when your program grows.',
+    body: 'Print lists or tags, add custom asset inspections, and as your program grows, invite team members on Elite and Enterprise plans or share limited guest access with outside reviewers.',
     icon: Share2,
   },
   {

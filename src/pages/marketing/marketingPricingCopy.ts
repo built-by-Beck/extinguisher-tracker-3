@@ -83,10 +83,10 @@ export const marketingPlans: MarketingPlanCard[] = [
     blurb: 'Large programs that need advanced data tools, AI-supported operations, and priority help.',
     bullets: [
       'Everything in Pro',
+      'Team member invites and role management',
       'Advanced data cleanup tools',
       'Bulk tag printing',
-      'Guest sharing and offline sync support',
-      'Organization branding controls',
+      'Guest sharing for outside reviewers',
       'Priority help from our team',
     ],
     ctaLabel: 'Get started',

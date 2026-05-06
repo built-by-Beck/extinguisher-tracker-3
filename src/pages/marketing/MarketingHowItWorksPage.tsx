@@ -44,7 +44,7 @@ const steps = [
   {
     step: 7,
     title: 'Share limited visibility when needed',
-    body: 'Invite team members with roles or use guest access when outside reviewers need visibility without full administrative access.',
+    body: 'On Elite and Enterprise plans, invite team members with specific roles to collaborate on inspections and records. Use guest access when outside reviewers need limited visibility without becoming full members.',
     icon: Share2,
   },
   {
