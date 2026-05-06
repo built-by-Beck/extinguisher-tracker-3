@@ -1,5 +1,5 @@
 /**
- * Notification service for EX3.
+ * Notification service for ExtinguisherTracker.
  * Provides real-time subscription and read-state management for org notifications.
  * Notifications are backend-write-only; markAsRead goes through a Cloud Function.
  *

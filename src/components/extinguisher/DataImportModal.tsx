@@ -97,7 +97,7 @@ export function DataImportModal({
                 <p className="mt-4 text-sm font-medium text-gray-900">
                   {file ? file.name : 'Click or drag JSON file to upload'}
                 </p>
-                <p className="mt-1 text-xs text-gray-500">Only .json files from EX3 backups</p>
+                <p className="mt-1 text-xs text-gray-500">Only .json files from ExtinguisherTracker backups</p>
                 <input
                   type="file"
                   ref={fileInputRef}

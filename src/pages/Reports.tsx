@@ -11,7 +11,7 @@ import { FileText, Loader2, Download } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { subscribeToReports, generateReportDownload } from '../services/reportService.ts';
 import { ReportDownloadButton } from '../components/reports/ReportDownloadButton.tsx';
-import type { Report, ReportFormat } from '../types/report.ts';
+import type { Report, ReportFormat, ReportScope, ReportSortBy } from '../types/report.ts';
 
 function formatTimestamp(timestamp: unknown): string {
   if (!timestamp) return '--';
@@ -50,6 +50,8 @@ export default function Reports() {
 
   const [genWorkspaceId, setGenWorkspaceId] = useState('');
   const [genFormat, setGenFormat] = useState<ReportFormat>('pdf');
+  const [genScope, setGenScope] = useState<ReportScope>('failed_or_expired');
+  const [genSortBy, setGenSortBy] = useState<ReportSortBy>('location');
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
 
@@ -78,7 +80,10 @@ export default function Reports() {
     setGenerating(true);
     setGenError('');
     try {
-      const { downloadUrl } = await generateReportDownload(orgId, genWorkspaceId, genFormat);
+      const { downloadUrl } = await generateReportDownload(orgId, genWorkspaceId, genFormat, {
+        scope: genScope,
+        sortBy: genSortBy,
+      });
       window.open(downloadUrl, '_blank');
     } catch (err) {
       setGenError(err instanceof Error ? err.message : 'Failed to generate report.');
@@ -101,8 +106,9 @@ export default function Reports() {
       <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
         <p>
           Compliance reports are generated from archived workspaces. Each report includes
-          pass/fail counts, inspector details, and a full breakdown by location — ready to
-          hand to a fire marshal or keep on file for your records.
+          pass/fail counts, inspector details, and extinguisher finder fields — asset number,
+          serial number, location, section, and vicinity — ready to hand to a fire marshal or
+          keep on file for your records.
         </p>
       </div>
 
@@ -115,7 +121,7 @@ export default function Reports() {
               {genError}
             </div>
           )}
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="grid gap-4 md:grid-cols-[minmax(220px,1fr)_minmax(180px,240px)_minmax(150px,180px)_minmax(120px,150px)_auto] md:items-end">
             <div className="flex-1 min-w-[200px]">
               <label htmlFor="report-workspace" className="mb-1 block text-sm font-medium text-gray-700">
                 Select Workspace
@@ -132,6 +138,38 @@ export default function Reports() {
                     {r.label} ({r.monthYear})
                   </option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="report-scope" className="mb-1 block text-sm font-medium text-gray-700">
+                Report On
+              </label>
+              <select
+                id="report-scope"
+                value={genScope}
+                onChange={(e) => setGenScope(e.target.value as ReportScope)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm"
+                disabled={generating}
+              >
+                <option value="failed_or_expired">Failed or expired</option>
+                <option value="passed">Passed only</option>
+                <option value="pending">Pending / not inspected</option>
+                <option value="replacement_candidates">Replacement candidates</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="report-sort" className="mb-1 block text-sm font-medium text-gray-700">
+                Sort By
+              </label>
+              <select
+                id="report-sort"
+                value={genSortBy}
+                onChange={(e) => setGenSortBy(e.target.value as ReportSortBy)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm"
+                disabled={generating}
+              >
+                <option value="location">Location</option>
+                <option value="assetId">Asset ID</option>
               </select>
             </div>
             <div className="w-32">

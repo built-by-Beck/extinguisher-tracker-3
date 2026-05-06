@@ -1,5 +1,5 @@
 /**
- * Guest access types for EX3.
+ * Guest access types for ExtinguisherTracker.
  * Guest access is an Elite/Enterprise feature that allows anonymous read-only access.
  *
  * Author: built_by_Beck

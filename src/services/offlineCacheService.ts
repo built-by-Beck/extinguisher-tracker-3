@@ -1,5 +1,5 @@
 /**
- * Offline cache service for EX3.
+ * Offline cache service for ExtinguisherTracker.
  *
  * Implements cache-on-read pattern: as the user views data via Firestore
  * onSnapshot listeners, we write copies to IndexedDB. When offline, pages

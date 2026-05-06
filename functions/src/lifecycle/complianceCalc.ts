@@ -1,5 +1,5 @@
 /**
- * Lifecycle calculation utilities for EX3.
+ * Lifecycle calculation utilities for ExtinguisherTracker.
  * Pure functions — no side effects, no Firestore access.
  * Used by Cloud Functions and Firestore triggers.
  *

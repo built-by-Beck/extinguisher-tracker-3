@@ -1,14 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const IDLE_CHECK_INTERVAL_MS = 60_000;  // check every minute
+
 export interface UseSectionTimerReturn {
   /** Which section is currently being timed (null = none) */
   activeSection: string | null;
+  /** Section that has been idle for 30 min and needs user confirmation (null = none) */
+  idlePromptSection: string | null;
   /** Start/resume timing for a section */
   startTimer: (section: string) => void;
   /** Pause the active timer (accumulates elapsed time) */
   pauseTimer: () => void;
   /** Stop the active timer (accumulates and clears active) */
   stopTimer: () => void;
+  /** Confirm still working — restarts the paused idle timer and resets the 30-min window */
+  confirmActive: () => void;
+  /** Dismiss the idle prompt without restarting — timer stays stopped */
+  dismissIdle: () => void;
   /** Get total accumulated ms for a section (including live elapsed) */
   getTotalTime: (section: string) => number;
   /** Get all section times (snapshot, not including live elapsed) */
@@ -42,11 +51,13 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
   const [sectionTimes, setSectionTimes] = useState<Record<string, number>>({});
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [currentElapsed, setCurrentElapsed] = useState(0);
+  const [idlePromptSection, setIdlePromptSection] = useState<string | null>(null);
 
   // Refs to avoid stale closures in interval callback
   const timerStartTimeRef = useRef<number | null>(null);
   const activeSectionRef = useRef<string | null>(null);
   const sectionTimesRef = useRef<Record<string, number>>({});
+  const lastConfirmedAtRef = useRef<number | null>(null);
 
   // Keep refs in sync with state via effect (not during render)
   useEffect(() => {
@@ -88,6 +99,7 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
         setActiveSection(parsed.section);
         activeSectionRef.current = parsed.section;
         timerStartTimeRef.current = parsed.startTime;
+        lastConfirmedAtRef.current = parsed.startTime;
         setCurrentElapsed(Date.now() - parsed.startTime);
       } else {
         setActiveSection(null);
@@ -131,6 +143,40 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
     return () => clearInterval(intervalId);
   }, [activeSection]);
 
+  // Idle timeout check — every minute, stop timer and prompt if 30 min of unconfirmed running
+  useEffect(() => {
+    if (activeSection === null) return;
+
+    const idleCheckId = setInterval(() => {
+      const lastConfirmed = lastConfirmedAtRef.current;
+      const section = activeSectionRef.current;
+      if (lastConfirmed !== null && section && Date.now() - lastConfirmed >= IDLE_TIMEOUT_MS) {
+        // Accumulate elapsed time then pause
+        const start = timerStartTimeRef.current;
+        if (start !== null) {
+          const elapsed = Date.now() - start;
+          setSectionTimes((prev) => {
+            const updated = { ...prev, [section]: (prev[section] ?? 0) + elapsed };
+            sectionTimesRef.current = updated;
+            return updated;
+          });
+        }
+        timerStartTimeRef.current = null;
+        setActiveSection(null);
+        activeSectionRef.current = null;
+        setCurrentElapsed(0);
+        lastConfirmedAtRef.current = null;
+        try {
+          const activeKey = `sectionTimerActive_${orgId}_${workspaceId}`;
+          localStorage.removeItem(activeKey);
+        } catch { /* ignore */ }
+        setIdlePromptSection(section);
+      }
+    }, IDLE_CHECK_INTERVAL_MS);
+
+    return () => clearInterval(idleCheckId);
+  }, [activeSection, orgId, workspaceId]);
+
   const persistActiveState = useCallback(
     (section: string | null, startTime: number | null) => {
       if (!orgId || !workspaceId) return;
@@ -173,9 +219,11 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
 
       const now = Date.now();
       timerStartTimeRef.current = now;
+      lastConfirmedAtRef.current = now;
       setActiveSection(section);
       activeSectionRef.current = section;
       setCurrentElapsed(0);
+      setIdlePromptSection(null);
       persistActiveState(section, now);
     },
     [accumulateActive, persistActiveState],
@@ -184,6 +232,7 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
   const pauseTimer = useCallback(() => {
     accumulateActive();
     timerStartTimeRef.current = null;
+    lastConfirmedAtRef.current = null;
     setActiveSection(null);
     activeSectionRef.current = null;
     setCurrentElapsed(0);
@@ -193,11 +242,32 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
   const stopTimer = useCallback(() => {
     accumulateActive();
     timerStartTimeRef.current = null;
+    lastConfirmedAtRef.current = null;
     setActiveSection(null);
     activeSectionRef.current = null;
     setCurrentElapsed(0);
     persistActiveState(null, null);
   }, [accumulateActive, persistActiveState]);
+
+  // User confirmed they are still working — restart the idle-paused timer
+  const confirmActive = useCallback(() => {
+    const section = idlePromptSection;
+    if (!section) return;
+    const now = Date.now();
+    timerStartTimeRef.current = now;
+    lastConfirmedAtRef.current = now;
+    setActiveSection(section);
+    activeSectionRef.current = section;
+    setCurrentElapsed(0);
+    setIdlePromptSection(null);
+    persistActiveState(section, now);
+  }, [idlePromptSection, persistActiveState]);
+
+  // User dismissed idle prompt — timer stays stopped
+  const dismissIdle = useCallback(() => {
+    lastConfirmedAtRef.current = null;
+    setIdlePromptSection(null);
+  }, []);
 
   const getTotalTime = useCallback(
     (section: string): number => {
@@ -235,9 +305,11 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
 
   const clearAllTimes = useCallback(() => {
     timerStartTimeRef.current = null;
+    lastConfirmedAtRef.current = null;
     setActiveSection(null);
     activeSectionRef.current = null;
     setCurrentElapsed(0);
+    setIdlePromptSection(null);
     setSectionTimes({});
     sectionTimesRef.current = {};
     persistActiveState(null, null);
@@ -265,9 +337,12 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
 
   return {
     activeSection,
+    idlePromptSection,
     startTimer,
     pauseTimer,
     stopTimer,
+    confirmActive,
+    dismissIdle,
     getTotalTime,
     getAllTimes,
     clearSectionTime,

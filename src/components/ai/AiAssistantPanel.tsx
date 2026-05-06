@@ -7,9 +7,9 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, Loader2, Sparkles, Trash2, NotebookPen } from 'lucide-react';
+import { Bot, X, Send, Loader2, Sparkles, Trash2, NotebookPen, Camera, FolderOpen } from 'lucide-react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { askAssistant, type AiMessage } from '../../services/aiService.ts';
+import { askAssistant, type AiImageAttachment, type AiMessage } from '../../services/aiService.ts';
 import {
   createAiNoteCall,
   subscribeToAiNotes,
@@ -30,6 +30,15 @@ interface AiAssistantPanelProps {
   extinguishers?: Extinguisher[];
   complianceSummary?: Record<string, number>;
 }
+
+interface SelectedAiImage {
+  attachment: AiImageAttachment;
+  previewUrl: string;
+}
+
+const AI_IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp';
+const AI_IMAGE_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const AI_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
 
 function formatNfpaReference(edition?: NfpaEdition, customLabel?: string): string {
   if (edition === 'other') {
@@ -89,6 +98,23 @@ function buildComplianceSummary(extinguishers: Extinguisher[]): Record<string, n
   return summary;
 }
 
+function formatBytes(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fileToBase64(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      const [, base64 = ''] = result.split(',');
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error('Could not read the selected image.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssistantPanelProps) {
   const { org, hasRole } = useOrg();
   const { user, userProfile } = useAuth();
@@ -105,9 +131,15 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
   const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
   const [notes, setNotes] = useState<AiNote[]>([]);
   const [noteBusyId, setNoteBusyId] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<SelectedAiImage | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraStarting, setCameraStarting] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
 
   // When mounted globally from layout, load org inventory context automatically.
   useEffect(() => {
@@ -216,21 +248,174 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
     }
   }, [open]);
 
+  useEffect(() => {
+    return () => {
+      if (selectedImage?.previewUrl) {
+        URL.revokeObjectURL(selectedImage.previewUrl);
+      }
+    };
+  }, [selectedImage?.previewUrl]);
+
+  useEffect(() => {
+    if (!cameraOpen || !videoRef.current || !cameraStreamRef.current) {
+      return;
+    }
+
+    videoRef.current.srcObject = cameraStreamRef.current;
+    void videoRef.current.play().catch(() => {
+      setError('Camera started, but the preview could not play. Try using file upload instead.');
+    });
+  }, [cameraOpen]);
+
+  useEffect(() => {
+    if (open) return;
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+    setCameraOpen(false);
+    setCameraStarting(false);
+  }, [open]);
+
+  async function handleImageSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setError(null);
+    if (!AI_IMAGE_ALLOWED_TYPES.has(file.type)) {
+      setError('Please choose a JPEG, PNG, or WebP image.');
+      return;
+    }
+    if (file.size > AI_IMAGE_MAX_BYTES) {
+      setError(`Please choose an image smaller than ${formatBytes(AI_IMAGE_MAX_BYTES)}.`);
+      return;
+    }
+
+    try {
+      await setTemporaryImage(file, file.name);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Could not read the selected image.';
+      setError(msg);
+    }
+  }
+
+  async function setTemporaryImage(file: Blob, name: string) {
+    const data = await fileToBase64(file);
+    const previewUrl = URL.createObjectURL(file);
+    setSelectedImage((previous) => {
+      if (previous?.previewUrl) {
+        URL.revokeObjectURL(previous.previewUrl);
+      }
+      return {
+        previewUrl,
+        attachment: {
+          mimeType: file.type as AiImageAttachment['mimeType'],
+          data,
+          name,
+          size: file.size,
+        },
+      };
+    });
+  }
+
+  function stopCamera() {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+    setCameraOpen(false);
+    setCameraStarting(false);
+  }
+
+  async function startCamera() {
+    setError(null);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('This browser does not support live camera capture. Use file upload instead.');
+      return;
+    }
+
+    try {
+      stopCamera();
+      setCameraStarting(true);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+      cameraStreamRef.current = stream;
+      setCameraOpen(true);
+    } catch (err) {
+      const msg = err instanceof Error && err.name === 'NotAllowedError'
+        ? 'Camera permission was denied. Allow camera access or use file upload instead.'
+        : 'Could not open the camera. Use file upload instead.';
+      setError(msg);
+    } finally {
+      setCameraStarting(false);
+    }
+  }
+
+  async function captureCameraPhoto() {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+      setError('Camera preview is not ready yet. Try again in a moment.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      setError('Could not capture a photo from the camera.');
+      return;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.88);
+    });
+    if (!blob) {
+      setError('Could not capture a photo from the camera.');
+      return;
+    }
+    if (blob.size > AI_IMAGE_MAX_BYTES) {
+      setError(`Captured photo is larger than ${formatBytes(AI_IMAGE_MAX_BYTES)}. Try file upload with a smaller image.`);
+      return;
+    }
+
+    await setTemporaryImage(blob, 'camera-photo.jpg');
+    stopCamera();
+  }
+
+  function removeSelectedImage() {
+    setSelectedImage((previous) => {
+      if (previous?.previewUrl) {
+        URL.revokeObjectURL(previous.previewUrl);
+      }
+      return null;
+    });
+  }
+
   async function handleSend(text?: string) {
     const messageText = text ?? input.trim();
+    const imageForMessage = selectedImage?.attachment;
     if (!messageText || loading) return;
 
     setError(null);
     setInput('');
+    if (selectedImage) {
+      URL.revokeObjectURL(selectedImage.previewUrl);
+      setSelectedImage(null);
+    }
 
-    const userMessage: AiMessage = { role: 'user', content: messageText };
+    const userMessage: AiMessage = {
+      role: 'user',
+      content: messageText,
+      imageAttachments: imageForMessage ? [imageForMessage] : undefined,
+    };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setLoading(true);
 
     try {
       const noteContent = extractNoteContent(messageText);
-      if (noteContent && canManageNotes) {
+      if (noteContent && canManageNotes && !imageForMessage) {
         await saveNoteFromText(noteContent, 'ai_suggested');
         setMessages([
           ...updatedMessages,
@@ -397,6 +582,15 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                       : 'bg-gray-100 text-gray-800'
                   }`}
                 >
+                  {msg.imageAttachments?.map((image, imageIndex) => (
+                    <div key={`${image.name ?? 'image'}-${imageIndex}`} className="mb-2">
+                      <img
+                        src={`data:${image.mimeType};base64,${image.data}`}
+                        alt={image.name ? `Attached ${image.name}` : 'Attached image'}
+                        className="max-h-32 rounded-md border border-white/30 object-cover"
+                      />
+                    </div>
+                  ))}
                   <div className="whitespace-pre-wrap break-words">{msg.content}</div>
                   {msg.role === 'user' && canManageNotes && (
                     <button
@@ -432,10 +626,100 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
 
           {/* Input */}
           <div className="border-t border-gray-200 px-4 py-3">
+            {cameraOpen && (
+              <div className="mb-2 rounded-lg border border-gray-200 bg-gray-900 p-2">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="h-40 w-full rounded-md bg-black object-cover"
+                />
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-[10px] text-gray-300">
+                    Camera preview is temporary. Capture a photo or cancel.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={stopCamera}
+                      className="rounded-md border border-gray-600 px-2 py-1 text-xs text-gray-100 hover:bg-gray-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void captureCameraPhoto()}
+                      className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700"
+                    >
+                      Capture
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {selectedImage && (
+              <div className="mb-2 flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-2">
+                <img
+                  src={selectedImage.previewUrl}
+                  alt="Selected AI question attachment"
+                  className="h-14 w-14 rounded-md border border-gray-200 object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-gray-700">
+                    {selectedImage.attachment.name ?? 'Attached image'}
+                  </p>
+                  <p className="text-[10px] text-gray-500">
+                    Temporary photo, not saved. {selectedImage.attachment.size
+                      ? formatBytes(selectedImage.attachment.size)
+                      : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeSelectedImage}
+                  disabled={loading}
+                  className="rounded-md p-1 text-gray-400 hover:bg-white hover:text-gray-700 disabled:opacity-50"
+                  aria-label="Remove selected photo"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
             <form
               onSubmit={(e) => { e.preventDefault(); void handleSend(); }}
               className="flex items-center gap-2"
             >
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept={AI_IMAGE_ACCEPT}
+                onChange={(e) => void handleImageSelect(e)}
+                disabled={loading}
+                aria-label="Upload a temporary photo for the AI Assistant"
+                title="Upload photo"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => void startCamera()}
+                disabled={loading || cameraStarting}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Open camera"
+                title="Open camera"
+              >
+                {cameraStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={loading || cameraStarting}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={selectedImage ? 'Change uploaded photo' : 'Upload photo from files'}
+                title={selectedImage ? 'Change uploaded photo' : 'Upload photo'}
+              >
+                <FolderOpen className="h-4 w-4" />
+              </button>
               <input
                 ref={inputRef}
                 type="text"
@@ -455,7 +739,7 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
               </button>
             </form>
             <p className="mt-1.5 text-center text-[10px] text-gray-400">
-              AI access is included with Pro, Elite, and Enterprise plans. Reference: {nfpaReference}.
+              Pro+ AI can answer text or one temporary photo question. Reference: {nfpaReference}.
             </p>
           </div>
         </div>

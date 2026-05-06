@@ -42,6 +42,8 @@ describe('queryAiMemory callable', () => {
             serial: 'S-100',
             section: 'Lobby',
             parentLocation: 'Main',
+            locationName: 'Main Campus',
+            vicinity: 'Beside front desk',
             expirationYear: 2027,
             lifecycleStatus: 'active',
             complianceStatus: 'compliant',
@@ -79,6 +81,10 @@ describe('queryAiMemory callable', () => {
     expect(result.intentType).toBe('list_expiring_by_year');
     expect(result.count).toBe(1);
     expect(result.expiringExtinguishers[0].assetId).toBe('A-100');
+    expect(result.expiringExtinguishers[0].serial).toBe('S-100');
+    expect(result.expiringExtinguishers[0].parentLocation).toBe('Main');
+    expect(result.expiringExtinguishers[0].locationName).toBe('Main Campus');
+    expect(result.expiringExtinguishers[0].vicinity).toBe('Beside front desk');
   });
 
   it('returns only active extinguishers marked expired for official expired intent', async () => {
@@ -104,6 +110,8 @@ describe('queryAiMemory callable', () => {
             serial: 'S-100',
             section: 'Lobby',
             parentLocation: 'Main',
+            locationName: 'Main Campus',
+            vicinity: 'Beside front desk',
             manufactureYear: 2019,
             expirationYear: 2027,
             isExpired: true,
@@ -119,6 +127,8 @@ describe('queryAiMemory callable', () => {
             serial: 'S-200',
             section: 'Storage',
             parentLocation: 'Main',
+            locationName: 'Main Campus',
+            vicinity: 'By loading dock',
             manufactureYear: 2018,
             isExpired: true,
             lifecycleStatus: 'retired',
@@ -152,6 +162,7 @@ describe('queryAiMemory callable', () => {
     expect(result.intentType).toBe('list_marked_expired');
     expect(result.count).toBe(1);
     expect(result.expiredExtinguishers[0].assetId).toBe('A-100');
+    expect(result.expiredExtinguishers[0].vicinity).toBe('Beside front desk');
   });
 
   it('returns possible expired candidates without mixing official expired units', async () => {
@@ -178,6 +189,8 @@ describe('queryAiMemory callable', () => {
             serial: 'S-100',
             section: 'Lobby',
             parentLocation: 'Main',
+            locationName: 'Main Campus',
+            vicinity: 'Beside front desk',
             manufactureYear: 2019,
             isExpired: false,
             lifecycleStatus: 'active',
@@ -191,6 +204,8 @@ describe('queryAiMemory callable', () => {
             serial: 'S-200',
             section: 'Storage',
             parentLocation: 'Main',
+            locationName: 'Main Campus',
+            vicinity: 'By loading dock',
             manufactureYear: 2018,
             isExpired: true,
             lifecycleStatus: 'active',
@@ -204,6 +219,8 @@ describe('queryAiMemory callable', () => {
             serial: 'S-300',
             section: 'Office',
             parentLocation: 'Main',
+            locationName: 'Main Campus',
+            vicinity: 'Outside office 3',
             manufactureYear: recentManufactureYear,
             isExpired: false,
             lifecycleStatus: 'active',
@@ -237,6 +254,8 @@ describe('queryAiMemory callable', () => {
     expect(result.intentType).toBe('list_expired_candidates');
     expect(result.count).toBe(1);
     expect(result.expiredCandidateExtinguishers[0].assetId).toBe('A-100');
+    expect(result.expiredCandidateExtinguishers[0].serial).toBe('S-100');
+    expect(result.expiredCandidateExtinguishers[0].vicinity).toBe('Beside front desk');
   });
 
   it('throws for unsupported intent', async () => {

@@ -65,7 +65,7 @@ const faqSections = [
       },
       {
         q: 'How does AI help during inspections?',
-        a: 'AI can help answer compliance questions, summarize overdue items, and reduce context switching while technicians are in the field.',
+        a: 'On Pro, Elite, and Enterprise plans, AI can help answer compliance questions, summarize overdue items, answer questions about a temporary uploaded or camera photo, and reduce context switching while technicians are in the field. Photo questions are sent for analysis only and are not saved as inspection photos.',
       },
       {
         q: 'Which NFPA edition does AI use?',
@@ -82,6 +82,35 @@ const faqSections = [
     ],
   },
   {
+    title: 'AI assistant',
+    items: [
+      {
+        q: 'What can I ask the AI assistant?',
+        a: 'Ask anything connected to your extinguisher program. Compliance questions like "Can you tell me how far extinguishers are supposed to be apart according to NFPA 2022?" or "What are the annual inspection requirements for a CO2 extinguisher?" — status checks like "Which extinguishers are overdue for their annual inspection?" or "Summarize what is currently failing in inventory" — note drafting like "Write a professional follow-up note for Unit A-12: gauge was slightly low, passed visual, recheck in 30 days" — or photo questions like "I am uploading a photo of this pressure gauge — does the reading look normal?" The AI is built to reduce context switching while you are actively in the field.',
+      },
+      {
+        q: 'Can the AI help me write inspection notes?',
+        a: 'Yes. Describe the situation in plain language and ask the AI to produce a professional note. For example: "Write a note for this unit: the tamper seal was broken, gauge was in the green, and I need a follow-up check next week." The AI will draft clear, concise language you can copy directly into the inspection record — faster than composing it yourself while walking a route.',
+      },
+      {
+        q: 'Can I show the AI a photo of an extinguisher?',
+        a: 'Yes. Upload a temporary photo or use your device camera and ask the AI about what it sees — whether a gauge reading looks correct, whether visible damage is worth flagging, or what to check next. These photos are analyzed for that session only and are not saved as official inspection photos or attached to the extinguisher record.',
+      },
+      {
+        q: 'Does the AI keep context between questions in the same session?',
+        a: 'Yes. Within the same session the AI retains what you have already discussed. Ask a compliance question, then follow up with "and what does that mean for a Class A hazard area?" without repeating the background. This continuity is what makes it feel like working alongside a knowledgeable colleague rather than restarting a search engine every time.',
+      },
+      {
+        q: 'Can the AI tell me what is overdue or failing right now?',
+        a: 'Yes. Ask questions like "Which extinguishers are past their annual inspection date?" or "Give me a summary of everything currently overdue." The AI can pull context from your live inventory and inspection data and return a status summary on demand — useful before a leadership meeting, before an audit shows up, or when you need a quick picture of where the program stands without clicking through the full dashboard.',
+      },
+      {
+        q: 'Is the AI available on all plans?',
+        a: 'The AI assistant is included on Pro, Elite, and Enterprise plans. It is not available on the Basic plan. Open Settings or visit the pricing page to see what each tier includes.',
+      },
+    ],
+  },
+  {
     title: 'Reports, sharing, and advanced workflows',
     items: [
       {
@@ -91,6 +120,10 @@ const faqSections = [
       {
         q: 'Where can I see audit history?',
         a: 'Open Audit Logs to review important activity and changes. These records help reconstruct what happened without relying on memory or side notes.',
+      },
+      {
+        q: 'What details are included in compliance reports?',
+        a: 'Archived workspace reports can be generated as PDF, CSV, or JSON. Each listed extinguisher includes the asset number, serial number, location, section, vicinity, inspection status, inspector details, and notes when available. On the Reports page, you can also generate focused reports for failed or expired units, passed units, pending inspections, or replacement candidates, sorted by location or asset ID.',
       },
       {
         q: 'Can outside reviewers see records?',

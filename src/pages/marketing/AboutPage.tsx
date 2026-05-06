@@ -21,9 +21,9 @@ export default function AboutPage() {
         {/* Hero */}
         <div className="border-b border-gray-200 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900">About Extinguisher Tracker</h1>
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900">About ExtinguisherTracker</h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
-              Extinguisher Tracker was built independently from field-level life safety experience and software
+              ExtinguisherTracker was built independently from field-level life safety experience and software
               development skill, with each feature added because real extinguisher programs needed it.
             </p>
           </div>
@@ -35,7 +35,7 @@ export default function AboutPage() {
             <div>
               <h2 className="text-3xl font-bold text-gray-900">Our Mission</h2>
               <p className="mt-4 text-gray-600">
-                Extinguisher Tracker was created to solve a common problem: fire extinguisher programs collect a lot
+                ExtinguisherTracker was created to solve a common problem: fire extinguisher programs collect a lot
                 of important information, but too much of that information gets trapped in paper, spreadsheets, and
                 disconnected tools.
               </p>
@@ -50,7 +50,7 @@ export default function AboutPage() {
                 bloated screens, vague dashboards, or features that sound good but do not help the person doing the work.
               </p>
               <p className="mt-4 text-gray-600">
-                Extinguisher Tracker is developed separately and independently. The story is simple: identify a real
+                ExtinguisherTracker is developed separately and independently. The story is simple: identify a real
                 need in extinguisher program management, build the tool that should have existed, and keep improving
                 it around practical field use.
               </p>
@@ -130,7 +130,7 @@ export default function AboutPage() {
             </div>
             <h2 className="text-3xl font-bold text-gray-900">Compliance &amp; Standards</h2>
             <p className="mt-4 text-gray-600">
-              Extinguisher Tracker is designed to support NFPA-aligned inspection workflows, documentation, and
+              ExtinguisherTracker is designed to support NFPA-aligned inspection workflows, documentation, and
               internal accountability. It helps teams organize the work and preserve evidence while final compliance
               decisions remain tied to adopted codes, qualified judgment, and local authority requirements.
             </p>

@@ -6,10 +6,21 @@ import { validateSubscriptionTx } from '../utils/subscription.js';
 import { throwInvalidArgument, throwNotFound, throwFailedPrecondition } from '../utils/errors.js';
 import { writeAuditLogTx } from '../utils/auditLog.js';
 import { FieldValue } from 'firebase-admin/firestore';
+import { enrichFinderFields } from '../reports/finderFields.js';
 
 interface InspectionResultData {
+  extinguisherId: string;
   assetId: string;
+  serial: string;
+  parentLocation: string;
+  locationName: string;
   section: string;
+  vicinity: string;
+  manufactureYear: number | null;
+  expirationYear: number | null;
+  isExpired: boolean;
+  lifecycleStatus: string | null;
+  complianceStatus: string | null;
   status: string;
   inspectedAt: unknown;
   inspectedBy: string | null;
@@ -53,8 +64,18 @@ export const archiveWorkspace = onCall(async (request) => {
     else pending++;
 
     results.push({
+      extinguisherId: data.extinguisherId ?? '',
       assetId: data.assetId ?? '',
+      serial: data.serial ?? '',
+      parentLocation: data.parentLocation ?? '',
+      locationName: data.locationName ?? '',
       section: data.section ?? '',
+      vicinity: data.vicinity ?? '',
+      manufactureYear: typeof data.manufactureYear === 'number' ? data.manufactureYear : null,
+      expirationYear: typeof data.expirationYear === 'number' ? data.expirationYear : null,
+      isExpired: data.isExpired === true,
+      lifecycleStatus: typeof data.lifecycleStatus === 'string' ? data.lifecycleStatus : null,
+      complianceStatus: typeof data.complianceStatus === 'string' ? data.complianceStatus : null,
       status: data.status ?? 'pending',
       inspectedAt: data.inspectedAt ?? null,
       inspectedBy: data.inspectedBy ?? null,
@@ -63,6 +84,7 @@ export const archiveWorkspace = onCall(async (request) => {
       checklistData: data.checklistData ?? null,
     });
   });
+  const enrichedResults = await enrichFinderFields(orgId, results);
 
   return await adminDb.runTransaction(async (tx) => {
     // 2. Subscription check
@@ -111,7 +133,7 @@ export const archiveWorkspace = onCall(async (request) => {
       failedCount: failed,
       pendingCount: pending,
       sectionTimes: sectionTimes ?? null,
-      results, // NOTE: Limited to ~1000 items due to 1MB doc size
+      results: enrichedResults, // NOTE: Limited to ~1000 items due to 1MB doc size
       csvDownloadUrl: null,
       csvFilePath: null,
       pdfDownloadUrl: null,

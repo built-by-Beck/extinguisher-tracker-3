@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Archive, Loader2, RefreshCw } from 'lucide-react';
+import { Archive, Download, Loader2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import {
@@ -144,6 +144,73 @@ export default function ReplacedExtinguishers() {
     }
   }
 
+  function downloadCsv() {
+    const headers = [
+      'Date Replaced',
+      'Reason',
+      'Old Asset ID',
+      'Old Serial',
+      'Old Barcode',
+      'Old Type',
+      'Old Size',
+      'Old Location',
+      'New Asset ID',
+      'New Serial',
+      'New Barcode',
+      'New Type',
+      'New Size',
+      'New Location',
+      'Waiting for Service',
+      'Sent for Service',
+      'Discarded',
+      'Returned to Spare',
+    ];
+    const escape = (v: unknown) => {
+      const s = typeof v === 'string' ? v : v == null ? '' : String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rowLines = rows.map((row) => {
+      const prior = row.priorSnapshot ?? {};
+      const current = extById.get(row.currentExtinguisherId);
+      const oldLocation = [text(prior.parentLocation), text(prior.section), text(prior.vicinity)]
+        .filter((v) => v !== '—')
+        .join(' / ') || '—';
+      const newLocation = current
+        ? [current.parentLocation, current.section, current.vicinity].filter(Boolean).join(' / ') || '—'
+        : '—';
+      return [
+        formatTimestamp(row.replacedAt),
+        row.reason ?? '',
+        row.previousAssetId ?? text(prior.assetId),
+        row.previousSerial ?? text(prior.serial),
+        row.previousBarcode ?? text(prior.barcode),
+        text(prior.extinguisherType),
+        text(prior.extinguisherSize),
+        oldLocation,
+        current?.assetId ?? row.newAssetId ?? '',
+        current?.serial ?? row.newSerial ?? '',
+        current?.barcode ?? row.newBarcode ?? '',
+        current?.extinguisherType ?? '',
+        current?.extinguisherSize ?? '',
+        newLocation,
+        row.waitingForService ? 'Yes' : 'No',
+        row.sentForService ? 'Yes' : 'No',
+        row.discarded ? 'Yes' : 'No',
+        row.returned ? 'Yes' : 'No',
+      ]
+        .map(escape)
+        .join(',');
+    });
+    const csv = [headers.map(escape).join(','), ...rowLines].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `replaced-extinguishers-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="p-4 sm:p-6">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -153,14 +220,26 @@ export default function ReplacedExtinguishers() {
             Old physical extinguishers archived during replacement, shown beside the current unit that replaced them.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void loadRows()}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {rows.length > 0 && (
+            <button
+              type="button"
+              onClick={downloadCsv}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Download className="h-4 w-4" />
+              Download Report
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void loadRows()}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}

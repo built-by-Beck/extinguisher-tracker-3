@@ -37,7 +37,7 @@ export default function PrivacyPage() {
           <div className="mt-10">
             <Section num={1} title="Introduction">
               <p>
-                Extinguisher Tracker (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed
+                ExtinguisherTracker (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed
                 to protecting your privacy. This Privacy Policy explains how we collect, use, disclose,
                 and safeguard your information when you use our service.
               </p>
@@ -83,6 +83,10 @@ export default function PrivacyPage() {
               <p>
                 If AI assistant features are enabled for your plan, prompts and responses may be processed and stored to provide
                 the feature, improve response quality, and support operational troubleshooting.
+              </p>
+              <p>
+                Photos attached inside the AI assistant are temporary question attachments for analysis and are not uploaded
+                to Firebase Storage or saved as inspection photos by ExtinguisherTracker.
               </p>
             </Section>
 
@@ -226,7 +230,7 @@ export default function PrivacyPage() {
 
             <Section num={14} title="Multi-Tenant Data Isolation">
               <p>
-                Extinguisher Tracker is a multi-tenant platform. Each organization&apos;s data is
+                ExtinguisherTracker is a multi-tenant platform. Each organization&apos;s data is
                 logically isolated and accessible only to authorized members of that organization. We
                 enforce strict access controls at the database level to prevent cross-organization data
                 access. Organization owners control member access and permissions within their

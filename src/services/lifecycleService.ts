@@ -1,5 +1,5 @@
 /**
- * Lifecycle service for EX3.
+ * Lifecycle service for ExtinguisherTracker.
  * Wraps lifecycle Cloud Functions: replace, retire, recalculate.
  *
  * Author: built_by_Beck

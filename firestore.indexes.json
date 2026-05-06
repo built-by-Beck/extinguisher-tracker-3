@@ -366,6 +366,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "inspectedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "replacementHistory",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "orgId", "order": "ASCENDING" },
+        { "fieldPath": "replacedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

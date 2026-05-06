@@ -51,6 +51,7 @@ import GettingStarted from '../pages/GettingStarted.tsx';
 import FaqPage from '../pages/FaqPage.tsx';
 import MarketingGettingStartedPage from '../pages/marketing/MarketingGettingStartedPage.tsx';
 import MarketingFaqPage from '../pages/marketing/MarketingFaqPage.tsx';
+import MarketingPlanDetailPage from '../pages/marketing/MarketingPlanDetailPage.tsx';
 
 export function AppRoutes() {
   return (
@@ -67,6 +68,7 @@ export function AppRoutes() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/getting-started" element={<MarketingGettingStartedPage />} />
       <Route path="/faq" element={<MarketingFaqPage />} />
+      <Route path="/plans/:planId" element={<MarketingPlanDetailPage />} />
       <Route path="/calculator" element={<Calculator />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />

@@ -1,5 +1,5 @@
 /**
- * ExtinguisherEdit page for EX3.
+ * ExtinguisherEdit page for ExtinguisherTracker.
  * Edits extinguisher details, shows lifecycle/compliance section,
  * provides Replace and Retire actions for owner/admin.
  *

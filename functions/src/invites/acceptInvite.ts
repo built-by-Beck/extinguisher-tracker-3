@@ -1,7 +1,7 @@
 import { onCall } from 'firebase-functions/v2/https';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import crypto from 'crypto';
-import { adminDb } from '../utils/admin.js';
+import { adminDb, adminAuth } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import {
   throwInvalidArgument,
@@ -92,6 +92,10 @@ export const acceptInvite = onCall<AcceptInviteInput, Promise<AcceptInviteOutput
       }
     }
 
+    // 8b. Fetch the user's actual displayName from Firebase Auth
+    const userRecord = await adminAuth.getUser(uid);
+    const displayName = userRecord.displayName || email.split('@')[0] || 'Member';
+
     const now = FieldValue.serverTimestamp();
 
     // 9. Run all writes in a batch
@@ -102,7 +106,7 @@ export const acceptInvite = onCall<AcceptInviteInput, Promise<AcceptInviteOutput
     batch.set(memberRef, {
       uid,
       email: email.toLowerCase(),
-      displayName: email.split('@')[0] ?? 'Member',
+      displayName,
       role,
       status: 'active',
       invitedBy: inviteData.invitedBy,
