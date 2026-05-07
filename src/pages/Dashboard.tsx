@@ -489,9 +489,9 @@ export default function Dashboard() {
             >
               <RefreshCw className="h-5 w-5 shrink-0 text-orange-600" />
               <div>
-                <p className="text-lg font-bold text-orange-700">{currentMonthReplacedCount}</p>
-                <p className="text-xs text-orange-600">Replaced This Month</p>
-                <p className="text-xs text-orange-400">{totalReplacedCount} all time</p>
+                <p className="text-lg font-bold text-orange-700">{totalReplacedCount}</p>
+                <p className="text-xs text-orange-600">Replaced</p>
+                <p className="text-xs text-orange-400">{currentMonthReplacedCount} this month</p>
               </div>
             </button>
             <button
