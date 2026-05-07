@@ -2047,3 +2047,13 @@ Separated AI photo controls into a real camera button and a folder upload button
 
 **Review Notes:**
 No persistence paths were added. Captured and uploaded images remain temporary React state/base64 chat attachments for Gemini vision only.
+
+## 2026-05-07 - Fix Replaced Count + Monthly Stats
+
+**Root cause fixed:** Dashboard 'Replaced' card counted extinguishers with lifecycleStatus==='replaced' (legacy records). The current replaceExtinguisher Cloud Function keeps the ext active and writes to replacementHistory subcollection, so new replacements were invisible to the counter.
+
+**Files changed:** src/pages/Dashboard.tsx, src/pages/ReplacedExtinguishers.tsx
+
+**Dashboard.tsx:** Added real-time onSnapshot listeners on collectionGroup('replacementHistory') filtered by orgId — one for current-month count, one for all-time total. Card shows 'Replaced This Month' + 'X all time' subtext. Navigates to /dashboard/replaced-extinguishers.
+
+**ReplacedExtinguishers.tsx:** Added stats bar (This Month / Last Month / All Time / Awaiting Disposition), monthly grouping via toMonthKey/monthGroups, collapsed by default with current month auto-expanded. Build + lint pass.
