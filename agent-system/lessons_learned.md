@@ -280,3 +280,17 @@ Added `src/utils/monthlyWorkspaceInspectionSnapshot.ts` and routed Dashboard, Wo
 
 **Prevention rule:**
 Each domain count must have one shared helper as source of truth: monthly checklist UI = real inspection rows, inventory UI = inventory records, replacement UI = `replacementHistory`. Do not display `workspace.stats` directly for active workspaces, and never mix replacement-history rows into monthly inspection status buckets unless an actual inspection row has `status: 'replaced'`.
+
+## 2026-05-07 - Validate The Exact Commit Before Push Deploy
+
+**What happened:**
+A release commit for the Unify List Sources work initially excluded `src/components/workspace/SectionTimer.tsx` as unrelated timer work, but the committed `WorkspaceDetail.tsx` already passed reset props to `SectionTimer`. The isolated clean worktree build failed because the committed component interface did not match the committed call site.
+
+**Root cause:**
+The staging pass grouped files by task intent, but did not verify whether a staged file had a compile-time dependency on an unstaged file from a concurrent timer change.
+
+**Fix used:**
+Validated the exact commit in an isolated worktree before push/deploy, caught the TypeScript failure, and included the minimal `SectionTimer.tsx` prop/UI alignment needed for the committed revision to build independently. The other in-progress timer/query files remained uncommitted.
+
+**Prevention rule:**
+Before pushing or deploying from a dirty workspace with concurrent agent work, validate the exact committed revision in a clean worktree. If validation fails because a staged file depends on an unstaged file, either include the minimal dependency or remove the staged call site before pushing.

@@ -1,4 +1,4 @@
-import { Play, Pause, StopCircle, Timer } from 'lucide-react';
+import { Pause, Play, RotateCcw, StopCircle, Timer, Trash2 } from 'lucide-react';
 
 interface SectionTimerProps {
   section: string;
@@ -7,6 +7,8 @@ interface SectionTimerProps {
   onStart: (section: string) => void;
   onPause: () => void;
   onStop: () => void;
+  onResetSection: (section: string) => void;
+  onResetAll: () => void;
   disabled?: boolean;
   formatTime: (ms: number) => string;
 }
@@ -18,6 +20,8 @@ export function SectionTimer({
   onStart,
   onPause,
   onStop,
+  onResetSection,
+  onResetAll,
   disabled = false,
   formatTime,
 }: SectionTimerProps) {
@@ -51,7 +55,9 @@ export function SectionTimer({
           <div className="flex items-center gap-2">
             {isActive ? (
               <button
+                type="button"
                 onClick={() => onPause()}
+                aria-label={`Pause timer for ${section}`}
                 className="rounded-full bg-amber-100 p-2 text-amber-600 transition-colors hover:bg-amber-200"
                 title="Pause timer"
               >
@@ -59,7 +65,9 @@ export function SectionTimer({
               </button>
             ) : (
               <button
+                type="button"
                 onClick={() => onStart(section)}
+                aria-label={`Start timer for ${section}`}
                 className="rounded-full bg-green-100 p-2 text-green-600 transition-colors hover:bg-green-200"
                 title="Start timer"
               >
@@ -67,13 +75,35 @@ export function SectionTimer({
               </button>
             )}
             {(isActive || totalTime > 0) && (
-              <button
-                onClick={() => onStop()}
-                className="rounded-full bg-red-100 p-2 text-red-600 transition-colors hover:bg-red-200"
-                title="Stop timer"
-              >
-                <StopCircle className="h-5 w-5" />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => onStop()}
+                  aria-label={`Stop timer for ${section}`}
+                  className="rounded-full bg-red-100 p-2 text-red-600 transition-colors hover:bg-red-200"
+                  title="Stop timer"
+                >
+                  <StopCircle className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onResetSection(section)}
+                  aria-label={`Reset timer for ${section}`}
+                  className="rounded-full bg-gray-100 p-2 text-gray-600 transition-colors hover:bg-gray-200"
+                  title="Reset this section timer"
+                >
+                  <RotateCcw className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onResetAll()}
+                  aria-label="Reset all section timers for this workspace"
+                  className="rounded-full bg-gray-100 p-2 text-gray-600 transition-colors hover:bg-gray-200"
+                  title="Reset all section timers"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              </>
             )}
           </div>
         )}

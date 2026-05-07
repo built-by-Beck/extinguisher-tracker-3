@@ -2108,6 +2108,7 @@ Made monthly checklist lists/counts derive from real `org/{orgId}/inspections` r
 - `src/utils/workspaceInspectionStats.test.ts`
 - `src/components/workspace/WorkspaceInspectionSummaryCards.tsx`
 - `src/components/workspace/WorkspaceInspectionScopeCards.tsx`
+- `src/components/workspace/SectionTimer.tsx`
 - `src/components/layout/WorkspaceSwitcher.tsx`
 - `src/pages/Dashboard.tsx`
 - `src/pages/Workspaces.tsx`
@@ -2125,6 +2126,7 @@ Made monthly checklist lists/counts derive from real `org/{orgId}/inspections` r
 - WorkspaceDetail "Replaced" now means inspection rows with `status === 'replaced'`. Lifecycle replacement history remains on Dashboard "Replaced" and the ReplacedExtinguishers page.
 - `filterRowsByStatusList` no longer rolls inspection `status: 'replaced'` into the "checked" bucket.
 - Backend `retireExtinguisher` and `onExtinguisherSoftDeleted` decrement `stats.passed/failed/pending/replaced` correctly when removing inspection rows from active workspaces, guarded by stored field presence.
+- `WorkspaceDetail` timer reset props are matched by `SectionTimer` so the committed release revision builds independently.
 - Plan file was not edited.
 
 **Validation Results:**
