@@ -11,7 +11,7 @@
  */
 
 import { onCall } from 'firebase-functions/v2/https';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, type DocumentReference, type DocumentSnapshot } from 'firebase-admin/firestore';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
@@ -50,6 +50,21 @@ export const retireExtinguisher = onCall(async (request) => {
       throwFailedPrecondition('Extinguisher is already retired.');
     }
 
+    const inspectionSnap = await tx.get(
+      adminDb.collection(`org/${orgId}/inspections`).where('extinguisherId', '==', extinguisherId),
+    );
+    const workspaceRefsById = new Map<string, DocumentReference>();
+    for (const inspectionDoc of inspectionSnap.docs) {
+      const workspaceId = inspectionDoc.data().workspaceId;
+      if (typeof workspaceId === 'string' && workspaceId) {
+        workspaceRefsById.set(workspaceId, adminDb.doc(`org/${orgId}/workspaces/${workspaceId}`));
+      }
+    }
+    const workspaceSnapsById = new Map<string, DocumentSnapshot>();
+    for (const [workspaceId, workspaceRef] of workspaceRefsById) {
+      workspaceSnapsById.set(workspaceId, await tx.get(workspaceRef));
+    }
+
     const serverTimestamp = FieldValue.serverTimestamp();
 
     // 3. Apply updates
@@ -69,6 +84,41 @@ export const retireExtinguisher = onCall(async (request) => {
       retirementReason: reason,
       updatedAt: serverTimestamp,
     });
+
+    const inspectionsByActiveWorkspace = new Map<string, { status: string }[]>();
+    for (const inspectionDoc of inspectionSnap.docs) {
+      const data = inspectionDoc.data();
+      const workspaceId = data.workspaceId;
+      if (typeof workspaceId === 'string' && workspaceSnapsById.get(workspaceId)?.data()?.status === 'active') {
+        const rows = inspectionsByActiveWorkspace.get(workspaceId) ?? [];
+        rows.push({ status: typeof data.status === 'string' ? data.status : 'pending' });
+        inspectionsByActiveWorkspace.set(workspaceId, rows);
+      }
+      tx.delete(inspectionDoc.ref);
+    }
+
+    for (const [workspaceId, rows] of inspectionsByActiveWorkspace) {
+      const wsRef = workspaceRefsById.get(workspaceId);
+      if (!wsRef) continue;
+      const wsData = workspaceSnapsById.get(workspaceId)?.data();
+      const hasStoredReplacedCount =
+        typeof (wsData?.stats as { replaced?: unknown } | undefined)?.replaced === 'number';
+      const statsUpdate: Record<string, unknown> = {
+        'stats.total': FieldValue.increment(-rows.length),
+        'stats.lastUpdated': serverTimestamp,
+      };
+      const passCount = rows.filter((row) => row.status === 'pass').length;
+      const failCount = rows.filter((row) => row.status === 'fail').length;
+      const replacedCount = rows.filter((row) => row.status === 'replaced').length;
+      const pendingCount = rows.length - passCount - failCount - replacedCount;
+      if (passCount > 0) statsUpdate['stats.passed'] = FieldValue.increment(-passCount);
+      if (failCount > 0) statsUpdate['stats.failed'] = FieldValue.increment(-failCount);
+      if (pendingCount > 0) statsUpdate['stats.pending'] = FieldValue.increment(-pendingCount);
+      if (replacedCount > 0 && hasStoredReplacedCount) {
+        statsUpdate['stats.replaced'] = FieldValue.increment(-replacedCount);
+      }
+      tx.update(wsRef, statsUpdate);
+    }
 
     // 4. Write audit log within transaction
     writeAuditLogTx(tx, orgId, {

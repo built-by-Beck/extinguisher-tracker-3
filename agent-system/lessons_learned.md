@@ -263,3 +263,20 @@ Split AI photo controls into two buttons: a camera button that requests `getUser
 
 **Prevention rule:**
 When a UI promises a camera button with live permission/preview, implement `getUserMedia`; reserve file inputs for explicit upload/folder picker flows.
+
+## 2026-05-07 - One Source Of Truth Per Domain Count
+
+**What happened:**
+Multiple screens in `extinguisher-tracker-3` were showing different "monthly checked / pending / replaced" numbers for the same active workspace because Dashboard, Workspaces cards, Inventory, the workspace summary cards, and WorkspaceDetail each derived counts from a different source: stored `workspace.stats`, active inventory, lifecycle `replacementHistory`, and live inspection rows. WorkspaceDetail also counted lifecycle replacement rows in its monthly "Replaced" card, which mixed two different domains.
+
+**Root cause:**
+Per-screen calculation grew organically without a shared monthly snapshot helper, and `workspace.stats` was treated as UI truth even though replace/retire/soft-delete paths could leave it stale relative to real inspection rows. Replacement-history was also leaking into a monthly checklist bucket.
+
+**Why it was avoidable:**
+The plan-of-record contract for monthly checklist UI is "real `org/{orgId}/inspections` rows for one workspace" and inventory and replacement history are separate domain lists. Re-deriving stats per screen invites drift each time a feature is added.
+
+**Fix used:**
+Added `src/utils/monthlyWorkspaceInspectionSnapshot.ts` and routed Dashboard, Workspaces, Inventory monthly status, the workspace summary cards, and WorkspaceDetail through it. Removed lifecycle replacement-history rendering from WorkspaceDetail's monthly Replaced view and stopped counting `status: 'replaced'` inspections inside the "checked" filter. Patched `retireExtinguisher` and `onExtinguisherSoftDeleted` to keep stored stats consistent (including a guarded `stats.replaced` decrement) when inspection rows are removed from active workspaces.
+
+**Prevention rule:**
+Each domain count must have one shared helper as source of truth: monthly checklist UI = real inspection rows, inventory UI = inventory records, replacement UI = `replacementHistory`. Do not display `workspace.stats` directly for active workspaces, and never mix replacement-history rows into monthly inspection status buckets unless an actual inspection row has `status: 'replaced'`.

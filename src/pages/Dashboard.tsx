@@ -49,12 +49,11 @@ import {
 } from '../services/extinguisherService.ts';
 import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
 import { subscribeToLocations, type Location } from '../services/locationService.ts';
+import { getSupersededExtinguisherIds } from '../utils/workspaceInspectionStats.ts';
 import {
-  buildLocationStatsMap,
-  detectHasLocationIdData,
-  getSupersededExtinguisherIds,
-  sumAllBucketStats,
-} from '../utils/workspaceInspectionStats.ts';
+  buildMonthlyWorkspaceInspectionSnapshot,
+  getMonthlyCheckedCount,
+} from '../utils/monthlyWorkspaceInspectionSnapshot.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 import { AiUpgradeCard } from '../components/ai/AiUpgradeCard.tsx';
 
@@ -212,22 +211,15 @@ export default function Dashboard() {
   }, [orgId, activeWorkspace?.id]);
 
   const inspectionScopeStats = useMemo(() => {
-    if (!activeWorkspace?.id) {
-      return { total: 0, passed: 0, failed: 0, pending: 0, replaced: 0, percentage: 0 };
-    }
-    const hasLocationIdData = detectHasLocationIdData(dashInspections, allExtinguishers);
-    const map = buildLocationStatsMap({
+    return buildMonthlyWorkspaceInspectionSnapshot({
+      workspaceId: activeWorkspace?.id,
       inspections: dashInspections,
       extinguishers: allExtinguishers,
       locations: dashLocations,
-      isArchived: false,
-      hasLocationIdData,
-    });
-    return sumAllBucketStats(map);
+    }).stats;
   }, [activeWorkspace?.id, dashInspections, allExtinguishers, dashLocations]);
 
-  const checkedInspectionCount =
-    inspectionScopeStats.passed + inspectionScopeStats.failed + (inspectionScopeStats.replaced ?? 0);
+  const checkedInspectionCount = getMonthlyCheckedCount(inspectionScopeStats);
 
   /** Maintenance schedule (NFPA-style `complianceStatus`), not monthly inspection pass/fail. */
   const maintenanceScheduleCompliantCount = useMemo(() => {

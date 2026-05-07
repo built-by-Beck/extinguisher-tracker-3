@@ -71,10 +71,16 @@ import {
 } from '../services/locationService.ts';
 import { db } from '../lib/firebase.ts';
 import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
+import type { Workspace } from '../services/workspaceService.ts';
 import {
-  dedupeInspectionsByExtinguisherLatest,
+  collectInspectionRowsForScope,
   getSupersededExtinguisherIds,
 } from '../utils/workspaceInspectionStats.ts';
+import {
+  buildMonthlyWorkspaceInspectionSnapshot,
+  countMonthlyInspectionRows,
+  getMonthlyCheckedCount,
+} from '../utils/monthlyWorkspaceInspectionSnapshot.ts';
 
 type SortKey = 'assetId' | 'serial' | 'location' | 'compliance' | 'nextInspection';
 type ViewMode = 'table' | 'cards';
@@ -102,6 +108,7 @@ const INVENTORY_COMPLIANCE_FILTER_OPTIONS = [
 const STORAGE_KEY_PREFIX = 'ex3_inventory_';
 
 function loadPref<T>(orgId: string, key: string, fallback: T): T {
+  if (!orgId) return fallback;
   try {
     const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${orgId}_${key}`);
     return raw ? (JSON.parse(raw) as T) : fallback;
@@ -111,6 +118,7 @@ function loadPref<T>(orgId: string, key: string, fallback: T): T {
 }
 
 function savePref(orgId: string, key: string, value: unknown) {
+  if (!orgId) return;
   try {
     localStorage.setItem(`${STORAGE_KEY_PREFIX}${orgId}_${key}`, JSON.stringify(value));
   } catch {
@@ -124,6 +132,7 @@ export default function Inventory() {
   const { user, userProfile } = useAuth();
   const { org, hasRole } = useOrg();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const loadedPrefsOrgIdRef = useRef('');
 
   const orgId = userProfile?.activeOrgId ?? '';
   const canEdit = hasRole(['owner', 'admin']);
@@ -170,6 +179,15 @@ export default function Inventory() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDelete, setShowBulkDelete] = useState(false);
 
+  useEffect(() => {
+    if (!orgId || loadedPrefsOrgIdRef.current === orgId) return;
+    setViewMode(loadPref(orgId, 'viewMode', 'table'));
+    setSortKey(loadPref(orgId, 'sortKey', 'assetId'));
+    setSortDir(loadPref(orgId, 'sortDir', 'asc'));
+    setPageSize(loadPref(orgId, 'pageSize', 25));
+    loadedPrefsOrgIdRef.current = orgId;
+  }, [orgId]);
+
   // Duplicate detection state
   const [showDupModal, setShowDupModal] = useState(false);
   const [dupGroups, setDupGroups] = useState<DuplicateGroup[]>([]);
@@ -184,17 +202,26 @@ export default function Inventory() {
   const [scanAddLoading, setScanAddLoading] = useState(false);
   const [scanAddError, setScanAddError] = useState('');
   const [locations, setLocations] = useState<Location[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [activeWorkspaceInspections, setActiveWorkspaceInspections] = useState<Inspection[]>([]);
+  const activeWorkspaceId = activeWorkspace?.id ?? null;
 
   const flags = org?.featureFlags as Record<string, boolean> | null | undefined;
   const canScan = hasFeature(flags, 'cameraBarcodeScan', org?.plan) || hasFeature(flags, 'qrScanning', org?.plan);
 
   // Persist preferences
-  useEffect(() => { savePref(orgId, 'viewMode', viewMode); }, [orgId, viewMode]);
-  useEffect(() => { savePref(orgId, 'sortKey', sortKey); }, [orgId, sortKey]);
-  useEffect(() => { savePref(orgId, 'sortDir', sortDir); }, [orgId, sortDir]);
-  useEffect(() => { savePref(orgId, 'pageSize', pageSize); }, [orgId, pageSize]);
+  useEffect(() => {
+    if (loadedPrefsOrgIdRef.current === orgId) savePref(orgId, 'viewMode', viewMode);
+  }, [orgId, viewMode]);
+  useEffect(() => {
+    if (loadedPrefsOrgIdRef.current === orgId) savePref(orgId, 'sortKey', sortKey);
+  }, [orgId, sortKey]);
+  useEffect(() => {
+    if (loadedPrefsOrgIdRef.current === orgId) savePref(orgId, 'sortDir', sortDir);
+  }, [orgId, sortDir]);
+  useEffect(() => {
+    if (loadedPrefsOrgIdRef.current === orgId) savePref(orgId, 'pageSize', pageSize);
+  }, [orgId, pageSize]);
 
   // Keyboard shortcut: / to focus search
   useEffect(() => {
@@ -247,7 +274,7 @@ export default function Inventory() {
   // Subscribe to latest active workspace (for check status context on filtered inventory lists)
   useEffect(() => {
     if (!orgId) {
-      setActiveWorkspaceId(null);
+      setActiveWorkspace(null);
       return;
     }
     const q = query(
@@ -258,15 +285,15 @@ export default function Inventory() {
       q,
       (snap) => {
         if (snap.empty) {
-          setActiveWorkspaceId(null);
+          setActiveWorkspace(null);
           return;
         }
         const latest = snap.docs
-          .map((d) => ({ id: d.id, ...(d.data() as { monthYear?: string }) }))
+          .map((d) => ({ id: d.id, ...d.data() } as Workspace))
           .sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0];
-        setActiveWorkspaceId(latest?.id ?? null);
+        setActiveWorkspace(latest ?? null);
       },
-      () => setActiveWorkspaceId(null),
+      () => setActiveWorkspace(null),
     );
   }, [orgId]);
 
@@ -306,18 +333,6 @@ export default function Inventory() {
       }),
     [items, supersededExtinguisherIds],
   );
-
-  /**
-   * Basis for the Checked / Passed / Failed / Not yet inspected cards below the table.
-   * Counts follow the selected location (or the whole active inventory), not the compliance /
-   * expiry / category / search slice shown in the table.
-   */
-  const inspectionStatsBaseList = useMemo(() => {
-    if (locationFilter) {
-      return activeInventoryExcludingRetired.filter((e) => e.locationId === locationFilter);
-    }
-    return activeInventoryExcludingRetired;
-  }, [locationFilter, activeInventoryExcludingRetired]);
 
   // Get total count for asset limit bar — count non-deleted items from snapshot
   useEffect(() => {
@@ -379,8 +394,8 @@ export default function Inventory() {
         const q = searchQuery.toLowerCase();
         const locationPath = getExtLocationPath(ext).toLowerCase();
         return (
-          ext.assetId.toLowerCase().includes(q) ||
-          ext.serial.toLowerCase().includes(q) ||
+          (ext.assetId ?? '').toLowerCase().includes(q) ||
+          (ext.serial ?? '').toLowerCase().includes(q) ||
           (ext.barcode?.toLowerCase().includes(q) ?? false) ||
           locationPath.includes(q) ||
           (ext.section || '').toLowerCase().includes(q) ||
@@ -409,10 +424,10 @@ export default function Inventory() {
       let cmp = 0;
       switch (sortKey) {
         case 'assetId':
-          cmp = a.assetId.localeCompare(b.assetId);
+          cmp = (a.assetId ?? '').localeCompare(b.assetId ?? '');
           break;
         case 'serial':
-          cmp = a.serial.localeCompare(b.serial);
+          cmp = (a.serial ?? '').localeCompare(b.serial ?? '');
           break;
         case 'location':
           cmp = getExtLocationPath(a).localeCompare(getExtLocationPath(b));
@@ -446,51 +461,67 @@ export default function Inventory() {
 
   const totalPages = Math.ceil(sorted.length / pageSize);
 
+  const activeWorkspaceSnapshot = useMemo(
+    () =>
+      buildMonthlyWorkspaceInspectionSnapshot({
+        workspaceId: activeWorkspaceId,
+        inspections: activeWorkspaceInspections,
+        extinguishers: items,
+        locations,
+      }),
+    [activeWorkspaceId, activeWorkspaceInspections, items, locations],
+  );
+
   const activeStatusByExtinguisherId = useMemo(() => {
     const map = new Map<string, Inspection['status']>();
-    for (const insp of dedupeInspectionsByExtinguisherLatest(activeWorkspaceInspections)) {
-      map.set(insp.extinguisherId, insp.status);
+    for (const insp of activeWorkspaceSnapshot.rows) {
+      if (insp.targetType !== 'asset' && insp.extinguisherId) {
+        map.set(insp.extinguisherId, insp.status);
+      }
     }
     return map;
-  }, [activeWorkspaceInspections]);
+  }, [activeWorkspaceSnapshot.rows]);
 
   const notInActiveChecklistCount = useMemo(() => {
     if (!activeWorkspaceId) return 0;
     return activeInventoryExcludingRetired.filter((ext) => ext.id && !activeStatusByExtinguisherId.has(ext.id)).length;
   }, [activeInventoryExcludingRetired, activeStatusByExtinguisherId, activeWorkspaceId]);
 
-  const scopeCheckStats = useMemo(() => {
-    let passed = 0;
-    let failed = 0;
-    let unchecked = 0;
-    for (const ext of inspectionStatsBaseList) {
-      // Monthly inspection stats apply to in-service inventory only — never pass/fail retired or chain duplicates.
-      if (ext.lifecycleStatus === 'replaced' || ext.category === 'replaced') {
-        continue;
-      }
-      if (ext.id && supersededExtinguisherIds.has(ext.id)) {
-        continue;
-      }
-      if (ext.category === 'retired' || ext.category === 'out_of_service') {
-        continue;
-      }
-      if (!ext.id) {
-        unchecked += 1;
-        continue;
-      }
-      const status = activeStatusByExtinguisherId.get(ext.id) ?? 'pending';
-      if (status === 'pass') passed += 1;
-      else if (status === 'fail') failed += 1;
-      else unchecked += 1;
+  const monthlyInspectionScopeRows = useMemo(() => {
+    if (!locationFilter) return activeWorkspaceSnapshot.rows;
+    if (!activeWorkspaceId) return [];
+    if (!activeWorkspaceSnapshot.hasLocationIdData) {
+      return collectInspectionRowsForScope({
+        extinguishers: items,
+        inspections: activeWorkspaceInspections,
+        workspaceId: activeWorkspaceId,
+        isArchived: false,
+        hasLocationIdData: false,
+        locations,
+        anchorLocationId: locationFilter,
+      });
     }
+    return activeWorkspaceSnapshot.rows.filter((row) => (row.locationId ?? '__unassigned__') === locationFilter);
+  }, [
+    activeWorkspaceSnapshot.rows,
+    activeWorkspaceSnapshot.hasLocationIdData,
+    activeWorkspaceId,
+    activeWorkspaceInspections,
+    items,
+    locations,
+    locationFilter,
+  ]);
+
+  const scopeCheckStats = useMemo(() => {
+    const stats = countMonthlyInspectionRows(monthlyInspectionScopeRows);
     return {
-      passed,
-      failed,
-      unchecked,
-      checked: passed + failed,
-      total: inspectionStatsBaseList.length,
+      passed: stats.passed,
+      failed: stats.failed,
+      unchecked: stats.pending,
+      checked: getMonthlyCheckedCount(stats),
+      total: stats.total,
     };
-  }, [inspectionStatsBaseList, activeStatusByExtinguisherId, supersededExtinguisherIds]);
+  }, [monthlyInspectionScopeRows]);
 
   function toggleSelectAll() {
     if (selectedIds.size === paginatedItems.length && paginatedItems.length > 0) {
@@ -642,7 +673,13 @@ export default function Inventory() {
       {/* Active workspace inspection progress (same stats as Inspections / Dashboard) */}
       {orgId && (
         <div className="mb-6">
-          <WorkspaceInspectionSummaryCards orgId={orgId} />
+          <WorkspaceInspectionSummaryCards
+            orgId={orgId}
+            workspace={activeWorkspace}
+            extinguishers={items}
+            inspections={activeWorkspaceInspections}
+            locations={locations}
+          />
         </div>
       )}
 
@@ -1326,14 +1363,14 @@ export default function Inventory() {
         </div>
       )}
 
-      {!showDeleted && categoryFilter !== 'replaced' && inspectionStatsBaseList.length > 0 && (
+      {!showDeleted && categoryFilter !== 'replaced' && monthlyInspectionScopeRows.length > 0 && (
         <div className="mt-6">
           <p className="mb-2 text-xs font-medium text-gray-500">
             Inspection counts below are for{' '}
             <span className="font-semibold text-gray-700">
               {locationFilter
-                ? 'every active extinguisher at the selected location (other table filters do not change these numbers)'
-                : 'every active extinguisher in the organization (table filters do not change these numbers)'}
+                ? 'monthly checklist rows at the selected location (other table filters do not change these numbers)'
+                : 'the active monthly checklist (table filters do not change these numbers)'}
             </span>{' '}
             ({scopeCheckStats.total} unit{scopeCheckStats.total !== 1 ? 's' : ''}). Org-wide monthly progress is in the workspace strip above.
           </p>

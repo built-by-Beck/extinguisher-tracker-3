@@ -1,6 +1,7 @@
 /**
  * Prominent Not yet inspected / Passed / Failed counts for the active workspace (or a specific workspace).
- * Stats come from the workspace document (same source as Dashboard and Workspaces list).
+ * Active workspace stats come from the monthly inspection-row snapshot; archived workspaces keep
+ * their stored report snapshot.
  *
  * Author: built_by_Beck
  */
@@ -17,6 +18,10 @@ import {
 import { CheckCircle2, Clock, XCircle, ClipboardList, Loader2 } from 'lucide-react';
 import { db } from '../../lib/firebase.ts';
 import type { Workspace, WorkspaceStats } from '../../services/workspaceService.ts';
+import { subscribeToExtinguishers, type Extinguisher } from '../../services/extinguisherService.ts';
+import { subscribeToInspections, type Inspection } from '../../services/inspectionService.ts';
+import { subscribeToLocations, type Location } from '../../services/locationService.ts';
+import { buildMonthlyWorkspaceInspectionSnapshot } from '../../utils/monthlyWorkspaceInspectionSnapshot.ts';
 
 const EMPTY_STATS: WorkspaceStats = {
   total: 0,
@@ -30,21 +35,43 @@ interface WorkspaceInspectionSummaryCardsProps {
   orgId: string;
   /** If set, show stats for this workspace only. Otherwise uses the latest active workspace. */
   workspaceId?: string | null;
+  /** Optional parent-provided data to avoid duplicate Firestore listeners on pages that already load it. */
+  workspace?: Workspace | null;
+  extinguishers?: Extinguisher[];
+  inspections?: Inspection[];
+  locations?: Location[];
   className?: string;
 }
 
 export function WorkspaceInspectionSummaryCards({
   orgId,
   workspaceId: fixedWorkspaceId,
+  workspace: providedWorkspace,
+  extinguishers: providedExtinguishers,
+  inspections: providedInspections,
+  locations: providedLocations,
   className = '',
 }: WorkspaceInspectionSummaryCardsProps) {
   const navigate = useNavigate();
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [internalWorkspace, setInternalWorkspace] = useState<Workspace | null>(null);
+  const [internalExtinguishers, setInternalExtinguishers] = useState<Extinguisher[]>([]);
+  const [internalInspections, setInternalInspections] = useState<Inspection[]>([]);
+  const [internalLocations, setInternalLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasProvidedWorkspace = providedWorkspace !== undefined;
+  const workspace = hasProvidedWorkspace ? providedWorkspace : internalWorkspace;
+  const extinguishers = providedExtinguishers ?? internalExtinguishers;
+  const inspections = providedInspections ?? internalInspections;
+  const locations = providedLocations ?? internalLocations;
 
   useEffect(() => {
+    if (hasProvidedWorkspace) {
+      setLoading(false);
+      return;
+    }
+
     if (!orgId) {
-      setWorkspace(null);
+      setInternalWorkspace(null);
       setLoading(false);
       return;
     }
@@ -55,14 +82,14 @@ export function WorkspaceInspectionSummaryCards({
         ref,
         (snap) => {
           if (snap.exists()) {
-            setWorkspace({ id: snap.id, ...snap.data() } as Workspace);
+            setInternalWorkspace({ id: snap.id, ...snap.data() } as Workspace);
           } else {
-            setWorkspace(null);
+            setInternalWorkspace(null);
           }
           setLoading(false);
         },
         () => {
-          setWorkspace(null);
+          setInternalWorkspace(null);
           setLoading(false);
         },
       );
@@ -79,18 +106,45 @@ export function WorkspaceInspectionSummaryCards({
           const latest = snap.docs
             .map((d) => ({ id: d.id, ...d.data() } as Workspace))
             .sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0];
-          setWorkspace(latest ?? null);
+          setInternalWorkspace(latest ?? null);
         } else {
-          setWorkspace(null);
+          setInternalWorkspace(null);
         }
         setLoading(false);
       },
       () => {
-        setWorkspace(null);
+        setInternalWorkspace(null);
         setLoading(false);
       },
     );
-  }, [orgId, fixedWorkspaceId]);
+  }, [orgId, fixedWorkspaceId, hasProvidedWorkspace]);
+
+  useEffect(() => {
+    if (!orgId) {
+      setInternalExtinguishers([]);
+      setInternalLocations([]);
+      return;
+    }
+    const unsubExtinguishers = providedExtinguishers
+      ? undefined
+      : subscribeToExtinguishers(orgId, setInternalExtinguishers);
+    const unsubLocations = providedLocations
+      ? undefined
+      : subscribeToLocations(orgId, setInternalLocations);
+    return () => {
+      unsubExtinguishers?.();
+      unsubLocations?.();
+    };
+  }, [orgId, providedExtinguishers, providedLocations]);
+
+  useEffect(() => {
+    if (providedInspections) return;
+    if (!orgId || !workspace?.id || workspace.status !== 'active') {
+      setInternalInspections([]);
+      return;
+    }
+    return subscribeToInspections(orgId, workspace.id, setInternalInspections);
+  }, [orgId, workspace?.id, workspace?.status, providedInspections]);
 
   if (!orgId) return null;
 
@@ -120,7 +174,14 @@ export function WorkspaceInspectionSummaryCards({
     );
   }
 
-  const stats = workspace.stats ?? EMPTY_STATS;
+  const monthlySnapshot = buildMonthlyWorkspaceInspectionSnapshot({
+    workspaceId: workspace.id,
+    inspections,
+    extinguishers,
+    locations,
+    isArchived: workspace.status === 'archived',
+  });
+  const stats = workspace.status === 'active' ? monthlySnapshot.stats : workspace.stats ?? EMPTY_STATS;
   const wsPath = `/dashboard/workspaces/${workspace.id}`;
 
   function goWorkspace() {

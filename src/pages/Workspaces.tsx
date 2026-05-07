@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
@@ -22,8 +22,15 @@ import {
   deleteWorkspaceCall,
   type Workspace,
 } from '../services/workspaceService.ts';
+import { subscribeToExtinguishers, type Extinguisher } from '../services/extinguisherService.ts';
+import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
+import { subscribeToLocations, type Location } from '../services/locationService.ts';
 import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
 import { WorkspaceInspectionSummaryCards } from '../components/workspace/WorkspaceInspectionSummaryCards.tsx';
+import {
+  buildMonthlyWorkspaceInspectionSnapshot,
+  EMPTY_MONTHLY_WORKSPACE_STATS,
+} from '../utils/monthlyWorkspaceInspectionSnapshot.ts';
 
 function getNextMonthYear(): string {
   const now = new Date();
@@ -50,6 +57,9 @@ export default function Workspaces() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newMonthYear, setNewMonthYear] = useState(getNextMonthYear());
   const [wsSearch, setWsSearch] = useState('');
+  const [extinguishers, setExtinguishers] = useState<Extinguisher[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [inspectionsByWorkspace, setInspectionsByWorkspace] = useState<Record<string, Inspection[]>>({});
 
   useEffect(() => {
     if (!orgId) return;
@@ -141,6 +151,60 @@ export default function Workspaces() {
     : workspaces;
   const activeWorkspaces = filteredWorkspaces.filter((w) => w.status === 'active');
   const archivedWorkspaces = filteredWorkspaces.filter((w) => w.status === 'archived');
+  const activeWorkspaceIdsKey = activeWorkspaces.map((w) => w.id).sort().join('|');
+  const activeSummaryWorkspace = useMemo(
+    () => [...activeWorkspaces].sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0] ?? null,
+    [activeWorkspaces],
+  );
+
+  useEffect(() => {
+    if (!orgId) {
+      setExtinguishers([]);
+      setLocations([]);
+      return;
+    }
+    const unsubExtinguishers = subscribeToExtinguishers(orgId, setExtinguishers);
+    const unsubLocations = subscribeToLocations(orgId, setLocations);
+    return () => {
+      unsubExtinguishers();
+      unsubLocations();
+    };
+  }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId || activeWorkspaceIdsKey === '') {
+      setInspectionsByWorkspace({});
+      return;
+    }
+    const activeIds = activeWorkspaceIdsKey.split('|').filter(Boolean);
+    const unsubscribers = activeIds.map((workspaceId) =>
+      subscribeToInspections(orgId, workspaceId, (rows) => {
+        setInspectionsByWorkspace((prev) => ({ ...prev, [workspaceId]: rows }));
+      }),
+    );
+    setInspectionsByWorkspace((prev) => {
+      const next: Record<string, Inspection[]> = {};
+      for (const id of activeIds) next[id] = prev[id] ?? [];
+      return next;
+    });
+    return () => unsubscribers.forEach((unsub) => unsub());
+  }, [orgId, activeWorkspaceIdsKey]);
+
+  const activeWorkspaceStatsById = useMemo(() => {
+    const map = new Map<string, typeof EMPTY_MONTHLY_WORKSPACE_STATS>();
+    for (const ws of activeWorkspaces) {
+      map.set(
+        ws.id,
+        buildMonthlyWorkspaceInspectionSnapshot({
+          workspaceId: ws.id,
+          inspections: inspectionsByWorkspace[ws.id] ?? [],
+          extinguishers,
+          locations,
+        }).stats,
+      );
+    }
+    return map;
+  }, [activeWorkspaces, inspectionsByWorkspace, extinguishers, locations]);
 
   return (
     <div className="p-6">
@@ -165,7 +229,13 @@ export default function Workspaces() {
 
       {orgId && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <WorkspaceInspectionSummaryCards orgId={orgId} />
+          <WorkspaceInspectionSummaryCards
+            orgId={orgId}
+            workspace={activeSummaryWorkspace}
+            extinguishers={extinguishers}
+            inspections={activeSummaryWorkspace ? inspectionsByWorkspace[activeSummaryWorkspace.id] ?? [] : []}
+            locations={locations}
+          />
         </div>
       )}
 
@@ -195,6 +265,8 @@ export default function Workspaces() {
           />
           {wsSearch && (
             <button
+              type="button"
+              aria-label="Clear workspace search"
               onClick={() => setWsSearch('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
             >
@@ -209,7 +281,9 @@ export default function Workspaces() {
         <div className="mb-8">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Active</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {activeWorkspaces.map((ws) => (
+            {activeWorkspaces.map((ws) => {
+              const stats = activeWorkspaceStatsById.get(ws.id) ?? EMPTY_MONTHLY_WORKSPACE_STATS;
+              return (
               <div
                 key={ws.id}
                 className="cursor-pointer rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
@@ -228,42 +302,47 @@ export default function Workspaces() {
                 {/* Stats */}
                 <div className="mb-4 grid grid-cols-3 gap-3">
                   <div className="text-center">
-                    <p className="text-xl font-bold text-green-600">{ws.stats.passed}</p>
+                    <p className="text-xl font-bold text-green-600">{stats.passed}</p>
                     <p className="text-xs text-gray-500">Passed</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-bold text-red-600">{ws.stats.failed}</p>
+                    <p className="text-xl font-bold text-red-600">{stats.failed}</p>
                     <p className="text-xs text-gray-500">Failed</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-bold text-gray-600">{ws.stats.pending}</p>
+                    <p className="text-xl font-bold text-gray-600">{stats.pending}</p>
                     <p className="text-xs text-gray-500">Pending</p>
                   </div>
                 </div>
 
                 {/* Progress bar */}
                 <div className="mb-3 h-2 rounded-full bg-gray-200">
-                  {ws.stats.total > 0 && (
-                    <div className="flex h-2 overflow-hidden rounded-full">
-                      <div
-                        className="bg-green-500"
-                        style={{ width: `${(ws.stats.passed / ws.stats.total) * 100}%` }}
+                  {stats.total > 0 && (
+                    <svg
+                      className="h-2 w-full overflow-hidden rounded-full"
+                      viewBox="0 0 100 8"
+                      preserveAspectRatio="none"
+                      aria-hidden="true"
+                    >
+                      <rect className="fill-green-500" x="0" y="0" width={(stats.passed / stats.total) * 100} height="8" />
+                      <rect
+                        className="fill-red-500"
+                        x={(stats.passed / stats.total) * 100}
+                        y="0"
+                        width={(stats.failed / stats.total) * 100}
+                        height="8"
                       />
-                      <div
-                        className="bg-red-500"
-                        style={{ width: `${(ws.stats.failed / ws.stats.total) * 100}%` }}
-                      />
-                    </div>
+                    </svg>
                   )}
                 </div>
 
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-400">
-                    {ws.stats.total} total extinguishers
+                    {stats.total} total extinguishers
                   </p>
-                  {ws.stats.total > 0 && (
+                  {stats.total > 0 && (
                     <p className="text-xs font-medium text-gray-500">
-                      {Math.round(((ws.stats.passed + ws.stats.failed) / ws.stats.total) * 100)}% complete
+                      {stats.percentage}% complete
                     </p>
                   )}
                 </div>
@@ -298,7 +377,8 @@ export default function Workspaces() {
                   </div>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       )}
@@ -408,9 +488,11 @@ export default function Workspaces() {
             </p>
 
             <div className="mb-4">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Month</label>
+              <label htmlFor="workspace-create-month" className="mb-1 block text-sm font-medium text-gray-700">Month</label>
               <input
+                id="workspace-create-month"
                 type="month"
+                title="Workspace month"
                 value={newMonthYear}
                 onChange={(e) => setNewMonthYear(e.target.value)}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"

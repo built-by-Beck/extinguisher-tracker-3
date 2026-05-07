@@ -52,10 +52,13 @@ export const onExtinguisherSoftDeleted = onDocumentUpdated(
       await adminDb.runTransaction(async (tx) => {
         const wsSnap = await tx.get(wsRef);
         // Only update stats for active workspaces; still delete inspections regardless
-        const isActive = wsSnap.exists && wsSnap.data()?.status === 'active';
+        const wsData = wsSnap.data();
+        const isActive = wsSnap.exists && wsData?.status === 'active';
 
         if (isActive) {
           const serverTimestamp = FieldValue.serverTimestamp();
+          const hasStoredReplacedCount =
+            typeof (wsData?.stats as { replaced?: unknown } | undefined)?.replaced === 'number';
           const statsUpdate: Record<string, unknown> = {
             'stats.total': FieldValue.increment(-inspections.length),
             'stats.lastUpdated': serverTimestamp,
@@ -64,15 +67,20 @@ export const onExtinguisherSoftDeleted = onDocumentUpdated(
           let passCount = 0;
           let failCount = 0;
           let pendingCount = 0;
+          let replacedCount = 0;
           for (const insp of inspections) {
             if (insp.status === 'pass') passCount++;
             else if (insp.status === 'fail') failCount++;
+            else if (insp.status === 'replaced') replacedCount++;
             else pendingCount++;
           }
 
           if (passCount > 0) statsUpdate['stats.passed'] = FieldValue.increment(-passCount);
           if (failCount > 0) statsUpdate['stats.failed'] = FieldValue.increment(-failCount);
           if (pendingCount > 0) statsUpdate['stats.pending'] = FieldValue.increment(-pendingCount);
+          if (replacedCount > 0 && hasStoredReplacedCount) {
+            statsUpdate['stats.replaced'] = FieldValue.increment(-replacedCount);
+          }
 
           tx.update(wsRef, statsUpdate);
         }

@@ -57,22 +57,19 @@ import {
   getCachedInspectionsForWorkspace,
   getCachedWorkspace,
 } from '../services/offlineCacheService.ts';
-import { subscribeToLocations, getAllDescendantIds, type Location } from '../services/locationService.ts';
+import { subscribeToLocations, type Location } from '../services/locationService.ts';
 import { useLocationDrillDown } from '../hooks/useLocationDrillDown.ts';
 import { LocationCard, type LocationCardStats } from '../components/locations/LocationCard.tsx';
 import { WorkspaceInspectionScopeCards } from '../components/workspace/WorkspaceInspectionScopeCards.tsx';
 import type { WorkspaceScopeCardFilter } from '../components/workspace/WorkspaceInspectionScopeCards.tsx';
 import {
   aggregateStatsForLocationSubtree,
-  buildLocationStatsMap,
   collectInspectionRowsForScope,
-  detectHasLocationIdData,
   filterRowsByStatusList,
   dedupeInspectionsByExtinguisherLatest,
-  getSupersededExtinguisherIds,
-  sumAllBucketStats,
   type WorkspaceInspectionBucketStats,
 } from '../utils/workspaceInspectionStats.ts';
+import { buildMonthlyWorkspaceInspectionSnapshot } from '../utils/monthlyWorkspaceInspectionSnapshot.ts';
 import { LocationBreadcrumb } from '../components/locations/LocationBreadcrumb.tsx';
 import {
   FilterPanel,
@@ -180,6 +177,7 @@ const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; 
   pass: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
   fail: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-100' },
   pending: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100' },
+  replaced: { icon: RefreshCw, color: 'text-orange-600', bg: 'bg-orange-100' },
 };
 
 function extinguisherVicinityById(extinguishers: Extinguisher[]): Map<string, string> {
@@ -241,128 +239,6 @@ interface LeafExtinguisherTableProps {
   returnTo: string;
   navigate: NavigateFunction;
   isArchived: boolean;
-}
-
-interface ReplacedPairRow {
-  oldExt: Extinguisher;
-  newExt: Extinguisher | null;
-}
-
-function toDisplay(v: unknown): string {
-  const s = (v ?? '').toString().trim();
-  return s || '--';
-}
-
-function formatReplacementTimestamp(ts: unknown): string {
-  if (!ts) return '--';
-  try {
-    const maybeTs = ts as { toDate?: () => Date; seconds?: number };
-    const date = typeof maybeTs.toDate === 'function'
-      ? maybeTs.toDate()
-      : maybeTs.seconds
-        ? new Date(maybeTs.seconds * 1000)
-        : new Date(ts as string);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  } catch {
-    return '--';
-  }
-}
-
-function ReplacedPairTable({
-  rows,
-  workspaceId,
-  returnTo,
-  navigate,
-  isArchived,
-}: {
-  rows: ReplacedPairRow[];
-  workspaceId: string;
-  returnTo: string;
-  navigate: NavigateFunction;
-  isArchived: boolean;
-}) {
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => {
-        const hist = row.oldExt.replacementHistory;
-        const lastEvent = Array.isArray(hist) && hist.length > 0 ? hist[hist.length - 1] : null;
-        return (
-        <div key={row.oldExt.id} className="rounded-lg border border-orange-200 bg-orange-50/30 p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
-              <RefreshCw className="h-3.5 w-3.5" />
-              Replaced
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                row.oldExt.id &&
-                navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${row.oldExt.id}`, { state: { returnTo } })
-              }
-              className="text-xs font-semibold text-orange-700 hover:text-orange-900"
-            >
-              {isArchived ? 'View old unit' : 'Open old unit'}
-            </button>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-lg border border-orange-200 bg-white p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-orange-700">Old extinguisher</p>
-              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Asset:</span> {toDisplay(row.oldExt.assetId)}</p>
-              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Serial:</span> {toDisplay(row.oldExt.serial)}</p>
-              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Type:</span> {toDisplay(row.oldExt.extinguisherType)}</p>
-              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Size:</span> {toDisplay(row.oldExt.extinguisherSize)}</p>
-              <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Location:</span> {toDisplay(row.oldExt.vicinity || row.oldExt.section || row.oldExt.parentLocation)}</p>
-            </div>
-            <div className="rounded-lg border border-green-200 bg-white p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-green-700">New extinguisher</p>
-              {row.newExt ? (
-                <>
-                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Asset:</span> {toDisplay(row.newExt.assetId)}</p>
-                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Serial:</span> {toDisplay(row.newExt.serial)}</p>
-                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Type:</span> {toDisplay(row.newExt.extinguisherType)}</p>
-                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Size:</span> {toDisplay(row.newExt.extinguisherSize)}</p>
-                  <p className="text-sm text-gray-700"><span className="font-medium text-gray-900">Location:</span> {toDisplay(row.newExt.vicinity || row.newExt.section || row.newExt.parentLocation)}</p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      row.newExt?.id &&
-                      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${row.newExt.id}`, { state: { returnTo } })
-                    }
-                    className="mt-2 text-xs font-semibold text-green-700 hover:text-green-900"
-                  >
-                    {isArchived ? 'View new unit' : 'Open new unit'}
-                  </button>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500">New replacement unit not found.</p>
-              )}
-            </div>
-          </div>
-          {lastEvent && (
-            <div className="mt-3 border-t border-orange-200/80 pt-2 text-xs text-gray-600">
-              {lastEvent.replacedAt != null && (
-                <p>
-                  <span className="font-medium text-gray-700">When:</span>{' '}
-                  {formatReplacementTimestamp(lastEvent.replacedAt)}
-                </p>
-              )}
-              {lastEvent.replacedByEmail != null && lastEvent.replacedByEmail !== '' && (
-                <p>
-                  <span className="font-medium text-gray-700">By:</span> {String(lastEvent.replacedByEmail)}
-                </p>
-              )}
-              {lastEvent.reason != null && String(lastEvent.reason).trim() !== '' && (
-                <p>
-                  <span className="font-medium text-gray-700">Reason:</span> {String(lastEvent.reason)}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-        );
-      })}
-    </div>
-  );
 }
 
 function ScopeStatusCards({
@@ -494,7 +370,6 @@ export default function WorkspaceDetail() {
     if (statusParam === 'checked') {
       initial.statuses.add('pass');
       initial.statuses.add('fail');
-      initial.statuses.add('replaced');
     } else if (statusParam && ['pass', 'fail', 'pending', 'replaced'].includes(statusParam)) {
       initial.statuses.add(statusParam);
     }
@@ -622,11 +497,20 @@ export default function WorkspaceDetail() {
     pendingGroupedLocationFilter,
   ]);
 
-  // Detect if we have locationId on inspections (new data) or only section strings (legacy)
-  const hasLocationIdData = useMemo(
-    () => detectHasLocationIdData(inspections, extinguishers),
-    [inspections, extinguishers],
+  const monthlyWorkspaceSnapshot = useMemo(
+    () =>
+      buildMonthlyWorkspaceInspectionSnapshot({
+        workspaceId,
+        inspections,
+        extinguishers,
+        locations,
+        isArchived: !!isArchived,
+      }),
+    [workspaceId, inspections, extinguishers, locations, isArchived],
   );
+
+  // Detect if we have locationId on inspections (new data) or only section strings (legacy).
+  const hasLocationIdData = monthlyWorkspaceSnapshot.hasLocationIdData;
 
   const vicinityByExtinguisherId = useMemo(
     () => extinguisherVicinityById(extinguishers),
@@ -650,6 +534,8 @@ export default function WorkspaceDetail() {
     dismissIdle,
     getTotalTime,
     getAllTimes: _getAllTimes,
+    clearSectionTime,
+    clearAllTimes,
     formatTime,
   } = useSectionTimer(orgId, workspaceId ?? '');
   void _getAllTimes;
@@ -736,14 +622,8 @@ export default function WorkspaceDetail() {
   // ========== STATS COMPUTATION BY LOCATION ID ==========
 
   const locationStatsMap = useMemo(() => {
-    return buildLocationStatsMap({
-      inspections,
-      extinguishers,
-      locations,
-      isArchived: !!isArchived,
-      hasLocationIdData,
-    }) as Map<string, LocationCardStats>;
-  }, [inspections, extinguishers, locations, isArchived, hasLocationIdData]);
+    return monthlyWorkspaceSnapshot.locationStatsMap as Map<string, LocationCardStats>;
+  }, [monthlyWorkspaceSnapshot.locationStatsMap]);
 
   // Aggregate stats for a location + all its descendants (for parent cards)
   const getAggregatedStats = useCallback(
@@ -759,16 +639,13 @@ export default function WorkspaceDetail() {
   // Overall stats for current view (header display)
   const currentViewStats = useMemo(() => {
     if (drillDown.isRoot) {
-      const derived = sumAllBucketStats(
-        locationStatsMap as Map<string, WorkspaceInspectionBucketStats>,
-      ) as LocationCardStats;
-      return derived;
+      return monthlyWorkspaceSnapshot.stats as LocationCardStats;
     }
     return getAggregatedStats(drillDown.currentLocationId!);
   }, [
     drillDown.isRoot,
     drillDown.currentLocationId,
-    locationStatsMap,
+    monthlyWorkspaceSnapshot.stats,
     getAggregatedStats,
   ]);
 
@@ -858,55 +735,6 @@ export default function WorkspaceDetail() {
     return m;
   }, [locations]);
 
-  const supersededExtinguisherIds = useMemo(() => getSupersededExtinguisherIds(extinguishers), [extinguishers]);
-
-  const replacedRowsForCurrentScope = useMemo(() => {
-    if (showUnassigned || showDeleted) return [] as ReplacedPairRow[];
-    const relevantLocIds =
-      drillDown.isRoot || !drillDown.currentLocationId
-        ? null
-        : (() => {
-            const ids = getAllDescendantIds(locations, drillDown.currentLocationId!);
-            ids.add(drillDown.currentLocationId!);
-            return ids;
-          })();
-    const extById = new Map<string, Extinguisher>();
-    for (const ext of extinguishers) {
-      if (ext.id) extById.set(ext.id, ext);
-    }
-    const successorIdByReplacedOldId = new Map<string, string>();
-    for (const ext of extinguishers) {
-      if (ext.deletedAt != null || !ext.id) continue;
-      if (ext.replacesExtId) successorIdByReplacedOldId.set(ext.replacesExtId, ext.id);
-    }
-    const isInScope = (ext: Extinguisher) => {
-      if (!relevantLocIds) return true;
-      return relevantLocIds.has(ext.locationId ?? '__unassigned__');
-    };
-    return extinguishers
-      .filter((ext) => {
-        const isReplacedRow = ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
-        const isStaleSuperseded = supersededExtinguisherIds.has(ext.id!);
-        if (!isReplacedRow && !isStaleSuperseded) return false;
-        return isInScope(ext);
-      })
-      .map((oldExt) => {
-        const successorId = oldExt.replacedByExtId ?? successorIdByReplacedOldId.get(oldExt.id!) ?? null;
-        return {
-          oldExt,
-          newExt: successorId ? extById.get(successorId) ?? null : null,
-        };
-      });
-  }, [
-    showUnassigned,
-    showDeleted,
-    extinguishers,
-    supersededExtinguisherIds,
-    drillDown.isRoot,
-    drillDown.currentLocationId,
-    locations,
-  ]);
-
   const groupedPendingScopeRows = useMemo(() => {
     const groups = new Map<
       string,
@@ -950,14 +778,6 @@ export default function WorkspaceDetail() {
     }
     if (filters.statuses.has('pending') && filters.statuses.size === 1) return 'pending';
     if (filters.statuses.has('pass') && filters.statuses.has('fail') && filters.statuses.size === 2) {
-      return 'checked';
-    }
-    if (
-      filters.statuses.has('pass') &&
-      filters.statuses.has('fail') &&
-      filters.statuses.has('replaced') &&
-      filters.statuses.size === 3
-    ) {
       return 'checked';
     }
     if (filters.statuses.has('pass') && filters.statuses.size === 1) return 'pass';
@@ -1121,8 +941,8 @@ export default function WorkspaceDetail() {
     [leafInspectionsBase, sortMode, sortKey, sortDir, extinguishers, locations],
   );
   const sortedLeafReplaced = useMemo(
-    () => replacedRowsForCurrentScope.filter((r) => !!r.oldExt.locationId && r.oldExt.locationId === drillDown.currentLocationId),
-    [replacedRowsForCurrentScope, drillDown.currentLocationId],
+    () => sortInspectionsByMode({ list: leafInspectionsBase.filter((i) => i.status === 'replaced'), mode: sortMode, sortKey, sortDir, extinguishers, locations }),
+    [leafInspectionsBase, sortMode, sortKey, sortDir, extinguishers, locations],
   );
   /** Match locationStatsMap aggregate when list is not narrowed by search or extra location chips. */
   const leafScopeStats = useMemo(() => {
@@ -1329,8 +1149,15 @@ export default function WorkspaceDetail() {
     }
   }
 
-  // Timer section key: use locationId-based key or section name
-  const timerSection = drillDown.currentLocation?.name ?? '';
+  // Keep the displayed timer bucket aligned with auto-start keys.
+  const timerSection = useMemo(() => {
+    const location = drillDown.currentLocation;
+    if (!location) return '';
+    return resolveSectionTimerKey(
+      { locationId: location.id ?? null, section: location.section ?? location.name },
+      locations,
+    );
+  }, [drillDown.currentLocation, locations]);
 
   if (!workspace) {
     return (
@@ -1509,8 +1336,6 @@ export default function WorkspaceDetail() {
               <span className="ml-2 text-sm font-normal text-gray-500">
                 {scopeListFilter === 'checked'
                   ? `(${scopeListRowsPassed.length} passed, ${scopeListRowsFailed.length} failed in this area)`
-                  : scopeListFilter === 'replaced'
-                    ? `(${replacedRowsForCurrentScope.length} in this area)`
                   : `(${scopeListRows.length} in this area)`}
               </span>
             </h2>
@@ -1614,16 +1439,8 @@ export default function WorkspaceDetail() {
               </>
             )}
           </div>
-          {(scopeListFilter === 'replaced' ? replacedRowsForCurrentScope.length === 0 : scopeListRows.length === 0) ? (
+          {scopeListRows.length === 0 ? (
             <p className="text-sm text-gray-500">Nothing in this category for this location scope.</p>
-          ) : scopeListFilter === 'replaced' ? (
-            <ReplacedPairTable
-              rows={replacedRowsForCurrentScope}
-              workspaceId={workspaceId}
-              returnTo={returnTo}
-              navigate={navigate}
-              isArchived={!!isArchived}
-            />
           ) : scopeListFilter === 'pending' && pendingScopeViewMode === 'grouped' ? (
             <div className="space-y-3">
               {visibleGroupedPendingScopeRows.map((group) => {
@@ -1738,23 +1555,6 @@ export default function WorkspaceDetail() {
                   />
                 )}
               </section>
-              {replacedRowsForCurrentScope.length > 0 && (
-                <section>
-                  <h3 className="mb-2 flex flex-wrap items-center gap-2 text-sm font-semibold text-orange-900">
-                    <span>Replaced (old / new)</span>
-                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
-                      {replacedRowsForCurrentScope.length}
-                    </span>
-                  </h3>
-                  <ReplacedPairTable
-                    rows={replacedRowsForCurrentScope}
-                    workspaceId={workspaceId}
-                    returnTo={returnTo}
-                    navigate={navigate}
-                    isArchived={!!isArchived}
-                  />
-                </section>
-              )}
             </div>
           ) : (
             <LeafExtinguisherTable
@@ -2270,11 +2070,15 @@ export default function WorkspaceDetail() {
                     </h3>
                     {sortedLeafReplaced.length === 0 ? (
                       <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
-                        No replaced extinguisher pairs in this view yet.
+                        No monthly inspection rows are marked replaced in this view.
                       </div>
                     ) : (
-                      <ReplacedPairTable
-                        rows={sortedLeafReplaced}
+                      <LeafExtinguisherTable
+                        inspections={sortedLeafReplaced}
+                        vicinityByExtinguisherId={vicinityByExtinguisherId}
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onToggleSort={toggleSort}
                         workspaceId={workspaceId!}
                         returnTo={returnTo}
                         navigate={navigate}
@@ -2352,6 +2156,8 @@ export default function WorkspaceDetail() {
                 onStart={startTimer}
                 onPause={pauseTimer}
                 onStop={stopTimer}
+                onResetSection={clearSectionTime}
+                onResetAll={clearAllTimes}
                 disabled={isArchived}
                 formatTime={formatTime}
               />

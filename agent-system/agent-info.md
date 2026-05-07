@@ -2057,3 +2057,87 @@ No persistence paths were added. Captured and uploaded images remain temporary R
 **Dashboard.tsx:** Added real-time onSnapshot listeners on collectionGroup('replacementHistory') filtered by orgId — one for current-month count, one for all-time total. Card shows 'Replaced This Month' + 'X all time' subtext. Navigates to /dashboard/replaced-extinguishers.
 
 **ReplacedExtinguishers.tsx:** Added stats bar (This Month / Last Month / All Time / Awaiting Disposition), monthly grouping via toMonthKey/monthGroups, collapsed by default with current month auto-expanded. Build + lint pass.
+
+## 2026-05-07 - WorkspaceDetail Debugger Diagnostics Verification
+
+**PBR Stage / Gate Status:**
+Build executed from the approved attached `Fix Errors In extinguisher-tracker-3` plan. Gate A satisfied before edits. Review verdict: ACCEPTED. Document pass completed for the narrow debugger-diagnostics cleanup.
+
+**Summary:**
+Verified the planned Microsoft Edge Tools accessibility/style diagnostics in `src/pages/WorkspaceDetail.tsx` are fixed. The file now has accessible names for the affected selects, an accessible clear-search icon button, and progress bar rendering without inline width styles.
+
+**Files Inspected:**
+- `src/pages/WorkspaceDetail.tsx`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Changed:**
+- `agent-system/agent-info.md`
+
+**Plan Compliance:**
+- Confirmed `ReadLints` is clean for `src/pages/WorkspaceDetail.tsx`.
+- Confirmed the planned accessibility/style changes are present.
+- Did not edit the attached plan file.
+- No functions code or business logic was touched.
+
+**Validation Results:**
+- `ReadLints` for `src/pages/WorkspaceDetail.tsx`: pass, no diagnostics.
+- `pnpm lint`: pass.
+- `pnpm build`: pass.
+- `pnpm test`: pass, 86 tests.
+- Formatter: no repo formatter script exists, so no formatter command was run.
+
+**Review Verdict:**
+ACCEPTED
+
+**Documentation Notes:**
+No README, FAQ, marketing, or roadmap update was needed because this was an internal debugger/accessibility cleanup with no user-facing workflow change.
+
+## 2026-05-07 - Unify List Sources Build/Review/Document
+
+**PBR Stage / Gate Status:**
+Build executed from the approved `Unify List Sources` plan (`unify_list_sources_ea46dba6.plan.md`). Gate A satisfied before edits. Review verdict: ACCEPTED WITH MINOR CONCERNS. Document pass completed.
+
+**Summary:**
+Made monthly checklist lists/counts derive from real `org/{orgId}/inspections` rows everywhere a workspace is shown as active, while keeping inventory and replacement history as separate domain lists. Added a shared monthly snapshot helper, removed `workspace.stats` as the UI truth source for active workspaces, separated replacement-history counts from monthly checked counts, and patched two backend lifecycle paths so stored stats stay consistent when extinguishers are retired or soft-deleted.
+
+**Files Changed:**
+- `src/utils/monthlyWorkspaceInspectionSnapshot.ts` (new)
+- `src/utils/workspaceInspectionStats.ts`
+- `src/utils/workspaceInspectionStats.test.ts`
+- `src/components/workspace/WorkspaceInspectionSummaryCards.tsx`
+- `src/components/workspace/WorkspaceInspectionScopeCards.tsx`
+- `src/components/layout/WorkspaceSwitcher.tsx`
+- `src/pages/Dashboard.tsx`
+- `src/pages/Workspaces.tsx`
+- `src/pages/Inventory.tsx`
+- `src/pages/WorkspaceDetail.tsx`
+- `functions/src/lifecycle/retireExtinguisher.ts`
+- `functions/src/lifecycle/onExtinguisherSoftDeleted.ts`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Plan Compliance:**
+- Source-of-truth contract enforced: monthly checklist UI (Dashboard, Workspaces active cards, Workspace summary cards, Inventory monthly status cards, WorkspaceDetail) reads the shared `buildMonthlyWorkspaceInspectionSnapshot` view over real inspection rows.
+- Inventory lists/counts still come from active inventory; replacement-history counts still come from `replacementHistory`.
+- WorkspaceDetail "Replaced" now means inspection rows with `status === 'replaced'`. Lifecycle replacement history remains on Dashboard "Replaced" and the ReplacedExtinguishers page.
+- `filterRowsByStatusList` no longer rolls inspection `status: 'replaced'` into the "checked" bucket.
+- Backend `retireExtinguisher` and `onExtinguisherSoftDeleted` decrement `stats.passed/failed/pending/replaced` correctly when removing inspection rows from active workspaces, guarded by stored field presence.
+- Plan file was not edited.
+
+**Validation Results:**
+- `ReadLints` on changed files: pass except an intentional Microsoft Edge Tools support warning for `input[type="month"]` after restoring the native month picker on `Workspaces.tsx`.
+- `pnpm lint`: pass.
+- `pnpm build`: pass.
+- `pnpm test`: pass, 10 test files, 89 tests (includes new monthly source-of-truth assertions in `workspaceInspectionStats.test.ts`).
+- `functions` `npm run lint`: pass.
+- `functions` `npm run build`: pass.
+- `functions` `npm run test`: pass, 11 suites, 45 tests.
+
+**Review Verdict:**
+ACCEPTED WITH MINOR CONCERNS.
+
+**Documentation Notes:**
+No README, FAQ, marketing, or Getting Started copy claimed Workspace "Replaced" meant lifecycle replacement history, so no public copy update was required. FAQ and Getting Started already describe Replace Extinguisher and the Replaced Extinguishers page accurately. No `TODO.md` exists in this project, so no roadmap file change was needed. Lessons and error log were updated for the source-of-truth drift fix.

@@ -8,7 +8,7 @@
  * Author: built_by_Beck
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
@@ -24,6 +24,13 @@ import {
   subscribeToWorkspaces,
   type Workspace,
 } from '../../services/workspaceService.ts';
+import { subscribeToExtinguishers, type Extinguisher } from '../../services/extinguisherService.ts';
+import { subscribeToInspections, type Inspection } from '../../services/inspectionService.ts';
+import { subscribeToLocations, type Location } from '../../services/locationService.ts';
+import {
+  buildMonthlyWorkspaceInspectionSnapshot,
+  EMPTY_MONTHLY_WORKSPACE_STATS,
+} from '../../utils/monthlyWorkspaceInspectionSnapshot.ts';
 
 interface WorkspaceSwitcherProps {
   open: boolean;
@@ -36,23 +43,75 @@ export function WorkspaceSwitcher({ open, onClose }: WorkspaceSwitcherProps) {
   const orgId = userProfile?.activeOrgId ?? '';
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [extinguishers, setExtinguishers] = useState<Extinguisher[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [inspectionsByWorkspace, setInspectionsByWorkspace] = useState<Record<string, Inspection[]>>({});
 
   useEffect(() => {
     if (!orgId || !open) return;
     return subscribeToWorkspaces(orgId, setWorkspaces);
   }, [orgId, open]);
 
-  if (!open) return null;
-
   const activeWorkspaces = workspaces.filter((w) => w.status === 'active');
   const archivedCount = workspaces.length - activeWorkspaces.length;
+  const activeWorkspaceIdsKey = activeWorkspaces.map((w) => w.id).sort().join('|');
+  const activeWorkspaceStatsById = useMemo(() => {
+    const map = new Map<string, typeof EMPTY_MONTHLY_WORKSPACE_STATS>();
+    for (const ws of activeWorkspaces) {
+      map.set(
+        ws.id,
+        buildMonthlyWorkspaceInspectionSnapshot({
+          workspaceId: ws.id,
+          inspections: inspectionsByWorkspace[ws.id] ?? [],
+          extinguishers,
+          locations,
+        }).stats,
+      );
+    }
+    return map;
+  }, [activeWorkspaces, inspectionsByWorkspace, extinguishers, locations]);
 
   const currentMonthYear = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+  useEffect(() => {
+    if (!orgId || !open) {
+      setExtinguishers([]);
+      setLocations([]);
+      return;
+    }
+    const unsubExtinguishers = subscribeToExtinguishers(orgId, setExtinguishers);
+    const unsubLocations = subscribeToLocations(orgId, setLocations);
+    return () => {
+      unsubExtinguishers();
+      unsubLocations();
+    };
+  }, [orgId, open]);
+
+  useEffect(() => {
+    if (!orgId || !open || activeWorkspaceIdsKey === '') {
+      setInspectionsByWorkspace({});
+      return;
+    }
+    const activeIds = activeWorkspaceIdsKey.split('|').filter(Boolean);
+    const unsubscribers = activeIds.map((workspaceId) =>
+      subscribeToInspections(orgId, workspaceId, (rows) => {
+        setInspectionsByWorkspace((prev) => ({ ...prev, [workspaceId]: rows }));
+      }),
+    );
+    setInspectionsByWorkspace((prev) => {
+      const next: Record<string, Inspection[]> = {};
+      for (const id of activeIds) next[id] = prev[id] ?? [];
+      return next;
+    });
+    return () => unsubscribers.forEach((unsub) => unsub());
+  }, [orgId, open, activeWorkspaceIdsKey]);
 
   function handleSelect(ws: Workspace) {
     onClose();
     navigate(`/dashboard/workspaces/${ws.id}`);
   }
+
+  if (!open) return null;
 
   return (
     <div
@@ -70,6 +129,8 @@ export function WorkspaceSwitcher({ open, onClose }: WorkspaceSwitcherProps) {
             <h2 className="text-lg font-bold text-gray-900">Inspection Months</h2>
           </div>
           <button
+            type="button"
+            aria-label="Close workspace switcher"
             onClick={onClose}
             className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           >
@@ -89,8 +150,8 @@ export function WorkspaceSwitcher({ open, onClose }: WorkspaceSwitcherProps) {
             <div className="space-y-2">
               {activeWorkspaces.map((ws) => {
                 const isCurrent = ws.monthYear === currentMonthYear;
-                const stats = ws.stats;
-                const completed = (stats?.passed ?? 0) + (stats?.failed ?? 0);
+                const stats = activeWorkspaceStatsById.get(ws.id) ?? EMPTY_MONTHLY_WORKSPACE_STATS;
+                const completed = stats.passed + stats.failed;
                 const total = stats?.total ?? 0;
                 const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -140,16 +201,21 @@ export function WorkspaceSwitcher({ open, onClose }: WorkspaceSwitcherProps) {
                           </span>
                         </div>
                         <div className="h-1.5 rounded-full bg-gray-200">
-                          <div className="flex h-1.5 overflow-hidden rounded-full">
-                            <div
-                              className="bg-green-500 transition-all"
-                              style={{ width: `${total > 0 ? (stats.passed / total) * 100 : 0}%` }}
+                          <svg
+                            className="h-1.5 w-full overflow-hidden rounded-full"
+                            viewBox="0 0 100 6"
+                            preserveAspectRatio="none"
+                            aria-hidden="true"
+                          >
+                            <rect className="fill-green-500 transition-all" x="0" y="0" width={(stats.passed / total) * 100} height="6" />
+                            <rect
+                              className="fill-red-500 transition-all"
+                              x={(stats.passed / total) * 100}
+                              y="0"
+                              width={(stats.failed / total) * 100}
+                              height="6"
                             />
-                            <div
-                              className="bg-red-500 transition-all"
-                              style={{ width: `${total > 0 ? (stats.failed / total) * 100 : 0}%` }}
-                            />
-                          </div>
+                          </svg>
                         </div>
                       </div>
                     )}
