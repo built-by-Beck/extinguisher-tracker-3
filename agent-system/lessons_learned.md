@@ -294,3 +294,20 @@ Validated the exact commit in an isolated worktree before push/deploy, caught th
 
 **Prevention rule:**
 Before pushing or deploying from a dirty workspace with concurrent agent work, validate the exact committed revision in a clean worktree. If validation fails because a staged file depends on an unstaged file, either include the minimal dependency or remove the staged call site before pushing.
+
+## 2026-05-07 - Do Not Derive Global Summary Cards From Filtered Lists
+
+**What happened:**
+Review found the Workspaces active summary card became tied to the search-filtered workspace list after duplicate listeners were removed by passing parent data into `WorkspaceInspectionSummaryCards`.
+
+**Root cause:**
+The parent-data refactor reused `activeWorkspaces` from the visible filtered list for summary selection and inspection subscriptions, even though the summary card promises "active workspace only" for the latest active workspace across the organization.
+
+**Why it was avoidable:**
+The original standalone card selected from the unfiltered org-wide active workspace query, so replacing its listener with parent-provided data needed an explicit unfiltered source for the summary.
+
+**Fix used:**
+Split `Workspaces.tsx` into `allActiveWorkspaces` for summary/subscription data and filtered `activeWorkspaces` / `archivedWorkspaces` for visible list rendering. Reran lint, build, and tests successfully, then Review accepted the revision.
+
+**Prevention rule:**
+When lifting data into parent components to remove duplicate listeners, preserve the child component's original data scope separately from any UI search/filter scope.

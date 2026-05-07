@@ -11,7 +11,7 @@ import { useOrg } from '../../hooks/useOrg.ts';
  * - Shows loading spinner while auth/org state resolves
  */
 export function ProtectedRoute() {
-  const { user, userProfile, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { org, orgLoading, userOrgs, userOrgsLoading } = useOrg();
   const location = useLocation();
 
@@ -44,8 +44,8 @@ export function ProtectedRoute() {
     );
   }
 
-  // Authenticated but no active org, no orgs, and no activeOrgId in profile -> redirect to create-org
-  if (!org && userOrgs.length === 0 && !userProfile?.activeOrgId) {
+  // Authenticated but no accessible orgs -> redirect to create-org.
+  if (!org && userOrgs.length === 0) {
     return <Navigate to="/create-org" replace />;
   }
 

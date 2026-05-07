@@ -2143,3 +2143,60 @@ ACCEPTED WITH MINOR CONCERNS.
 
 **Documentation Notes:**
 No README, FAQ, marketing, or Getting Started copy claimed Workspace "Replaced" meant lifecycle replacement history, so no public copy update was required. FAQ and Getting Started already describe Replace Extinguisher and the Replaced Extinguishers page accurately. No `TODO.md` exists in this project, so no roadmap file change was needed. Lessons and error log were updated for the source-of-truth drift fix.
+
+## 2026-05-07 - Timer Controls, Query Speed, And Review Findings
+
+**PBR Stage / Gate Status:**
+Build executed from the approved attached `Fix Timer, Query Speed, and Review Findings` plan. Gate A satisfied before edits. Review verdict: ACCEPTED after one required revision. Document pass completed with README feature copy updated.
+
+**Summary:**
+Fixed the section timer so stale restored timers are stopped immediately, elapsed time is capped, reset controls are visible in the workspace timer UI, and timer keys stay aligned with location-based auto-start behavior. Reduced duplicate workspace summary listeners on Inventory and Workspaces by allowing parent-provided data. Hardened Inventory preferences/search and scanner lookup completeness. Hardened active organization consistency when memberships change.
+
+**Files Inspected:**
+- `src/hooks/useSectionTimer.ts`
+- `src/components/workspace/SectionTimer.tsx`
+- `src/components/workspace/WorkspaceInspectionSummaryCards.tsx`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/pages/Inventory.tsx`
+- `src/pages/Workspaces.tsx`
+- `src/services/extinguisherService.ts`
+- `src/contexts/OrgContext.tsx`
+- `src/components/guards/ProtectedRoute.tsx`
+- `src/components/guards/RootRedirect.tsx`
+- `README.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Changed:**
+- `src/hooks/useSectionTimer.ts`
+- `src/hooks/useSectionTimer.test.ts` (new)
+- `src/components/workspace/SectionTimer.tsx`
+- `src/components/workspace/WorkspaceInspectionSummaryCards.tsx`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/pages/Inventory.tsx`
+- `src/pages/Workspaces.tsx`
+- `src/services/extinguisherService.ts`
+- `src/contexts/OrgContext.tsx`
+- `src/components/guards/ProtectedRoute.tsx`
+- `src/components/guards/RootRedirect.tsx`
+- `README.md`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Validation Results:**
+- `ReadLints` on edited source files: pass, except known Microsoft Edge Tools warning for native `input[type="month"]` in `Workspaces.tsx`.
+- `pnpm test -- src/hooks/useSectionTimer.test.ts`: pass, 4 tests.
+- `pnpm lint`: pass.
+- `pnpm build`: pass, with existing large chunk warning.
+- `pnpm test`: pass, 11 test files / 93 tests.
+- Formatter: no repo formatter script exists, so no formatter command was run.
+
+**Review Verdict:**
+ACCEPTED. Initial review was REVISION REQUIRED because the Workspaces summary card used search-filtered active workspaces after listener deduplication; fixed by separating unfiltered summary scope from filtered list scope, reran validation, and follow-up review accepted.
+
+**Documentation Notes:**
+Updated `README.md` Key Features copy from "Section Auto Timer" to "Section Timer Controls" to reflect manual start, stop, reset, and forgotten-timer safeguards. No TODO/roadmap file exists.
+
+**Lessons / Error Log:**
+Added a lesson and resolved error-log entry: parent-provided data refactors must preserve the child component's original data scope separately from UI search/filter scope.

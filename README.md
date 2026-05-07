@@ -30,7 +30,7 @@ The system is **organization-centric** — all operational data belongs to the o
 - **NFPA 10 Compliance Engine** — Monthly, annual, 6-year maintenance, and hydrostatic testing intervals tracked automatically
 - **Inspection Workspaces** — Organize monthly inspections by workspace with section progress tracking
 - **AI Maintenance Helper** — Pro+ assistant for on-the-fly compliance questions, temporary photo questions, and extinguisher lists with asset, serial, location, section, and vicinity details
-- **Section Auto Timer** — Automatically tracks section timing to keep inspection routes on pace
+- **Section Timer Controls** — Automatically tracks section timing with manual start, stop, and reset controls plus safeguards for forgotten timers
 - **Placement Calculator** — Determine required extinguisher quantities and types based on hazard class and floor area
 - **Offline Support** — Perform inspections in areas with no connectivity; data syncs automatically when back online
 - **Compliance Dashboard** — Real-time visibility into passed, failed, and overdue inspections across your organization

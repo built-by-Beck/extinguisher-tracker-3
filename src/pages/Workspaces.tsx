@@ -149,12 +149,13 @@ export default function Workspaces() {
         w.monthYear.includes(wsSearch)
       )
     : workspaces;
+  const allActiveWorkspaces = workspaces.filter((w) => w.status === 'active');
   const activeWorkspaces = filteredWorkspaces.filter((w) => w.status === 'active');
   const archivedWorkspaces = filteredWorkspaces.filter((w) => w.status === 'archived');
-  const activeWorkspaceIdsKey = activeWorkspaces.map((w) => w.id).sort().join('|');
+  const activeWorkspaceIdsKey = allActiveWorkspaces.map((w) => w.id).sort().join('|');
   const activeSummaryWorkspace = useMemo(
-    () => [...activeWorkspaces].sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0] ?? null,
-    [activeWorkspaces],
+    () => [...allActiveWorkspaces].sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0] ?? null,
+    [allActiveWorkspaces],
   );
 
   useEffect(() => {
