@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Archive, Download, Loader2, RefreshCw } from 'lucide-react';
+import { Archive, ChevronDown, ChevronRight, Download, Loader2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import {
@@ -34,6 +34,31 @@ function text(value: unknown): string {
   return typeof value === 'string' && value.trim() ? value : '—';
 }
 
+function tsToDate(ts: unknown): Date | null {
+  if (!ts) return null;
+  if (typeof ts === 'object' && ts !== null && 'toDate' in ts && typeof (ts as { toDate: () => Date }).toDate === 'function') {
+    return (ts as { toDate: () => Date }).toDate();
+  }
+  if (typeof ts === 'object' && ts !== null && '_seconds' in ts && typeof (ts as { _seconds: unknown })._seconds === 'number') {
+    return new Date((ts as { _seconds: number })._seconds * 1000);
+  }
+  const d = new Date(String(ts));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function toMonthKey(ts: unknown): string {
+  const d = tsToDate(ts);
+  if (!d) return 'unknown';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthKeyLabel(key: string): string {
+  if (key === 'unknown') return 'Unknown Date';
+  const [year, month] = key.split('-');
+  const d = new Date(Number(year), Number(month) - 1, 1);
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
 interface ReturnModalState {
   row: ReplacementHistoryListRow;
   assetId: string;
@@ -55,6 +80,7 @@ export default function ReplacedExtinguishers() {
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
   const [returnModal, setReturnModal] = useState<ReturnModalState | null>(null);
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
 
   const loadRows = useCallback(async () => {
     if (!orgId) return;
@@ -79,6 +105,40 @@ export default function ReplacedExtinguishers() {
   }, [loadRows]);
 
   const extById = useMemo(() => new Map(extinguishers.map((ext) => [ext.id, ext])), [extinguishers]);
+
+  // Group rows by month key, sorted newest first
+  const monthGroups = useMemo(() => {
+    const map = new Map<string, ReplacementHistoryListRow[]>();
+    for (const row of rows) {
+      const key = toMonthKey(row.replacedAt);
+      const arr = map.get(key) ?? [];
+      arr.push(row);
+      map.set(key, arr);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [rows]);
+
+  const currentMonthKey = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  })();
+  const prevMonthKey = (() => {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  })();
+
+  const thisMonthCount = rows.filter((r) => toMonthKey(r.replacedAt) === currentMonthKey).length;
+  const lastMonthCount = rows.filter((r) => toMonthKey(r.replacedAt) === prevMonthKey).length;
+  const awaitingCount = rows.filter((r) => !r.discarded && !r.returned).length;
+
+  function toggleMonth(key: string) {
+    setExpandedMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) { next.delete(key); } else { next.add(key); }
+      return next;
+    });
+  }
 
   async function saveStatus(row: ReplacementHistoryListRow, patch: Partial<ReplacementHistoryListRow>) {
     if (!orgId || !canEdit) return;
@@ -216,6 +276,95 @@ export default function ReplacedExtinguishers() {
     URL.revokeObjectURL(url);
   }
 
+  function renderRow(row: ReplacementHistoryListRow) {
+    const prior = row.priorSnapshot ?? {};
+    const current = extById.get(row.currentExtinguisherId);
+    return (
+      <div key={row.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="mb-4 flex flex-col gap-2 border-b border-gray-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Replaced {formatTimestamp(row.replacedAt)}</p>
+            <p className="text-xs text-gray-500">{row.reason || 'No reason recorded'}</p>
+          </div>
+          {current?.id && (
+            <Link to={`/dashboard/inventory/${current.id}`} className="text-sm font-medium text-red-700 hover:underline">
+              Open current extinguisher
+            </Link>
+          )}
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[1fr_1fr_260px]">
+          <div className="rounded-lg border border-orange-100 bg-orange-50 p-4">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-orange-900">Old retired unit</h3>
+            <div className="space-y-1 text-sm text-orange-950">
+              <div>Asset ID: <span className="font-mono">{row.previousAssetId ?? text(prior.assetId)}</span></div>
+              <div>Serial: <span className="font-mono">{row.previousSerial ?? text(prior.serial)}</span></div>
+              <div>Barcode: <span className="font-mono">{row.previousBarcode ?? text(prior.barcode)}</span></div>
+              <div>Type: {text(prior.extinguisherType)}</div>
+              <div>Size: {text(prior.extinguisherSize)}</div>
+              <div>Location: {[text(prior.parentLocation), text(prior.section), text(prior.vicinity)].filter((v) => v !== '—').join(' / ') || '—'}</div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-green-100 bg-green-50 p-4">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-green-900">Current replacement unit</h3>
+            <div className="space-y-1 text-sm text-green-950">
+              <div>Asset ID: <span className="font-mono">{current?.assetId ?? row.newAssetId ?? '—'}</span></div>
+              <div>Serial: <span className="font-mono">{current?.serial ?? row.newSerial ?? '—'}</span></div>
+              <div>Barcode: <span className="font-mono">{current?.barcode ?? row.newBarcode ?? '—'}</span></div>
+              <div>Type: {current?.extinguisherType ?? '—'}</div>
+              <div>Size: {current?.extinguisherSize ?? '—'}</div>
+              <div>Location: {current ? [current.parentLocation, current.section, current.vicinity].filter(Boolean).join(' / ') || '—' : '—'}</div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-700">Retired service status</h3>
+            <div className="space-y-2 text-sm">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" disabled={!canEdit || savingId === row.id} checked={row.waitingForService === true} onChange={(e) => void saveStatus(row, { waitingForService: e.target.checked })} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                Waiting for service
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" disabled={!canEdit || savingId === row.id} checked={row.sentForService === true} onChange={(e) => void saveStatus(row, { sentForService: e.target.checked })} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                Sent off for 6-year / hydro
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" disabled={!canEdit || savingId === row.id || row.returned === true} checked={row.discarded === true} onChange={(e) => void saveStatus(row, { discarded: e.target.checked })} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                Discarded
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  disabled={!canEdit || savingId === row.id || row.returned === true}
+                  checked={row.returned === true}
+                  onChange={(e) => {
+                    if (!e.target.checked) return;
+                    setReturnModal({
+                      row,
+                      assetId: '',
+                      serial: row.previousSerial ?? text(prior.serial),
+                      barcode: row.previousBarcode ?? '',
+                      error: '',
+                      saving: false,
+                    });
+                  }}
+                  className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                />
+                Returned to spare inventory
+              </label>
+              {row.returnedSpareExtinguisherId && (
+                <Link to={`/dashboard/inventory/${row.returnedSpareExtinguisherId}`} className="block text-xs font-medium text-red-700 hover:underline">
+                  Open spare record
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 sm:p-6">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -247,6 +396,32 @@ export default function ReplacedExtinguishers() {
         </div>
       </div>
 
+      {/* Stats section */}
+      {!loading && (
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center">
+            <p className="text-2xl font-bold text-orange-700">{thisMonthCount}</p>
+            <p className="mt-1 text-xs font-medium text-orange-600">
+              {monthKeyLabel(currentMonthKey)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
+            <p className="text-2xl font-bold text-gray-700">{lastMonthCount}</p>
+            <p className="mt-1 text-xs font-medium text-gray-500">
+              {monthKeyLabel(prevMonthKey)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
+            <p className="text-2xl font-bold text-gray-700">{rows.length}</p>
+            <p className="mt-1 text-xs font-medium text-gray-500">All Time</p>
+          </div>
+          <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-center">
+            <p className="text-2xl font-bold text-yellow-700">{awaitingCount}</p>
+            <p className="mt-1 text-xs font-medium text-yellow-600">Awaiting Disposition</p>
+          </div>
+        </div>
+      )}
+
       {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
       {loading ? (
@@ -260,96 +435,39 @@ export default function ReplacedExtinguishers() {
           <p className="mt-1 text-sm text-gray-500">Use Replace Extinguisher from an active extinguisher detail page.</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {rows.map((row) => {
-            const prior = row.priorSnapshot ?? {};
-            const current = extById.get(row.currentExtinguisherId);
+        <div className="space-y-3">
+          {monthGroups.map(([key, groupRows]) => {
+            const isCurrentMonth = key === currentMonthKey;
+            const isExpanded = isCurrentMonth || expandedMonths.has(key);
             return (
-              <div key={row.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="mb-4 flex flex-col gap-2 border-b border-gray-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Replaced {formatTimestamp(row.replacedAt)}</p>
-                    <p className="text-xs text-gray-500">{row.reason || 'No reason recorded'}</p>
+              <div key={key} className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => toggleMonth(key)}
+                  className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-gray-50"
+                >
+                  <div className="flex items-center gap-3">
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-gray-400" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                    )}
+                    <span className="font-semibold text-gray-900">{monthKeyLabel(key)}</span>
+                    {isCurrentMonth && (
+                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                        Current month
+                      </span>
+                    )}
                   </div>
-                  {current?.id && (
-                    <Link to={`/dashboard/inventory/${current.id}`} className="text-sm font-medium text-red-700 hover:underline">
-                      Open current extinguisher
-                    </Link>
-                  )}
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-[1fr_1fr_260px]">
-                  <div className="rounded-lg border border-orange-100 bg-orange-50 p-4">
-                    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-orange-900">
-                      Old retired unit
-                    </h3>
-                    <div className="space-y-1 text-sm text-orange-950">
-                      <div>Asset ID: <span className="font-mono">{row.previousAssetId ?? text(prior.assetId)}</span></div>
-                      <div>Serial: <span className="font-mono">{row.previousSerial ?? text(prior.serial)}</span></div>
-                      <div>Barcode: <span className="font-mono">{row.previousBarcode ?? text(prior.barcode)}</span></div>
-                      <div>Type: {text(prior.extinguisherType)}</div>
-                      <div>Size: {text(prior.extinguisherSize)}</div>
-                      <div>Location: {[text(prior.parentLocation), text(prior.section), text(prior.vicinity)].filter((v) => v !== '—').join(' / ') || '—'}</div>
-                    </div>
+                  <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-sm font-medium text-gray-600">
+                    {groupRows.length} {groupRows.length === 1 ? 'replacement' : 'replacements'}
+                  </span>
+                </button>
+                {isExpanded && (
+                  <div className="space-y-4 border-t border-gray-100 p-4">
+                    {groupRows.map((row) => renderRow(row))}
                   </div>
-
-                  <div className="rounded-lg border border-green-100 bg-green-50 p-4">
-                    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-green-900">
-                      Current replacement unit
-                    </h3>
-                    <div className="space-y-1 text-sm text-green-950">
-                      <div>Asset ID: <span className="font-mono">{current?.assetId ?? row.newAssetId ?? '—'}</span></div>
-                      <div>Serial: <span className="font-mono">{current?.serial ?? row.newSerial ?? '—'}</span></div>
-                      <div>Barcode: <span className="font-mono">{current?.barcode ?? row.newBarcode ?? '—'}</span></div>
-                      <div>Type: {current?.extinguisherType ?? '—'}</div>
-                      <div>Size: {current?.extinguisherSize ?? '—'}</div>
-                      <div>Location: {current ? [current.parentLocation, current.section, current.vicinity].filter(Boolean).join(' / ') || '—' : '—'}</div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-700">Retired service status</h3>
-                    <div className="space-y-2 text-sm">
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" disabled={!canEdit || savingId === row.id} checked={row.waitingForService === true} onChange={(e) => void saveStatus(row, { waitingForService: e.target.checked })} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
-                        Waiting for service
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" disabled={!canEdit || savingId === row.id} checked={row.sentForService === true} onChange={(e) => void saveStatus(row, { sentForService: e.target.checked })} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
-                        Sent off for 6-year / hydro
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" disabled={!canEdit || savingId === row.id || row.returned === true} checked={row.discarded === true} onChange={(e) => void saveStatus(row, { discarded: e.target.checked })} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
-                        Discarded
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          disabled={!canEdit || savingId === row.id || row.returned === true}
-                          checked={row.returned === true}
-                          onChange={(e) => {
-                            if (!e.target.checked) return;
-                            setReturnModal({
-                              row,
-                              assetId: '',
-                              serial: row.previousSerial ?? text(prior.serial),
-                              barcode: row.previousBarcode ?? '',
-                              error: '',
-                              saving: false,
-                            });
-                          }}
-                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                        />
-                        Returned to spare inventory
-                      </label>
-                      {row.returnedSpareExtinguisherId && (
-                        <Link to={`/dashboard/inventory/${row.returnedSpareExtinguisherId}`} className="block text-xs font-medium text-red-700 hover:underline">
-                          Open spare record
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             );
           })}
