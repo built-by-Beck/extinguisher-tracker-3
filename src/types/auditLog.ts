@@ -1,5 +1,5 @@
 /**
- * Audit log types for EX3.
+ * Audit log types for ExtinguisherTracker.
  * Matches the Firestore schema in org/{orgId}/auditLogs/{logId}.
  *
  * Author: built_by_Beck

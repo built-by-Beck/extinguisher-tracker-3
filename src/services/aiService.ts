@@ -1,5 +1,5 @@
 /**
- * AI service for Extinguisher Tracker 3.
+ * AI service for ExtinguisherTracker.
  * Uses Vertex AI (Gemini) via Firebase for compliance assistance,
  * inventory insights, and NFPA 10 guidance.
  *
@@ -22,7 +22,7 @@ import type {
   AiMemoryReplacementEvent,
 } from '../types/aiQuery.ts';
 
-const SYSTEM_PROMPT = `You are the Extinguisher Tracker 3 AI Assistant, built by Beck-Publishing.
+const SYSTEM_PROMPT = `You are the ExtinguisherTracker AI Assistant, built by Beck-Publishing.
 You are an expert in NFPA 10 (Standard for Portable Fire Extinguishers) compliance,
 fire extinguisher inspection, maintenance, and lifecycle management.
 
@@ -33,11 +33,12 @@ Your role:
 - Explain compliance statuses and what they mean
 - Help users understand inspection schedules (monthly, annual, 6-year, hydrostatic)
 - Provide guidance on extinguisher categories, types, and placement
-- Help users navigate and use the Extinguisher Tracker app itself (using the App Knowledge Base below).
+- Help users navigate and use the ExtinguisherTracker app itself (using the App Knowledge Base below).
 
 Rules:
 - Be concise and practical — users are busy inspectors and facility managers
 - When analyzing data, reference specific extinguisher asset IDs
+- When listing extinguishers, include asset number, serial number, location, and vicinity for every listed extinguisher
 - Cite the organization's selected NFPA 10 reference when relevant
 - If you don't know something, say so — don't guess on safety-critical info
 - Do not present app guidance as a legal compliance guarantee; defer final decisions to the adopted local code, qualified judgment, and AHJ direction
@@ -49,6 +50,14 @@ ${APP_KNOWLEDGE_BASE}`;
 export interface AiMessage {
   role: 'user' | 'assistant';
   content: string;
+  imageAttachments?: AiImageAttachment[];
+}
+
+export interface AiImageAttachment {
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  data: string;
+  name?: string;
+  size?: number;
 }
 
 function formatNfpaReference(edition?: NfpaEdition, customLabel?: string): string {
@@ -78,8 +87,10 @@ export async function askAssistant(
   },
 ): Promise<string> {
   const lastMessage = messages[messages.length - 1];
+  const latestImageAttachments = lastMessage.imageAttachments ?? [];
+  const hasImageAttachment = latestImageAttachments.length > 0;
   const intent = parseAiMemoryIntent(lastMessage.content);
-  if (context?.orgId && intent) {
+  if (context?.orgId && intent && !hasImageAttachment) {
     try {
       const result = await queryAiMemoryCall({ orgId: context.orgId, intent });
       return formatDeterministicMemoryResponse(result);
@@ -113,6 +124,9 @@ export async function askAssistant(
       const summary = context.extinguishers.slice(0, 50).map((e) => ({
         assetId: e.assetId,
         serial: e.serial,
+        parentLocation: e.parentLocation,
+        locationName: (e as Extinguisher & { locationName?: string }).locationName,
+        vicinity: e.vicinity,
         category: e.category,
         extinguisherType: e.extinguisherType,
         section: e.section,
@@ -135,6 +149,9 @@ export async function askAssistant(
       const inspectionSummary = context.inspections.slice(0, 300).map((i) => ({
         assetId: i.assetId,
         extinguisherId: i.extinguisherId,
+        serial: i.serial,
+        parentLocation: i.parentLocation,
+        locationName: i.locationName,
         status: i.status,
         locationId: i.locationId,
         section: i.section,
@@ -178,12 +195,30 @@ export async function askAssistant(
   const chat = geminiModel.startChat({
     history: [
       { role: 'user', parts: [{ text: 'System context: ' + fullPrompt }] },
-      { role: 'model', parts: [{ text: 'Understood. I\'m the Extinguisher Tracker 3 AI Assistant by Beck-Publishing. I\'m ready to help with NFPA 10 compliance, inspection guidance, and inventory analysis. How can I help?' }] },
+      { role: 'model', parts: [{ text: 'Understood. I\'m the ExtinguisherTracker AI Assistant by Beck-Publishing. I\'m ready to help with NFPA 10 compliance, inspection guidance, and inventory analysis. How can I help?' }] },
       ...history,
     ],
   });
 
-  const result = await chat.sendMessage(lastMessage.content);
+  const messageParts = hasImageAttachment
+    ? [
+        {
+          text: [
+            lastMessage.content,
+            '',
+            'The user attached an image for this question. Analyze only what is visible in the image and do not claim that the image was stored.',
+          ].join('\n'),
+        },
+        ...latestImageAttachments.map((image) => ({
+          inlineData: {
+            mimeType: image.mimeType,
+            data: image.data,
+          },
+        })),
+      ]
+    : lastMessage.content;
+
+  const result = await chat.sendMessage(messageParts);
   return result.response.text();
 }
 
@@ -234,14 +269,33 @@ function formatNotesResult(count: number, filters: string, notes: AiMemoryNoteRe
   ].join('\n');
 }
 
+type FinderDetails = Pick<
+  AiMemoryExpiringExtinguisher,
+  'assetId' | 'serial' | 'parentLocation' | 'locationName' | 'section' | 'vicinity'
+>;
+
+function displayField(value: string | null | undefined, fallback = '--'): string {
+  return value?.trim() || fallback;
+}
+
+function formatFinderDetails(row: FinderDetails): string {
+  const location = displayField(row.parentLocation || row.locationName, 'unassigned');
+  return [
+    `asset number: ${displayField(row.assetId)}`,
+    `serial number: ${displayField(row.serial, 'no serial')}`,
+    `location: ${location}`,
+    `section: ${displayField(row.section)}`,
+    `vicinity: ${displayField(row.vicinity)}`,
+  ].join(' | ');
+}
+
 function formatExpiringResult(
   count: number,
   filters: string,
   extinguishers: AiMemoryExpiringExtinguisher[],
 ): string {
   const items = extinguishers.slice(0, 20).map((ext) => {
-    const location = ext.section || ext.parentLocation || 'unassigned';
-    return `- ${ext.assetId} (${ext.serial}) | ${location} | status: ${ext.lifecycleStatus ?? 'unknown'}`;
+    return `- ${formatFinderDetails(ext)} | status: ${ext.lifecycleStatus ?? 'unknown'}`;
   });
 
   return [
@@ -264,10 +318,9 @@ function formatMarkedExpiredResult(
   extinguishers: AiMemoryExpiringExtinguisher[],
 ): string {
   const items = extinguishers.map((ext) => {
-    const location = ext.section || ext.parentLocation || 'unassigned';
     const mfg = ext.manufactureYear != null ? ` | mfg: ${ext.manufactureYear}` : '';
     const exp = ext.expirationYear != null ? ` | exp: ${ext.expirationYear}` : '';
-    return `- ${ext.assetId} (${ext.serial || 'no serial'}) | ${location}${mfg}${exp}`;
+    return `- ${formatFinderDetails(ext)}${mfg}${exp}`;
   });
 
   return [
@@ -290,8 +343,7 @@ function formatExpiredCandidatesResult(
   extinguishers: AiMemoryExpiringExtinguisher[],
 ): string {
   const items = extinguishers.map((ext) => {
-    const location = ext.section || ext.parentLocation || 'unassigned';
-    return `- ${ext.assetId} (${ext.serial || 'no serial'}) | ${location} | mfg: ${ext.manufactureYear ?? 'unknown'}`;
+    return `- ${formatFinderDetails(ext)} | mfg: ${ext.manufactureYear ?? 'unknown'}`;
   });
 
   return [
@@ -346,7 +398,7 @@ function formatInspectionStatusResult(
       ? new Date(row.inspectedAt).toLocaleString()
       : 'not inspected yet';
     const noteSuffix = row.notes ? ` | note: ${row.notes}` : '';
-    return `- ${row.assetId} | ${checked} | section: ${row.section || 'unassigned'} | ${inspectedWhen}${noteSuffix}`;
+    return `- ${formatFinderDetails(row)} | ${checked} | ${inspectedWhen}${noteSuffix}`;
   });
 
   return [

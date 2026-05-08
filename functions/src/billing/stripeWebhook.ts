@@ -15,8 +15,8 @@ function buildOrgUpdate(plan: PlanName, subscription: Stripe.Subscription) {
     stripeSubscriptionId: subscription.id,
     subscriptionStatus: subscription.status,
     subscriptionPriceId: subscription.items.data[0]?.price?.id ?? null,
-    subscriptionCurrentPeriodEnd: subscription.cancel_at
-      ? new Date(subscription.cancel_at * 1000)
+    subscriptionCurrentPeriodEnd: subscription.items.data[0]?.current_period_end
+      ? new Date(subscription.items.data[0].current_period_end * 1000)
       : null,
     trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
     featureFlags: config.featureFlags,
@@ -127,6 +127,10 @@ export const stripeWebhook = onRequest(
           const orgId = await resolveOrgId(subscription);
           if (orgId) {
             await adminDb.doc(`org/${orgId}`).update({
+              plan: null,
+              assetLimit: null,
+              featureFlags: null,
+              overLimit: false,
               subscriptionStatus: 'canceled',
               stripeSubscriptionId: null,
               subscriptionPriceId: null,

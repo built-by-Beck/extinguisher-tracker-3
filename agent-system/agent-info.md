@@ -1539,6 +1539,166 @@ README, in-app getting started/FAQ, public features/FAQ, and pricing copy were u
 **PBRD Documentation Step:**
 Complete.
 
+## 2026-05-04 - Plan/Build/Review Mode
+
+**Task:**
+Debug archived April report generation returning "internal".
+
+**Summary:**
+Used Firebase Function logs as runtime evidence after the local debug log was not created. Confirmed `generateReport` failed on PDF generation with `TypeError: pdfmake_1.default is not a constructor`, and also observed a proven Storage signing failure: `iam.serviceAccounts.signBlob` denied. Implemented the code-side PDF fix by using the pdfmake v0.3 default instance and updating local pdfmake typings to match runtime. Kept temporary debug instrumentation active for post-fix verification. Reverted a contemplated Firebase token URL workaround during review because long-lived report URLs are a security tradeoff; the remaining signing issue should be fixed via scoped IAM approval.
+
+**Files Inspected:**
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/types/pdfmake.d.ts
+- functions/package.json
+- agent-system/lessons_learned.md
+- agent-system/error_log.jsonl
+
+**Files Changed:**
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/types/pdfmake.d.ts
+- agent-system/agent-info.md
+
+**Key Decisions:**
+- Treat this as evidence-confirmed backend failure, not a client display issue.
+- Keep signed URLs for report downloads instead of switching to long-lived Firebase token URLs.
+- Request approval before applying IAM changes or deploying production functions.
+
+**Risks / Blockers:**
+- Production verification still requires deploying `generateReport` and granting the function service account `iam.serviceAccounts.signBlob` permission.
+
+**Next Recommended Action:**
+Approve scoped IAM binding and deploy `functions:generateReport`, then reproduce report generation and inspect logs before removing instrumentation.
+
+**Handoff Notes:**
+Build validation passed with `npm --prefix functions run build` and `npm --prefix functions run lint`. A prior build failed because the pdfmake declaration still described a constructor; it was fixed by changing the declaration to a default instance.
+
+## 2026-05-04 - Review/Document Mode
+
+**Task:**
+Complete archived April report generation debug cycle.
+
+**Summary:**
+Verified with deployed function logs that the pdfmake constructor error stopped after deploying `generateReport`, then confirmed the remaining `internal` error was `iam.serviceAccounts.signBlob` denied. Applied service-account-level Token Creator first, then project-level Token Creator for the function runtime service account after logs proved the scoped self-binding was insufficient. User confirmed report generation worked. Removed temporary debug instrumentation from `functions/src/reports/generateReport.ts`, rebuilt, linted, and redeployed the clean function.
+
+**Files Inspected:**
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/types/pdfmake.d.ts
+- agent-system/agent-info.md
+
+**Files Changed:**
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/types/pdfmake.d.ts
+- agent-system/agent-info.md
+- agent-system/lessons_learned.md
+- agent-system/error_log.jsonl
+
+**Key Decisions:**
+- Keep report downloads on short-lived signed URLs.
+- Use IAM permissions, not persistent Firebase Storage token URLs, to resolve signing.
+- Remove all temporary debug fetch instrumentation after user-confirmed success.
+
+**Risks / Blockers:**
+- Project-level Token Creator is broader than the attempted service-account-level binding; it was required by runtime evidence but should be revisited if a narrower signing configuration is later proven.
+
+**Next Recommended Action:**
+Commit the report generation fix and IAM/memory notes when ready.
+
+**Handoff Notes:**
+Final validation passed: `npm --prefix functions run build`, `npm --prefix functions run lint`, and `firebase deploy --only functions:generateReport`.
+
+## 2026-05-04 - Plan/Build/Review/Document Mode
+
+**Task:**
+Add configurable report scopes and sorting to the Reports page generator.
+
+**Summary:**
+Planned and implemented focused on-demand report generation for failed or expired extinguishers, passed extinguishers, pending / not inspected extinguishers, and replacement candidates. Reports page generator now sends a selected scope and sort order to `generateReport`, with location as the default and asset ID as the alternate. Backend generates option-specific artifacts without overwriting the canonical full-report file paths. Added pure report option helpers and regression tests for filtering, stats, storage suffixes, and location/asset sorting. Review verdict: ACCEPTED WITH MINOR CONCERNS because direct end-to-end artifact download verification was not run against live data in this pass.
+
+**Files Inspected:**
+- src/pages/Reports.tsx
+- src/components/reports/ReportDownloadButton.tsx
+- src/services/reportService.ts
+- src/types/report.ts
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/reports/finderFields.ts
+- functions/src/workspaces/archiveWorkspace.ts
+- BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md
+- README.md
+- src/pages/FaqPage.tsx
+- src/pages/GettingStarted.tsx
+
+**Files Changed:**
+- BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md
+- README.md
+- agent-system/agent-info.md
+- functions/src/__tests__/reportOptions.test.ts
+- functions/src/reports/finderFields.ts
+- functions/src/reports/generateReport.ts
+- functions/src/reports/pdfGenerator.ts
+- functions/src/reports/reportOptions.ts
+- functions/src/workspaces/archiveWorkspace.ts
+- src/pages/FaqPage.tsx
+- src/pages/GettingStarted.tsx
+- src/pages/Reports.tsx
+- src/services/reportService.ts
+- src/types/report.ts
+
+**Key Decisions:**
+- Keep archived workspace quick-download buttons as full-report downloads.
+- Put configurable scope/sort controls only on the Reports page generator, per user choice.
+- Generate focused files under distinct Storage names so filtered reports never overwrite canonical full reports.
+- Treat replacement candidates as active rows not marked expired with manufacture year at least six years old.
+
+**Risks / Blockers:**
+- No live/emulator generated artifact was downloaded in this pass; validation covered pure filtering/sorting and type/build/lint.
+
+**Next Recommended Action:**
+Have the user generate each focused report type from the Reports page and verify the downloaded output order/content before release commit/deploy.
+
+**Handoff Notes:**
+Validation passed: `pnpm lint`, `pnpm build`, `npm --prefix functions run build`, `npm --prefix functions run lint`, `npm --prefix functions test -- reportOptions.test.ts`, and `pnpm exec vitest run src/components/reports/ReportDownloadButton.test.tsx`.
+
+## 2026-05-04 - Build/Review Mode
+
+**Task:**
+Release focused report options and rename visible app/report branding to ExtinguisherTracker.
+
+**Summary:**
+Changed user-facing app and generated report branding from EX3 / Extinguisher Tracker / Extinguisher Tracker 3 to ExtinguisherTracker across `src`, `functions/src`, and `index.html`. Verified no old brand strings remain in those program sources. Kept the focused report scope/sort implementation in place and reran release validation.
+
+**Files Inspected:**
+- src
+- functions/src
+- index.html
+- functions/src/reports/pdfGenerator.ts
+- src/components/layout/Sidebar.tsx
+- src/components/marketing/PublicMarketingLayout.tsx
+
+**Files Changed:**
+- src/*
+- functions/src/*
+- index.html
+- agent-system/agent-info.md
+
+**Key Decisions:**
+- Treat source comments in shipped program files as part of the branding sweep to avoid stale EX3 references in bundled source/build tooling.
+- Leave repository specs/docs outside deployed program source unless already part of the report options documentation update.
+
+**Risks / Blockers:**
+- None known. Existing Vite bundle-size warning remains unchanged.
+
+**Next Recommended Action:**
+Commit, push the PR branch, and deploy the validated release.
+
+**Handoff Notes:**
+Validation passed after branding changes: `pnpm lint`, `pnpm build`, `npm --prefix functions run build`, `npm --prefix functions run lint`, `npm --prefix functions test -- reportOptions.test.ts`, and `pnpm exec vitest run src/components/reports/ReportDownloadButton.test.tsx`.
+
 ## 2026-05-01 - Build/Review Final
 
 **Task:**
@@ -1637,3 +1797,406 @@ None for this pass. No plan file was edited.
 
 **PBRD Documentation Step:**
 Complete.
+
+## 2026-05-04 - Build Mode
+
+**Task:**
+Implement Finder Fields Everywhere plan for reports and AI extinguisher list responses.
+
+**Summary:**
+Added finder fields (`assetId`, `serial`, location fields, `section`, `vicinity`) to report snapshots, report CSV/JSON/PDF artifacts, AI memory payloads, deterministic AI list formatting, and Gemini fallback context/prompt. Existing report docs missing finder fields now rebuild their snapshot and regenerate artifacts on the next report generation request.
+
+**Files Inspected:**
+- `functions/src/reports/generateReport.ts`
+- `functions/src/reports/pdfGenerator.ts`
+- `functions/src/workspaces/archiveWorkspace.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- `src/services/aiService.ts`
+- `src/types/aiQuery.ts`
+- `src/types/report.ts`
+- `functions/src/__tests__/queryAiMemory.test.ts`
+- `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md`
+
+**Files Changed:**
+- `functions/src/reports/finderFields.ts`
+- `functions/src/workspaces/archiveWorkspace.ts`
+- `functions/src/reports/generateReport.ts`
+- `functions/src/reports/pdfGenerator.ts`
+- `src/types/report.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- `src/types/aiQuery.ts`
+- `src/services/aiService.ts`
+- `src/services/aiService.test.ts`
+- `functions/src/__tests__/queryAiMemory.test.ts`
+- `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md`
+
+**Key Decisions:**
+- Asset number maps to `assetId`; location uses `parentLocation` first with `locationName` fallback while retaining `section`.
+- Reports enrich vicinity from org-scoped extinguisher docs because inspection rows do not reliably store it.
+- AI list bullets use a shared formatter so every extinguisher row includes asset number, serial number, location, section, and vicinity.
+
+**Risks / Blockers:**
+- Existing generated report files are not deleted from Storage, but their Firestore artifact paths are cleared when legacy snapshots are detected so fresh files are generated.
+
+**Next Recommended Action:**
+Review Mode should verify plan compliance, report regeneration behavior, org-scoped reads, AI list formatting, and validation evidence.
+
+**Handoff Notes:**
+Build validation passed: `npm --prefix functions run build`, `npm --prefix functions run test -- queryAiMemory.test.ts`, `pnpm test src/services/aiService.test.ts`, `pnpm build`, `pnpm lint`, and edited-file `ReadLints`.
+
+## 2026-05-04 - Review Mode
+
+**Task:**
+Review Finder Fields Everywhere build output.
+
+**Summary:**
+Review verified plan compliance, org-scoped reads, authorization boundaries, AI list formatting, legacy report regeneration behavior, and validation evidence. Verdict: ACCEPTED WITH MINOR CONCERNS.
+
+**Files Inspected:**
+- `functions/src/reports/finderFields.ts`
+- `functions/src/workspaces/archiveWorkspace.ts`
+- `functions/src/reports/generateReport.ts`
+- `functions/src/reports/pdfGenerator.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- `src/services/aiService.ts`
+- `src/types/aiQuery.ts`
+- `src/types/report.ts`
+- `functions/src/__tests__/queryAiMemory.test.ts`
+- `src/services/aiService.test.ts`
+- `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md`
+
+**Files Changed:**
+- none
+
+**Key Decisions:**
+- Accepted because no blocking plan, security, or regression issues were found.
+- Minor concern: report artifact finder-field output and legacy regeneration do not have direct unit/integration tests.
+
+**Risks / Blockers:**
+- Residual test gap for report CSV/PDF/JSON artifact content.
+
+**Next Recommended Action:**
+Run Document Mode to confirm/update relevant documentation surfaces and complete the PBR flow.
+
+**Handoff Notes:**
+Document Mode should verify `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md` reflects the new finder fields and decide whether any README/FAQ/marketing copy needs updates.
+
+## 2026-05-04 - Document Mode
+
+**Task:**
+Document Finder Fields Everywhere after Review verdict ACCEPTED WITH MINOR CONCERNS.
+
+**Summary:**
+Inspected the actual report and AI implementation and confirmed existing documentation/marketing/FAQ/getting-started surfaces already describe that listed extinguishers include asset number, serial number, location, section, and vicinity. No public docs needed edits; Document Mode completion is done.
+
+**Files Inspected:**
+- `functions/src/reports/finderFields.ts`
+- `functions/src/workspaces/archiveWorkspace.ts`
+- `functions/src/reports/generateReport.ts`
+- `functions/src/reports/pdfGenerator.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- `src/services/aiService.ts`
+- `src/types/aiQuery.ts`
+- `src/types/report.ts`
+- `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md`
+- `README.md`
+- `src/pages/Reports.tsx`
+- `src/pages/FaqPage.tsx`
+- `src/pages/GettingStarted.tsx`
+- `src/pages/marketing/MarketingHomePage.tsx`
+- `src/pages/marketing/MarketingFeaturesPage.tsx`
+- `src/pages/marketing/MarketingHowItWorksPage.tsx`
+- `src/pages/marketing/MarketingFaqPage.tsx`
+- `src/pages/marketing/MarketingGettingStartedPage.tsx`
+- `agent-system/lessons_learned.md`
+- `agent-system/lessons-learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Updated:**
+- `agent-system/agent-info.md`
+
+**README Status:**
+Current. Key Features already describes AI extinguisher lists and report/export outputs with asset, serial, location, section, and vicinity details.
+
+**TODO Status:**
+No `TODO.md` file was present, so no TODO/roadmap update was needed.
+
+**Website / Marketing Page Status:**
+Current. Public home, features, how-it-works, FAQ, and getting-started copy already include the finder-field detail where relevant.
+
+**FAQ / Getting Started Status:**
+Current. In-app FAQ, in-app Getting Started, public FAQ, and public Getting Started already describe report finder fields and AI inventory-list context accurately.
+
+**Documentation Still Needed:**
+No documentation gap found for the user-facing change. Residual non-doc test gap remains from Review: report CSV/PDF/JSON artifact finder-field output and legacy regeneration do not have direct tests.
+
+## 2026-05-04 11:35 CT - Document Mode Recheck
+
+**Task:**
+Rechecked documentation for Finder Fields Everywhere after Review verdict ACCEPTED WITH MINOR CONCERNS.
+
+**Feature / Change Documented:**
+Report and AI extinguisher list outputs include finder fields for listed extinguishers: `assetId`, serial number, `parentLocation` / `locationName`, section, and vicinity.
+
+**Files Inspected:**
+- `functions/src/reports/finderFields.ts`
+- `functions/src/workspaces/archiveWorkspace.ts`
+- `functions/src/reports/generateReport.ts`
+- `functions/src/reports/pdfGenerator.ts`
+- `functions/src/ai/queryAiMemory.ts`
+- `src/services/aiService.ts`
+- `src/types/aiQuery.ts`
+- `src/types/report.ts`
+- `src/services/aiService.test.ts`
+- `functions/src/__tests__/queryAiMemory.test.ts`
+- `BUILD-SPECS/08-REPORTS-EXPORTS_UPDATED.md`
+- `README.md`
+- `src/pages/Reports.tsx`
+- `src/pages/FaqPage.tsx`
+- `src/pages/GettingStarted.tsx`
+- `src/pages/marketing/MarketingHomePage.tsx`
+- `src/pages/marketing/MarketingFeaturesPage.tsx`
+- `src/pages/marketing/MarketingHowItWorksPage.tsx`
+- `src/pages/marketing/MarketingFaqPage.tsx`
+- `src/pages/marketing/MarketingGettingStartedPage.tsx`
+- `src/lib/aiKnowledgeBase.ts`
+- `agent-system/agents-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/lessons-learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Updated:**
+- `agent-system/agent-info.md`
+
+**README Status:**
+Current. Key Features already describes AI extinguisher lists and report/export outputs with asset, serial, location, section, and vicinity details.
+
+**TODO Status:**
+No `TODO.md` file exists, so no TODO/roadmap update was needed.
+
+**Website / Marketing Page Status:**
+Current. Public home, features, how-it-works, FAQ, and getting-started copy already mention finder-field details where relevant.
+
+**FAQ / Getting Started Status:**
+Current. In-app FAQ, in-app Getting Started, public FAQ, public Getting Started, and AI knowledge-base guidance already describe report finder fields and AI inventory-list context accurately.
+
+**Documentation Still Needed:**
+None for this user-facing change. Residual non-doc test gap remains from Review: report CSV/PDF/JSON artifact finder-field output and legacy report regeneration do not have direct tests.
+
+**PBRD Documentation Gate:**
+Complete. No plan file was edited.
+
+## 2026-05-04 - AI Photo Questions Build/Review/Document
+
+**PBR Stage / Gate Status:**
+Build executed from the approved attached AI Photo Questions plan. Gate A satisfied before edits. Review verdict: ACCEPTED. Document pass completed for the user-visible AI photo capability.
+
+**Summary:**
+Added Pro+ AI Assistant support for one temporary camera/upload photo question. The selected image is validated as JPEG, PNG, or WebP, capped at 4 MB, previewed locally, sent to Gemini as inline multimodal data with the user's question, and not uploaded to Firebase Storage or written to Firestore. Text-only deterministic AI memory behavior remains unchanged.
+
+**Files Changed:**
+- `src/services/aiService.ts`
+- `src/components/ai/AiAssistantPanel.tsx`
+- `src/components/layout/DashboardLayout.tsx`
+- `src/services/aiService.test.ts`
+- `README.md`
+- `src/pages/FaqPage.tsx`
+- `src/pages/GettingStarted.tsx`
+- `src/pages/marketing/MarketingHomePage.tsx`
+- `src/pages/marketing/MarketingFeaturesPage.tsx`
+- `src/pages/marketing/PrivacyPage.tsx`
+
+**Plan Compliance:**
+- Extended `AiMessage` with optional image attachments and sends latest user image attachments as Gemini `inlineData`.
+- Skips deterministic Firestore-backed AI memory routing when an image is attached.
+- Added temporary photo pick/change/remove UI inside `AiAssistantPanel`.
+- Fixed AI panel gating to use `hasFeature(org?.featureFlags, 'aiAssistant', org?.plan)` so plan fallback works when feature flags are absent.
+- Reused the existing `aiAssistant` Pro+ feature flag; no new plan flag was added.
+
+**Validation Results:**
+- `pnpm test -- src/services/aiService.test.ts`: pass, 2 tests.
+- `pnpm build`: pass.
+- `pnpm lint`: pass.
+- Formatter: no repo formatter script exists, so no formatter command was run.
+
+**Review Notes:**
+No image persistence path was added. Images live only in React state/chat memory as base64 attachments and are sent directly to Gemini for the current question. Basic plan users remain gated out of the global AI Assistant entry point by plan config.
+
+**Diagnostics / Residual Warnings:**
+IDE diagnostics still show a browser-support warning for `input[capture]`, which is intentional to support mobile camera capture. Existing README markdown style warnings remain unrelated to this change.
+
+## 2026-05-04 - AI Photo Camera/File Split Fix
+
+**PBR Stage / Gate Status:**
+Focused Build/Review correction to the approved AI Photo Questions feature after live testing showed the camera icon opened the file explorer instead of a live camera preview. Plan Mode was requested for the camera-permission behavior change and declined, so the patch stayed narrowly scoped to `AiAssistantPanel`.
+
+**Summary:**
+Separated AI photo controls into a real camera button and a folder upload button. The camera button now calls `navigator.mediaDevices.getUserMedia`, requests browser camera permission, shows a temporary live preview, and captures a JPEG into the same temporary AI attachment path. The folder button opens the file picker only. Camera streams are stopped on cancel, capture, or panel close.
+
+**Files Changed:**
+- `src/components/ai/AiAssistantPanel.tsx`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+
+**Validation Results:**
+- `pnpm test -- src/services/aiService.test.ts`: pass, 2 tests.
+- `pnpm build`: pass.
+- `pnpm lint`: pass.
+- `ReadLints` for `AiAssistantPanel`: no diagnostics.
+- `firebase deploy --only hosting`: pass, deployed to production Hosting.
+
+**Review Notes:**
+No persistence paths were added. Captured and uploaded images remain temporary React state/base64 chat attachments for Gemini vision only.
+
+## 2026-05-07 - Fix Replaced Count + Monthly Stats
+
+**Root cause fixed:** Dashboard 'Replaced' card counted extinguishers with lifecycleStatus==='replaced' (legacy records). The current replaceExtinguisher Cloud Function keeps the ext active and writes to replacementHistory subcollection, so new replacements were invisible to the counter.
+
+**Files changed:** src/pages/Dashboard.tsx, src/pages/ReplacedExtinguishers.tsx
+
+**Dashboard.tsx:** Added real-time onSnapshot listeners on collectionGroup('replacementHistory') filtered by orgId — one for current-month count, one for all-time total. Card shows 'Replaced This Month' + 'X all time' subtext. Navigates to /dashboard/replaced-extinguishers.
+
+**ReplacedExtinguishers.tsx:** Added stats bar (This Month / Last Month / All Time / Awaiting Disposition), monthly grouping via toMonthKey/monthGroups, collapsed by default with current month auto-expanded. Build + lint pass.
+
+## 2026-05-07 - WorkspaceDetail Debugger Diagnostics Verification
+
+**PBR Stage / Gate Status:**
+Build executed from the approved attached `Fix Errors In extinguisher-tracker-3` plan. Gate A satisfied before edits. Review verdict: ACCEPTED. Document pass completed for the narrow debugger-diagnostics cleanup.
+
+**Summary:**
+Verified the planned Microsoft Edge Tools accessibility/style diagnostics in `src/pages/WorkspaceDetail.tsx` are fixed. The file now has accessible names for the affected selects, an accessible clear-search icon button, and progress bar rendering without inline width styles.
+
+**Files Inspected:**
+- `src/pages/WorkspaceDetail.tsx`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Changed:**
+- `agent-system/agent-info.md`
+
+**Plan Compliance:**
+- Confirmed `ReadLints` is clean for `src/pages/WorkspaceDetail.tsx`.
+- Confirmed the planned accessibility/style changes are present.
+- Did not edit the attached plan file.
+- No functions code or business logic was touched.
+
+**Validation Results:**
+- `ReadLints` for `src/pages/WorkspaceDetail.tsx`: pass, no diagnostics.
+- `pnpm lint`: pass.
+- `pnpm build`: pass.
+- `pnpm test`: pass, 86 tests.
+- Formatter: no repo formatter script exists, so no formatter command was run.
+
+**Review Verdict:**
+ACCEPTED
+
+**Documentation Notes:**
+No README, FAQ, marketing, or roadmap update was needed because this was an internal debugger/accessibility cleanup with no user-facing workflow change.
+
+## 2026-05-07 - Unify List Sources Build/Review/Document
+
+**PBR Stage / Gate Status:**
+Build executed from the approved `Unify List Sources` plan (`unify_list_sources_ea46dba6.plan.md`). Gate A satisfied before edits. Review verdict: ACCEPTED WITH MINOR CONCERNS. Document pass completed.
+
+**Summary:**
+Made monthly checklist lists/counts derive from real `org/{orgId}/inspections` rows everywhere a workspace is shown as active, while keeping inventory and replacement history as separate domain lists. Added a shared monthly snapshot helper, removed `workspace.stats` as the UI truth source for active workspaces, separated replacement-history counts from monthly checked counts, and patched two backend lifecycle paths so stored stats stay consistent when extinguishers are retired or soft-deleted.
+
+**Files Changed:**
+- `src/utils/monthlyWorkspaceInspectionSnapshot.ts` (new)
+- `src/utils/workspaceInspectionStats.ts`
+- `src/utils/workspaceInspectionStats.test.ts`
+- `src/components/workspace/WorkspaceInspectionSummaryCards.tsx`
+- `src/components/workspace/WorkspaceInspectionScopeCards.tsx`
+- `src/components/workspace/SectionTimer.tsx`
+- `src/components/layout/WorkspaceSwitcher.tsx`
+- `src/pages/Dashboard.tsx`
+- `src/pages/Workspaces.tsx`
+- `src/pages/Inventory.tsx`
+- `src/pages/WorkspaceDetail.tsx`
+- `functions/src/lifecycle/retireExtinguisher.ts`
+- `functions/src/lifecycle/onExtinguisherSoftDeleted.ts`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Plan Compliance:**
+- Source-of-truth contract enforced: monthly checklist UI (Dashboard, Workspaces active cards, Workspace summary cards, Inventory monthly status cards, WorkspaceDetail) reads the shared `buildMonthlyWorkspaceInspectionSnapshot` view over real inspection rows.
+- Inventory lists/counts still come from active inventory; replacement-history counts still come from `replacementHistory`.
+- WorkspaceDetail "Replaced" now means inspection rows with `status === 'replaced'`. Lifecycle replacement history remains on Dashboard "Replaced" and the ReplacedExtinguishers page.
+- `filterRowsByStatusList` no longer rolls inspection `status: 'replaced'` into the "checked" bucket.
+- Backend `retireExtinguisher` and `onExtinguisherSoftDeleted` decrement `stats.passed/failed/pending/replaced` correctly when removing inspection rows from active workspaces, guarded by stored field presence.
+- `WorkspaceDetail` timer reset props are matched by `SectionTimer` so the committed release revision builds independently.
+- Plan file was not edited.
+
+**Validation Results:**
+- `ReadLints` on changed files: pass except an intentional Microsoft Edge Tools support warning for `input[type="month"]` after restoring the native month picker on `Workspaces.tsx`.
+- `pnpm lint`: pass.
+- `pnpm build`: pass.
+- `pnpm test`: pass, 10 test files, 89 tests (includes new monthly source-of-truth assertions in `workspaceInspectionStats.test.ts`).
+- `functions` `npm run lint`: pass.
+- `functions` `npm run build`: pass.
+- `functions` `npm run test`: pass, 11 suites, 45 tests.
+
+**Review Verdict:**
+ACCEPTED WITH MINOR CONCERNS.
+
+**Documentation Notes:**
+No README, FAQ, marketing, or Getting Started copy claimed Workspace "Replaced" meant lifecycle replacement history, so no public copy update was required. FAQ and Getting Started already describe Replace Extinguisher and the Replaced Extinguishers page accurately. No `TODO.md` exists in this project, so no roadmap file change was needed. Lessons and error log were updated for the source-of-truth drift fix.
+
+## 2026-05-07 - Timer Controls, Query Speed, And Review Findings
+
+**PBR Stage / Gate Status:**
+Build executed from the approved attached `Fix Timer, Query Speed, and Review Findings` plan. Gate A satisfied before edits. Review verdict: ACCEPTED after one required revision. Document pass completed with README feature copy updated.
+
+**Summary:**
+Fixed the section timer so stale restored timers are stopped immediately, elapsed time is capped, reset controls are visible in the workspace timer UI, and timer keys stay aligned with location-based auto-start behavior. Reduced duplicate workspace summary listeners on Inventory and Workspaces by allowing parent-provided data. Hardened Inventory preferences/search and scanner lookup completeness. Hardened active organization consistency when memberships change.
+
+**Files Inspected:**
+- `src/hooks/useSectionTimer.ts`
+- `src/components/workspace/SectionTimer.tsx`
+- `src/components/workspace/WorkspaceInspectionSummaryCards.tsx`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/pages/Inventory.tsx`
+- `src/pages/Workspaces.tsx`
+- `src/services/extinguisherService.ts`
+- `src/contexts/OrgContext.tsx`
+- `src/components/guards/ProtectedRoute.tsx`
+- `src/components/guards/RootRedirect.tsx`
+- `README.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Changed:**
+- `src/hooks/useSectionTimer.ts`
+- `src/hooks/useSectionTimer.test.ts` (new)
+- `src/components/workspace/SectionTimer.tsx`
+- `src/components/workspace/WorkspaceInspectionSummaryCards.tsx`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/pages/Inventory.tsx`
+- `src/pages/Workspaces.tsx`
+- `src/services/extinguisherService.ts`
+- `src/contexts/OrgContext.tsx`
+- `src/components/guards/ProtectedRoute.tsx`
+- `src/components/guards/RootRedirect.tsx`
+- `README.md`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Validation Results:**
+- `ReadLints` on edited source files: pass, except known Microsoft Edge Tools warning for native `input[type="month"]` in `Workspaces.tsx`.
+- `pnpm test -- src/hooks/useSectionTimer.test.ts`: pass, 4 tests.
+- `pnpm lint`: pass.
+- `pnpm build`: pass, with existing large chunk warning.
+- `pnpm test`: pass, 11 test files / 93 tests.
+- Formatter: no repo formatter script exists, so no formatter command was run.
+
+**Review Verdict:**
+ACCEPTED. Initial review was REVISION REQUIRED because the Workspaces summary card used search-filtered active workspaces after listener deduplication; fixed by separating unfiltered summary scope from filtered list scope, reran validation, and follow-up review accepted.
+
+**Documentation Notes:**
+Updated `README.md` Key Features copy from "Section Auto Timer" to "Section Timer Controls" to reflect manual start, stop, reset, and forgotten-timer safeguards. No TODO/roadmap file exists.
+
+**Lessons / Error Log:**
+Added a lesson and resolved error-log entry: parent-provided data refactors must preserve the child component's original data scope separately from UI search/filter scope.

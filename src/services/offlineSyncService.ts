@@ -1,5 +1,5 @@
 /**
- * Offline sync engine for EX3.
+ * Offline sync engine for ExtinguisherTracker.
  *
  * Manages the write queue for offline inspection saves.
  * When connectivity returns, processQueue() sends queued inspections

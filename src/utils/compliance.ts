@@ -1,5 +1,5 @@
 /**
- * Compliance status utilities for EX3 frontend.
+ * Compliance status utilities for ExtinguisherTracker frontend.
  * Pure helper functions for labels, colors, and date formatting.
  *
  * Author: built_by_Beck

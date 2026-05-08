@@ -1,5 +1,5 @@
 /**
- * Report service for EX3.
+ * Report service for ExtinguisherTracker.
  * Provides read access to workspace compliance reports and triggers on-demand report generation.
  *
  * Author: built_by_Beck
@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../lib/firebase.ts';
-import type { Report, ReportFormat } from '../types/report.ts';
+import type { Report, ReportFormat, ReportGenerationOptions } from '../types/report.ts';
 
 function reportsRef(orgId: string) {
   return collection(db, 'org', orgId, 'reports');
@@ -59,12 +59,13 @@ export async function generateReportDownload(
   orgId: string,
   workspaceId: string,
   format: ReportFormat,
+  options?: ReportGenerationOptions,
 ): Promise<{ downloadUrl: string }> {
   const fn = httpsCallable<
-    { orgId: string; workspaceId: string; format: ReportFormat },
+    { orgId: string; workspaceId: string; format: ReportFormat; options?: ReportGenerationOptions },
     { downloadUrl: string; reportId: string }
   >(functions, 'generateReport');
 
-  const result = await fn({ orgId, workspaceId, format });
+  const result = await fn({ orgId, workspaceId, format, options });
   return { downloadUrl: result.data.downloadUrl };
 }

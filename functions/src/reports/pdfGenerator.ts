@@ -1,5 +1,5 @@
 /**
- * PDF report generator for EX3 compliance inspection reports.
+ * PDF report generator for ExtinguisherTracker compliance inspection reports.
  * Uses pdfmake v0.3.x to produce a formatted PDF with header, summary stats, and results table.
  *
  * Author: built_by_Beck
@@ -17,7 +17,11 @@ const FONTS_PATH = path.join(pdfmakeDir, 'fonts', 'Roboto');
 
 export interface ReportResultRow {
   assetId: string;
+  serial: string;
+  parentLocation: string;
+  locationName: string;
   section: string;
+  vicinity: string;
   status: string;
   inspectedAt: string;
   inspectedBy: string;
@@ -30,6 +34,10 @@ export interface ReportPDFData {
   label: string;
   monthYear: string;
   generatedAt: Date;
+  criteria?: {
+    scope: string;
+    sortBy: string;
+  };
   stats: {
     total: number;
     passed: number;
@@ -44,8 +52,7 @@ export interface ReportPDFData {
  * Returns the PDF as a Buffer.
  */
 export async function generateInspectionReportPDF(data: ReportPDFData): Promise<Buffer> {
-  const pdfmake = new PdfMake();
-  pdfmake.addFonts({
+  PdfMake.addFonts({
     Roboto: {
       normal: path.join(FONTS_PATH, 'Roboto-Regular.ttf'),
       bold: path.join(FONTS_PATH, 'Roboto-Medium.ttf'),
@@ -67,31 +74,42 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
     minute: '2-digit',
     timeZoneName: 'short',
   });
+  const displayLocation = (row: ReportResultRow) => row.parentLocation || row.locationName || '--';
+  const criteriaText = data.criteria
+    ? `Scope: ${data.criteria.scope.replace(/_/g, ' ')} | Sorted by: ${data.criteria.sortBy}`
+    : null;
 
   // Table rows: header row + data rows
   const tableHeaderRow: ContentText[] = [
-    { text: 'Asset ID', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
-    { text: 'Section', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
-    { text: 'Status', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
-    { text: 'Inspected At', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
-    { text: 'Inspected By', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
-    { text: 'Notes', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 9, margin: [4, 4, 4, 4] },
+    { text: 'Asset Number', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Serial Number', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Location', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Section', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Vicinity', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Status', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Inspected At', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Inspected By', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    { text: 'Notes', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
   ];
 
   const tableDataRows: ContentText[][] = data.results.map((r) => [
-    { text: r.assetId || '--', fontSize: 9, margin: [4, 3, 4, 3] },
-    { text: r.section || '--', fontSize: 9, margin: [4, 3, 4, 3] },
-    { text: r.status || '--', fontSize: 9, margin: [4, 3, 4, 3] },
-    { text: r.inspectedAt || '--', fontSize: 9, margin: [4, 3, 4, 3] },
-    { text: r.inspectedBy || '--', fontSize: 9, margin: [4, 3, 4, 3] },
+    { text: r.assetId || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.serial || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: displayLocation(r), fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.section || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.vicinity || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.status || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.inspectedAt || '--', fontSize: 8, margin: [3, 3, 3, 3] },
+    { text: r.inspectedBy || '--', fontSize: 8, margin: [3, 3, 3, 3] },
     {
       text: r.notes ? (r.notes.length > 60 ? r.notes.slice(0, 57) + '...' : r.notes) : '--',
-      fontSize: 9,
-      margin: [4, 3, 4, 3],
+      fontSize: 8,
+      margin: [3, 3, 3, 3],
     },
   ]);
 
   const docDefinition: DocumentDefinition = {
+    pageOrientation: 'landscape',
     pageMargins: [40, 60, 40, 60],
     defaultStyle: { font: 'Roboto', fontSize: 10 },
     styles: {
@@ -103,7 +121,7 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
     },
     content: [
       // Title
-      { text: 'EX3 Compliance Report', style: 'reportTitle' } as ContentText,
+      { text: 'ExtinguisherTracker Compliance Report', style: 'reportTitle' } as ContentText,
       { text: data.orgName, style: 'subheader' } as ContentText,
       {
         text: `Workspace: ${data.label} (${data.monthYear})`,
@@ -115,8 +133,18 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
         text: `Generated: ${formattedDate}`,
         fontSize: 9,
         color: '#7F8C8D',
-        margin: [0, 0, 0, 16] as [number, number, number, number],
+        margin: [0, 0, 0, criteriaText ? 4 : 16] as [number, number, number, number],
       } as ContentText,
+      ...(criteriaText
+        ? [
+            {
+              text: criteriaText,
+              fontSize: 9,
+              color: '#7F8C8D',
+              margin: [0, 0, 0, 16] as [number, number, number, number],
+            } as ContentText,
+          ]
+        : []),
 
       // Summary section title
       { text: 'Inspection Summary', style: 'sectionTitle' } as ContentText,
@@ -172,7 +200,7 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
             {
               table: {
                 headerRows: 1,
-                widths: ['auto', 'auto', 'auto', 'auto', '*', '*'] as (string | number)[],
+                widths: ['auto', 'auto', '*', '*', '*', 'auto', 'auto', '*', '*'] as (string | number)[],
                 body: [tableHeaderRow, ...tableDataRows],
               },
               layout: 'lightHorizontalLines',
@@ -192,7 +220,7 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
       void currentPage;
       void pageCount;
       return {
-        text: 'Generated by Extinguisher Tracker 3 (EX3) — NFPA 10 Compliance Platform',
+        text: 'Generated by ExtinguisherTracker — NFPA 10 Compliance Platform',
         style: 'footerText',
         alignment: 'center',
         margin: [40, 10, 40, 0] as [number, number, number, number],
@@ -200,6 +228,6 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
     },
   };
 
-  const pdfDoc = pdfmake.createPdf(docDefinition);
+  const pdfDoc = PdfMake.createPdf(docDefinition);
   return pdfDoc.getBuffer();
 }

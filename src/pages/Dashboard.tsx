@@ -1,5 +1,5 @@
 /**
- * Dashboard page for EX3.
+ * Dashboard page for ExtinguisherTracker.
  * Shows stat cards, compliance overview, quick actions, and admin overview.
  *
  * Author: built_by_Beck
@@ -27,9 +27,11 @@ import {
 } from 'lucide-react';
 import {
   collection,
+  collectionGroup,
   query,
   where,
   onSnapshot,
+  Timestamp,
 } from 'firebase/firestore';
 import { db, functions } from '../lib/firebase.ts';
 import { httpsCallable } from 'firebase/functions';
@@ -47,12 +49,11 @@ import {
 } from '../services/extinguisherService.ts';
 import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
 import { subscribeToLocations, type Location } from '../services/locationService.ts';
+import { getSupersededExtinguisherIds } from '../utils/workspaceInspectionStats.ts';
 import {
-  buildLocationStatsMap,
-  detectHasLocationIdData,
-  getSupersededExtinguisherIds,
-  sumAllBucketStats,
-} from '../utils/workspaceInspectionStats.ts';
+  buildMonthlyWorkspaceInspectionSnapshot,
+  getMonthlyCheckedCount,
+} from '../utils/monthlyWorkspaceInspectionSnapshot.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 import { AiUpgradeCard } from '../components/ai/AiUpgradeCard.tsx';
 
@@ -122,6 +123,8 @@ export default function Dashboard() {
   const [dashLocations, setDashLocations] = useState<Location[]>([]);
   const [cleaningUp, setCleaningUp] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<string | null>(null);
+  const [currentMonthReplacedCount, setCurrentMonthReplacedCount] = useState(0);
+  const [totalReplacedCount, setTotalReplacedCount] = useState(0);
 
   // Real-time extinguisher count + compliance data
   useEffect(() => {
@@ -178,6 +181,27 @@ export default function Dashboard() {
     return subscribeToLocations(orgId, setDashLocations);
   }, [orgId]);
 
+  // Replacement history counts — current month (resets on 1st) and all-time total
+  useEffect(() => {
+    if (!orgId) return;
+    const now = new Date();
+    const firstOfMonth = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), 1));
+
+    const monthQ = query(
+      collectionGroup(db, 'replacementHistory'),
+      where('orgId', '==', orgId),
+      where('replacedAt', '>=', firstOfMonth),
+    );
+    const totalQ = query(
+      collectionGroup(db, 'replacementHistory'),
+      where('orgId', '==', orgId),
+    );
+
+    const unsubMonth = onSnapshot(monthQ, (snap) => setCurrentMonthReplacedCount(snap.size));
+    const unsubTotal = onSnapshot(totalQ, (snap) => setTotalReplacedCount(snap.size));
+    return () => { unsubMonth(); unsubTotal(); };
+  }, [orgId]);
+
   useEffect(() => {
     if (!orgId || !activeWorkspace?.id) {
       setDashInspections([]);
@@ -187,22 +211,15 @@ export default function Dashboard() {
   }, [orgId, activeWorkspace?.id]);
 
   const inspectionScopeStats = useMemo(() => {
-    if (!activeWorkspace?.id) {
-      return { total: 0, passed: 0, failed: 0, pending: 0, replaced: 0, percentage: 0 };
-    }
-    const hasLocationIdData = detectHasLocationIdData(dashInspections, allExtinguishers);
-    const map = buildLocationStatsMap({
+    return buildMonthlyWorkspaceInspectionSnapshot({
+      workspaceId: activeWorkspace?.id,
       inspections: dashInspections,
       extinguishers: allExtinguishers,
       locations: dashLocations,
-      isArchived: false,
-      hasLocationIdData,
-    });
-    return sumAllBucketStats(map);
+    }).stats;
   }, [activeWorkspace?.id, dashInspections, allExtinguishers, dashLocations]);
 
-  const checkedInspectionCount =
-    inspectionScopeStats.passed + inspectionScopeStats.failed + (inspectionScopeStats.replaced ?? 0);
+  const checkedInspectionCount = getMonthlyCheckedCount(inspectionScopeStats);
 
   /** Maintenance schedule (NFPA-style `complianceStatus`), not monthly inspection pass/fail. */
   const maintenanceScheduleCompliantCount = useMemo(() => {
@@ -217,10 +234,6 @@ export default function Dashboard() {
 
   // Category counts
   const spareCount = allExtinguishers.filter((e) => e.category === 'spare').length;
-  // "Replaced" is lifecycle-driven; keep category fallback for older records.
-  const replacedCount = allExtinguishers.filter(
-    (e) => e.lifecycleStatus === 'replaced' || e.category === 'replaced',
-  ).length;
 
   // Expiration counts
   const thisYear = new Date().getFullYear();
@@ -268,24 +281,6 @@ export default function Dashboard() {
             className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
           >
             Choose a Plan
-          </button>
-        </div>
-      )}
-
-      {hasPlan && org?.subscriptionStatus === 'past_due' && (
-        <div className="mb-6 flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-orange-600" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-orange-800">Payment past due</p>
-            <p className="text-sm text-orange-700">
-              Please update your payment method to avoid service interruption.
-            </p>
-          </div>
-          <button
-            onClick={() => navigate('/dashboard/settings')}
-            className="rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
-          >
-            Manage Billing
           </button>
         </div>
       )}
@@ -481,13 +476,14 @@ export default function Dashboard() {
               </div>
             </button>
             <button
-              onClick={() => navigate('/dashboard/inventory?category=replaced')}
+              onClick={() => navigate('/dashboard/replaced-extinguishers')}
               className="flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-left hover:bg-orange-100"
             >
               <RefreshCw className="h-5 w-5 shrink-0 text-orange-600" />
               <div>
-                <p className="text-lg font-bold text-orange-700">{replacedCount}</p>
+                <p className="text-lg font-bold text-orange-700">{totalReplacedCount}</p>
                 <p className="text-xs text-orange-600">Replaced</p>
+                <p className="text-xs text-orange-400">{currentMonthReplacedCount} this month</p>
               </div>
             </button>
             <button

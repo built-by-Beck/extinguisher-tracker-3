@@ -1,5 +1,5 @@
 /**
- * Notification types for EX3.
+ * Notification types for ExtinguisherTracker.
  * Matches the schema in BUILD-SPECS/03 and BUILD-SPECS/20.
  *
  * Author: built_by_Beck

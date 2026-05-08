@@ -101,7 +101,7 @@ export function parseAndValidateBackup(jsonText: string): ValidationResult {
 }
 
 /**
- * Map a BackupExtinguisher to EX3's Extinguisher shape.
+ * Map a BackupExtinguisher to ExtinguisherTracker's Extinguisher shape.
  */
 export function mapToExtinguisher(
   item: BackupExtinguisher,

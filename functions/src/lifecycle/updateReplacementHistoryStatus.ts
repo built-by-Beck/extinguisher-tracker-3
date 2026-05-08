@@ -62,18 +62,6 @@ function isInventoryActive(data: DocumentData): boolean {
   return ls === 'active' || ls == null || ls === '';
 }
 
-function replacementMillis(row: Record<string, unknown>): number {
-  const replacedAt = row.replacedAt;
-  if (
-    typeof replacedAt === 'object' &&
-    replacedAt !== null &&
-    'toMillis' in replacedAt &&
-    typeof replacedAt.toMillis === 'function'
-  ) {
-    return replacedAt.toMillis();
-  }
-  return 0;
-}
 
 async function assertNoActiveConflict(
   tx: FirebaseFirestore.Transaction,
@@ -254,13 +242,17 @@ export const listReplacementHistory = onCall(async (request) => {
 
   await validateMembership(normalizedOrgId, uid, ['owner', 'admin', 'inspector', 'viewer']);
 
-  const snap = await adminDb.collectionGroup('replacementHistory').where('orgId', '==', normalizedOrgId).limit(500).get();
-  const rows: Array<Record<string, unknown> & { id: string }> = snap.docs
-    .map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as Record<string, unknown>),
-      }))
-    .sort((a, b) => replacementMillis(b) - replacementMillis(a));
+  const snap = await adminDb
+    .collectionGroup('replacementHistory')
+    .where('orgId', '==', normalizedOrgId)
+    .orderBy('replacedAt', 'desc')
+    .limit(500)
+    .get();
+
+  const rows: Array<Record<string, unknown> & { id: string }> = snap.docs.map((doc) => ({
+    id: doc.id,
+    ...(doc.data() as Record<string, unknown>),
+  }));
 
   return { rows };
 });

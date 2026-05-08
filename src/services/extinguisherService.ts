@@ -506,7 +506,7 @@ export async function findExtinguisherByCode(
   }
 
   for (const field of fields) {
-    const q = query(colRef, where('deletedAt', '==', null), where(field, '==', code), limit(12));
+    const q = query(colRef, where('deletedAt', '==', null), where(field, '==', code));
     const snap = await getDocs(q);
     const hit = snap.docs.find((d) => isInventoryActiveRecord(d.data() as Record<string, unknown>));
     if (hit) {

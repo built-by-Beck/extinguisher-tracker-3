@@ -20,6 +20,13 @@ import { getStorage } from 'firebase-admin/storage';
 import { FieldValue } from 'firebase-admin/firestore';
 import { generateInspectionReportPDF } from './pdfGenerator.js';
 import type { ReportResultRow } from './pdfGenerator.js';
+import { enrichFinderFields, hasFinderFields } from './finderFields.js';
+import {
+  applyReportOptions,
+  parseReportOptions,
+  reportOptionsStorageSuffix,
+  type ReportGenerationOptions,
+} from './reportOptions.js';
 
 type ReportFormat = 'csv' | 'pdf' | 'json';
 
@@ -65,8 +72,18 @@ interface ReportDocData {
 }
 
 interface ReportResultFirestore {
+  extinguisherId: string;
   assetId: string;
+  serial: string;
+  parentLocation: string;
+  locationName: string;
   section: string;
+  vicinity: string;
+  manufactureYear: number | null;
+  expirationYear: number | null;
+  isExpired: boolean;
+  lifecycleStatus: string | null;
+  complianceStatus: string | null;
   status: string;
   inspectedAt: unknown;
   inspectedBy: string | null;
@@ -75,17 +92,95 @@ interface ReportResultFirestore {
   checklistData: Record<string, string> | null;
 }
 
+function selectReportRows(reportData: ReportDocData, options: ReportGenerationOptions | null) {
+  const allResults = reportData.results ?? [];
+
+  if (!options) {
+    return {
+      results: allResults,
+      stats: {
+        totalExtinguishers: reportData.totalExtinguishers,
+        passedCount: reportData.passedCount,
+        failedCount: reportData.failedCount,
+        pendingCount: reportData.pendingCount,
+      },
+      criteria: {
+        scope: 'full',
+        sortBy: 'original',
+      },
+    };
+  }
+
+  const selected = applyReportOptions(allResults, options);
+  return {
+    results: selected.rows,
+    stats: selected.stats,
+    criteria: options,
+  };
+}
+
+async function buildReportResultsFromInspections(orgId: string, workspaceId: string) {
+  const inspSnap = await adminDb
+    .collection(`org/${orgId}/inspections`)
+    .where('workspaceId', '==', workspaceId)
+    .get();
+
+  let passed = 0;
+  let failed = 0;
+  let pending = 0;
+  const results: ReportResultFirestore[] = [];
+
+  inspSnap.forEach((d) => {
+    const data = d.data();
+    const status = data.status as string;
+    if (status === 'pass') passed++;
+    else if (status === 'fail') failed++;
+    else pending++;
+
+    results.push({
+      extinguisherId: data.extinguisherId ?? '',
+      assetId: data.assetId ?? '',
+      serial: data.serial ?? '',
+      parentLocation: data.parentLocation ?? '',
+      locationName: data.locationName ?? '',
+      section: data.section ?? '',
+      vicinity: data.vicinity ?? '',
+      manufactureYear: typeof data.manufactureYear === 'number' ? data.manufactureYear : null,
+      expirationYear: typeof data.expirationYear === 'number' ? data.expirationYear : null,
+      isExpired: data.isExpired === true,
+      lifecycleStatus: typeof data.lifecycleStatus === 'string' ? data.lifecycleStatus : null,
+      complianceStatus: typeof data.complianceStatus === 'string' ? data.complianceStatus : null,
+      status: data.status ?? 'pending',
+      inspectedAt: data.inspectedAt ?? null,
+      inspectedBy: data.inspectedBy ?? null,
+      inspectedByEmail: data.inspectedByEmail ?? null,
+      notes: data.notes ?? '',
+      checklistData: data.checklistData ?? null,
+    });
+  });
+
+  return {
+    totalExtinguishers: inspSnap.size,
+    passedCount: passed,
+    failedCount: failed,
+    pendingCount: pending,
+    results: await enrichFinderFields(orgId, results),
+  };
+}
+
 export const generateReport = onCall(async (request) => {
   const { uid } = validateAuth(request);
-  const { orgId, workspaceId, format } = request.data as {
+  const { orgId, workspaceId, format, options: rawOptions } = request.data as {
     orgId: string;
     workspaceId: string;
     format: unknown;
+    options?: unknown;
   };
 
   if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
   if (!workspaceId || typeof workspaceId !== 'string') throwInvalidArgument('workspaceId is required.');
   if (!isValidFormat(format)) throwInvalidArgument('format must be one of: csv, pdf, json.');
+  const options = rawOptions === undefined ? null : parseReportOptions(rawOptions);
 
   // Any active member can generate/download reports
   const member = await validateMembership(orgId, uid, ['owner', 'admin', 'inspector', 'viewer']);
@@ -102,34 +197,7 @@ export const generateReport = onCall(async (request) => {
 
   if (!reportSnap.exists) {
     // Build results array from inspections (on-demand for workspaces archived before Phase 5)
-    const inspSnap = await adminDb
-      .collection(`org/${orgId}/inspections`)
-      .where('workspaceId', '==', workspaceId)
-      .get();
-
-    let passed = 0;
-    let failed = 0;
-    let pending = 0;
-    const results: ReportResultFirestore[] = [];
-
-    inspSnap.forEach((d) => {
-      const data = d.data();
-      const status = data.status as string;
-      if (status === 'pass') passed++;
-      else if (status === 'fail') failed++;
-      else pending++;
-
-      results.push({
-        assetId: data.assetId ?? '',
-        section: data.section ?? '',
-        status: data.status ?? 'pending',
-        inspectedAt: data.inspectedAt ?? null,
-        inspectedBy: data.inspectedBy ?? null,
-        inspectedByEmail: data.inspectedByEmail ?? null,
-        notes: data.notes ?? '',
-        checklistData: data.checklistData ?? null,
-      });
-    });
+    const snapshot = await buildReportResultsFromInspections(orgId, workspaceId);
 
     const newReportDoc: ReportDocData & {
       archivedAt: unknown;
@@ -142,11 +210,11 @@ export const generateReport = onCall(async (request) => {
       label: wsData.label ?? '',
       archivedAt: wsData.archivedAt ?? null,
       archivedBy: wsData.archivedBy ?? uid,
-      totalExtinguishers: inspSnap.size,
-      passedCount: passed,
-      failedCount: failed,
-      pendingCount: pending,
-      results,
+      totalExtinguishers: snapshot.totalExtinguishers,
+      passedCount: snapshot.passedCount,
+      failedCount: snapshot.failedCount,
+      pendingCount: snapshot.pendingCount,
+      results: snapshot.results,
       csvDownloadUrl: null,
       csvFilePath: null,
       pdfDownloadUrl: null,
@@ -161,16 +229,51 @@ export const generateReport = onCall(async (request) => {
     reportSnap = await reportRef.get();
   }
 
-  const reportData = reportSnap.data() as ReportDocData;
+  let reportData = reportSnap.data() as ReportDocData;
+  let forceRegenerate = false;
+  if (!hasFinderFields(reportData.results)) {
+    const snapshot = await buildReportResultsFromInspections(orgId, workspaceId);
+    await reportRef.update({
+      totalExtinguishers: snapshot.totalExtinguishers,
+      passedCount: snapshot.passedCount,
+      failedCount: snapshot.failedCount,
+      pendingCount: snapshot.pendingCount,
+      results: snapshot.results,
+      csvDownloadUrl: null,
+      csvFilePath: null,
+      pdfDownloadUrl: null,
+      pdfFilePath: null,
+      jsonDownloadUrl: null,
+      jsonFilePath: null,
+      generatedAt: FieldValue.serverTimestamp(),
+    });
+    reportData = {
+      ...reportData,
+      totalExtinguishers: snapshot.totalExtinguishers,
+      passedCount: snapshot.passedCount,
+      failedCount: snapshot.failedCount,
+      pendingCount: snapshot.pendingCount,
+      results: snapshot.results,
+      csvDownloadUrl: null,
+      csvFilePath: null,
+      pdfDownloadUrl: null,
+      pdfFilePath: null,
+      jsonDownloadUrl: null,
+      jsonFilePath: null,
+    };
+    forceRegenerate = true;
+  }
   const filePathKey = `${format}FilePath` as 'csvFilePath' | 'pdfFilePath' | 'jsonFilePath';
   const existingFilePath = reportData[filePathKey];
 
   const bucket = getStorage().bucket();
-  const storagePath = `org/${orgId}/reports/${workspaceId}/report.${format}`;
+  const storagePath = options
+    ? `org/${orgId}/reports/${workspaceId}/report-${reportOptionsStorageSuffix(options)}.${format}`
+    : `org/${orgId}/reports/${workspaceId}/report.${format}`;
 
   let downloadUrl: string;
 
-  if (existingFilePath) {
+  if (!options && existingFilePath && !forceRegenerate) {
     // File already generated — just re-sign a fresh URL
     const existingFile = bucket.file(existingFilePath);
     const [freshUrl] = await existingFile.getSignedUrl({
@@ -180,15 +283,32 @@ export const generateReport = onCall(async (request) => {
     downloadUrl = freshUrl;
   } else {
     // Generate the file for the first time
-    const results = reportData.results ?? [];
+    const selectedReport = selectReportRows(reportData, options);
+    const results = selectedReport.results;
 
     if (format === 'csv') {
-      const csvHeaders = ['assetId', 'section', 'status', 'inspectedAt', 'inspectedBy', 'inspectedByEmail', 'notes'];
+      const csvHeaders = [
+        'assetId',
+        'serial',
+        'parentLocation',
+        'locationName',
+        'section',
+        'vicinity',
+        'status',
+        'inspectedAt',
+        'inspectedBy',
+        'inspectedByEmail',
+        'notes',
+      ];
       const lines: string[] = [csvHeaders.join(',')];
       for (const r of results) {
         lines.push([
           escapeCSVField(r.assetId),
+          escapeCSVField(r.serial),
+          escapeCSVField(r.parentLocation),
+          escapeCSVField(r.locationName),
           escapeCSVField(r.section),
+          escapeCSVField(r.vicinity),
           escapeCSVField(r.status),
           escapeCSVField(timestampToString(r.inspectedAt)),
           escapeCSVField(r.inspectedBy),
@@ -210,15 +330,20 @@ export const generateReport = onCall(async (request) => {
           workspaceId: reportData.workspaceId,
           label: reportData.label,
           monthYear: reportData.monthYear,
+          criteria: selectedReport.criteria,
           stats: {
-            total: reportData.totalExtinguishers,
-            passed: reportData.passedCount,
-            failed: reportData.failedCount,
-            pending: reportData.pendingCount,
+            total: selectedReport.stats.totalExtinguishers,
+            passed: selectedReport.stats.passedCount,
+            failed: selectedReport.stats.failedCount,
+            pending: selectedReport.stats.pendingCount,
           },
           results: results.map((r) => ({
             assetId: r.assetId,
+            serial: r.serial,
+            parentLocation: r.parentLocation,
+            locationName: r.locationName,
             section: r.section,
+            vicinity: r.vicinity,
             status: r.status,
             inspectedAt: timestampToString(r.inspectedAt),
             inspectedBy: r.inspectedBy,
@@ -243,7 +368,11 @@ export const generateReport = onCall(async (request) => {
 
       const pdfRows: ReportResultRow[] = results.map((r) => ({
         assetId: r.assetId,
+        serial: r.serial,
+        parentLocation: r.parentLocation,
+        locationName: r.locationName,
         section: r.section,
+        vicinity: r.vicinity,
         status: r.status,
         inspectedAt: timestampToString(r.inspectedAt),
         inspectedBy: r.inspectedByEmail ?? r.inspectedBy ?? '',
@@ -256,11 +385,12 @@ export const generateReport = onCall(async (request) => {
         label: reportData.label,
         monthYear: reportData.monthYear,
         generatedAt: new Date(),
+        criteria: selectedReport.criteria,
         stats: {
-          total: reportData.totalExtinguishers,
-          passed: reportData.passedCount,
-          failed: reportData.failedCount,
-          pending: reportData.pendingCount,
+          total: selectedReport.stats.totalExtinguishers,
+          passed: selectedReport.stats.passedCount,
+          failed: selectedReport.stats.failedCount,
+          pending: selectedReport.stats.pendingCount,
         },
         results: pdfRows,
       });
@@ -274,13 +404,15 @@ export const generateReport = onCall(async (request) => {
       downloadUrl = url;
     }
 
-    // Update report doc with file path + URL and generatedAt timestamp
-    const updatePayload: Record<string, unknown> = {
-      [filePathKey]: storagePath,
-      [`${format}DownloadUrl`]: downloadUrl,
-      generatedAt: FieldValue.serverTimestamp(),
-    };
-    await reportRef.update(updatePayload);
+    if (!options) {
+      // Update report doc with canonical full-report file path + URL and generatedAt timestamp.
+      const updatePayload: Record<string, unknown> = {
+        [filePathKey]: storagePath,
+        [`${format}DownloadUrl`]: downloadUrl,
+        generatedAt: FieldValue.serverTimestamp(),
+      };
+      await reportRef.update(updatePayload);
+    }
   }
 
   // Write audit log
@@ -290,7 +422,7 @@ export const generateReport = onCall(async (request) => {
     performedByEmail: member.email,
     entityType: 'report',
     entityId: workspaceId,
-    details: { format, workspaceId },
+    details: { format, workspaceId, options: options ?? undefined },
   });
 
   return { downloadUrl, reportId: workspaceId };

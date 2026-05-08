@@ -83,10 +83,10 @@ export const marketingPlans: MarketingPlanCard[] = [
     blurb: 'Large programs that need advanced data tools, AI-supported operations, and priority help.',
     bullets: [
       'Everything in Pro',
+      'Team member invites and role management',
       'Advanced data cleanup tools',
       'Bulk tag printing',
-      'Guest sharing and offline sync support',
-      'Organization branding controls',
+      'Guest sharing for outside reviewers',
       'Priority help from our team',
     ],
     ctaLabel: 'Get started',
@@ -118,11 +118,11 @@ export const marketingFaq: MarketingFaqItem[] = [
   },
   {
     q: 'What does the product track besides monthly extinguisher checks?',
-    a: 'Extinguisher Tracker also supports locations, tags, QR links, photos, GPS context, lifecycle replacement and retirement history, returned spare inventory, custom asset inspections, notifications, reports, exports, and audit logs depending on plan access.',
+    a: 'ExtinguisherTracker also supports locations, tags, QR links, photos, GPS context, lifecycle replacement and retirement history, returned spare inventory, custom asset inspections, notifications, reports, exports, and audit logs depending on plan access.',
   },
   {
     q: 'Can AI answer NFPA questions while my team is working?',
-    a: 'Yes. Pro, Elite, and Enterprise include in-app AI assistance for maintenance and compliance questions so teams do not need to leave the workflow. AI guidance uses the NFPA reference configured in Settings; new organizations fall back to NFPA 10 (2022), and your organization should align final decisions to its locally adopted edition.',
+    a: 'Yes. Pro, Elite, and Enterprise include in-app AI assistance for maintenance and compliance questions so teams do not need to leave the workflow. When AI lists extinguishers, it includes finder details such as asset number, serial number, location, section, and vicinity when available. AI guidance uses the NFPA reference configured in Settings; new organizations fall back to NFPA 10 (2022), and your organization should align final decisions to its locally adopted edition.',
   },
   {
     q: 'Does the calculator guarantee code compliance?',

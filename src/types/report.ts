@@ -1,15 +1,32 @@
 /**
- * Report types for EX3.
+ * Report types for ExtinguisherTracker.
  * Matches the Firestore schema in org/{orgId}/reports/{reportId}.
  *
  * Author: built_by_Beck
  */
 
 export type ReportFormat = 'csv' | 'pdf' | 'json';
+export type ReportScope = 'failed_or_expired' | 'passed' | 'pending' | 'replacement_candidates';
+export type ReportSortBy = 'location' | 'assetId';
+
+export interface ReportGenerationOptions {
+  scope: ReportScope;
+  sortBy: ReportSortBy;
+}
 
 export interface ReportResult {
+  extinguisherId: string;
   assetId: string;
+  serial: string;
+  parentLocation: string;
+  locationName: string;
   section: string;
+  vicinity: string;
+  manufactureYear: number | null;
+  expirationYear: number | null;
+  isExpired: boolean;
+  lifecycleStatus: string | null;
+  complianceStatus: string | null;
   status: string;
   inspectedAt: unknown;
   inspectedBy: string | null;

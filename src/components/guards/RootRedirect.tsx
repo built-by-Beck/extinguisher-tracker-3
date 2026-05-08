@@ -10,7 +10,7 @@ import MarketingHomePage from '../../pages/marketing/MarketingHomePage.tsx';
  * - Authenticated without org -> /create-org
  */
 export function RootRedirect() {
-  const { user, userProfile, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { org, orgLoading, userOrgs, userOrgsLoading } = useOrg();
 
   // Show loading while auth state resolves (includes waiting for user profile snapshot)
@@ -40,7 +40,7 @@ export function RootRedirect() {
     );
   }
 
-  if (org || userOrgs.length > 0 || userProfile?.activeOrgId) {
+  if (org || userOrgs.length > 0) {
     return <Navigate to="/dashboard" replace />;
   }
 

@@ -342,7 +342,7 @@ export function filterRowsByStatusList(
   filter: 'pending' | 'pass' | 'fail' | 'replaced' | 'checked',
 ): Inspection[] {
   if (filter === 'checked') {
-    return rows.filter((r) => r.status === 'pass' || r.status === 'fail' || r.status === 'replaced');
+    return rows.filter((r) => r.status === 'pass' || r.status === 'fail');
   }
   return rows.filter((r) => r.status === filter);
 }

@@ -229,3 +229,85 @@ Reran the same git inspection commands with PowerShell-safe semicolon separators
 
 **Prevention rule:**
 For this Windows workspace, use semicolons for multi-command PowerShell release/audit commands unless explicitly running the full command under bash.
+
+## 2026-05-04 - Avoid Long-Lived Token URLs For Compliance Reports
+
+**What happened:**
+While fixing report generation, a Firebase Storage token URL workaround was briefly considered for a proven `iam.serviceAccounts.signBlob` signing failure.
+
+**Root cause:**
+The code workaround would have bypassed the IAM issue but changed report download links from short-lived signed URLs to long-lived bearer URLs.
+
+**Why it was avoidable:**
+Report generation handles compliance artifacts, so download URL lifetime and sharing behavior must be reviewed as a security property before replacing infrastructure permissions with code behavior.
+
+**Fix used:**
+Reverted the token URL workaround, kept short-lived signed URLs, and left the proven signing issue for a scoped IAM permission fix.
+
+**Prevention rule:**
+For report/export downloads, prefer short-lived signed URLs or authenticated delivery; do not replace signing failures with persistent token URLs without explicit security review and user approval.
+
+## 2026-05-04 - Do Not Use File Input Capture As A Real Camera Feed
+
+**What happened:**
+The first AI photo implementation used a single camera icon backed by `<input type="file" capture="environment">`. On the user's live environment, clicking the camera icon opened the file explorer instead of immediately requesting camera permission and showing a camera feed.
+
+**Root cause:**
+`capture` on file inputs is only a browser hint, not a guaranteed live camera experience. Desktop browsers commonly open the file picker, and even mobile behavior varies.
+
+**Why it was avoidable:**
+The user asked for camera permission and a camera-style interaction, which requires `navigator.mediaDevices.getUserMedia` plus a live `<video>` preview rather than relying on the file-picker capture hint.
+
+**Fix used:**
+Split AI photo controls into two buttons: a camera button that requests `getUserMedia`, displays a temporary video preview, captures a JPEG, and stops the stream; and a folder button that opens the file picker.
+
+**Prevention rule:**
+When a UI promises a camera button with live permission/preview, implement `getUserMedia`; reserve file inputs for explicit upload/folder picker flows.
+
+## 2026-05-07 - One Source Of Truth Per Domain Count
+
+**What happened:**
+Multiple screens in `extinguisher-tracker-3` were showing different "monthly checked / pending / replaced" numbers for the same active workspace because Dashboard, Workspaces cards, Inventory, the workspace summary cards, and WorkspaceDetail each derived counts from a different source: stored `workspace.stats`, active inventory, lifecycle `replacementHistory`, and live inspection rows. WorkspaceDetail also counted lifecycle replacement rows in its monthly "Replaced" card, which mixed two different domains.
+
+**Root cause:**
+Per-screen calculation grew organically without a shared monthly snapshot helper, and `workspace.stats` was treated as UI truth even though replace/retire/soft-delete paths could leave it stale relative to real inspection rows. Replacement-history was also leaking into a monthly checklist bucket.
+
+**Why it was avoidable:**
+The plan-of-record contract for monthly checklist UI is "real `org/{orgId}/inspections` rows for one workspace" and inventory and replacement history are separate domain lists. Re-deriving stats per screen invites drift each time a feature is added.
+
+**Fix used:**
+Added `src/utils/monthlyWorkspaceInspectionSnapshot.ts` and routed Dashboard, Workspaces, Inventory monthly status, the workspace summary cards, and WorkspaceDetail through it. Removed lifecycle replacement-history rendering from WorkspaceDetail's monthly Replaced view and stopped counting `status: 'replaced'` inspections inside the "checked" filter. Patched `retireExtinguisher` and `onExtinguisherSoftDeleted` to keep stored stats consistent (including a guarded `stats.replaced` decrement) when inspection rows are removed from active workspaces.
+
+**Prevention rule:**
+Each domain count must have one shared helper as source of truth: monthly checklist UI = real inspection rows, inventory UI = inventory records, replacement UI = `replacementHistory`. Do not display `workspace.stats` directly for active workspaces, and never mix replacement-history rows into monthly inspection status buckets unless an actual inspection row has `status: 'replaced'`.
+
+## 2026-05-07 - Validate The Exact Commit Before Push Deploy
+
+**What happened:**
+A release commit for the Unify List Sources work initially excluded `src/components/workspace/SectionTimer.tsx` as unrelated timer work, but the committed `WorkspaceDetail.tsx` already passed reset props to `SectionTimer`. The isolated clean worktree build failed because the committed component interface did not match the committed call site.
+
+**Root cause:**
+The staging pass grouped files by task intent, but did not verify whether a staged file had a compile-time dependency on an unstaged file from a concurrent timer change.
+
+**Fix used:**
+Validated the exact commit in an isolated worktree before push/deploy, caught the TypeScript failure, and included the minimal `SectionTimer.tsx` prop/UI alignment needed for the committed revision to build independently. The other in-progress timer/query files remained uncommitted.
+
+**Prevention rule:**
+Before pushing or deploying from a dirty workspace with concurrent agent work, validate the exact committed revision in a clean worktree. If validation fails because a staged file depends on an unstaged file, either include the minimal dependency or remove the staged call site before pushing.
+
+## 2026-05-07 - Do Not Derive Global Summary Cards From Filtered Lists
+
+**What happened:**
+Review found the Workspaces active summary card became tied to the search-filtered workspace list after duplicate listeners were removed by passing parent data into `WorkspaceInspectionSummaryCards`.
+
+**Root cause:**
+The parent-data refactor reused `activeWorkspaces` from the visible filtered list for summary selection and inspection subscriptions, even though the summary card promises "active workspace only" for the latest active workspace across the organization.
+
+**Why it was avoidable:**
+The original standalone card selected from the unfiltered org-wide active workspace query, so replacing its listener with parent-provided data needed an explicit unfiltered source for the summary.
+
+**Fix used:**
+Split `Workspaces.tsx` into `allActiveWorkspaces` for summary/subscription data and filtered `activeWorkspaces` / `archivedWorkspaces` for visible list rendering. Reran lint, build, and tests successfully, then Review accepted the revision.
+
+**Prevention rule:**
+When lifting data into parent components to remove duplicate listeners, preserve the child component's original data scope separately from any UI search/filter scope.

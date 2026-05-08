@@ -62,7 +62,7 @@ export function WorkspaceInspectionScopeCards({
   onSelectFilter,
   className = '',
 }: WorkspaceInspectionScopeCardsProps) {
-  const checked = stats.passed + stats.failed + Math.max(0, stats.replaced ?? 0);
+  const checked = stats.passed + stats.failed;
 
   return (
     <div className={`grid grid-cols-2 gap-3 lg:grid-cols-5 ${className}`}>

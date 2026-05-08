@@ -11,7 +11,13 @@ import {
   buildLocationStatsMap,
   sumAllBucketStats,
   detectHasLocationIdData,
+  filterRowsByStatusList,
 } from './workspaceInspectionStats.ts';
+import {
+  buildMonthlyWorkspaceInspectionSnapshot,
+  countMonthlyInspectionRows,
+  getMonthlyCheckedCount,
+} from './monthlyWorkspaceInspectionSnapshot.ts';
 
 const locFloor: Location = {
   id: 'floor1',
@@ -234,6 +240,92 @@ describe('buildLocationStatsMap vs collectInspectionRowsForScope', () => {
     expect(rows).toHaveLength(1);
     expect(rows.filter((r) => r.status === 'pending')).toHaveLength(0);
     expect(rows.filter((r) => r.status === 'pass')).toHaveLength(1);
+  });
+});
+
+describe('monthly workspace source-of-truth snapshot', () => {
+  it('derives monthly counts from one deduped inspection-row list for the workspace', () => {
+    const inspections: Inspection[] = [
+      insp({ id: 'old-pass', extinguisherId: 'ext1', status: 'pass', updatedAt: { seconds: 10, nanoseconds: 0 } as unknown }),
+      insp({ id: 'latest-fail', extinguisherId: 'ext1', status: 'fail', updatedAt: { seconds: 20, nanoseconds: 0 } as unknown }),
+      insp({ id: 'pending', extinguisherId: 'ext2', status: 'pending', assetId: 'FE-002' }),
+      insp({ id: 'other-workspace', workspaceId: 'ws2', extinguisherId: 'ext2', status: 'pass', assetId: 'FE-002' }),
+    ];
+
+    const snapshot = buildMonthlyWorkspaceInspectionSnapshot({
+      workspaceId: 'ws1',
+      inspections,
+      extinguishers: [ext1, ext2],
+      locations: [locFloor],
+    });
+
+    expect(snapshot.rows.map((row) => row.id).sort()).toEqual(['latest-fail', 'pending']);
+    expect(snapshot.stats).toMatchObject({
+      total: 2,
+      passed: 0,
+      failed: 1,
+      pending: 1,
+      replaced: 0,
+      percentage: 50,
+    });
+    expect(countMonthlyInspectionRows(snapshot.rows)).toEqual(snapshot.stats);
+  });
+
+  it('keeps replacement history out of checked totals unless an inspection row is replaced', () => {
+    const replacementHistoryOnly = buildMonthlyWorkspaceInspectionSnapshot({
+      workspaceId: 'ws1',
+      inspections: [
+        insp({ id: 'passed', extinguisherId: 'ext1', status: 'pass' }),
+        insp({ id: 'pending', extinguisherId: 'ext2', status: 'pending', assetId: 'FE-002' }),
+      ],
+      extinguishers: [
+        ext1,
+        {
+          ...ext2,
+          replacementHistory: [
+            {
+              replacedExtId: 'old-ext2',
+              replacedAssetId: 'FE-OLD',
+              replacedAt: { seconds: 30, nanoseconds: 0 },
+              replacedBy: 'u',
+              replacedByEmail: 'u@example.com',
+              reason: 'Damaged',
+            },
+          ],
+        } as Extinguisher,
+      ],
+      locations: [locFloor],
+    });
+
+    expect(replacementHistoryOnly.stats.replaced).toBe(0);
+    expect(getMonthlyCheckedCount(replacementHistoryOnly.stats)).toBe(1);
+
+    const monthlyReplacedRow = buildMonthlyWorkspaceInspectionSnapshot({
+      workspaceId: 'ws1',
+      inspections: [
+        insp({ id: 'passed', extinguisherId: 'ext1', status: 'pass' }),
+        insp({ id: 'replaced-row', extinguisherId: 'ext2', status: 'replaced', assetId: 'FE-002' }),
+      ],
+      extinguishers: [ext1, ext2],
+      locations: [locFloor],
+    });
+
+    expect(monthlyReplacedRow.stats.replaced).toBe(1);
+    expect(getMonthlyCheckedCount(monthlyReplacedRow.stats)).toBe(1);
+  });
+});
+
+describe('monthly status filters', () => {
+  it('treats checked as pass/fail only, with replaced as a separate monthly status', () => {
+    const rows = [
+      insp({ id: 'pass', extinguisherId: 'ext1', status: 'pass' }),
+      insp({ id: 'fail', extinguisherId: 'ext2', status: 'fail', assetId: 'FE-002' }),
+      insp({ id: 'replaced', extinguisherId: 'ext3', status: 'replaced', assetId: 'FE-003' }),
+      insp({ id: 'pending', extinguisherId: 'ext4', status: 'pending', assetId: 'FE-004' }),
+    ];
+
+    expect(filterRowsByStatusList(rows, 'checked').map((row) => row.id)).toEqual(['pass', 'fail']);
+    expect(filterRowsByStatusList(rows, 'replaced').map((row) => row.id)).toEqual(['replaced']);
   });
 });
 

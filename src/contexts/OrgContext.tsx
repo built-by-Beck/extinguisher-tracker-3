@@ -54,6 +54,10 @@ export function OrgProvider({ children }: OrgProviderProps) {
 
   // Track active org ID from user profile
   const activeOrgId = userProfile?.activeOrgId ?? null;
+  const userOrgIdsKey = userOrgs.map((entry) => entry.orgId).sort().join('|');
+  const activeOrgIsAvailable = activeOrgId
+    ? userOrgs.some((entry) => entry.orgId === activeOrgId)
+    : false;
 
   // Refs to hold unsubscribe functions for cleanup
   const unsubOrgRef = useRef<(() => void) | null>(null);
@@ -105,27 +109,31 @@ export function OrgProvider({ children }: OrgProviderProps) {
     return () => unsub();
   }, [authLoading, user]);
 
-  // Auto-select first available org when activeOrgId is missing but user has memberships
+  // Keep activeOrgId aligned with the live membership set.
   const autoSelectingRef = useRef(false);
   useEffect(() => {
-    if (authLoading || !user || activeOrgId || userOrgsLoading || userOrgs.length === 0 || autoSelectingRef.current) {
+    if (authLoading || !user || userOrgsLoading || autoSelectingRef.current) {
       return;
     }
-    // User is authenticated with org memberships but no activeOrgId — auto-select
+
+    const nextOrgId = userOrgs[0]?.orgId ?? null;
+    if (activeOrgId === nextOrgId || (activeOrgId && activeOrgIsAvailable)) {
+      return;
+    }
+
     autoSelectingRef.current = true;
-    const firstOrgId = userOrgs[0].orgId;
     const userDocRef = doc(db, 'usr', user.uid);
     updateDoc(userDocRef, {
-      activeOrgId: firstOrgId,
+      activeOrgId: nextOrgId,
       updatedAt: serverTimestamp(),
     })
       .catch((err) => {
-        console.error('Failed to auto-select org:', err);
+        console.error('Failed to update active org:', err);
       })
       .finally(() => {
         autoSelectingRef.current = false;
       });
-  }, [authLoading, user, activeOrgId, userOrgsLoading, userOrgs]);
+  }, [authLoading, user, activeOrgId, activeOrgIsAvailable, userOrgsLoading, userOrgs]);
 
   // Listen to active org document and membership document
   useEffect(() => {
@@ -150,6 +158,13 @@ export function OrgProvider({ children }: OrgProviderProps) {
       if (userOrgs.length === 0) {
         setOrgLoading(false);
       }
+      return;
+    }
+
+    if (!activeOrgIsAvailable) {
+      setOrg(null);
+      setMembership(null);
+      setOrgLoading(userOrgs.length > 0);
       return;
     }
 
@@ -217,11 +232,14 @@ export function OrgProvider({ children }: OrgProviderProps) {
         unsubMemberRef.current = null;
       }
     };
-  }, [authLoading, user, activeOrgId, userOrgsLoading, userOrgs.length]);
+  }, [authLoading, user, activeOrgId, userOrgsLoading, userOrgIdsKey, activeOrgIsAvailable, userOrgs.length]);
 
   const switchOrg = useCallback(
     async (orgId: string): Promise<void> => {
       if (!user) return;
+      if (!userOrgs.some((entry) => entry.orgId === orgId)) {
+        throw new Error('You no longer have access to that organization.');
+      }
 
       const currentOrgId = activeOrgId;
 
@@ -256,7 +274,7 @@ export function OrgProvider({ children }: OrgProviderProps) {
       // The onSnapshot listener on the user profile in AuthContext
       // will pick up the change and trigger re-renders via activeOrgId
     },
-    [user, activeOrgId],
+    [user, activeOrgId, userOrgs],
   );
 
   const hasRole = useCallback(

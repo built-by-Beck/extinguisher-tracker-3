@@ -37,7 +37,7 @@ export default function TermsPage() {
           <div className="mt-10">
             <Section num={1} title="Acceptance of Terms">
               <p>
-                By accessing and using Extinguisher Tracker (&quot;the Service&quot;), you accept and agree to
+                By accessing and using ExtinguisherTracker (&quot;the Service&quot;), you accept and agree to
                 be bound by the terms and provisions of this agreement. If you do not agree to these
                 Terms of Service, please do not use the Service.
               </p>
@@ -45,7 +45,7 @@ export default function TermsPage() {
 
             <Section num={2} title="Description of Service">
               <p>
-                Extinguisher Tracker provides a cloud-based platform for managing fire extinguisher
+                ExtinguisherTracker provides a cloud-based platform for managing fire extinguisher
                 inspections, tracking compliance, and generating reports. The Service includes features
                 such as:
               </p>
@@ -121,7 +121,7 @@ export default function TermsPage() {
             <Section num={8} title="Intellectual Property">
               <p>
                 The Service, including all content, features, and functionality, is owned by
-                Extinguisher Tracker and is protected by copyright, trademark, and other intellectual
+                ExtinguisherTracker and is protected by copyright, trademark, and other intellectual
                 property laws. You are granted a limited, non-exclusive, non-transferable license to
                 access and use the Service for its intended purpose.
               </p>
@@ -142,7 +142,7 @@ export default function TermsPage() {
 
             <Section num={10} title="Compliance Disclaimer">
               <p>
-                While Extinguisher Tracker is designed to help you meet NFPA 10 and OSHA fire safety
+                While ExtinguisherTracker is designed to help you meet NFPA 10 and OSHA fire safety
                 requirements, you are solely responsible for ensuring compliance with all applicable
                 laws and regulations. The Service is a tool to assist with compliance management, not a
                 substitute for professional fire safety expertise or legal advice.
@@ -183,7 +183,7 @@ export default function TermsPage() {
             <Section num={13} title="Governing Law">
               <p>
                 These Terms of Service shall be governed by and construed in accordance with the laws
-                of the jurisdiction in which Extinguisher Tracker operates, without regard to its
+                of the jurisdiction in which ExtinguisherTracker operates, without regard to its
                 conflict of law provisions.
               </p>
             </Section>
