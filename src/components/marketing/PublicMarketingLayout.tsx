@@ -30,13 +30,26 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-6 sm:px-6">
-          <Link to="/" className="flex items-center gap-3.5" onClick={() => setMobileOpen(false)}>
-            <img src="/logo.png" alt="Extinguisher Tracker" className="h-24 w-24 rounded-xl object-contain sm:h-28 sm:w-28" />
-            <span className="text-3xl font-bold tracking-tight text-gray-900">Extinguisher <span className="text-red-600">Tracker</span></span>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
+          <Link
+            to="/"
+            className="relative z-10 flex min-w-0 flex-1 items-center gap-2 sm:gap-3 md:flex-initial md:shrink-0"
+            onClick={() => setMobileOpen(false)}
+          >
+            <img
+              src="/logo.png"
+              alt="Extinguisher Tracker"
+              className="h-14 w-14 shrink-0 rounded-xl object-contain sm:h-20 sm:w-20 md:h-24 md:w-24"
+            />
+            <span className="truncate text-lg font-bold tracking-tight text-gray-900 sm:text-2xl md:text-3xl">
+              Extinguisher <span className="text-red-600">Tracker</span>
+            </span>
           </Link>
 
-          <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
+          <nav
+            className="hidden min-w-0 flex-1 flex-wrap items-center justify-end gap-x-3 gap-y-2 md:flex lg:gap-x-5"
+            aria-label="Primary"
+          >
             <NavLink to="/" end className={navLinkClass}>
               Home
             </NavLink>
@@ -71,7 +84,7 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
 
           <button
             type="button"
-            className="rounded-md p-2 text-gray-700 md:hidden"
+            className="shrink-0 rounded-md p-2 text-gray-700 md:hidden"
             aria-expanded={mobileOpen}
             aria-controls="marketing-mobile-nav"
             onClick={() => setMobileOpen((o) => !o)}
@@ -125,11 +138,11 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
       </header>
 
       {/* Hero banner with page title overlay */}
-      <div className="relative bg-gray-900">
+      <div className="relative border-t border-gray-800 bg-gray-900 pt-1 sm:pt-2">
         <img
           src="/extinguisherTracker2.png"
           alt="Extinguisher Tracker — Fire Extinguisher Tracking Made Simple"
-          className="mx-auto block w-[96%] object-contain py-1"
+          className="mx-auto block w-[96%] object-contain py-2 sm:py-3"
         />
         <div className="absolute inset-0 flex items-end justify-center pb-4 sm:pb-6">
           <div className="text-center">

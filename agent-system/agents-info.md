@@ -1402,3 +1402,14 @@ Phase 6 is complete and reviewed. All 24 tasks verified. The remaining items on 
 - **Security hardening** (CSP headers, rate limiting, input sanitization, etc.)
 
 Recommended Phase 7 scope: **Legal attestation + Security hardening**. These are the final items in the build order before the application can be considered feature-complete for v1 launch.
+
+### Extinguisher form: manual six-year / hydro due (2026-04-30)
+
+- `ExtinguisherForm` adds “Next service due” with type `six_year` | `hydro` and a date, mapped to `nextSixYearMaintenance` / `nextHydroTest` (Firestore `Timestamp`). Records that already have **both** dates keep them unless the user changes that section (omit from submit).
+- `createExtinguisher` passes through `nextSixYearMaintenance` / `nextHydroTest` (and last* if ever sent).
+- `onExtinguisherCreated` preserves client-supplied next due dates when at least one is non-null; otherwise keeps previous default calculation from last* dates.
+
+### Public marketing header overlap (2026-05-07)
+
+- **Issue**: Logged-out `PublicMarketingLayout` header used `justify-between` with a wide brand + many nav links; when the row overflowed, flex items did not shrink/wrap and the active red “Home” link visually overlapped “Tracker” in the wordmark (also crowded the hero image).
+- **Fix**: Nav uses `min-w-0 flex-1 flex-wrap justify-end` with tighter horizontal gaps; brand link uses `flex-1 min-w-0` on small screens (truncates beside the menu button) and `md:flex-initial md:shrink-0` on desktop; slightly smaller logo/text on narrow widths; hero block gets a thin top border + a little vertical padding so the flame banner clears the header bar.
