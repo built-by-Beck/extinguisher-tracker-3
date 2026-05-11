@@ -1,10 +1,17 @@
 import { onCall } from 'firebase-functions/v2/https';
-import { Timestamp, type DocumentData, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import {
+  Timestamp,
+  type DocumentData,
+  type QueryDocumentSnapshot,
+} from 'firebase-admin/firestore';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { validateSubscription } from '../utils/subscription.js';
-import { throwInvalidArgument, throwPermissionDenied } from '../utils/errors.js';
+import {
+  throwInvalidArgument,
+  throwPermissionDenied,
+} from '../utils/errors.js';
 
 type AiNoteStatus = 'open' | 'in_progress' | 'resolved';
 type AiMemoryIntentType =
@@ -47,7 +54,10 @@ function toIso(value: unknown): string | null {
   return null;
 }
 
-function parseMonthWindow(intent: AiMemoryQueryIntent): { start: Date; end: Date } {
+function parseMonthWindow(intent: AiMemoryQueryIntent): {
+  start: Date;
+  end: Date;
+} {
   if (!intent.monthWindow) {
     throwInvalidArgument('Intent month window is required.');
   }
@@ -86,7 +96,12 @@ function isActiveExtinguisher(data: DocumentData): boolean {
   const status = data.status as string | null | undefined;
   const isActive = data.isActive as boolean | null | undefined;
   if (ls === 'replaced' || ls === 'retired' || ls === 'deleted') return false;
-  if (category === 'replaced' || category === 'retired' || category === 'out_of_service') return false;
+  if (
+    category === 'replaced' ||
+    category === 'retired' ||
+    category === 'out_of_service'
+  )
+    return false;
   if (status != null && status !== 'active') return false;
   if (isActive === false) return false;
   return ls === 'active' || ls == null || ls === '';
@@ -96,12 +111,17 @@ function stringOrEmpty(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-async function loadExtinguishersById(orgId: string, ids: string[]): Promise<Map<string, DocumentData>> {
+async function loadExtinguishersById(
+  orgId: string,
+  ids: string[],
+): Promise<Map<string, DocumentData>> {
   const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
   const extinguisherById = new Map<string, DocumentData>();
   if (uniqueIds.length === 0) return extinguisherById;
 
-  const refs = uniqueIds.map((id) => adminDb.doc(`org/${orgId}/extinguishers/${id}`));
+  const refs = uniqueIds.map((id) =>
+    adminDb.doc(`org/${orgId}/extinguishers/${id}`),
+  );
   const snaps = await adminDb.getAll(...refs);
   snaps.forEach((snap, index) => {
     if (snap.exists) {
@@ -129,9 +149,13 @@ function toExtinguisherResult(d: QueryDocumentSnapshot<DocumentData>) {
   };
 }
 
-function sortByLocationAndAsset<T extends { parentLocation: string; section: string; assetId: string }>(rows: T[]): T[] {
+function sortByLocationAndAsset<
+  T extends { parentLocation: string; section: string; assetId: string },
+>(rows: T[]): T[] {
   return rows.sort((a, b) => {
-    const loc = `${a.parentLocation} ${a.section}`.localeCompare(`${b.parentLocation} ${b.section}`);
+    const loc = `${a.parentLocation} ${a.section}`.localeCompare(
+      `${b.parentLocation} ${b.section}`,
+    );
     if (loc !== 0) return loc;
     return a.assetId.localeCompare(b.assetId, undefined, { numeric: true });
   });
@@ -155,7 +179,8 @@ export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
   const orgData = orgSnap.data();
   const plan = typeof orgData?.plan === 'string' ? orgData.plan : null;
   const featureEnabled = orgData?.featureFlags?.aiAssistant === true;
-  const hasAiAssistant = featureEnabled || ['pro', 'elite', 'enterprise'].includes(plan ?? '');
+  const hasAiAssistant =
+    featureEnabled || ['pro', 'elite', 'enterprise'].includes(plan ?? '');
   if (!hasAiAssistant) {
     throwPermissionDenied('AI assistant is not enabled for this organization.');
   }
@@ -169,7 +194,8 @@ export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
       .orderBy('createdAt', 'desc')
       .limit(200);
     const snap =
-      intent.noteStatus && ['open', 'in_progress', 'resolved'].includes(intent.noteStatus)
+      intent.noteStatus &&
+      ['open', 'in_progress', 'resolved'].includes(intent.noteStatus)
         ? await baseQuery.where('status', '==', intent.noteStatus).get()
         : await baseQuery.get();
 
@@ -265,7 +291,10 @@ export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
       snap.docs
         .filter((d) => {
           const data = d.data();
-          const manufactureYear = data.manufactureYear as number | null | undefined;
+          const manufactureYear = data.manufactureYear as
+            | number
+            | null
+            | undefined;
           return (
             isActiveExtinguisher(data) &&
             data.isExpired !== true &&
@@ -303,7 +332,8 @@ export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
 
     const replacementEvents = snap.docs.map((d) => {
       const data = d.data();
-      const details = (data.details as Record<string, unknown> | undefined) ?? {};
+      const details =
+        (data.details as Record<string, unknown> | undefined) ?? {};
       return {
         id: d.id,
         performedAt: toIso(data.performedAt),
@@ -348,7 +378,10 @@ export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
     }
 
     const activeWorkspace = workspacesSnap.docs
-      .map((d) => ({ id: d.id, ...(d.data() as { label?: string; monthYear?: string }) }))
+      .map((d) => ({
+        id: d.id,
+        ...(d.data() as { label?: string; monthYear?: string }),
+      }))
       .sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0];
     const workspaceId = activeWorkspace?.id ?? null;
     const workspaceLabel = activeWorkspace?.label ?? null;
@@ -395,17 +428,26 @@ export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
 
     const inspectionStatusMatches = sourceDocs.map((d) => {
       const data = d.data();
-      const extinguisher = extinguisherById.get(stringOrEmpty(data.extinguisherId));
+      const extinguisher = extinguisherById.get(
+        stringOrEmpty(data.extinguisherId),
+      );
       return {
         inspectionId: d.id,
         extinguisherId: stringOrEmpty(data.extinguisherId),
         assetId: stringOrEmpty(data.assetId),
-        serial: stringOrEmpty(data.serial) || stringOrEmpty(extinguisher?.serial),
-        parentLocation: stringOrEmpty(data.parentLocation) || stringOrEmpty(extinguisher?.parentLocation),
-        locationName: stringOrEmpty(data.locationName) || stringOrEmpty(extinguisher?.locationName),
-        vicinity: stringOrEmpty(data.vicinity) || stringOrEmpty(extinguisher?.vicinity),
+        serial:
+          stringOrEmpty(data.serial) || stringOrEmpty(extinguisher?.serial),
+        parentLocation:
+          stringOrEmpty(data.parentLocation) ||
+          stringOrEmpty(extinguisher?.parentLocation),
+        locationName:
+          stringOrEmpty(data.locationName) ||
+          stringOrEmpty(extinguisher?.locationName),
+        vicinity:
+          stringOrEmpty(data.vicinity) || stringOrEmpty(extinguisher?.vicinity),
         status: (data.status as string) ?? 'pending',
-        section: stringOrEmpty(data.section) || stringOrEmpty(extinguisher?.section),
+        section:
+          stringOrEmpty(data.section) || stringOrEmpty(extinguisher?.section),
         workspaceId,
         workspaceLabel,
         inspectedAt: toIso(data.inspectedAt),

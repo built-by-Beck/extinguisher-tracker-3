@@ -19,10 +19,16 @@ describe('useSectionTimer', () => {
   });
 
   it('stops stale restored timers immediately and caps the restored elapsed time', async () => {
-    localStorage.setItem('sectionTimes_org_ws', JSON.stringify({ Lobby: 1000 }));
+    localStorage.setItem(
+      'sectionTimes_org_ws',
+      JSON.stringify({ Lobby: 1000 }),
+    );
     localStorage.setItem(
       'sectionTimerActive_org_ws',
-      JSON.stringify({ section: 'Lobby', startTime: Date.now() - 2 * 24 * 60 * 60 * 1000 }),
+      JSON.stringify({
+        section: 'Lobby',
+        startTime: Date.now() - 2 * 24 * 60 * 60 * 1000,
+      }),
     );
 
     const { result } = renderHook(() => useSectionTimer('org', 'ws'));

@@ -71,14 +71,15 @@ export default function AuditLogs() {
     if (!lastDoc || loadingMore) return;
     setLoadingMore(true);
     try {
-      const { logs: moreLogs, lastDoc: newLastDoc, hasMore: newHasMore } = await getAuditLogPage(
-        orgId,
-        {
-          limit: PAGE_SIZE,
-          startAfterDoc: lastDoc,
-          entityType: entityTypeFilter,
-        },
-      );
+      const {
+        logs: moreLogs,
+        lastDoc: newLastDoc,
+        hasMore: newHasMore,
+      } = await getAuditLogPage(orgId, {
+        limit: PAGE_SIZE,
+        startAfterDoc: lastDoc,
+        entityType: entityTypeFilter,
+      });
       setLogs((prev) => [...prev, ...moreLogs]);
       setLastDoc(newLastDoc);
       setHasMore(newHasMore);
@@ -95,7 +96,9 @@ export default function AuditLogs() {
       <div className="p-6">
         <div className="rounded-lg border border-red-200 bg-red-50 p-8 text-center">
           <ShieldAlert className="mx-auto h-12 w-12 text-red-400" />
-          <h2 className="mt-4 text-base font-semibold text-red-800">Access Denied</h2>
+          <h2 className="mt-4 text-base font-semibold text-red-800">
+            Access Denied
+          </h2>
           <p className="mt-1 text-sm text-red-600">
             You need owner or admin permissions to view audit logs.
           </p>
@@ -116,16 +119,18 @@ export default function AuditLogs() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Audit Logs</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Complete history of organization actions. Visible to owners and admins only.
+          Complete history of organization actions. Visible to owners and admins
+          only.
         </p>
       </div>
 
       {/* Page description */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
         <p>
-          Every significant action in your organization is logged here — member changes, extinguisher
-          updates, workspace events, and more. Use the filter to narrow down by entity type.
-          Audit logs are read-only and cannot be edited or deleted.
+          Every significant action in your organization is logged here — member
+          changes, extinguisher updates, workspace events, and more. Use the
+          filter to narrow down by entity type. Audit logs are read-only and
+          cannot be edited or deleted.
         </p>
       </div>
 
@@ -155,7 +160,9 @@ export default function AuditLogs() {
       {!loading && logs.length === 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <ScrollText className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-sm font-semibold text-gray-900">No audit log entries yet</h3>
+          <h3 className="mt-4 text-sm font-semibold text-gray-900">
+            No audit log entries yet
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
             Actions performed in this organization will appear here.
           </p>

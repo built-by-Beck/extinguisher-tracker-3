@@ -23,7 +23,9 @@ export async function validateSubscription(orgId: string): Promise<void> {
   const subStatus = orgData.subscriptionStatus as string | null;
 
   if (!subStatus || !['active', 'trialing'].includes(subStatus)) {
-    throwFailedPrecondition('An active subscription is required for this action.');
+    throwFailedPrecondition(
+      'An active subscription is required for this action.',
+    );
   }
 }
 
@@ -32,7 +34,7 @@ export async function validateSubscription(orgId: string): Promise<void> {
  */
 export async function validateSubscriptionTx(
   transaction: FirebaseFirestore.Transaction,
-  orgId: string
+  orgId: string,
 ): Promise<void> {
   const orgRef = adminDb.doc(`org/${orgId}`);
   const orgSnap = await transaction.get(orgRef);
@@ -51,6 +53,8 @@ export async function validateSubscriptionTx(
   const subStatus = orgData.subscriptionStatus as string | null;
 
   if (!subStatus || !['active', 'trialing'].includes(subStatus)) {
-    throwFailedPrecondition('An active subscription is required for this action.');
+    throwFailedPrecondition(
+      'An active subscription is required for this action.',
+    );
   }
 }

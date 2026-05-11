@@ -51,7 +51,9 @@ export interface ReportPDFData {
  * Generates a compliance inspection report PDF.
  * Returns the PDF as a Buffer.
  */
-export async function generateInspectionReportPDF(data: ReportPDFData): Promise<Buffer> {
+export async function generateInspectionReportPDF(
+  data: ReportPDFData,
+): Promise<Buffer> {
   PdfMake.addFonts({
     Roboto: {
       normal: path.join(FONTS_PATH, 'Roboto-Regular.ttf'),
@@ -74,22 +76,86 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
     minute: '2-digit',
     timeZoneName: 'short',
   });
-  const displayLocation = (row: ReportResultRow) => row.parentLocation || row.locationName || '--';
+  const displayLocation = (row: ReportResultRow) =>
+    row.parentLocation || row.locationName || '--';
   const criteriaText = data.criteria
     ? `Scope: ${data.criteria.scope.replace(/_/g, ' ')} | Sorted by: ${data.criteria.sortBy}`
     : null;
 
   // Table rows: header row + data rows
   const tableHeaderRow: ContentText[] = [
-    { text: 'Asset Number', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
-    { text: 'Serial Number', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
-    { text: 'Location', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
-    { text: 'Section', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
-    { text: 'Vicinity', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
-    { text: 'Status', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
-    { text: 'Inspected At', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
-    { text: 'Inspected By', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
-    { text: 'Notes', bold: true, fillColor: '#C0392B', color: '#FFFFFF', fontSize: 8, margin: [3, 4, 3, 4] },
+    {
+      text: 'Asset Number',
+      bold: true,
+      fillColor: '#C0392B',
+      color: '#FFFFFF',
+      fontSize: 8,
+      margin: [3, 4, 3, 4],
+    },
+    {
+      text: 'Serial Number',
+      bold: true,
+      fillColor: '#C0392B',
+      color: '#FFFFFF',
+      fontSize: 8,
+      margin: [3, 4, 3, 4],
+    },
+    {
+      text: 'Location',
+      bold: true,
+      fillColor: '#C0392B',
+      color: '#FFFFFF',
+      fontSize: 8,
+      margin: [3, 4, 3, 4],
+    },
+    {
+      text: 'Section',
+      bold: true,
+      fillColor: '#C0392B',
+      color: '#FFFFFF',
+      fontSize: 8,
+      margin: [3, 4, 3, 4],
+    },
+    {
+      text: 'Vicinity',
+      bold: true,
+      fillColor: '#C0392B',
+      color: '#FFFFFF',
+      fontSize: 8,
+      margin: [3, 4, 3, 4],
+    },
+    {
+      text: 'Status',
+      bold: true,
+      fillColor: '#C0392B',
+      color: '#FFFFFF',
+      fontSize: 8,
+      margin: [3, 4, 3, 4],
+    },
+    {
+      text: 'Inspected At',
+      bold: true,
+      fillColor: '#C0392B',
+      color: '#FFFFFF',
+      fontSize: 8,
+      margin: [3, 4, 3, 4],
+    },
+    {
+      text: 'Inspected By',
+      bold: true,
+      fillColor: '#C0392B',
+      color: '#FFFFFF',
+      fontSize: 8,
+      margin: [3, 4, 3, 4],
+    },
+    {
+      text: 'Notes',
+      bold: true,
+      fillColor: '#C0392B',
+      color: '#FFFFFF',
+      fontSize: 8,
+      margin: [3, 4, 3, 4],
+    },
   ];
 
   const tableDataRows: ContentText[][] = data.results.map((r) => [
@@ -102,7 +168,11 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
     { text: r.inspectedAt || '--', fontSize: 8, margin: [3, 3, 3, 3] },
     { text: r.inspectedBy || '--', fontSize: 8, margin: [3, 3, 3, 3] },
     {
-      text: r.notes ? (r.notes.length > 60 ? r.notes.slice(0, 57) + '...' : r.notes) : '--',
+      text: r.notes
+        ? r.notes.length > 60
+          ? r.notes.slice(0, 57) + '...'
+          : r.notes
+        : '--',
       fontSize: 8,
       margin: [3, 3, 3, 3],
     },
@@ -113,15 +183,33 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
     pageMargins: [40, 60, 40, 60],
     defaultStyle: { font: 'Roboto', fontSize: 10 },
     styles: {
-      reportTitle: { fontSize: 20, bold: true, color: '#C0392B', margin: [0, 0, 0, 4] },
-      subheader: { fontSize: 13, bold: true, color: '#2C3E50', margin: [0, 0, 0, 2] },
-      sectionTitle: { fontSize: 12, bold: true, color: '#2C3E50', margin: [0, 16, 0, 6] },
+      reportTitle: {
+        fontSize: 20,
+        bold: true,
+        color: '#C0392B',
+        margin: [0, 0, 0, 4],
+      },
+      subheader: {
+        fontSize: 13,
+        bold: true,
+        color: '#2C3E50',
+        margin: [0, 0, 0, 2],
+      },
+      sectionTitle: {
+        fontSize: 12,
+        bold: true,
+        color: '#2C3E50',
+        margin: [0, 16, 0, 6],
+      },
       statLabel: { fontSize: 10, color: '#7F8C8D' },
       footerText: { fontSize: 8, color: '#95A5A6', italics: true },
     },
     content: [
       // Title
-      { text: 'ExtinguisherTracker Compliance Report', style: 'reportTitle' } as ContentText,
+      {
+        text: 'ExtinguisherTracker Compliance Report',
+        style: 'reportTitle',
+      } as ContentText,
       { text: data.orgName, style: 'subheader' } as ContentText,
       {
         text: `Workspace: ${data.label} (${data.monthYear})`,
@@ -133,7 +221,12 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
         text: `Generated: ${formattedDate}`,
         fontSize: 9,
         color: '#7F8C8D',
-        margin: [0, 0, 0, criteriaText ? 4 : 16] as [number, number, number, number],
+        margin: [0, 0, 0, criteriaText ? 4 : 16] as [
+          number,
+          number,
+          number,
+          number,
+        ],
       } as ContentText,
       ...(criteriaText
         ? [
@@ -155,25 +248,45 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
           {
             stack: [
               { text: 'Total', style: 'statLabel' } as ContentText,
-              { text: String(data.stats.total), fontSize: 16, bold: true, color: '#2C3E50' } as ContentText,
+              {
+                text: String(data.stats.total),
+                fontSize: 16,
+                bold: true,
+                color: '#2C3E50',
+              } as ContentText,
             ],
           },
           {
             stack: [
               { text: 'Passed', style: 'statLabel' } as ContentText,
-              { text: String(data.stats.passed), fontSize: 16, bold: true, color: '#27AE60' } as ContentText,
+              {
+                text: String(data.stats.passed),
+                fontSize: 16,
+                bold: true,
+                color: '#27AE60',
+              } as ContentText,
             ],
           },
           {
             stack: [
               { text: 'Failed', style: 'statLabel' } as ContentText,
-              { text: String(data.stats.failed), fontSize: 16, bold: true, color: '#E74C3C' } as ContentText,
+              {
+                text: String(data.stats.failed),
+                fontSize: 16,
+                bold: true,
+                color: '#E74C3C',
+              } as ContentText,
             ],
           },
           {
             stack: [
               { text: 'Pending', style: 'statLabel' } as ContentText,
-              { text: String(data.stats.pending), fontSize: 16, bold: true, color: '#7F8C8D' } as ContentText,
+              {
+                text: String(data.stats.pending),
+                fontSize: 16,
+                bold: true,
+                color: '#7F8C8D',
+              } as ContentText,
             ],
           },
           {
@@ -200,7 +313,17 @@ export async function generateInspectionReportPDF(data: ReportPDFData): Promise<
             {
               table: {
                 headerRows: 1,
-                widths: ['auto', 'auto', '*', '*', '*', 'auto', 'auto', '*', '*'] as (string | number)[],
+                widths: [
+                  'auto',
+                  'auto',
+                  '*',
+                  '*',
+                  '*',
+                  'auto',
+                  'auto',
+                  '*',
+                  '*',
+                ] as (string | number)[],
                 body: [tableHeaderRow, ...tableDataRows],
               },
               layout: 'lightHorizontalLines',

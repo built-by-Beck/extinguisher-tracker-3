@@ -22,7 +22,7 @@ describe('saveInspection Atomicity Logic', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Mock collection chain: adminDb.collection().doc()
     const mockDocRef = { id: 'mock-doc-id' };
     const mockCollection = { doc: jest.fn().mockReturnValue(mockDocRef) };
@@ -31,8 +31,13 @@ describe('saveInspection Atomicity Logic', () => {
 
   it('should execute all updates within a single transaction', async () => {
     // Mock membership check
-    const mockMemberDoc = { get: jest.fn().mockResolvedValue({ exists: true, data: () => ({ role: 'inspector', status: 'active' }) }) };
-    
+    const mockMemberDoc = {
+      get: jest.fn().mockResolvedValue({
+        exists: true,
+        data: () => ({ role: 'inspector', status: 'active' }),
+      }),
+    };
+
     // Mock transaction operations
     const mockTx = {
       get: jest.fn(),
@@ -40,10 +45,24 @@ describe('saveInspection Atomicity Logic', () => {
       set: jest.fn(),
     };
 
-    const mockOrgSnap = { exists: true, data: () => ({ subscriptionStatus: 'active' }) };
-    const mockInspSnap = { exists: true, data: () => ({ status: 'pending', workspaceId: 'ws-1', extinguisherId: 'ext-1', assetId: 'A1' }) };
+    const mockOrgSnap = {
+      exists: true,
+      data: () => ({ subscriptionStatus: 'active' }),
+    };
+    const mockInspSnap = {
+      exists: true,
+      data: () => ({
+        status: 'pending',
+        workspaceId: 'ws-1',
+        extinguisherId: 'ext-1',
+        assetId: 'A1',
+      }),
+    };
     const mockWsSnap = { exists: true, data: () => ({ status: 'active' }) };
-    const mockExtSnap = { exists: true, data: () => ({ lifecycleStatus: 'active' }) };
+    const mockExtSnap = {
+      exists: true,
+      data: () => ({ lifecycleStatus: 'active' }),
+    };
 
     mockTx.get
       .mockResolvedValueOnce(mockOrgSnap)
@@ -64,25 +83,47 @@ describe('saveInspection Atomicity Logic', () => {
       },
     });
 
-    expect(result).toEqual({ inspectionId, status: 'pass', previousStatus: 'pending' });
-    
+    expect(result).toEqual({
+      inspectionId,
+      status: 'pass',
+      previousStatus: 'pending',
+    });
+
     // Verify updates were routed through the transaction
     expect(mockTx.update).toHaveBeenCalled();
     expect(mockTx.set).toHaveBeenCalled();
   });
 
   it('should fail if the workspace is archived', async () => {
-    const mockMemberDoc = { get: jest.fn().mockResolvedValue({ exists: true, data: () => ({ role: 'inspector', status: 'active' }) }) };
+    const mockMemberDoc = {
+      get: jest.fn().mockResolvedValue({
+        exists: true,
+        data: () => ({ role: 'inspector', status: 'active' }),
+      }),
+    };
     const mockTx = {
       get: jest.fn(),
       update: jest.fn(),
       set: jest.fn(),
     };
 
-    const mockOrgSnap = { exists: true, data: () => ({ subscriptionStatus: 'active' }) };
-    const mockInspSnap = { exists: true, data: () => ({ status: 'pending', workspaceId: 'ws-1', extinguisherId: 'ext-1' }) };
+    const mockOrgSnap = {
+      exists: true,
+      data: () => ({ subscriptionStatus: 'active' }),
+    };
+    const mockInspSnap = {
+      exists: true,
+      data: () => ({
+        status: 'pending',
+        workspaceId: 'ws-1',
+        extinguisherId: 'ext-1',
+      }),
+    };
     const mockWsSnap = { exists: true, data: () => ({ status: 'archived' }) };
-    const mockExtSnap = { exists: true, data: () => ({ lifecycleStatus: 'active' }) };
+    const mockExtSnap = {
+      exists: true,
+      data: () => ({ lifecycleStatus: 'active' }),
+    };
 
     mockTx.get
       .mockResolvedValueOnce(mockOrgSnap)
@@ -94,11 +135,13 @@ describe('saveInspection Atomicity Logic', () => {
     adminDb.runTransaction.mockImplementation(async (cb) => await cb(mockTx));
     adminDb.doc.mockReturnValue(mockMemberDoc);
 
-    await expect(wrapped({
-      auth: { uid, token: { email } },
-      data: { orgId, inspectionId, status: 'pass' },
-    })).rejects.toThrow(/Cannot modify inspections in an archived workspace/);
-    
+    await expect(
+      wrapped({
+        auth: { uid, token: { email } },
+        data: { orgId, inspectionId, status: 'pass' },
+      }),
+    ).rejects.toThrow(/Cannot modify inspections in an archived workspace/);
+
     expect(mockTx.update).not.toHaveBeenCalled();
   });
 });

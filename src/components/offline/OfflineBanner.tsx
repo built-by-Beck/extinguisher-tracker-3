@@ -24,7 +24,9 @@ export function OfflineBanner() {
         <span>
           You are offline. Changes will sync when connection returns.
           {pendingCount > 0 && (
-            <span className="ml-1 font-medium">({pendingCount} pending inspection{pendingCount !== 1 ? 's' : ''})</span>
+            <span className="ml-1 font-medium">
+              ({pendingCount} pending inspection{pendingCount !== 1 ? 's' : ''})
+            </span>
           )}
         </span>
       </div>
@@ -36,7 +38,10 @@ export function OfflineBanner() {
     return (
       <div className="flex items-center gap-2 bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm text-blue-800">
         <RefreshCw className="h-4 w-4 shrink-0 animate-spin" />
-        <span>Syncing {pendingCount > 0 ? `${pendingCount} ` : ''}inspection{pendingCount !== 1 ? 's' : ''}...</span>
+        <span>
+          Syncing {pendingCount > 0 ? `${pendingCount} ` : ''}inspection
+          {pendingCount !== 1 ? 's' : ''}...
+        </span>
       </div>
     );
   }

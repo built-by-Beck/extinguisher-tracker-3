@@ -16,7 +16,11 @@ import {
   Loader2,
   ShieldCheck,
 } from 'lucide-react';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import {
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+} from 'firebase/storage';
 import { storage } from '../../lib/firebase.ts';
 import { ChecklistRow, type CheckValue } from './ChecklistRow.tsx';
 import { GpsCapture, type GpsData } from './GpsCapture.tsx';
@@ -80,11 +84,17 @@ export function InspectionPanel({
 }: InspectionPanelProps) {
   // Internal state
   const [checklist, setChecklist] = useState<ChecklistData>(() =>
-    inspection.checklistData ? { ...inspection.checklistData } : { ...EMPTY_CHECKLIST },
+    inspection.checklistData
+      ? { ...inspection.checklistData }
+      : { ...EMPTY_CHECKLIST },
   );
   const [notes, setNotes] = useState(() => inspection.notes ?? '');
-  const [isExpired, setIsExpired] = useState(() => inspection.isExpired ?? false);
-  const [gps, setGps] = useState<GpsData | null>(() => (inspection.gps as GpsData) ?? null);
+  const [isExpired, setIsExpired] = useState(
+    () => inspection.isExpired ?? false,
+  );
+  const [gps, setGps] = useState<GpsData | null>(
+    () => (inspection.gps as GpsData) ?? null,
+  );
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState('');
 
@@ -102,7 +112,11 @@ export function InspectionPanel({
   // which would cause spurious resets and blow away in-progress edits when the parent
   // passes a new inspection object reference with identical content.
   useEffect(() => {
-    setChecklist(inspection.checklistData ? { ...inspection.checklistData } : { ...EMPTY_CHECKLIST });
+    setChecklist(
+      inspection.checklistData
+        ? { ...inspection.checklistData }
+        : { ...EMPTY_CHECKLIST },
+    );
     setNotes(inspection.notes ?? '');
     setIsExpired(inspection.isExpired ?? false);
     setGps((inspection.gps as GpsData) ?? null);
@@ -113,7 +127,8 @@ export function InspectionPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inspection.id, inspection.status]);
 
-  const isCompleted = inspection.status === 'pass' || inspection.status === 'fail';
+  const isCompleted =
+    inspection.status === 'pass' || inspection.status === 'fail';
   const isPending = inspection.status === 'pending';
 
   function updateChecklist(key: keyof ChecklistData, value: CheckValue) {
@@ -169,7 +184,7 @@ export function InspectionPanel({
         onSuccess?.(msg);
       } else {
         const msg =
-          'Inspection saved locally. It will sync when you\'re back online.' +
+          "Inspection saved locally. It will sync when you're back online." +
           (photoFile ? ' Photo will be uploaded when online.' : '');
         setSuccessMsg(msg);
         onSuccess?.(msg);
@@ -179,7 +194,8 @@ export function InspectionPanel({
       onInspectionUpdated(null);
       onInspectionSaved?.(status);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save inspection.';
+      const msg =
+        err instanceof Error ? err.message : 'Failed to save inspection.';
       setActionError(msg);
       onError?.(msg);
     } finally {
@@ -230,7 +246,8 @@ export function InspectionPanel({
       // Notify parent to reload
       onInspectionUpdated(null);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to reset inspection.';
+      const msg =
+        err instanceof Error ? err.message : 'Failed to reset inspection.';
       setActionError(msg);
       onError?.(msg);
     } finally {
@@ -257,24 +274,33 @@ export function InspectionPanel({
     <>
       {/* Status messages */}
       {actionError && (
-        <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</p>
+        <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {actionError}
+        </p>
       )}
       {successMsg && (
-        <p className="mb-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">{successMsg}</p>
+        <p className="mb-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+          {successMsg}
+        </p>
       )}
 
       {/* Inspection status header with reset button */}
       <div className="mb-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-5 py-3 shadow-sm">
         <div>
-          <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Inspection Status</p>
-          <p className={`mt-0.5 text-sm font-semibold ${
-            inspection.status === 'pass'
-              ? 'text-green-600'
-              : inspection.status === 'fail'
-                ? 'text-red-600'
-                : 'text-gray-600'
-          }`}>
-            {inspection.status.charAt(0).toUpperCase() + inspection.status.slice(1)}
+          <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">
+            Inspection Status
+          </p>
+          <p
+            className={`mt-0.5 text-sm font-semibold ${
+              inspection.status === 'pass'
+                ? 'text-green-600'
+                : inspection.status === 'fail'
+                  ? 'text-red-600'
+                  : 'text-gray-600'
+            }`}
+          >
+            {inspection.status.charAt(0).toUpperCase() +
+              inspection.status.slice(1)}
           </p>
         </div>
         {isCompleted && canReset && (
@@ -283,7 +309,11 @@ export function InspectionPanel({
             disabled={resetting}
             className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+            {resetting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RotateCcw className="h-4 w-4" />
+            )}
             Reset
           </button>
         )}
@@ -293,8 +323,8 @@ export function InspectionPanel({
       {canInspect && isPending && (
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
           <p className="text-xs text-blue-700">
-            By marking this inspection as Pass or Fail, you certify that this inspection was
-            performed according to NFPA 10 standards.
+            By marking this inspection as Pass or Fail, you certify that this
+            inspection was performed according to NFPA 10 standards.
           </p>
         </div>
       )}
@@ -312,7 +342,8 @@ export function InspectionPanel({
             Mark this extinguisher as expired
           </label>
           <p className="mt-1 text-xs text-red-700">
-            Use this when the unit is already expired so dashboard expiration analytics stay accurate.
+            Use this when the unit is already expired so dashboard expiration
+            analytics stay accurate.
           </p>
         </div>
       )}
@@ -363,10 +394,13 @@ export function InspectionPanel({
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-1 flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-red-500" />
-          <h2 className="text-lg font-semibold text-gray-900">ExtinguisherTracker NFPA 10 Inspection Checklist</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            ExtinguisherTracker NFPA 10 Inspection Checklist
+          </h2>
         </div>
         <p className="mb-4 text-xs text-gray-400">
-          Based on NFPA 10 Section 7.2.2 — Standard for Portable Fire Extinguishers
+          Based on NFPA 10 Section 7.2.2 — Standard for Portable Fire
+          Extinguishers
         </p>
 
         {CHECKLIST_SECTIONS.map((section) => (
@@ -389,7 +423,9 @@ export function InspectionPanel({
 
       {/* Inspection Notes */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-3 text-base font-semibold text-gray-900">Inspection Notes</h2>
+        <h2 className="mb-3 text-base font-semibold text-gray-900">
+          Inspection Notes
+        </h2>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -402,8 +438,12 @@ export function InspectionPanel({
         {/* Previous Inspection Notes */}
         {previousNotes && (
           <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Previous Inspection Notes</p>
-            <p className="text-sm text-gray-600 whitespace-pre-wrap">{previousNotes}</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Previous Inspection Notes
+            </p>
+            <p className="text-sm text-gray-600 whitespace-pre-wrap">
+              {previousNotes}
+            </p>
           </div>
         )}
       </div>
@@ -420,12 +460,20 @@ export function InspectionPanel({
 
       {/* Photo Capture — shows previous photos + capture button */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-3 text-base font-semibold text-gray-900">Inspection Photos</h2>
+        <h2 className="mb-3 text-base font-semibold text-gray-900">
+          Inspection Photos
+        </h2>
         {/* Show previous inspection photo if available */}
         {previousPhotoUrl && (
           <div className="mb-4">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Previous Inspection Photo</p>
-            <a href={previousPhotoUrl} target="_blank" rel="noopener noreferrer">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Previous Inspection Photo
+            </p>
+            <a
+              href={previousPhotoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <img
                 src={previousPhotoUrl}
                 alt="Previous inspection"
@@ -474,12 +522,17 @@ function formatTimestamp(ts: unknown): string {
   if (!ts) return '--';
   try {
     const maybeTs = ts as { toDate?: () => Date; seconds?: number };
-    const date = typeof maybeTs.toDate === 'function'
-      ? maybeTs.toDate()
-      : maybeTs.seconds
-        ? new Date(maybeTs.seconds * 1000)
-        : new Date(ts as string);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const date =
+      typeof maybeTs.toDate === 'function'
+        ? maybeTs.toDate()
+        : maybeTs.seconds
+          ? new Date(maybeTs.seconds * 1000)
+          : new Date(ts as string);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   } catch {
     return '--';
   }

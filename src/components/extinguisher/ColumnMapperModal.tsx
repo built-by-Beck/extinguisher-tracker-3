@@ -23,14 +23,53 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Asset ID',
     required: true,
     aliases: [
-      'asset id', 'asset_id', 'assetid', 'asset number', 'asset_number', 'assetnumber',
-      'extinguisher number', 'extinguisher_number', 'extinguishernumber', 'ext number',
-      'ext_number', 'ext num', 'ext_num', 'extnum', 'ext id', 'ext_id', 'extid',
-      'unit id', 'unit_id', 'unitid', 'unit number', 'unit_number', 'unitnumber',
-      'tag', 'tag number', 'tag_number', 'tagnumber', 'tag id', 'tag_id', 'tagid',
-      'id', 'number', 'item number', 'item_number', 'item id', 'item_id',
-      'fe number', 'fe_number', 'fenumber', 'fe id', 'fe_id', 'feid',
-      'equipment id', 'equipment_id', 'equipmentid', 'equip id', 'equip_id',
+      'asset id',
+      'asset_id',
+      'assetid',
+      'asset number',
+      'asset_number',
+      'assetnumber',
+      'extinguisher number',
+      'extinguisher_number',
+      'extinguishernumber',
+      'ext number',
+      'ext_number',
+      'ext num',
+      'ext_num',
+      'extnum',
+      'ext id',
+      'ext_id',
+      'extid',
+      'unit id',
+      'unit_id',
+      'unitid',
+      'unit number',
+      'unit_number',
+      'unitnumber',
+      'tag',
+      'tag number',
+      'tag_number',
+      'tagnumber',
+      'tag id',
+      'tag_id',
+      'tagid',
+      'id',
+      'number',
+      'item number',
+      'item_number',
+      'item id',
+      'item_id',
+      'fe number',
+      'fe_number',
+      'fenumber',
+      'fe id',
+      'fe_id',
+      'feid',
+      'equipment id',
+      'equipment_id',
+      'equipmentid',
+      'equip id',
+      'equip_id',
     ],
   },
   {
@@ -38,8 +77,18 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Serial Number',
     required: false,
     aliases: [
-      'serial', 'serial number', 'serial_number', 'serialnumber', 'serial no',
-      'serial_no', 'serialno', 'sn', 's/n', 'ser', 'ser no', 'ser_no',
+      'serial',
+      'serial number',
+      'serial_number',
+      'serialnumber',
+      'serial no',
+      'serial_no',
+      'serialno',
+      'sn',
+      's/n',
+      'ser',
+      'ser no',
+      'ser_no',
     ],
   },
   {
@@ -47,9 +96,18 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Building / Location',
     required: false,
     aliases: [
-      'building', 'location', 'parent location', 'parent_location', 'parentlocation',
-      'facility', 'site', 'building name', 'building_name', 'campus',
-      'property', 'address',
+      'building',
+      'location',
+      'parent location',
+      'parent_location',
+      'parentlocation',
+      'facility',
+      'site',
+      'building name',
+      'building_name',
+      'campus',
+      'property',
+      'address',
     ],
   },
   {
@@ -57,8 +115,18 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Location ID',
     required: false,
     aliases: [
-      'location id', 'location_id', 'locationid', 'loc id', 'loc_id', 'locid',
-      'room', 'room number', 'room_number', 'roomnumber', 'room id', 'room_id',
+      'location id',
+      'location_id',
+      'locationid',
+      'loc id',
+      'loc_id',
+      'locid',
+      'room',
+      'room number',
+      'room_number',
+      'roomnumber',
+      'room id',
+      'room_id',
     ],
   },
   {
@@ -66,8 +134,16 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Barcode',
     required: false,
     aliases: [
-      'barcode', 'bar code', 'bar_code', 'upc', 'ean', 'scan code', 'scan_code',
-      'scancode', 'barcode number', 'barcode_number',
+      'barcode',
+      'bar code',
+      'bar_code',
+      'upc',
+      'ean',
+      'scan code',
+      'scan_code',
+      'scancode',
+      'barcode number',
+      'barcode_number',
     ],
   },
   {
@@ -75,8 +151,17 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Manufacturer',
     required: false,
     aliases: [
-      'manufacturer', 'mfg', 'mfr', 'make', 'brand', 'maker', 'vendor',
-      'manufacturer name', 'manufacturer_name', 'mfg name', 'mfg_name',
+      'manufacturer',
+      'mfg',
+      'mfr',
+      'make',
+      'brand',
+      'maker',
+      'vendor',
+      'manufacturer name',
+      'manufacturer_name',
+      'mfg name',
+      'mfg_name',
     ],
   },
   {
@@ -84,10 +169,25 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Extinguisher Type',
     required: false,
     aliases: [
-      'type', 'extinguisher type', 'extinguisher_type', 'extinguishertype',
-      'ext type', 'ext_type', 'agent', 'agent type', 'agent_type',
-      'fire type', 'fire_type', 'class', 'fire class', 'fire_class',
-      'abc', 'dry chemical', 'co2', 'water', 'foam',
+      'type',
+      'extinguisher type',
+      'extinguisher_type',
+      'extinguishertype',
+      'ext type',
+      'ext_type',
+      'agent',
+      'agent type',
+      'agent_type',
+      'fire type',
+      'fire_type',
+      'class',
+      'fire class',
+      'fire_class',
+      'abc',
+      'dry chemical',
+      'co2',
+      'water',
+      'foam',
     ],
   },
   {
@@ -95,8 +195,14 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Service Class',
     required: false,
     aliases: [
-      'service class', 'service_class', 'serviceclass', 'rating',
-      'fire rating', 'fire_rating', 'class rating', 'class_rating',
+      'service class',
+      'service_class',
+      'serviceclass',
+      'rating',
+      'fire rating',
+      'fire_rating',
+      'class rating',
+      'class_rating',
     ],
   },
   {
@@ -104,8 +210,15 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Size',
     required: false,
     aliases: [
-      'size', 'extinguisher size', 'extinguisher_size', 'extinguishersize',
-      'weight', 'capacity', 'lbs', 'pounds', 'volume',
+      'size',
+      'extinguisher size',
+      'extinguisher_size',
+      'extinguishersize',
+      'weight',
+      'capacity',
+      'lbs',
+      'pounds',
+      'volume',
     ],
   },
   {
@@ -113,8 +226,13 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Category',
     required: false,
     aliases: [
-      'category', 'cat', 'status', 'asset status', 'asset_status',
-      'condition', 'state',
+      'category',
+      'cat',
+      'status',
+      'asset status',
+      'asset_status',
+      'condition',
+      'state',
     ],
   },
   {
@@ -122,8 +240,15 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Section',
     required: false,
     aliases: [
-      'section', 'zone', 'area', 'wing', 'floor', 'dept', 'department',
-      'building section', 'building_section',
+      'section',
+      'zone',
+      'area',
+      'wing',
+      'floor',
+      'dept',
+      'department',
+      'building section',
+      'building_section',
     ],
   },
   {
@@ -131,9 +256,19 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Vicinity',
     required: false,
     aliases: [
-      'vicinity', 'nearby', 'near', 'description', 'placement', 'position',
-      'spot', 'detail', 'notes', 'location detail', 'location_detail',
-      'location description', 'location_description',
+      'vicinity',
+      'nearby',
+      'near',
+      'description',
+      'placement',
+      'position',
+      'spot',
+      'detail',
+      'notes',
+      'location detail',
+      'location_detail',
+      'location description',
+      'location_description',
     ],
   },
   {
@@ -141,9 +276,21 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Manufacture Year',
     required: false,
     aliases: [
-      'manufacture year', 'manufacture_year', 'manufactureyear', 'mfg year', 'mfg_year',
-      'mfgyear', 'year made', 'year_made', 'year manufactured', 'year_manufactured',
-      'dom', 'date of manufacture', 'date_of_manufacture', 'year', 'built',
+      'manufacture year',
+      'manufacture_year',
+      'manufactureyear',
+      'mfg year',
+      'mfg_year',
+      'mfgyear',
+      'year made',
+      'year_made',
+      'year manufactured',
+      'year_manufactured',
+      'dom',
+      'date of manufacture',
+      'date_of_manufacture',
+      'year',
+      'built',
     ],
   },
   {
@@ -151,9 +298,21 @@ export const TARGET_FIELDS: TargetField[] = [
     label: 'Expiration Year',
     required: false,
     aliases: [
-      'expiration year', 'expiration_year', 'expirationyear', 'exp year', 'exp_year',
-      'expyear', 'expires', 'expiration', 'exp', 'expiry', 'expiry year',
-      'expiry_year', 'end of life', 'end_of_life', 'eol',
+      'expiration year',
+      'expiration_year',
+      'expirationyear',
+      'exp year',
+      'exp_year',
+      'expyear',
+      'expires',
+      'expiration',
+      'exp',
+      'expiry',
+      'expiry year',
+      'expiry_year',
+      'end of life',
+      'end_of_life',
+      'eol',
     ],
   },
 ];
@@ -162,7 +321,11 @@ export const TARGET_FIELDS: TargetField[] = [
  * Normalize a string for fuzzy matching: lowercase, strip special chars.
  */
 function normalize(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
@@ -220,7 +383,9 @@ export function ColumnMapperModal({
   // If the user selected a default location, hide the location fields from the mapper
   const availableFields = useMemo(() => {
     if (autoMappedLocation) {
-      return TARGET_FIELDS.filter(f => f.key !== 'parentLocation' && f.key !== 'locationId');
+      return TARGET_FIELDS.filter(
+        (f) => f.key !== 'parentLocation' && f.key !== 'locationId',
+      );
     }
     return TARGET_FIELDS;
   }, [autoMappedLocation]);
@@ -233,7 +398,11 @@ export function ColumnMapperModal({
     // First pass: find confident matches
     for (const col of sourceColumns) {
       const match = autoMatch(col);
-      if (match && !usedTargets.has(match) && availableFields.some(f => f.key === match)) {
+      if (
+        match &&
+        !usedTargets.has(match) &&
+        availableFields.some((f) => f.key === match)
+      ) {
         map[col] = match;
         usedTargets.add(match);
       }
@@ -247,7 +416,8 @@ export function ColumnMapperModal({
     return map;
   }, [sourceColumns, availableFields]);
 
-  const [mapping, setMapping] = useState<Record<string, string>>(initialMapping);
+  const [mapping, setMapping] =
+    useState<Record<string, string>>(initialMapping);
   const [showPreview, setShowPreview] = useState(true);
 
   // Track which target fields are already used
@@ -285,12 +455,18 @@ export function ColumnMapperModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Map Your Columns</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Map Your Columns
+            </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Match each column from your file to the correct field. We auto-detected what we could.
+              Match each column from your file to the correct field. We
+              auto-detected what we could.
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -326,7 +502,9 @@ export function ColumnMapperModal({
                 <div
                   key={col}
                   className={`grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-lg border px-3 py-2.5 ${
-                    matched ? 'border-green-200 bg-green-50/50' : 'border-gray-200 bg-white'
+                    matched
+                      ? 'border-green-200 bg-green-50/50'
+                      : 'border-gray-200 bg-white'
                   }`}
                 >
                   {/* Source column name + sample value */}
@@ -334,13 +512,18 @@ export function ColumnMapperModal({
                     <p className="text-sm font-medium text-gray-900">{col}</p>
                     {previewRows.length > 0 && (
                       <p className="mt-0.5 truncate text-xs text-gray-400">
-                        e.g. {previewRows[0][col] || <span className="italic">empty</span>}
+                        e.g.{' '}
+                        {previewRows[0][col] || (
+                          <span className="italic">empty</span>
+                        )}
                       </p>
                     )}
                   </div>
 
                   {/* Arrow */}
-                  <ArrowRight className={`h-4 w-4 ${matched ? 'text-green-500' : 'text-gray-300'}`} />
+                  <ArrowRight
+                    className={`h-4 w-4 ${matched ? 'text-green-500' : 'text-gray-300'}`}
+                  />
 
                   {/* Target field dropdown */}
                   <select
@@ -354,9 +537,14 @@ export function ColumnMapperModal({
                   >
                     <option value="">-- Skip this column --</option>
                     {availableFields.map((field) => {
-                      const isUsed = usedTargets.has(field.key) && target !== field.key;
+                      const isUsed =
+                        usedTargets.has(field.key) && target !== field.key;
                       return (
-                        <option key={field.key} value={field.key} disabled={isUsed}>
+                        <option
+                          key={field.key}
+                          value={field.key}
+                          disabled={isUsed}
+                        >
                           {field.label}
                           {field.required ? ' *' : ''}
                           {isUsed ? ' (already mapped)' : ''}
@@ -376,7 +564,11 @@ export function ColumnMapperModal({
                 onClick={() => setShowPreview(!showPreview)}
                 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900"
               >
-                {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showPreview ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
                 {showPreview ? 'Hide' : 'Show'} Data Preview
               </button>
 
@@ -385,10 +577,14 @@ export function ColumnMapperModal({
                   <table className="min-w-full text-xs">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-2 py-1.5 text-left font-semibold text-gray-500">#</th>
+                        <th className="px-2 py-1.5 text-left font-semibold text-gray-500">
+                          #
+                        </th>
                         {sourceColumns.map((col) => {
                           const target = mapping[col];
-                          const field = target ? TARGET_FIELDS.find((f) => f.key === target) : null;
+                          const field = target
+                            ? TARGET_FIELDS.find((f) => f.key === target)
+                            : null;
                           return (
                             <th key={col} className="px-2 py-1.5 text-left">
                               <span className="text-gray-500">{col}</span>
@@ -408,7 +604,10 @@ export function ColumnMapperModal({
                         <tr key={i}>
                           <td className="px-2 py-1 text-gray-400">{i + 1}</td>
                           {sourceColumns.map((col) => (
-                            <td key={col} className="max-w-[150px] truncate px-2 py-1 text-gray-700">
+                            <td
+                              key={col}
+                              className="max-w-[150px] truncate px-2 py-1 text-gray-700"
+                            >
                               {row[col] || ''}
                             </td>
                           ))}
@@ -425,8 +624,7 @@ export function ColumnMapperModal({
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-gray-200 px-5 py-4">
           <p className="text-xs text-gray-500">
-            {usedTargets.size} of {TARGET_FIELDS.length} fields mapped
-            {' '}&middot;{' '}
+            {usedTargets.size} of {TARGET_FIELDS.length} fields mapped &middot;{' '}
             {sourceColumns.length} columns in your file
           </p>
           <div className="flex items-center gap-3">

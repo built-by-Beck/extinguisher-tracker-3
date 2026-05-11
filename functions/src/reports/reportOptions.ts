@@ -1,4 +1,9 @@
-export type ReportScope = 'full' | 'failed_or_expired' | 'passed' | 'pending' | 'replacement_candidates';
+export type ReportScope =
+  | 'full'
+  | 'failed_or_expired'
+  | 'passed'
+  | 'pending'
+  | 'replacement_candidates';
 export type ReportSortBy = 'location' | 'assetId';
 
 export interface ReportGenerationOptions {
@@ -40,7 +45,10 @@ const validScopes = new Set<ReportScope>([
 
 const validSorts = new Set<ReportSortBy>(['location', 'assetId']);
 
-const collator = new Intl.Collator('en-US', { numeric: true, sensitivity: 'base' });
+const collator = new Intl.Collator('en-US', {
+  numeric: true,
+  sensitivity: 'base',
+});
 
 function stringOrEmpty(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -50,11 +58,22 @@ function normalizeStatus(value: unknown): string {
   return stringOrEmpty(value).toLowerCase();
 }
 
-function isReplacementCandidate(row: ReportOptionRow, currentYear: number): boolean {
-  return row.isExpired !== true && typeof row.manufactureYear === 'number' && row.manufactureYear <= currentYear - 6;
+function isReplacementCandidate(
+  row: ReportOptionRow,
+  currentYear: number,
+): boolean {
+  return (
+    row.isExpired !== true &&
+    typeof row.manufactureYear === 'number' &&
+    row.manufactureYear <= currentYear - 6
+  );
 }
 
-function matchesScope(row: ReportOptionRow, scope: ReportScope, currentYear: number): boolean {
+function matchesScope(
+  row: ReportOptionRow,
+  scope: ReportScope,
+  currentYear: number,
+): boolean {
   const status = normalizeStatus(row.status);
   switch (scope) {
     case 'failed_or_expired':
@@ -77,30 +96,53 @@ function locationSortValue(row: ReportOptionRow): string {
     row.section,
     row.vicinity,
     row.assetId,
-  ].map(stringOrEmpty).join(' ');
+  ]
+    .map(stringOrEmpty)
+    .join(' ');
 }
 
-function compareRows(a: ReportOptionRow, b: ReportOptionRow, sortBy: ReportSortBy): number {
+function compareRows(
+  a: ReportOptionRow,
+  b: ReportOptionRow,
+  sortBy: ReportSortBy,
+): number {
   if (sortBy === 'assetId') {
-    return collator.compare(a.assetId, b.assetId) || collator.compare(locationSortValue(a), locationSortValue(b));
+    return (
+      collator.compare(a.assetId, b.assetId) ||
+      collator.compare(locationSortValue(a), locationSortValue(b))
+    );
   }
 
-  return collator.compare(locationSortValue(a), locationSortValue(b)) || collator.compare(a.assetId, b.assetId);
+  return (
+    collator.compare(locationSortValue(a), locationSortValue(b)) ||
+    collator.compare(a.assetId, b.assetId)
+  );
 }
 
 export function parseReportOptions(input: unknown): ReportGenerationOptions {
-  const value = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
-  const scope = validScopes.has(value.scope as ReportScope) ? (value.scope as ReportScope) : DEFAULT_REPORT_OPTIONS.scope;
-  const sortBy = validSorts.has(value.sortBy as ReportSortBy) ? (value.sortBy as ReportSortBy) : DEFAULT_REPORT_OPTIONS.sortBy;
+  const value = (input && typeof input === 'object' ? input : {}) as Record<
+    string,
+    unknown
+  >;
+  const scope = validScopes.has(value.scope as ReportScope)
+    ? (value.scope as ReportScope)
+    : DEFAULT_REPORT_OPTIONS.scope;
+  const sortBy = validSorts.has(value.sortBy as ReportSortBy)
+    ? (value.sortBy as ReportSortBy)
+    : DEFAULT_REPORT_OPTIONS.sortBy;
 
   return { scope, sortBy };
 }
 
-export function reportOptionsStorageSuffix(options: ReportGenerationOptions): string {
+export function reportOptionsStorageSuffix(
+  options: ReportGenerationOptions,
+): string {
   return `${options.scope}-${options.sortBy}`;
 }
 
-export function calculateReportStats(rows: ReportOptionRow[]): ReportOptionStats {
+export function calculateReportStats(
+  rows: ReportOptionRow[],
+): ReportOptionStats {
   let passedCount = 0;
   let failedCount = 0;
   let pendingCount = 0;

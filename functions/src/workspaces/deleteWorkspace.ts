@@ -30,7 +30,8 @@ export const deleteWorkspace = onCall(async (request) => {
   }
 
   // Delete all inspection documents linked to this workspace
-  const inspSnap = await adminDb.collection(`org/${orgId}/inspections`)
+  const inspSnap = await adminDb
+    .collection(`org/${orgId}/inspections`)
     .where('workspaceId', '==', workspaceId)
     .get();
 

@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
@@ -19,7 +21,7 @@
   "dependencies": {
     "@stripe/react-stripe-js": "^5.6.1",
     "@stripe/stripe-js": "^8.10.0",
-    "@tailwindcss/vite": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.4",
     "@undecaf/barcode-detector-polyfill": "^0.9.23",
     "firebase": "^12.10.0",
     "idb": "^8.0.3",
@@ -29,13 +31,17 @@
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.1",
     "read-excel-file": "^9.0.9",
-    "tailwindcss": "^4.2.1"
+    "tailwindcss": "^4.2.4"
   },
   "pnpm": {
     "overrides": {
       "postcss": ">=8.5.10",
       "protobufjs": ">=7.5.5"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@firebase/util"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -51,6 +57,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "jsdom": "^29.0.1",
+    "prettier": "^3.8.3",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",

@@ -28,7 +28,9 @@ export function RoleGuard({ allowedRoles }: RoleGuardProps) {
       <div className="flex items-center justify-center p-12">
         <div className="text-center">
           <ShieldX className="mx-auto h-12 w-12 text-red-400" />
-          <h2 className="mt-4 text-lg font-semibold text-gray-900">Access Denied</h2>
+          <h2 className="mt-4 text-lg font-semibold text-gray-900">
+            Access Denied
+          </h2>
           <p className="mt-2 text-sm text-gray-500">
             You do not have permission to access this page.
           </p>

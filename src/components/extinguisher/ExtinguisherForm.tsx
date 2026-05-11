@@ -8,9 +8,30 @@ import {
 } from '../../services/locationService.ts';
 import type { Extinguisher } from '../../services/extinguisherService.ts';
 
-const CATEGORIES = ['standard', 'spare', 'replaced', 'retired', 'out_of_service'] as const;
-const TYPES = ['ABC', 'BC', 'CO2', 'Water', 'WetChemical', 'Foam', 'CleanAgent', 'Halon', 'ClassD'] as const;
-const SERVICE_CLASSES = ['storedPressure', 'cartridgeOperated', 'nonRechargeable', 'other'] as const;
+const CATEGORIES = [
+  'standard',
+  'spare',
+  'replaced',
+  'retired',
+  'out_of_service',
+] as const;
+const TYPES = [
+  'ABC',
+  'BC',
+  'CO2',
+  'Water',
+  'WetChemical',
+  'Foam',
+  'CleanAgent',
+  'Halon',
+  'ClassD',
+] as const;
+const SERVICE_CLASSES = [
+  'storedPressure',
+  'cartridgeOperated',
+  'nonRechargeable',
+  'other',
+] as const;
 
 interface ExtinguisherFormProps {
   initialData?: Partial<Extinguisher>;
@@ -19,7 +40,12 @@ interface ExtinguisherFormProps {
   loading?: boolean;
 }
 
-export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }: ExtinguisherFormProps) {
+export function ExtinguisherForm({
+  initialData,
+  onSubmit,
+  submitLabel,
+  loading,
+}: ExtinguisherFormProps) {
   const { userProfile } = useAuth();
   const orgId = userProfile?.activeOrgId ?? '';
 
@@ -36,17 +62,31 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
 
   const [assetId, setAssetId] = useState(initialData?.assetId ?? '');
   const [serial, setSerial] = useState(initialData?.serial ?? '');
-  const [manufacturer, setManufacturer] = useState(initialData?.manufacturer ?? '');
+  const [manufacturer, setManufacturer] = useState(
+    initialData?.manufacturer ?? '',
+  );
   const [category, setCategory] = useState(initialData?.category ?? 'standard');
-  const [extinguisherType, setExtinguisherType] = useState(initialData?.extinguisherType ?? '');
-  const [serviceClass, setServiceClass] = useState(initialData?.serviceClass ?? '');
-  const [extinguisherSize, setExtinguisherSize] = useState(initialData?.extinguisherSize ?? '');
-  const [manufactureYear, setManufactureYear] = useState<string>(initialData?.manufactureYear?.toString() ?? '');
-  const [expirationYear, setExpirationYear] = useState<string>(initialData?.expirationYear?.toString() ?? '');
+  const [extinguisherType, setExtinguisherType] = useState(
+    initialData?.extinguisherType ?? '',
+  );
+  const [serviceClass, setServiceClass] = useState(
+    initialData?.serviceClass ?? '',
+  );
+  const [extinguisherSize, setExtinguisherSize] = useState(
+    initialData?.extinguisherSize ?? '',
+  );
+  const [manufactureYear, setManufactureYear] = useState<string>(
+    initialData?.manufactureYear?.toString() ?? '',
+  );
+  const [expirationYear, setExpirationYear] = useState<string>(
+    initialData?.expirationYear?.toString() ?? '',
+  );
   const [section, setSection] = useState(initialData?.section ?? '');
   const [locationId, setLocationId] = useState(initialData?.locationId ?? '');
   const [vicinity, setVicinity] = useState(initialData?.vicinity ?? '');
-  const [parentLocation, setParentLocation] = useState(initialData?.parentLocation ?? '');
+  const [parentLocation, setParentLocation] = useState(
+    initialData?.parentLocation ?? '',
+  );
   const [barcode, setBarcode] = useState(initialData?.barcode ?? '');
   const [sixYearServiceCompleted, setSixYearServiceCompleted] = useState(false);
   const [hydroServiceCompleted, setHydroServiceCompleted] = useState(false);
@@ -135,15 +175,22 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
       )}
 
       {/* Identity */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900 uppercase tracking-wide">Identity</h3>
+        <h3 className="mb-4 text-sm font-semibold text-gray-900 uppercase tracking-wide">
+          Identity
+        </h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="assetId" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="assetId"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Asset ID <span className="text-red-500">*</span>
             </label>
             <input
@@ -156,7 +203,10 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
             />
           </div>
           <div>
-            <label htmlFor="serial" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="serial"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Serial Number <span className="text-red-500">*</span>
             </label>
             <input
@@ -168,7 +218,10 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
             />
           </div>
           <div>
-            <label htmlFor="barcode" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="barcode"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Barcode
             </label>
             <input
@@ -181,7 +234,10 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
             />
           </div>
           <div>
-            <label htmlFor="manufacturer" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="manufacturer"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Manufacturer
             </label>
             <input
@@ -197,10 +253,15 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
 
       {/* Classification */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900 uppercase tracking-wide">Classification</h3>
+        <h3 className="mb-4 text-sm font-semibold text-gray-900 uppercase tracking-wide">
+          Classification
+        </h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <label htmlFor="category" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="category"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Category
             </label>
             <select
@@ -211,13 +272,18 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
-                  {c.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                  {c
+                    .replace(/_/g, ' ')
+                    .replace(/\b\w/g, (l) => l.toUpperCase())}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label htmlFor="extType" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="extType"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Type
             </label>
             <select
@@ -228,12 +294,17 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
             >
               <option value="">-- Select --</option>
               {TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
           </div>
           <div>
-            <label htmlFor="serviceClass" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="serviceClass"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Service Class
             </label>
             <select
@@ -245,13 +316,18 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
               <option value="">-- Select --</option>
               {SERVICE_CLASSES.map((sc) => (
                 <option key={sc} value={sc}>
-                  {sc.replace(/([A-Z])/g, ' $1').replace(/^./, (l) => l.toUpperCase())}
+                  {sc
+                    .replace(/([A-Z])/g, ' $1')
+                    .replace(/^./, (l) => l.toUpperCase())}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label htmlFor="size" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="size"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Size
             </label>
             <input
@@ -264,7 +340,10 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
             />
           </div>
           <div>
-            <label htmlFor="mfgYear" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="mfgYear"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Manufacture Year
             </label>
             <input
@@ -277,7 +356,10 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
             />
           </div>
           <div>
-            <label htmlFor="expYear" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="expYear"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Expiration Year
             </label>
             <input
@@ -294,9 +376,12 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
 
       {/* Service history */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="mb-2 text-sm font-semibold text-gray-900 uppercase tracking-wide">Service History</h3>
+        <h3 className="mb-2 text-sm font-semibold text-gray-900 uppercase tracking-wide">
+          Service History
+        </h3>
         <p className="mb-4 text-sm text-gray-500">
-          Check these only when the extinguisher was just serviced. This resets the next due date from today.
+          Check these only when the extinguisher was just serviced. This resets
+          the next due date from today.
         </p>
         <div className="space-y-3">
           <label className="flex items-start gap-3 rounded-lg border border-gray-200 px-3 py-3 text-sm">
@@ -307,9 +392,12 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
               className="mt-0.5 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
             />
             <span>
-              <span className="block font-medium text-gray-900">6-year maintenance completed</span>
+              <span className="block font-medium text-gray-900">
+                6-year maintenance completed
+              </span>
               <span className="block text-gray-500">
-                Records today as the last 6-year maintenance date for this extinguisher.
+                Records today as the last 6-year maintenance date for this
+                extinguisher.
               </span>
             </span>
           </label>
@@ -321,9 +409,12 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
               className="mt-0.5 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
             />
             <span>
-              <span className="block font-medium text-gray-900">Hydro test completed</span>
+              <span className="block font-medium text-gray-900">
+                Hydro test completed
+              </span>
               <span className="block text-gray-500">
-                Records today as the last hydrostatic test date for this extinguisher.
+                Records today as the last hydrostatic test date for this
+                extinguisher.
               </span>
             </span>
           </label>
@@ -332,10 +423,15 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
 
       {/* Location */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="mb-4 text-sm font-semibold text-gray-900 uppercase tracking-wide">Location</h3>
+        <h3 className="mb-4 text-sm font-semibold text-gray-900 uppercase tracking-wide">
+          Location
+        </h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="location" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="location"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Location
             </label>
             {locations.length > 0 ? (
@@ -354,12 +450,16 @@ export function ExtinguisherForm({ initialData, onSubmit, submitLabel, loading }
               </select>
             ) : (
               <p className="text-sm text-gray-400">
-                No locations configured. Add locations on the Locations page first.
+                No locations configured. Add locations on the Locations page
+                first.
               </p>
             )}
           </div>
           <div>
-            <label htmlFor="vicinity" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="vicinity"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Vicinity
             </label>
             <input

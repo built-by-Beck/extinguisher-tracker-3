@@ -7,9 +7,22 @@ import {
   persistentMultipleTabManager,
   type Firestore,
 } from 'firebase/firestore';
-import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage';
-import { getFunctions, connectFunctionsEmulator, type Functions } from 'firebase/functions';
-import { getAI, getGenerativeModel, VertexAIBackend, type GenerativeModel } from 'firebase/ai';
+import {
+  getStorage,
+  connectStorageEmulator,
+  type FirebaseStorage,
+} from 'firebase/storage';
+import {
+  getFunctions,
+  connectFunctionsEmulator,
+  type Functions,
+} from 'firebase/functions';
+import {
+  getAI,
+  getGenerativeModel,
+  VertexAIBackend,
+  type GenerativeModel,
+} from 'firebase/ai';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -37,7 +50,9 @@ const functions: Functions = getFunctions(app);
 
 // Vertex AI (Gemini) — client-side generative AI
 const ai = getAI(app, { backend: new VertexAIBackend() });
-const geminiModel: GenerativeModel = getGenerativeModel(ai, { model: 'gemini-2.5-flash' });
+const geminiModel: GenerativeModel = getGenerativeModel(ai, {
+  model: 'gemini-2.5-flash',
+});
 
 /**
  * Connect to Firebase emulators in development mode.
@@ -45,7 +60,9 @@ const geminiModel: GenerativeModel = getGenerativeModel(ai, { model: 'gemini-2.5
  */
 function connectToEmulators(): void {
   if (import.meta.env.DEV) {
-    connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+    connectAuthEmulator(auth, 'http://localhost:9099', {
+      disableWarnings: true,
+    });
     connectFirestoreEmulator(db, 'localhost', 8080);
     connectStorageEmulator(storage, 'localhost', 9199);
     connectFunctionsEmulator(functions, 'localhost', 5001);

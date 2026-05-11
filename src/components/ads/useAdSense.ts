@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 
-const ADSENSE_PUB_ID = import.meta.env.VITE_ADSENSE_PUB_ID as string | undefined;
+const ADSENSE_PUB_ID = import.meta.env.VITE_ADSENSE_PUB_ID as
+  | string
+  | undefined;
 
 let scriptLoaded = false;
 

@@ -35,7 +35,13 @@ type FeatureBlockProps = {
   icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
 };
 
-function FeatureBlock({ title, what, why, outcome, icon: Icon }: FeatureBlockProps) {
+function FeatureBlock({
+  title,
+  what,
+  why,
+  outcome,
+  icon: Icon,
+}: FeatureBlockProps) {
   return (
     <article className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
       <div className="flex items-start gap-4">
@@ -69,14 +75,21 @@ export default function MarketingFeaturesPage() {
 
   return (
     <>
-      <MarketingPageMeta title={seo.title} description={seo.description} path={seo.path} />
+      <MarketingPageMeta
+        title={seo.title}
+        description={seo.description}
+        path={seo.path}
+      />
       <PublicMarketingLayout>
         <div className="border-b border-gray-200 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900">Features</h1>
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900">
+              Features
+            </h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
-              Built for teams that do not have time to chase notes, search regulations, rebuild spreadsheets, or lose
-              field evidence. Capabilities may vary by plan; use pricing to compare tiers.
+              Built for teams that do not have time to chase notes, search
+              regulations, rebuild spreadsheets, or lose field evidence.
+              Capabilities may vary by plan; use pricing to compare tiers.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -261,8 +274,13 @@ export default function MarketingFeaturesPage() {
 
         <div className="border-t border-gray-200 bg-gray-50">
           <div className="mx-auto max-w-6xl px-4 py-14 text-center sm:px-6">
-            <p className="text-lg font-medium text-gray-900">Want the step-by-step flow?</p>
-            <Link to="/how-it-works" className="mt-3 inline-block font-medium text-red-600 hover:text-red-500">
+            <p className="text-lg font-medium text-gray-900">
+              Want the step-by-step flow?
+            </p>
+            <Link
+              to="/how-it-works"
+              className="mt-3 inline-block font-medium text-red-600 hover:text-red-500"
+            >
               Read how it works →
             </Link>
           </div>

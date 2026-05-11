@@ -37,7 +37,10 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className={`mx-auto max-w-6xl px-4 py-16 sm:px-6 ${className}`}>
+    <section
+      id={id}
+      className={`mx-auto max-w-6xl px-4 py-16 sm:px-6 ${className}`}
+    >
       {children}
     </section>
   );
@@ -48,16 +51,23 @@ export default function MarketingHomePage() {
 
   return (
     <>
-      <MarketingPageMeta title={seo.title} description={seo.description} path={seo.path} />
+      <MarketingPageMeta
+        title={seo.title}
+        description={seo.description}
+        path={seo.path}
+      />
       <PublicMarketingLayout>
         <Section className="py-14 sm:py-20">
           <div className="max-w-3xl">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-              Field-built extinguisher software for teams that cannot afford missed checks
+              Field-built extinguisher software for teams that cannot afford
+              missed checks
             </h1>
             <p className="mt-5 text-lg text-gray-600 sm:text-xl">
-              ExtinguisherTracker brings inventory, inspections, AI guidance, offline-ready field work, reports,
-              reminders, and audit history into one system built around the way life safety work actually happens.
+              ExtinguisherTracker brings inventory, inspections, AI guidance,
+              offline-ready field work, reports, reminders, and audit history
+              into one system built around the way life safety work actually
+              happens.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
@@ -75,7 +85,10 @@ export default function MarketingHomePage() {
             </div>
             <p className="mt-4 text-sm text-gray-500">
               Already using the product?{' '}
-              <Link to="/login" className="font-medium text-red-600 hover:text-red-500">
+              <Link
+                to="/login"
+                className="font-medium text-red-600 hover:text-red-500"
+              >
                 Sign in
               </Link>
             </p>
@@ -84,11 +97,14 @@ export default function MarketingHomePage() {
 
         <div className="border-y border-gray-200 bg-white">
           <Section>
-            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">The problem with paper and spreadsheets</h2>
+            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+              The problem with paper and spreadsheets
+            </h2>
             <p className="mt-4 max-w-3xl text-gray-600">
-              Extinguisher programs create a lot of data: dates, locations, and pass/fail results. When this lives in paper binders or 
-              disconnected spreadsheets, it is easy to miss a unit, lose history when staff changes, or scramble when 
-              an inspector asks for proof.
+              Extinguisher programs create a lot of data: dates, locations, and
+              pass/fail results. When this lives in paper binders or
+              disconnected spreadsheets, it is easy to miss a unit, lose history
+              when staff changes, or scramble when an inspector asks for proof.
             </p>
             <ul className="mt-8 grid gap-4 sm:grid-cols-2">
               {[
@@ -99,8 +115,14 @@ export default function MarketingHomePage() {
                 'Disconnected tools make replacement history, guest access, and reports harder than they should be',
                 'Field teams lose time when bad signal, missing photos, or unclear follow-ups break the route',
               ].map((item) => (
-                <li key={item} className="flex gap-3 rounded-lg border border-gray-100 bg-gray-50 p-4">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden />
+                <li
+                  key={item}
+                  className="flex gap-3 rounded-lg border border-gray-100 bg-gray-50 p-4"
+                >
+                  <CheckCircle2
+                    className="mt-0.5 h-5 w-5 shrink-0 text-red-600"
+                    aria-hidden
+                  />
                   <span className="text-sm text-gray-700">{item}</span>
                 </li>
               ))}
@@ -109,10 +131,14 @@ export default function MarketingHomePage() {
         </div>
 
         <Section>
-          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">What ExtinguisherTracker does</h2>
+          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+            What ExtinguisherTracker does
+          </h2>
           <p className="mt-4 max-w-3xl text-gray-600">
-            It covers the full program: setup, inventory, tags, mobile inspections, custom asset checks, evidence,
-            reminders, reports, guest sharing, lifecycle changes, and the cleanup tools that keep records trustworthy.
+            It covers the full program: setup, inventory, tags, mobile
+            inspections, custom asset checks, evidence, reminders, reports,
+            guest sharing, lifecycle changes, and the cleanup tools that keep
+            records trustworthy.
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
@@ -192,15 +218,23 @@ export default function MarketingHomePage() {
                 icon: Bell,
               },
             ].map(({ title, body, icon: Icon }) => (
-              <div key={title} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div
+                key={title}
+                className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+              >
                 <Icon className="h-9 w-9 text-red-600" aria-hidden />
-                <h3 className="mt-4 text-lg font-semibold text-gray-900">{title}</h3>
+                <h3 className="mt-4 text-lg font-semibold text-gray-900">
+                  {title}
+                </h3>
                 <p className="mt-2 text-sm text-gray-600">{body}</p>
               </div>
             ))}
           </div>
           <p className="mt-10">
-            <Link to="/features" className="font-medium text-red-600 hover:text-red-500">
+            <Link
+              to="/features"
+              className="font-medium text-red-600 hover:text-red-500"
+            >
               Explore all features →
             </Link>
           </p>
@@ -212,12 +246,14 @@ export default function MarketingHomePage() {
               <div className="lg:max-w-md lg:shrink-0">
                 <div className="flex items-center gap-3">
                   <Bot className="h-8 w-8 text-red-400" aria-hidden />
-                  <h2 className="text-2xl font-bold text-white sm:text-3xl">Your on-call compliance expert</h2>
+                  <h2 className="text-2xl font-bold text-white sm:text-3xl">
+                    Your on-call compliance expert
+                  </h2>
                 </div>
                 <p className="mt-4 text-gray-300">
-                  The Pro+ AI assistant is built for people actively working a route — not for
-                  sitting at a desk with time to search a PDF. Ask anything and get a referenced
-                  answer in seconds.
+                  The Pro+ AI assistant is built for people actively working a
+                  route — not for sitting at a desk with time to search a PDF.
+                  Ask anything and get a referenced answer in seconds.
                 </p>
                 <ul className="mt-6 space-y-2">
                   {[
@@ -227,15 +263,23 @@ export default function MarketingHomePage() {
                     'Temporary photo analysis without attaching to the record',
                     'Context-aware follow-up questions in the same session',
                   ].map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-gray-300">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden />
+                    <li
+                      key={item}
+                      className="flex items-start gap-2 text-sm text-gray-300"
+                    >
+                      <CheckCircle2
+                        className="mt-0.5 h-4 w-4 shrink-0 text-red-400"
+                        aria-hidden
+                      />
                       {item}
                     </li>
                   ))}
                 </ul>
               </div>
               <div className="flex-1">
-                <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Example questions</p>
+                <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Example questions
+                </p>
                 <div className="space-y-3">
                   {[
                     'Can you tell me how far extinguishers are supposed to be apart according to NFPA 2022?',
@@ -245,13 +289,18 @@ export default function MarketingHomePage() {
                     'What are the six-year maintenance requirements for a dry chemical extinguisher?',
                     'Summarize everything currently failing or overdue in inventory.',
                   ].map((q) => (
-                    <div key={q} className="rounded-lg border border-gray-700 bg-gray-900 px-4 py-3">
+                    <div
+                      key={q}
+                      className="rounded-lg border border-gray-700 bg-gray-900 px-4 py-3"
+                    >
                       <p className="text-sm text-gray-200">"{q}"</p>
                     </div>
                   ))}
                 </div>
                 <p className="mt-4 text-xs text-gray-500">
-                  AI references the NFPA edition configured in Organization Settings. Confirm final decisions with your AHJ and internally adopted code edition.
+                  AI references the NFPA edition configured in Organization
+                  Settings. Confirm final decisions with your AHJ and internally
+                  adopted code edition.
                 </p>
               </div>
             </div>
@@ -260,10 +309,13 @@ export default function MarketingHomePage() {
 
         <div className="border-y border-gray-200 bg-white">
           <Section>
-            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Who it is for</h2>
+            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+              Who it is for
+            </h2>
             <p className="mt-4 max-w-3xl text-gray-600">
-              Teams accountable for life safety assets across buildings and campuses—not only fire professionals, but
-              the people who actually execute routes and answer for documentation.
+              Teams accountable for life safety assets across buildings and
+              campuses—not only fire professionals, but the people who actually
+              execute routes and answer for documentation.
             </p>
             <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {[
@@ -280,7 +332,9 @@ export default function MarketingHomePage() {
                   className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3"
                 >
                   <Icon className="h-5 w-5 shrink-0 text-red-600" aria-hidden />
-                  <span className="text-sm font-medium text-gray-800">{label}</span>
+                  <span className="text-sm font-medium text-gray-800">
+                    {label}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -288,52 +342,86 @@ export default function MarketingHomePage() {
         </div>
 
         <Section>
-          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Built for the real world</h2>
+          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+            Built for the real world
+          </h2>
           <p className="mt-4 max-w-3xl text-gray-600">
-            This product exists because inspection programs are messy: people leave, locations change, devices lose
-            signal, extinguishers get replaced, and inspectors show up unannounced. Every major feature is there
-            because it solves a real operational need, not because it looked good on a software checklist.
+            This product exists because inspection programs are messy: people
+            leave, locations change, devices lose signal, extinguishers get
+            replaced, and inspectors show up unannounced. Every major feature is
+            there because it solves a real operational need, not because it
+            looked good on a software checklist.
           </p>
           <p className="mt-4 max-w-3xl text-gray-600">
-            It was independently built by someone with life safety field experience who also writes software, which is
-            why the product stays focused on practical work: find the asset, complete the check, preserve the evidence,
-            and know what still needs attention.
+            It was independently built by someone with life safety field
+            experience who also writes software, which is why the product stays
+            focused on practical work: find the asset, complete the check,
+            preserve the evidence, and know what still needs attention.
           </p>
           <p className="mt-4 max-w-3xl text-sm text-gray-500">
-            AI guidance references the NFPA edition configured in Organization Settings, with NFPA 10 (2022) as the
-            new-org fallback. Your organization should align responses with the edition adopted in your jurisdiction
-            and internal policy.
+            AI guidance references the NFPA edition configured in Organization
+            Settings, with NFPA 10 (2022) as the new-org fallback. Your
+            organization should align responses with the edition adopted in your
+            jurisdiction and internal policy.
           </p>
         </Section>
 
         <div className="border-y border-gray-200 bg-white" id="plans-preview">
           <Section>
-            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Plans</h2>
+            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+              Plans
+            </h2>
             <p className="mt-4 max-w-2xl text-gray-600">
-              Four tiers so you can match capability to portfolio size. Details and FAQs live on the pricing page.
+              Four tiers so you can match capability to portfolio size. Details
+              and FAQs live on the pricing page.
             </p>
             <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                { name: 'Basic', blurb: 'Inventory, workflow, reports, and timers for small operations.' },
-                { name: 'Pro', blurb: 'AI guidance, camera scanning, GPS/photo evidence, and custom asset inspections.', recommended: true },
-                { name: 'Elite', blurb: 'Team invites, bulk tags, guest sharing, and advanced data tools.' },
-                { name: 'Enterprise', blurb: 'Custom contracts, dedicated setup, and unlimited scale.' },
+                {
+                  name: 'Basic',
+                  blurb:
+                    'Inventory, workflow, reports, and timers for small operations.',
+                },
+                {
+                  name: 'Pro',
+                  blurb:
+                    'AI guidance, camera scanning, GPS/photo evidence, and custom asset inspections.',
+                  recommended: true,
+                },
+                {
+                  name: 'Elite',
+                  blurb:
+                    'Team invites, bulk tags, guest sharing, and advanced data tools.',
+                },
+                {
+                  name: 'Enterprise',
+                  blurb:
+                    'Custom contracts, dedicated setup, and unlimited scale.',
+                },
               ].map(({ name, blurb, recommended }) => (
                 <Link
                   key={name}
                   to={`/plans/${name.toLowerCase()}`}
                   className={`group block rounded-xl border bg-white p-6 shadow-sm transition-shadow hover:shadow-md ${
-                    recommended ? 'border-red-200 ring-2 ring-red-100' : 'border-gray-200 hover:border-gray-300'
+                    recommended
+                      ? 'border-red-200 ring-2 ring-red-100'
+                      : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   {recommended ? (
-                    <p className="text-xs font-semibold uppercase tracking-wide text-red-600">Recommended</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-red-600">
+                      Recommended
+                    </p>
                   ) : (
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Plan</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Plan
+                    </p>
                   )}
                   <p className="mt-2 text-xl font-bold text-gray-900">{name}</p>
                   <p className="mt-2 text-sm text-gray-600">{blurb}</p>
-                  <p className="mt-4 text-xs font-medium text-red-600 group-hover:underline">See what's included →</p>
+                  <p className="mt-4 text-xs font-medium text-red-600 group-hover:underline">
+                    See what's included →
+                  </p>
                 </Link>
               ))}
             </div>
@@ -350,10 +438,12 @@ export default function MarketingHomePage() {
 
         <Section className="pb-20">
           <div className="rounded-2xl bg-red-600 px-6 py-12 text-center sm:px-12">
-            <h2 className="text-2xl font-bold text-white sm:text-3xl">Ready to tighten up your extinguisher program?</h2>
+            <h2 className="text-2xl font-bold text-white sm:text-3xl">
+              Ready to tighten up your extinguisher program?
+            </h2>
             <p className="mx-auto mt-4 max-w-2xl text-red-100">
-              Create an account, set up your organization, and start building the inventory and inspection rhythm your
-              team can sustain.
+              Create an account, set up your organization, and start building
+              the inventory and inspection rhythm your team can sustain.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link

@@ -13,7 +13,7 @@ const PRESET_AVATAR_IDS = [
   'hydrant-purple',
 ] as const;
 
-type PresetAvatarId = typeof PRESET_AVATAR_IDS[number];
+type PresetAvatarId = (typeof PRESET_AVATAR_IDS)[number];
 
 interface UpdateUserProfileInput {
   displayName: string;
@@ -51,13 +51,19 @@ function normalizeDisplayName(value: unknown): string {
 }
 
 function validateAvatarId(value: unknown): PresetAvatarId {
-  if (typeof value !== 'string' || !PRESET_AVATAR_IDS.includes(value as PresetAvatarId)) {
+  if (
+    typeof value !== 'string' ||
+    !PRESET_AVATAR_IDS.includes(value as PresetAvatarId)
+  ) {
     throwInvalidArgument('Choose one of the available profile avatars.');
   }
   return value as PresetAvatarId;
 }
 
-async function syncMemberDisplayNames(uid: string, displayName: string): Promise<void> {
+async function syncMemberDisplayNames(
+  uid: string,
+  displayName: string,
+): Promise<void> {
   const memberSnap = await adminDb
     .collectionGroup('members')
     .where('uid', '==', uid)
@@ -94,31 +100,31 @@ async function syncMemberDisplayNames(uid: string, displayName: string): Promise
   }
 }
 
-export const updateUserProfile = onCall<UpdateUserProfileInput, Promise<UpdateUserProfileOutput>>(
-  { enforceAppCheck: false },
-  async (request) => {
-    const { uid } = validateAuth(request);
-    const displayName = normalizeDisplayName(request.data.displayName);
-    const avatarId = validateAvatarId(request.data.avatarId);
-    const now = FieldValue.serverTimestamp();
+export const updateUserProfile = onCall<
+  UpdateUserProfileInput,
+  Promise<UpdateUserProfileOutput>
+>({ enforceAppCheck: false }, async (request) => {
+  const { uid } = validateAuth(request);
+  const displayName = normalizeDisplayName(request.data.displayName);
+  const avatarId = validateAvatarId(request.data.avatarId);
+  const now = FieldValue.serverTimestamp();
 
-    await adminAuth.updateUser(uid, {
+  await adminAuth.updateUser(uid, {
+    displayName,
+    photoURL: null,
+  });
+
+  await adminDb.doc(`usr/${uid}`).set(
+    {
       displayName,
+      avatarId,
       photoURL: null,
-    });
+      updatedAt: now,
+    },
+    { merge: true },
+  );
 
-    await adminDb.doc(`usr/${uid}`).set(
-      {
-        displayName,
-        avatarId,
-        photoURL: null,
-        updatedAt: now,
-      },
-      { merge: true },
-    );
+  await syncMemberDisplayNames(uid, displayName);
 
-    await syncMemberDisplayNames(uid, displayName);
-
-    return { success: true };
-  },
-);
+  return { success: true };
+});

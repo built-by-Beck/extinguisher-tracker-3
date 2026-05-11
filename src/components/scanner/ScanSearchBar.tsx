@@ -12,7 +12,10 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Camera, Loader2, X, Sparkles } from 'lucide-react';
 import { hasFeature } from '../../lib/planConfig.ts';
 import type { OrgFeatureFlags } from '../../types/organization.ts';
-import { findExtinguisherByCode, type Extinguisher } from '../../services/extinguisherService.ts';
+import {
+  findExtinguisherByCode,
+  type Extinguisher,
+} from '../../services/extinguisherService.ts';
 import BarcodeScannerModal from './BarcodeScannerModal.tsx';
 import type { ScanResult } from './BarcodeScannerModal.tsx';
 
@@ -48,7 +51,9 @@ export function ScanSearchBar({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const flags = featureFlags as Record<string, boolean> | null | undefined;
-  const canScan = hasFeature(flags, 'cameraBarcodeScan', plan) || hasFeature(flags, 'qrScanning', plan);
+  const canScan =
+    hasFeature(flags, 'cameraBarcodeScan', plan) ||
+    hasFeature(flags, 'qrScanning', plan);
   const showScanTeaser = plan === 'basic' && !canScan;
   const showScanButton = canScan || showScanTeaser;
 
@@ -103,7 +108,11 @@ export function ScanSearchBar({
         onExtinguisherFound(ext);
       } else {
         setError(`No extinguisher found for "${result.text}"`);
-        onNotFound?.({ code: result.text, source: 'scan', format: result.format });
+        onNotFound?.({
+          code: result.text,
+          source: 'scan',
+          format: result.format,
+        });
       }
     } catch {
       setError('Scan lookup failed. Please try again.');
@@ -157,9 +166,7 @@ export function ScanSearchBar({
         )}
       </div>
 
-      {error && (
-        <p className="mt-1.5 text-xs text-red-600">{error}</p>
-      )}
+      {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
 
       <BarcodeScannerModal
         open={scannerOpen}
@@ -180,7 +187,10 @@ export function ScanSearchBar({
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-100">
                   <Camera className="h-5 w-5 text-red-600" />
                 </div>
-                <h2 id="scan-upgrade-title" className="text-lg font-semibold text-gray-900">
+                <h2
+                  id="scan-upgrade-title"
+                  className="text-lg font-semibold text-gray-900"
+                >
                   Upgrade to Pro
                 </h2>
               </div>
@@ -195,22 +205,36 @@ export function ScanSearchBar({
             </div>
             <div className="px-4 py-4">
               <p className="text-sm text-gray-600">
-                Camera barcode scanning is included with <strong>Pro</strong> and higher. Upgrade to unlock
-                scanning plus the AI compliance assistant, QR scanning, GPS and photo capture on
-                inspections, tag printing, inspection routes, and more.
+                Camera barcode scanning is included with <strong>Pro</strong>{' '}
+                and higher. Upgrade to unlock scanning plus the AI compliance
+                assistant, QR scanning, GPS and photo capture on inspections,
+                tag printing, inspection routes, and more.
               </p>
               <ul className="mt-3 space-y-2 text-sm text-gray-700">
                 <li className="flex gap-2">
-                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" aria-hidden />
-                  <span>AI assistant for compliance questions and inventory insights</span>
+                  <Sparkles
+                    className="mt-0.5 h-4 w-4 shrink-0 text-blue-500"
+                    aria-hidden
+                  />
+                  <span>
+                    AI assistant for compliance questions and inventory insights
+                  </span>
                 </li>
                 <li className="flex gap-2">
-                  <Camera className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />
+                  <Camera
+                    className="mt-0.5 h-4 w-4 shrink-0 text-red-600"
+                    aria-hidden
+                  />
                   <span>Camera barcode and QR scanning for faster lookups</span>
                 </li>
                 <li className="flex gap-2">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" aria-hidden />
-                  <span>Higher asset limits and the rest of the Pro feature set</span>
+                  <span
+                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400"
+                    aria-hidden
+                  />
+                  <span>
+                    Higher asset limits and the rest of the Pro feature set
+                  </span>
                 </li>
               </ul>
             </div>

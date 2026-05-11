@@ -45,22 +45,37 @@ function stringOrNull(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
 }
 
-export function deterministicExtinguisherInspectionId(extinguisherId: string, workspaceId: string): string {
+export function deterministicExtinguisherInspectionId(
+  extinguisherId: string,
+  workspaceId: string,
+): string {
   return `ext_${extinguisherId}_${workspaceId}`;
 }
 
-export function isMonthlyWorkspaceExtinguisher(data: ExtinguisherInspectionSource): boolean {
-  const lifecycleStatus = typeof data.lifecycleStatus === 'string' ? data.lifecycleStatus : null;
+export function isMonthlyWorkspaceExtinguisher(
+  data: ExtinguisherInspectionSource,
+): boolean {
+  const lifecycleStatus =
+    typeof data.lifecycleStatus === 'string' ? data.lifecycleStatus : null;
   const category = typeof data.category === 'string' ? data.category : null;
   const status = typeof data.status === 'string' ? data.status : null;
 
   if (data.deletedAt != null) return false;
   if (category !== 'standard') return false;
-  if (lifecycleStatus === 'replaced' || lifecycleStatus === 'retired' || lifecycleStatus === 'deleted') return false;
+  if (
+    lifecycleStatus === 'replaced' ||
+    lifecycleStatus === 'retired' ||
+    lifecycleStatus === 'deleted'
+  )
+    return false;
   if (status != null && status !== 'active') return false;
   if (data.isActive === false) return false;
 
-  return lifecycleStatus === 'active' || lifecycleStatus == null || lifecycleStatus === '';
+  return (
+    lifecycleStatus === 'active' ||
+    lifecycleStatus == null ||
+    lifecycleStatus === ''
+  );
 }
 
 export function buildPendingExtinguisherInspectionSeed(

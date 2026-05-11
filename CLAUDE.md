@@ -22,6 +22,7 @@ This project is in the **pre-build/specification phase**. The `BUILD-SPECS/` fol
 ## Build Commands
 
 No build system is set up yet. When initialized, expect:
+
 - `npm run dev` — Vite dev server
 - `npm run build` — production build
 - `cd functions && npm run build` — Cloud Functions build
@@ -32,21 +33,21 @@ No build system is set up yet. When initialized, expect:
 
 All specs live in `BUILD-SPECS/`. Key files by topic:
 
-| File | Topic |
-|------|-------|
-| `00-AI-BUILD-INSTRUCTIONS.md` | **Read first.** Master rules for AI implementation |
-| `01-PROJECT-OVERVIEW.md` | Product vision, architecture principles |
-| `02-*` | Auth, organizations, roles, Stripe billing |
-| `03-*` | Firestore schema (all collections) |
-| `04-*` | Feature specs and workflows |
-| `06-*` | Business logic, compliance rules, lifecycle |
-| `07-*` | Cloud Functions and security rules |
-| `09-*` | Plans & pricing (Basic $29.99, Pro $99, Elite $199, Enterprise custom) |
-| `10-*` | Multi-tenant isolation rules |
-| `11-*` | NFPA compliance system |
-| `12-*` | Extinguisher lifecycle engine |
-| `17-*` | Offline sync |
-| `21-*` | Security rules architecture |
+| File                          | Topic                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| `00-AI-BUILD-INSTRUCTIONS.md` | **Read first.** Master rules for AI implementation                     |
+| `01-PROJECT-OVERVIEW.md`      | Product vision, architecture principles                                |
+| `02-*`                        | Auth, organizations, roles, Stripe billing                             |
+| `03-*`                        | Firestore schema (all collections)                                     |
+| `04-*`                        | Feature specs and workflows                                            |
+| `06-*`                        | Business logic, compliance rules, lifecycle                            |
+| `07-*`                        | Cloud Functions and security rules                                     |
+| `09-*`                        | Plans & pricing (Basic $29.99, Pro $99, Elite $199, Enterprise custom) |
+| `10-*`                        | Multi-tenant isolation rules                                           |
+| `11-*`                        | NFPA compliance system                                                 |
+| `12-*`                        | Extinguisher lifecycle engine                                          |
+| `17-*`                        | Offline sync                                                           |
+| `21-*`                        | Security rules architecture                                            |
 
 ## Architecture (Non-Negotiable Rules)
 

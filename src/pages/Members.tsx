@@ -25,7 +25,11 @@ export default function Members() {
 
   const canManage = hasRole(['owner', 'admin']);
   const orgId = userProfile?.activeOrgId ?? '';
-  const canAccessMembers = hasFeature(org?.featureFlags, 'teamMembers', org?.plan);
+  const canAccessMembers = hasFeature(
+    org?.featureFlags,
+    'teamMembers',
+    org?.plan,
+  );
 
   // Real-time listener for members
   useEffect(() => {
@@ -36,7 +40,10 @@ export default function Members() {
     }
 
     const membersRef = collection(doc(db, 'org', orgId), 'members');
-    const membersQuery = query(membersRef, where('status', 'in', ['active', 'invited', 'suspended']));
+    const membersQuery = query(
+      membersRef,
+      where('status', 'in', ['active', 'invited', 'suspended']),
+    );
 
     const unsub = onSnapshot(
       membersQuery,
@@ -105,7 +112,8 @@ export default function Members() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Members</h1>
             <p className="text-sm text-gray-500">
-              {members.length} member{members.length !== 1 ? 's' : ''} in {org?.name ?? 'this organization'}
+              {members.length} member{members.length !== 1 ? 's' : ''} in{' '}
+              {org?.name ?? 'this organization'}
             </p>
           </div>
         </div>
@@ -123,9 +131,10 @@ export default function Members() {
       {/* Page description */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
         <p>
-          Manage who has access to your organization. Invite team members by email and assign
-          them a role — Owners and Admins can manage settings and data, Inspectors can perform
-          inspections in the field, and Viewers have read-only access for audits or oversight.
+          Manage who has access to your organization. Invite team members by
+          email and assign them a role — Owners and Admins can manage settings
+          and data, Inspectors can perform inspections in the field, and Viewers
+          have read-only access for audits or oversight.
         </p>
       </div>
 
@@ -164,7 +173,10 @@ export default function Members() {
             ))}
             {members.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
+                <td
+                  colSpan={5}
+                  className="px-4 py-8 text-center text-sm text-gray-500"
+                >
                   No members found. Invite someone to get started.
                 </td>
               </tr>

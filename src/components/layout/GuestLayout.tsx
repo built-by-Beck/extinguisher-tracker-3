@@ -27,13 +27,28 @@ export function GuestLayout() {
     ? `Expires ${expiresAt.toLocaleDateString()}`
     : '';
 
-  const baseUrl = (orgId && token) ? `/guest/${orgId}/${token}` : '/guest';
+  const baseUrl = orgId && token ? `/guest/${orgId}/${token}` : '/guest';
 
   const navItems = [
     { to: `${baseUrl}`, label: 'Dashboard', icon: LayoutDashboard, end: true },
-    { to: `${baseUrl}/inventory`, label: 'Inventory', icon: Package, end: false },
-    { to: `${baseUrl}/locations`, label: 'Locations', icon: MapPin, end: false },
-    { to: `${baseUrl}/workspaces`, label: 'Workspaces', icon: FolderOpen, end: false },
+    {
+      to: `${baseUrl}/inventory`,
+      label: 'Inventory',
+      icon: Package,
+      end: false,
+    },
+    {
+      to: `${baseUrl}/locations`,
+      label: 'Locations',
+      icon: MapPin,
+      end: false,
+    },
+    {
+      to: `${baseUrl}/workspaces`,
+      label: 'Workspaces',
+      icon: FolderOpen,
+      end: false,
+    },
   ];
 
   return (
@@ -42,9 +57,15 @@ export function GuestLayout() {
       <aside className="flex h-full w-56 shrink-0 flex-col border-r border-gray-200 bg-white">
         {/* Logo / brand */}
         <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-4">
-          <img src="/logo.png" alt="ExtinguisherTracker" className="h-8 w-8 rounded-lg object-contain" />
+          <img
+            src="/logo.png"
+            alt="ExtinguisherTracker"
+            className="h-8 w-8 rounded-lg object-contain"
+          />
           <div>
-            <p className="text-xs font-bold text-gray-900">ExtinguisherTracker</p>
+            <p className="text-xs font-bold text-gray-900">
+              ExtinguisherTracker
+            </p>
             <p className="text-xs text-amber-600 font-medium">Guest Access</p>
           </div>
         </div>
@@ -76,7 +97,9 @@ export function GuestLayout() {
         {/* Sign out footer */}
         <div className="border-t border-gray-100 p-4">
           <button
-            onClick={() => { void signOut(); }}
+            onClick={() => {
+              void signOut();
+            }}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700"
           >
             <LogOut className="h-4 w-4" />

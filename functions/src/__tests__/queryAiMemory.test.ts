@@ -255,7 +255,9 @@ describe('queryAiMemory callable', () => {
     expect(result.count).toBe(1);
     expect(result.expiredCandidateExtinguishers[0].assetId).toBe('A-100');
     expect(result.expiredCandidateExtinguishers[0].serial).toBe('S-100');
-    expect(result.expiredCandidateExtinguishers[0].vicinity).toBe('Beside front desk');
+    expect(result.expiredCandidateExtinguishers[0].vicinity).toBe(
+      'Beside front desk',
+    );
   });
 
   it('throws for unsupported intent', async () => {
@@ -271,7 +273,10 @@ describe('queryAiMemory callable', () => {
         data: () => ({ role: 'inspector', status: 'active' }),
       }),
     };
-    const fakeCollection = { where: jest.fn().mockReturnThis(), get: jest.fn() };
+    const fakeCollection = {
+      where: jest.fn().mockReturnThis(),
+      get: jest.fn(),
+    };
 
     adminDb.doc.mockImplementation((path) => {
       if (path === `org/${orgId}`) return orgDoc;

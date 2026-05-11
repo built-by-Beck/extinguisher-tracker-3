@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
+import {
+  deleteObject,
+  getDownloadURL,
+  ref as storageRef,
+  uploadBytes,
+} from 'firebase/storage';
 import {
   Building2,
   Camera,
@@ -14,7 +19,10 @@ import { storage } from '../lib/firebase.ts';
 import { hasFeature } from '../lib/planConfig.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
-import { PresetAvatar, PRESET_AVATARS } from '../components/profile/PresetAvatar.tsx';
+import {
+  PresetAvatar,
+  PRESET_AVATARS,
+} from '../components/profile/PresetAvatar.tsx';
 import {
   updateOrganizationProfileCall,
   updateUserProfileCall,
@@ -64,7 +72,11 @@ function validateLogoDimensions(file: File): Promise<void> {
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
       if (img.width > LOGO_MAX_DIMENSION || img.height > LOGO_MAX_DIMENSION) {
-        reject(new Error(`Logo must be ${LOGO_MAX_DIMENSION}x${LOGO_MAX_DIMENSION}px or smaller.`));
+        reject(
+          new Error(
+            `Logo must be ${LOGO_MAX_DIMENSION}x${LOGO_MAX_DIMENSION}px or smaller.`,
+          ),
+        );
         return;
       }
       resolve();
@@ -94,7 +106,11 @@ export default function Profile() {
   const orgId = userProfile?.activeOrgId ?? '';
   const orgLogoPath = org?.branding?.logoPath ?? null;
   const isOrgCreator = Boolean(user?.uid && org?.createdBy === user.uid);
-  const canUseBranding = hasFeature(org?.featureFlags, 'organizationBranding', org?.plan);
+  const canUseBranding = hasFeature(
+    org?.featureFlags,
+    'organizationBranding',
+    org?.plan,
+  );
 
   const [displayName, setDisplayName] = useState('');
   const [avatarId, setAvatarId] = useState<PresetAvatarId>('helmet-red');
@@ -103,7 +119,9 @@ export default function Profile() {
   const [userError, setUserError] = useState('');
 
   const [orgName, setOrgName] = useState('');
-  const [orgProfile, setOrgProfile] = useState<OrgProfile>(() => emptyOrgProfile());
+  const [orgProfile, setOrgProfile] = useState<OrgProfile>(() =>
+    emptyOrgProfile(),
+  );
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -151,7 +169,9 @@ export default function Profile() {
   }, [logoPreview]);
 
   const selectedAvatar = useMemo(
-    () => PRESET_AVATARS.find((avatar) => avatar.id === avatarId) ?? PRESET_AVATARS[0],
+    () =>
+      PRESET_AVATARS.find((avatar) => avatar.id === avatarId) ??
+      PRESET_AVATARS[0],
     [avatarId],
   );
 
@@ -170,7 +190,9 @@ export default function Profile() {
       });
       setUserMessage('Profile updated.');
     } catch (err) {
-      setUserError(err instanceof Error ? err.message : 'Failed to update profile.');
+      setUserError(
+        err instanceof Error ? err.message : 'Failed to update profile.',
+      );
     } finally {
       setSavingUser(false);
     }
@@ -192,7 +214,9 @@ export default function Profile() {
       setLogoPreview(URL.createObjectURL(file));
     } catch (err) {
       setLogoFile(null);
-      setOrgError(err instanceof Error ? err.message : 'Logo file is not allowed.');
+      setOrgError(
+        err instanceof Error ? err.message : 'Logo file is not allowed.',
+      );
     }
   }
 
@@ -205,7 +229,9 @@ export default function Profile() {
       let branding: { logoPath?: string; logoContentType?: string } | undefined;
       if (logoFile) {
         if (!canUseBranding) {
-          throw new Error('Organization branding is available on Pro, Elite, and Enterprise plans.');
+          throw new Error(
+            'Organization branding is available on Pro, Elite, and Enterprise plans.',
+          );
         }
         const logoPath = `org/${orgId}${LOGO_PATH_SUFFIX}`;
         await uploadBytes(storageRef(storage, logoPath), logoFile, {
@@ -235,7 +261,11 @@ export default function Profile() {
       }
       setOrgMessage('Organization profile updated.');
     } catch (err) {
-      setOrgError(err instanceof Error ? err.message : 'Failed to update organization profile.');
+      setOrgError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to update organization profile.',
+      );
     } finally {
       setSavingOrg(false);
     }
@@ -253,13 +283,19 @@ export default function Profile() {
         profile: orgProfile,
         branding: { clearLogo: true },
       });
-      await deleteObject(storageRef(storage, orgLogoPath)).catch(() => undefined);
+      await deleteObject(storageRef(storage, orgLogoPath)).catch(
+        () => undefined,
+      );
       setLogoFile(null);
       setLogoPreview('');
       setLogoUrl('');
       setOrgMessage('Organization logo removed.');
     } catch (err) {
-      setOrgError(err instanceof Error ? err.message : 'Failed to remove organization logo.');
+      setOrgError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to remove organization logo.',
+      );
     } finally {
       setSavingOrg(false);
     }
@@ -279,7 +315,9 @@ export default function Profile() {
         <User className="h-6 w-6 text-gray-400" />
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
-          <p className="text-sm text-gray-500">Manage your account identity and organization profile.</p>
+          <p className="text-sm text-gray-500">
+            Manage your account identity and organization profile.
+          </p>
         </div>
       </div>
 
@@ -287,13 +325,21 @@ export default function Profile() {
         <div className="mb-4 flex items-center gap-3">
           <PresetAvatar avatarId={avatarId} size="lg" />
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Your Profile</h2>
-            <p className="text-sm text-gray-500">Basic accounts can update this profile. User photo uploads are disabled for safety.</p>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Your Profile
+            </h2>
+            <p className="text-sm text-gray-500">
+              Basic accounts can update this profile. User photo uploads are
+              disabled for safety.
+            </p>
           </div>
         </div>
 
         <div className="mb-4">
-          <label htmlFor="profile-display-name" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="profile-display-name"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
             Display Name
           </label>
           <input
@@ -320,20 +366,33 @@ export default function Profile() {
                 }`}
               >
                 <PresetAvatar avatarId={avatar.id} />
-                <span className="text-sm font-medium text-gray-800">{avatar.label}</span>
+                <span className="text-sm font-medium text-gray-800">
+                  {avatar.label}
+                </span>
               </button>
             ))}
           </div>
           <p className="mt-2 text-xs text-gray-500">
-            Selected: {selectedAvatar.label}. Custom user photo uploads are intentionally not available.
+            Selected: {selectedAvatar.label}. Custom user photo uploads are
+            intentionally not available.
           </p>
         </div>
 
-        {userMessage && <p className="mb-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">{userMessage}</p>}
-        {userError && <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{userError}</p>}
+        {userMessage && (
+          <p className="mb-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+            {userMessage}
+          </p>
+        )}
+        {userError && (
+          <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            {userError}
+          </p>
+        )}
         <button
           type="button"
-          onClick={() => { void handleUserSave(); }}
+          onClick={() => {
+            void handleUserSave();
+          }}
           disabled={savingUser}
           className="flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
         >
@@ -346,7 +405,9 @@ export default function Profile() {
         <div className="mb-4 flex items-center gap-3">
           <Building2 className="h-6 w-6 text-gray-400" />
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Organization Profile</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Organization Profile
+            </h2>
             <p className="text-sm text-gray-500">
               Only the user who created this organization can edit these fields.
             </p>
@@ -357,14 +418,18 @@ export default function Profile() {
           <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
             <Lock className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
             <p className="text-sm text-gray-600">
-              You can view this organization, but profile editing is restricted to the creator account.
+              You can view this organization, but profile editing is restricted
+              to the creator account.
             </p>
           </div>
         ) : (
           <>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label htmlFor="org-name" className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="org-name"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   Organization Name
                 </label>
                 <input
@@ -376,19 +441,27 @@ export default function Profile() {
                 />
               </div>
               <div>
-                <label htmlFor="org-display-name" className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="org-display-name"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   Display Name
                 </label>
                 <input
                   id="org-display-name"
                   type="text"
                   value={orgProfile.displayName}
-                  onChange={(e) => updateOrgProfileField('displayName', e.target.value)}
+                  onChange={(e) =>
+                    updateOrgProfileField('displayName', e.target.value)
+                  }
                   className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="org-website" className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="org-website"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   Website
                 </label>
                 <input
@@ -396,43 +469,60 @@ export default function Profile() {
                   type="url"
                   placeholder="https://example.com"
                   value={orgProfile.website}
-                  onChange={(e) => updateOrgProfileField('website', e.target.value)}
+                  onChange={(e) =>
+                    updateOrgProfileField('website', e.target.value)
+                  }
                   className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="org-phone" className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="org-phone"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   Phone
                 </label>
                 <input
                   id="org-phone"
                   type="tel"
                   value={orgProfile.phone}
-                  onChange={(e) => updateOrgProfileField('phone', e.target.value)}
+                  onChange={(e) =>
+                    updateOrgProfileField('phone', e.target.value)
+                  }
                   className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="org-email" className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="org-email"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   Support Email
                 </label>
                 <input
                   id="org-email"
                   type="email"
                   value={orgProfile.supportEmail}
-                  onChange={(e) => updateOrgProfileField('supportEmail', e.target.value)}
+                  onChange={(e) =>
+                    updateOrgProfileField('supportEmail', e.target.value)
+                  }
                   className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="org-country" className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="org-country"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   Country
                 </label>
                 <input
                   id="org-country"
                   type="text"
                   value={orgProfile.country}
-                  onChange={(e) => updateOrgProfileField('country', e.target.value)}
+                  onChange={(e) =>
+                    updateOrgProfileField('country', e.target.value)
+                  }
                   className={inputClass}
                 />
               </div>
@@ -440,62 +530,87 @@ export default function Profile() {
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div>
-                <label htmlFor="org-address-1" className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="org-address-1"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   Address Line 1
                 </label>
                 <input
                   id="org-address-1"
                   type="text"
                   value={orgProfile.addressLine1}
-                  onChange={(e) => updateOrgProfileField('addressLine1', e.target.value)}
+                  onChange={(e) =>
+                    updateOrgProfileField('addressLine1', e.target.value)
+                  }
                   className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="org-address-2" className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="org-address-2"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   Address Line 2
                 </label>
                 <input
                   id="org-address-2"
                   type="text"
                   value={orgProfile.addressLine2}
-                  onChange={(e) => updateOrgProfileField('addressLine2', e.target.value)}
+                  onChange={(e) =>
+                    updateOrgProfileField('addressLine2', e.target.value)
+                  }
                   className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="org-city" className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="org-city"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   City
                 </label>
                 <input
                   id="org-city"
                   type="text"
                   value={orgProfile.city}
-                  onChange={(e) => updateOrgProfileField('city', e.target.value)}
+                  onChange={(e) =>
+                    updateOrgProfileField('city', e.target.value)
+                  }
                   className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="org-region" className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="org-region"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   State / Region
                 </label>
                 <input
                   id="org-region"
                   type="text"
                   value={orgProfile.region}
-                  onChange={(e) => updateOrgProfileField('region', e.target.value)}
+                  onChange={(e) =>
+                    updateOrgProfileField('region', e.target.value)
+                  }
                   className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="org-postal-code" className="mb-1 block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="org-postal-code"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
                   Postal Code
                 </label>
                 <input
                   id="org-postal-code"
                   type="text"
                   value={orgProfile.postalCode}
-                  onChange={(e) => updateOrgProfileField('postalCode', e.target.value)}
+                  onChange={(e) =>
+                    updateOrgProfileField('postalCode', e.target.value)
+                  }
                   className={inputClass}
                 />
               </div>
@@ -504,13 +619,16 @@ export default function Profile() {
             <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
               <div className="mb-3 flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-gray-500" />
-                <h3 className="text-sm font-semibold text-gray-900">Organization Logo</h3>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Organization Logo
+                </h3>
               </div>
               {!canUseBranding ? (
                 <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                   <p className="text-sm text-amber-800">
-                    Logo branding is available on Pro, Elite, and Enterprise plans. Basic accounts can still update profile text.
+                    Logo branding is available on Pro, Elite, and Enterprise
+                    plans. Basic accounts can still update profile text.
                   </p>
                 </div>
               ) : (
@@ -530,13 +648,17 @@ export default function Profile() {
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
                         className="hidden"
-                        onChange={(e) => { void handleLogoSelect(e.target.files?.[0] ?? null); }}
+                        onChange={(e) => {
+                          void handleLogoSelect(e.target.files?.[0] ?? null);
+                        }}
                       />
                     </label>
                     {orgLogoPath && (
                       <button
                         type="button"
-                        onClick={() => { void handleClearLogo(); }}
+                        onClick={() => {
+                          void handleClearLogo();
+                        }}
                         disabled={savingOrg}
                         className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
                       >
@@ -546,21 +668,36 @@ export default function Profile() {
                     )}
                   </div>
                   <p className="text-xs text-gray-500">
-                    JPEG, PNG, or WebP only. Maximum 512 KB and {LOGO_MAX_DIMENSION}x{LOGO_MAX_DIMENSION}px.
+                    JPEG, PNG, or WebP only. Maximum 512 KB and{' '}
+                    {LOGO_MAX_DIMENSION}x{LOGO_MAX_DIMENSION}px.
                   </p>
                 </div>
               )}
             </div>
 
-            {orgMessage && <p className="mt-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">{orgMessage}</p>}
-            {orgError && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{orgError}</p>}
+            {orgMessage && (
+              <p className="mt-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+                {orgMessage}
+              </p>
+            )}
+            {orgError && (
+              <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                {orgError}
+              </p>
+            )}
             <button
               type="button"
-              onClick={() => { void handleOrgSave(); }}
+              onClick={() => {
+                void handleOrgSave();
+              }}
               disabled={savingOrg}
               className="mt-5 flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
             >
-              {savingOrg ? <CheckCircle2 className="h-4 w-4 animate-pulse" /> : <Save className="h-4 w-4" />}
+              {savingOrg ? (
+                <CheckCircle2 className="h-4 w-4 animate-pulse" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
               {savingOrg ? 'Saving...' : 'Save Organization Profile'}
             </button>
           </>

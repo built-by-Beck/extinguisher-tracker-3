@@ -21,8 +21,10 @@ function upsertMeta(attr: 'name' | 'property', key: string, content: string) {
 
 function absoluteUrl(path: string): string {
   const base =
-    (import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined)?.replace(/\/$/, '') ||
-    (typeof window !== 'undefined' ? window.location.origin : '');
+    (import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined)?.replace(
+      /\/$/,
+      '',
+    ) || (typeof window !== 'undefined' ? window.location.origin : '');
   if (!base) {
     return path;
   }
@@ -33,7 +35,11 @@ function absoluteUrl(path: string): string {
  * Sets document title, description, and basic Open Graph / Twitter tags for public marketing routes.
  * Cleans up injected tags on unmount.
  */
-export function MarketingPageMeta({ title, description, path }: MarketingPageMetaProps) {
+export function MarketingPageMeta({
+  title,
+  description,
+  path,
+}: MarketingPageMetaProps) {
   useEffect(() => {
     const previousTitle = document.title;
     document.title = title;
@@ -49,7 +55,9 @@ export function MarketingPageMeta({ title, description, path }: MarketingPageMet
 
     return () => {
       document.title = previousTitle;
-      document.querySelectorAll('meta[data-et-marketing="1"]').forEach((node) => node.remove());
+      document
+        .querySelectorAll('meta[data-et-marketing="1"]')
+        .forEach((node) => node.remove());
     };
   }, [title, description, path]);
 

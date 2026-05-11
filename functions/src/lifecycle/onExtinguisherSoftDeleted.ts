@@ -37,12 +37,17 @@ export const onExtinguisherSoftDeleted = onDocumentUpdated(
     if (inspSnap.empty) return;
 
     // Group inspections by workspaceId so we can update each workspace's stats
-    const byWorkspace = new Map<string, { ref: DocumentReference; status: string }[]>();
+    const byWorkspace = new Map<
+      string,
+      { ref: DocumentReference; status: string }[]
+    >();
     for (const doc of inspSnap.docs) {
       const data = doc.data();
       const wsId = data.workspaceId as string;
       if (!byWorkspace.has(wsId)) byWorkspace.set(wsId, []);
-      byWorkspace.get(wsId)!.push({ ref: doc.ref, status: data.status as string });
+      byWorkspace
+        .get(wsId)!
+        .push({ ref: doc.ref, status: data.status as string });
     }
 
     // Process each workspace's inspections
@@ -58,7 +63,8 @@ export const onExtinguisherSoftDeleted = onDocumentUpdated(
         if (isActive) {
           const serverTimestamp = FieldValue.serverTimestamp();
           const hasStoredReplacedCount =
-            typeof (wsData?.stats as { replaced?: unknown } | undefined)?.replaced === 'number';
+            typeof (wsData?.stats as { replaced?: unknown } | undefined)
+              ?.replaced === 'number';
           const statsUpdate: Record<string, unknown> = {
             'stats.total': FieldValue.increment(-inspections.length),
             'stats.lastUpdated': serverTimestamp,
@@ -75,11 +81,15 @@ export const onExtinguisherSoftDeleted = onDocumentUpdated(
             else pendingCount++;
           }
 
-          if (passCount > 0) statsUpdate['stats.passed'] = FieldValue.increment(-passCount);
-          if (failCount > 0) statsUpdate['stats.failed'] = FieldValue.increment(-failCount);
-          if (pendingCount > 0) statsUpdate['stats.pending'] = FieldValue.increment(-pendingCount);
+          if (passCount > 0)
+            statsUpdate['stats.passed'] = FieldValue.increment(-passCount);
+          if (failCount > 0)
+            statsUpdate['stats.failed'] = FieldValue.increment(-failCount);
+          if (pendingCount > 0)
+            statsUpdate['stats.pending'] = FieldValue.increment(-pendingCount);
           if (replacedCount > 0 && hasStoredReplacedCount) {
-            statsUpdate['stats.replaced'] = FieldValue.increment(-replacedCount);
+            statsUpdate['stats.replaced'] =
+              FieldValue.increment(-replacedCount);
           }
 
           tx.update(wsRef, statsUpdate);

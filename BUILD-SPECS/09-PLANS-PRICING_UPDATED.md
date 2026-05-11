@@ -179,6 +179,14 @@ Firestore stores **billing state cache only**.
 
 ---
 
+## Pro free trial (monthly billing)
+
+- Organizations may be offered a **7-day** Pro trial when subscribing to **monthly** Pro through Stripe Checkout **without** a payment method up front (Stripe collects a payment method before the first paid charge when configured).
+- Eligibility is enforced server-side in Cloud Functions (not the client): typically **one trial per organization**, tracked with **`proTrialConsumed`** once the subscription enters **`trialing`**, and **no trial** when an organization already has an active Stripe subscription (for example upgrading from Basic).
+- Optional env **`PRO_TRIAL_DAYS`** on Functions overrides the default trial length (default **7**).
+
+---
+
 ## Billing States
 
 Possible states:

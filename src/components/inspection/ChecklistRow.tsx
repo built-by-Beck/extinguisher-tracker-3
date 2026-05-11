@@ -14,7 +14,12 @@ interface ChecklistRowProps {
   disabled: boolean;
 }
 
-export function ChecklistRow({ label, value, onChange, disabled }: ChecklistRowProps) {
+export function ChecklistRow({
+  label,
+  value,
+  onChange,
+  disabled,
+}: ChecklistRowProps) {
   return (
     <div className="flex items-center justify-between border-b border-gray-100 py-3 last:border-0">
       <span className="text-sm text-gray-700">{label}</span>

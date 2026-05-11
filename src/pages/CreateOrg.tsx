@@ -44,7 +44,7 @@ function generateSlug(name: string): string {
 function getBrowserTimezone(): string {
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (COMMON_TIMEZONES.includes(tz as typeof COMMON_TIMEZONES[number])) {
+    if (COMMON_TIMEZONES.includes(tz as (typeof COMMON_TIMEZONES)[number])) {
       return tz;
     }
   } catch {
@@ -108,7 +108,9 @@ export default function CreateOrg() {
       navigate('/dashboard', { replace: true });
     } catch (err: unknown) {
       const fbErr = err as { message?: string };
-      setError(fbErr.message ?? 'Failed to create organization. Please try again.');
+      setError(
+        fbErr.message ?? 'Failed to create organization. Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -119,17 +121,28 @@ export default function CreateOrg() {
       <div className="w-full max-w-md">
         {/* Branding */}
         <div className="mb-8 text-center">
-          <img src="/logo.png" alt="ExtinguisherTracker" className="mx-auto h-44 w-44 rounded-3xl object-contain drop-shadow-xl sm:h-52 sm:w-52" />
-          <h1 className="mt-5 text-3xl font-bold text-gray-900">ExtinguisherTracker</h1>
-          <p className="mt-1 text-sm text-gray-500">Created by Beck-Publishing</p>
+          <img
+            src="/logo.png"
+            alt="ExtinguisherTracker"
+            className="mx-auto h-44 w-44 rounded-3xl object-contain drop-shadow-xl sm:h-52 sm:w-52"
+          />
+          <h1 className="mt-5 text-3xl font-bold text-gray-900">
+            ExtinguisherTracker
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Created by Beck-Publishing
+          </p>
         </div>
 
         <div className="rounded-lg bg-white p-8 shadow">
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">Create Organization</h2>
+          <h2 className="mb-2 text-2xl font-bold text-gray-900">
+            Create Organization
+          </h2>
           <p className="mb-6 text-sm text-gray-500">
-            Set up your organization to start tracking extinguishers. Basic is a good fit for
-            small businesses that want easier inspections, less paperwork, and a clearer path to
-            staying compliant. Pro adds barcode scanning, GPS, inspection photos, and AI.
+            Set up your organization to start tracking extinguishers. Basic is a
+            good fit for small businesses that want easier inspections, less
+            paperwork, and a clearer path to staying compliant. Pro adds barcode
+            scanning, GPS, inspection photos, and AI.
           </p>
 
           {error && (
@@ -138,9 +151,17 @@ export default function CreateOrg() {
             </div>
           )}
 
-          <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              void handleSubmit(e);
+            }}
+            className="space-y-4"
+          >
             <div>
-              <label htmlFor="org-name" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="org-name"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Organization Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -156,7 +177,10 @@ export default function CreateOrg() {
             </div>
 
             <div>
-              <label htmlFor="org-slug" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="org-slug"
+                className="block text-sm font-medium text-gray-700"
+              >
                 URL Slug
               </label>
               <input
@@ -169,12 +193,16 @@ export default function CreateOrg() {
                 placeholder="acme-hospital"
               />
               <p className="mt-1 text-xs text-gray-400">
-                Auto-generated from name. Lowercase letters, numbers, and hyphens only.
+                Auto-generated from name. Lowercase letters, numbers, and
+                hyphens only.
               </p>
             </div>
 
             <div>
-              <label htmlFor="org-timezone" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="org-timezone"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Timezone
               </label>
               <select

@@ -8,7 +8,13 @@
  * Author: built_by_Beck
  */
 
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useCallback,
+} from 'react';
 import {
   useLocation,
   useNavigate,
@@ -34,7 +40,10 @@ import {
   X,
 } from 'lucide-react';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
-import { subscribeToExtinguishers, type Extinguisher } from '../services/extinguisherService.ts';
+import {
+  subscribeToExtinguishers,
+  type Extinguisher,
+} from '../services/extinguisherService.ts';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
 import { useAuth } from '../hooks/useAuth.ts';
@@ -57,9 +66,15 @@ import {
   getCachedInspectionsForWorkspace,
   getCachedWorkspace,
 } from '../services/offlineCacheService.ts';
-import { subscribeToLocations, type Location } from '../services/locationService.ts';
+import {
+  subscribeToLocations,
+  type Location,
+} from '../services/locationService.ts';
 import { useLocationDrillDown } from '../hooks/useLocationDrillDown.ts';
-import { LocationCard, type LocationCardStats } from '../components/locations/LocationCard.tsx';
+import {
+  LocationCard,
+  type LocationCardStats,
+} from '../components/locations/LocationCard.tsx';
 import { WorkspaceInspectionScopeCards } from '../components/workspace/WorkspaceInspectionScopeCards.tsx';
 import type { WorkspaceScopeCardFilter } from '../components/workspace/WorkspaceInspectionScopeCards.tsx';
 import {
@@ -93,7 +108,10 @@ import { resolveSectionTimerKey } from '../utils/sectionTimerKey.ts';
 
 type PendingScopeViewMode = 'grouped' | 'table';
 
-const NATURAL_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const NATURAL_COLLATOR = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: 'base',
+});
 const PENDING_SCOPE_VIEW_MODE_KEY = 'ex3.pendingScopeViewMode';
 
 /** Workspace view query keys — keep `returnTo` in sync so post-inspect navigation restores drill + list. */
@@ -112,9 +130,18 @@ function serializeWorkspaceQuery(sp: URLSearchParams): string {
     .join('&');
 }
 
-function parseScopeListFilterFromSearch(sp: URLSearchParams): WorkspaceScopeCardFilter | null {
+function parseScopeListFilterFromSearch(
+  sp: URLSearchParams,
+): WorkspaceScopeCardFilter | null {
   const v = sp.get(WS_Q_SCOPE) ?? sp.get('status');
-  if (v === 'pending' || v === 'checked' || v === 'pass' || v === 'fail' || v === 'replaced') return v;
+  if (
+    v === 'pending' ||
+    v === 'checked' ||
+    v === 'pass' ||
+    v === 'fail' ||
+    v === 'replaced'
+  )
+    return v;
   return null;
 }
 
@@ -146,7 +173,12 @@ function buildWorkspaceViewSearchParams(
   if (ctx.locationId) next.set(WS_Q_LOC, ctx.locationId);
   else next.delete(WS_Q_LOC);
 
-  if (!ctx.isLeaf && !ctx.showUnassigned && !ctx.showDeleted && ctx.scopeListFilter) {
+  if (
+    !ctx.isLeaf &&
+    !ctx.showUnassigned &&
+    !ctx.showDeleted &&
+    ctx.scopeListFilter
+  ) {
     next.set(WS_Q_SCOPE, ctx.scopeListFilter);
   } else {
     next.delete(WS_Q_SCOPE);
@@ -173,14 +205,19 @@ function buildWorkspaceViewSearchParams(
 
   return next;
 }
-const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; bg: string }> = {
+const STATUS_STYLES: Record<
+  string,
+  { icon: typeof CheckCircle2; color: string; bg: string }
+> = {
   pass: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
   fail: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-100' },
   pending: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100' },
   replaced: { icon: RefreshCw, color: 'text-orange-600', bg: 'bg-orange-100' },
 };
 
-function extinguisherVicinityById(extinguishers: Extinguisher[]): Map<string, string> {
+function extinguisherVicinityById(
+  extinguishers: Extinguisher[],
+): Map<string, string> {
   const m = new Map<string, string>();
   for (const e of extinguishers) {
     if (e.id) m.set(e.id, (e.vicinity ?? '').trim());
@@ -254,7 +291,9 @@ function ScopeStatusCards({
   return (
     <div className="mt-4 grid gap-3 sm:grid-cols-2">
       <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Checked</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+          Checked
+        </p>
         <p className="mt-1 text-2xl font-bold text-blue-950">{checked}</p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded-md bg-green-100/90 px-3 py-2">
@@ -268,7 +307,9 @@ function ScopeStatusCards({
         </div>
       </div>
       <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Not yet inspected</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+          Not yet inspected
+        </p>
         <p className="mt-1 text-2xl font-bold text-amber-950">{unchecked}</p>
       </div>
     </div>
@@ -289,49 +330,85 @@ function LeafExtinguisherTable({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-        <button type="button" onClick={() => onToggleSort('assetId')} className="rounded px-2 py-1 hover:bg-gray-100">
-          Asset ID {sortKey === 'assetId' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+        <button
+          type="button"
+          onClick={() => onToggleSort('assetId')}
+          className="rounded px-2 py-1 hover:bg-gray-100"
+        >
+          Asset ID{' '}
+          {sortKey === 'assetId' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
         </button>
-        <button type="button" onClick={() => onToggleSort('serial')} className="rounded px-2 py-1 hover:bg-gray-100">
+        <button
+          type="button"
+          onClick={() => onToggleSort('serial')}
+          className="rounded px-2 py-1 hover:bg-gray-100"
+        >
           Serial {sortKey === 'serial' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
         </button>
-        <button type="button" onClick={() => onToggleSort('vicinity')} className="rounded px-2 py-1 hover:bg-gray-100">
-          Vicinity {sortKey === 'vicinity' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+        <button
+          type="button"
+          onClick={() => onToggleSort('vicinity')}
+          className="rounded px-2 py-1 hover:bg-gray-100"
+        >
+          Vicinity{' '}
+          {sortKey === 'vicinity' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
         </button>
-        <button type="button" onClick={() => onToggleSort('status')} className="rounded px-2 py-1 hover:bg-gray-100">
+        <button
+          type="button"
+          onClick={() => onToggleSort('status')}
+          className="rounded px-2 py-1 hover:bg-gray-100"
+        >
           Status {sortKey === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
         </button>
       </div>
       {inspections.map((insp) => {
         const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
         const Icon = style.icon;
-        const vicinity = vicinityByExtinguisherId.get(insp.extinguisherId) || insp.section || '--';
+        const vicinity =
+          vicinityByExtinguisherId.get(insp.extinguisherId) ||
+          insp.section ||
+          '--';
         return (
           <button
             key={insp.id}
             type="button"
-            onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`, { state: { returnTo } })}
+            onClick={() =>
+              navigate(
+                `/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`,
+                { state: { returnTo } },
+              )
+            }
             className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-gray-300 hover:shadow-md"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-base font-semibold text-gray-900">{insp.assetId}</p>
+                <p className="text-base font-semibold text-gray-900">
+                  {insp.assetId}
+                </p>
                 <p className="text-sm text-gray-600">{vicinity}</p>
-                <p className="text-xs text-gray-500">Serial: {insp.serial || '--'}</p>
+                <p className="text-xs text-gray-500">
+                  Serial: {insp.serial || '--'}
+                </p>
               </div>
               <div className="text-right">
-                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}
+                >
                   <Icon className="h-3 w-3" />
                   {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
                 </span>
-                <p className={`mt-2 text-xs font-semibold ${isArchived ? 'text-gray-500' : 'text-red-600'}`}>
+                <p
+                  className={`mt-2 text-xs font-semibold ${isArchived ? 'text-gray-500' : 'text-red-600'}`}
+                >
                   {isArchived ? 'View' : 'Inspect'}
                 </p>
               </div>
             </div>
             {(insp.inspectedByEmail || insp.notes) && (
               <div className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-500">
-                {insp.inspectedByEmail && <p>Inspected by: {insp.inspectedByEmail}</p>}
+                {insp.inspectedByEmail && (
+                  <p>Inspected by: {insp.inspectedByEmail}</p>
+                )}
                 {insp.notes && <p className="italic">Notes: {insp.notes}</p>}
               </div>
             )}
@@ -370,7 +447,10 @@ export default function WorkspaceDetail() {
     if (statusParam === 'checked') {
       initial.statuses.add('pass');
       initial.statuses.add('fail');
-    } else if (statusParam && ['pass', 'fail', 'pending', 'replaced'].includes(statusParam)) {
+    } else if (
+      statusParam &&
+      ['pass', 'fail', 'pending', 'replaced'].includes(statusParam)
+    ) {
       initial.statuses.add(statusParam);
     }
     return initial;
@@ -384,21 +464,28 @@ export default function WorkspaceDetail() {
   const [sortMode, setSortMode] = useState<InspectionSortMode>('floor');
   const [leafPage, setLeafPage] = useState(1);
   const [leafPageSize, setLeafPageSize] = useState(25);
-  const [pendingScopeViewMode, setPendingScopeViewMode] = useState<PendingScopeViewMode>(() => {
-    if (typeof window === 'undefined') return 'grouped';
-    const saved = window.localStorage.getItem(PENDING_SCOPE_VIEW_MODE_KEY);
-    return saved === 'table' ? 'table' : 'grouped';
-  });
-  const [pendingGroupedAssetDir, setPendingGroupedAssetDir] = useState<'asc' | 'desc'>('asc');
-  const [pendingGroupedLocationFilter, setPendingGroupedLocationFilter] = useState<string>(() => {
-    const g = searchParams.get(WS_Q_GROUP);
-    return g && g.trim() ? g : 'all';
-  });
-  const [collapsedPendingGroups, setCollapsedPendingGroups] = useState<Record<string, boolean>>({});
+  const [pendingScopeViewMode, setPendingScopeViewMode] =
+    useState<PendingScopeViewMode>(() => {
+      if (typeof window === 'undefined') return 'grouped';
+      const saved = window.localStorage.getItem(PENDING_SCOPE_VIEW_MODE_KEY);
+      return saved === 'table' ? 'table' : 'grouped';
+    });
+  const [pendingGroupedAssetDir, setPendingGroupedAssetDir] = useState<
+    'asc' | 'desc'
+  >('asc');
+  const [pendingGroupedLocationFilter, setPendingGroupedLocationFilter] =
+    useState<string>(() => {
+      const g = searchParams.get(WS_Q_GROUP);
+      return g && g.trim() ? g : 'all';
+    });
+  const [collapsedPendingGroups, setCollapsedPendingGroups] = useState<
+    Record<string, boolean>
+  >({});
   /** Non-leaf: show filtered extinguisher list for the current location scope. */
-  const [scopeListFilter, setScopeListFilter] = useState<WorkspaceScopeCardFilter | null>(() =>
-    parseScopeListFilterFromSearch(searchParams),
-  );
+  const [scopeListFilter, setScopeListFilter] =
+    useState<WorkspaceScopeCardFilter | null>(() =>
+      parseScopeListFilterFromSearch(searchParams),
+    );
   /** Leaf: pending queue vs checked (pass+fail) vs replaced. */
   const [leafStatusTab, setLeafStatusTab] = useState<LeafListTab>(() =>
     parseLeafTabFromSearch(searchParams),
@@ -424,7 +511,11 @@ export default function WorkspaceDetail() {
     if (!workspaceId) return;
 
     const urlLoc = searchParams.get(WS_Q_LOC);
-    if (urlLoc && locations.length > 0 && !locations.some((l) => l.id === urlLoc)) {
+    if (
+      urlLoc &&
+      locations.length > 0 &&
+      !locations.some((l) => l.id === urlLoc)
+    ) {
       const clean = new URLSearchParams(searchParams);
       clean.delete(WS_Q_LOC);
       setSearchParams(clean, { replace: true });
@@ -452,7 +543,9 @@ export default function WorkspaceDetail() {
       pendingGroupedLocationFilter,
     });
 
-    if (serializeWorkspaceQuery(next) !== serializeWorkspaceQuery(searchParams)) {
+    if (
+      serializeWorkspaceQuery(next) !== serializeWorkspaceQuery(searchParams)
+    ) {
       setSearchParams(next, { replace: true });
     }
   }, [
@@ -567,7 +660,9 @@ export default function WorkspaceDetail() {
         if (snap.exists()) {
           const ws = { id: snap.id, ...snap.data() } as Workspace;
           setWorkspace(ws);
-          cacheWorkspace(orgId, { id: snap.id, ...snap.data() }).catch(() => undefined);
+          cacheWorkspace(orgId, { id: snap.id, ...snap.data() }).catch(
+            () => undefined,
+          );
         }
       },
       () => {
@@ -606,7 +701,8 @@ export default function WorkspaceDetail() {
     if (!orgId || !workspaceId || isOnline || inspections.length > 0) return;
     getCachedInspectionsForWorkspace(orgId, workspaceId)
       .then((cached) => {
-        if (cached.length > 0) setInspections(cached as unknown as Inspection[]);
+        if (cached.length > 0)
+          setInspections(cached as unknown as Inspection[]);
       })
       .catch(() => undefined);
   }, [orgId, workspaceId, isOnline, inspections.length]);
@@ -622,7 +718,10 @@ export default function WorkspaceDetail() {
   // ========== STATS COMPUTATION BY LOCATION ID ==========
 
   const locationStatsMap = useMemo(() => {
-    return monthlyWorkspaceSnapshot.locationStatsMap as Map<string, LocationCardStats>;
+    return monthlyWorkspaceSnapshot.locationStatsMap as Map<
+      string,
+      LocationCardStats
+    >;
   }, [monthlyWorkspaceSnapshot.locationStatsMap]);
 
   // Aggregate stats for a location + all its descendants (for parent cards)
@@ -719,11 +818,17 @@ export default function WorkspaceDetail() {
   ]);
 
   const scopeListRowsPassed = useMemo(
-    () => (scopeListFilter === 'checked' ? scopeListRows.filter((r) => r.status === 'pass') : []),
+    () =>
+      scopeListFilter === 'checked'
+        ? scopeListRows.filter((r) => r.status === 'pass')
+        : [],
     [scopeListFilter, scopeListRows],
   );
   const scopeListRowsFailed = useMemo(
-    () => (scopeListFilter === 'checked' ? scopeListRows.filter((r) => r.status === 'fail') : []),
+    () =>
+      scopeListFilter === 'checked'
+        ? scopeListRows.filter((r) => r.status === 'fail')
+        : [],
     [scopeListFilter, scopeListRows],
   );
 
@@ -738,7 +843,12 @@ export default function WorkspaceDetail() {
   const groupedPendingScopeRows = useMemo(() => {
     const groups = new Map<
       string,
-      { key: string; label: string; orderKey: string; inspections: Inspection[] }
+      {
+        key: string;
+        label: string;
+        orderKey: string;
+        inspections: Inspection[];
+      }
     >();
     for (const insp of pendingScopeListRows) {
       const key = insp.locationId ?? '__unassigned__';
@@ -755,7 +865,9 @@ export default function WorkspaceDetail() {
       group.inspections.push(insp);
     }
     const dir = pendingGroupedAssetDir === 'asc' ? 1 : -1;
-    const asArray = Array.from(groups.values()).sort((a, b) => cmpNatural(a.orderKey, b.orderKey));
+    const asArray = Array.from(groups.values()).sort((a, b) =>
+      cmpNatural(a.orderKey, b.orderKey),
+    );
     return asArray.map((group) => ({
       ...group,
       inspections: [...group.inspections].sort(
@@ -766,7 +878,9 @@ export default function WorkspaceDetail() {
 
   const visibleGroupedPendingScopeRows = useMemo(() => {
     if (pendingGroupedLocationFilter === 'all') return groupedPendingScopeRows;
-    return groupedPendingScopeRows.filter((group) => group.key === pendingGroupedLocationFilter);
+    return groupedPendingScopeRows.filter(
+      (group) => group.key === pendingGroupedLocationFilter,
+    );
   }, [groupedPendingScopeRows, pendingGroupedLocationFilter]);
 
   const leafCardActiveFilter = useMemo((): WorkspaceScopeCardFilter | null => {
@@ -776,13 +890,21 @@ export default function WorkspaceDetail() {
       if (leafStatusTab === 'checked') return 'checked';
       return null;
     }
-    if (filters.statuses.has('pending') && filters.statuses.size === 1) return 'pending';
-    if (filters.statuses.has('pass') && filters.statuses.has('fail') && filters.statuses.size === 2) {
+    if (filters.statuses.has('pending') && filters.statuses.size === 1)
+      return 'pending';
+    if (
+      filters.statuses.has('pass') &&
+      filters.statuses.has('fail') &&
+      filters.statuses.size === 2
+    ) {
       return 'checked';
     }
-    if (filters.statuses.has('pass') && filters.statuses.size === 1) return 'pass';
-    if (filters.statuses.has('fail') && filters.statuses.size === 1) return 'fail';
-    if (filters.statuses.has('replaced') && filters.statuses.size === 1) return 'replaced';
+    if (filters.statuses.has('pass') && filters.statuses.size === 1)
+      return 'pass';
+    if (filters.statuses.has('fail') && filters.statuses.size === 1)
+      return 'fail';
+    if (filters.statuses.has('replaced') && filters.statuses.size === 1)
+      return 'replaced';
     return null;
   }, [filters.statuses, leafStatusTab]);
 
@@ -845,7 +967,10 @@ export default function WorkspaceDetail() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(PENDING_SCOPE_VIEW_MODE_KEY, pendingScopeViewMode);
+      window.localStorage.setItem(
+        PENDING_SCOPE_VIEW_MODE_KEY,
+        pendingScopeViewMode,
+      );
     }
   }, [pendingScopeViewMode]);
 
@@ -866,7 +991,9 @@ export default function WorkspaceDetail() {
 
   useEffect(() => {
     if (pendingGroupedLocationFilter === 'all') return;
-    const exists = groupedPendingScopeRows.some((group) => group.key === pendingGroupedLocationFilter);
+    const exists = groupedPendingScopeRows.some(
+      (group) => group.key === pendingGroupedLocationFilter,
+    );
     if (!exists) setPendingGroupedLocationFilter('all');
   }, [groupedPendingScopeRows, pendingGroupedLocationFilter]);
 
@@ -874,7 +1001,8 @@ export default function WorkspaceDetail() {
 
   /** Leaf rows for this location: search + location filters only (no status filter). */
   const leafInspectionsBase = useMemo(() => {
-    if (!drillDown.isLeaf || !workspaceId || !drillDown.currentLocationId) return [];
+    if (!drillDown.isLeaf || !workspaceId || !drillDown.currentLocationId)
+      return [];
 
     let combined = collectInspectionRowsForScope({
       extinguishers,
@@ -923,25 +1051,59 @@ export default function WorkspaceDetail() {
   /** When status checkboxes are used, keep a single combined list (classic table + pagination). */
   const leafInspections = useMemo(() => {
     if (filters.statuses.size === 0) return leafInspectionsBase;
-    return leafInspectionsBase.filter((insp) => filters.statuses.has(insp.status));
+    return leafInspectionsBase.filter((insp) =>
+      filters.statuses.has(insp.status),
+    );
   }, [leafInspectionsBase, filters.statuses]);
 
   const floorScanGrouped = filters.statuses.size === 0;
 
   const sortedLeafPending = useMemo(
-    () => sortInspectionsByMode({ list: leafInspectionsBase.filter((i) => i.status === 'pending'), mode: sortMode, sortKey, sortDir, extinguishers, locations }),
+    () =>
+      sortInspectionsByMode({
+        list: leafInspectionsBase.filter((i) => i.status === 'pending'),
+        mode: sortMode,
+        sortKey,
+        sortDir,
+        extinguishers,
+        locations,
+      }),
     [leafInspectionsBase, sortMode, sortKey, sortDir, extinguishers, locations],
   );
   const sortedLeafPassed = useMemo(
-    () => sortInspectionsByMode({ list: leafInspectionsBase.filter((i) => i.status === 'pass'), mode: sortMode, sortKey, sortDir, extinguishers, locations }),
+    () =>
+      sortInspectionsByMode({
+        list: leafInspectionsBase.filter((i) => i.status === 'pass'),
+        mode: sortMode,
+        sortKey,
+        sortDir,
+        extinguishers,
+        locations,
+      }),
     [leafInspectionsBase, sortMode, sortKey, sortDir, extinguishers, locations],
   );
   const sortedLeafFailed = useMemo(
-    () => sortInspectionsByMode({ list: leafInspectionsBase.filter((i) => i.status === 'fail'), mode: sortMode, sortKey, sortDir, extinguishers, locations }),
+    () =>
+      sortInspectionsByMode({
+        list: leafInspectionsBase.filter((i) => i.status === 'fail'),
+        mode: sortMode,
+        sortKey,
+        sortDir,
+        extinguishers,
+        locations,
+      }),
     [leafInspectionsBase, sortMode, sortKey, sortDir, extinguishers, locations],
   );
   const sortedLeafReplaced = useMemo(
-    () => sortInspectionsByMode({ list: leafInspectionsBase.filter((i) => i.status === 'replaced'), mode: sortMode, sortKey, sortDir, extinguishers, locations }),
+    () =>
+      sortInspectionsByMode({
+        list: leafInspectionsBase.filter((i) => i.status === 'replaced'),
+        mode: sortMode,
+        sortKey,
+        sortDir,
+        extinguishers,
+        locations,
+      }),
     [leafInspectionsBase, sortMode, sortKey, sortDir, extinguishers, locations],
   );
   /** Match locationStatsMap aggregate when list is not narrowed by search or extra location chips. */
@@ -955,7 +1117,12 @@ export default function WorkspaceDetail() {
       filters.locationIds.size === 0;
     if (useAggregate) {
       const agg = aggregateStatsForLocationSubtree(map, locations, anchorLoc);
-      return { passed: agg.passed, failed: agg.failed, replaced: agg.replaced, unchecked: agg.pending };
+      return {
+        passed: agg.passed,
+        failed: agg.failed,
+        replaced: agg.replaced,
+        unchecked: agg.pending,
+      };
     }
     return {
       passed: sortedLeafPassed.length,
@@ -978,7 +1145,14 @@ export default function WorkspaceDetail() {
 
   // Sorted leaf inspections (memoized) — classic filtered mode
   const sortedLeafInspections = useMemo(() => {
-    return sortInspectionsByMode({ list: leafInspections, mode: sortMode, sortKey, sortDir, extinguishers, locations });
+    return sortInspectionsByMode({
+      list: leafInspections,
+      mode: sortMode,
+      sortKey,
+      sortDir,
+      extinguishers,
+      locations,
+    });
   }, [leafInspections, sortMode, sortKey, sortDir, extinguishers, locations]);
 
   const leafTotalPages = Math.ceil(sortedLeafInspections.length / leafPageSize);
@@ -1038,7 +1212,14 @@ export default function WorkspaceDetail() {
       });
     }
     return combined;
-  }, [showUnassigned, inspections, extinguishers, filters, searchQuery, isArchived]);
+  }, [
+    showUnassigned,
+    inspections,
+    extinguishers,
+    filters,
+    searchQuery,
+    isArchived,
+  ]);
   const unassignedScopeStats = useMemo(() => {
     let passed = 0;
     let failed = 0;
@@ -1075,7 +1256,14 @@ export default function WorkspaceDetail() {
       });
     }
     return combined;
-  }, [showDeleted, isArchived, inspections, extinguishers, filters, searchQuery]);
+  }, [
+    showDeleted,
+    isArchived,
+    inspections,
+    extinguishers,
+    filters,
+    searchQuery,
+  ]);
   const deletedScopeStats = useMemo(() => {
     let passed = 0;
     let failed = 0;
@@ -1095,7 +1283,8 @@ export default function WorkspaceDetail() {
     const current = drillDown.currentLocation;
     if (!current) return [];
     return locations.filter(
-      (l) => l.parentLocationId === current.parentLocationId && l.id !== current.id,
+      (l) =>
+        l.parentLocationId === current.parentLocationId && l.id !== current.id,
     );
   }, [drillDown.isLeaf, drillDown.currentLocation, locations]);
 
@@ -1103,13 +1292,19 @@ export default function WorkspaceDetail() {
     if (
       !isArchived &&
       canInspect &&
-      hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan)
+      hasFeature(
+        featureFlags as Record<string, boolean> | null | undefined,
+        'sectionTimeTracking',
+        org?.plan,
+      )
     ) {
       const key = resolveSectionTimerKey(ext, locations);
       if (key) startTimer(key);
     }
     if (ext.id) {
-      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${ext.id}`, { state: { returnTo } });
+      navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${ext.id}`, {
+        state: { returnTo },
+      });
     }
   }
 
@@ -1154,7 +1349,10 @@ export default function WorkspaceDetail() {
     const location = drillDown.currentLocation;
     if (!location) return '';
     return resolveSectionTimerKey(
-      { locationId: location.id ?? null, section: location.section ?? location.name },
+      {
+        locationId: location.id ?? null,
+        section: location.section ?? location.name,
+      },
       locations,
     );
   }, [drillDown.currentLocation, locations]);
@@ -1207,10 +1405,11 @@ export default function WorkspaceDetail() {
           <h1 className="text-2xl font-bold text-gray-900">
             {drillDown.isRoot
               ? workspace.label
-              : drillDown.currentLocation?.name ?? workspace.label}
+              : (drillDown.currentLocation?.name ?? workspace.label)}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            {currentViewStats.total} extinguisher{currentViewStats.total !== 1 ? 's' : ''} in this view
+            {currentViewStats.total} extinguisher
+            {currentViewStats.total !== 1 ? 's' : ''} in this view
             {drillDown.isLeaf && (hasActiveFilters(filters) || searchQuery)
               ? ` (${(floorScanGrouped ? leafInspectionsBase : leafInspections).length} matching filters)`
               : ''}
@@ -1265,11 +1464,15 @@ export default function WorkspaceDetail() {
         {!showUnassigned && !showDeleted && (
           <div className="mt-5">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
-              This location — tap a card to filter the list. At a room or floor, use Pending to work the queue; Checked shows Pass and Fail together.
+              This location — tap a card to filter the list. At a room or floor,
+              use Pending to work the queue; Checked shows Pass and Fail
+              together.
             </p>
             <WorkspaceInspectionScopeCards
               stats={scopeCardStats as WorkspaceInspectionBucketStats}
-              activeFilter={drillDown.isLeaf ? leafCardActiveFilter : scopeListFilter}
+              activeFilter={
+                drillDown.isLeaf ? leafCardActiveFilter : scopeListFilter
+              }
               onSelectFilter={handleScopeCardSelect}
             />
             {!drillDown.isLeaf && groupedPendingScopeRows.length > 0 && (
@@ -1278,30 +1481,37 @@ export default function WorkspaceDetail() {
                   Not yet inspected — by location
                 </p>
                 <p className="mb-2.5 text-xs text-amber-950/80">
-                  The &quot;All locations&quot; count is the total still to check in this view (including all sub-locations).
-                  Tap a location to show only those extinguishers in the list below.
+                  The &quot;All locations&quot; count is the total still to
+                  check in this view (including all sub-locations). Tap a
+                  location to show only those extinguishers in the list below.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => selectPendingLocationBreakdown('all')}
                     className={`rounded-lg border px-3 py-1.5 text-left text-sm font-medium transition ${
-                      scopeListFilter === 'pending' && pendingGroupedLocationFilter === 'all'
+                      scopeListFilter === 'pending' &&
+                      pendingGroupedLocationFilter === 'all'
                         ? 'border-amber-600 bg-amber-200/90 text-amber-950 ring-2 ring-amber-400/60'
                         : 'border-amber-300/80 bg-white text-amber-950 hover:border-amber-500'
                     }`}
                   >
                     All locations
-                    <span className="ml-1.5 tabular-nums text-amber-900/90">({pendingScopeListRows.length})</span>
+                    <span className="ml-1.5 tabular-nums text-amber-900/90">
+                      ({pendingScopeListRows.length})
+                    </span>
                   </button>
                   {groupedPendingScopeRows.map((group) => {
                     const selected =
-                      scopeListFilter === 'pending' && pendingGroupedLocationFilter === group.key;
+                      scopeListFilter === 'pending' &&
+                      pendingGroupedLocationFilter === group.key;
                     return (
                       <button
                         key={group.key}
                         type="button"
-                        onClick={() => selectPendingLocationBreakdown(group.key)}
+                        onClick={() =>
+                          selectPendingLocationBreakdown(group.key)
+                        }
                         title={group.label}
                         className={`max-w-full rounded-lg border px-3 py-1.5 text-left text-sm font-medium transition ${
                           selected
@@ -1309,7 +1519,9 @@ export default function WorkspaceDetail() {
                             : 'border-amber-300/80 bg-white text-amber-950 hover:border-amber-500'
                         }`}
                       >
-                        <span className="line-clamp-2 sm:line-clamp-1">{group.label}</span>
+                        <span className="line-clamp-2 sm:line-clamp-1">
+                          {group.label}
+                        </span>
                         <span className="ml-1.5 tabular-nums text-amber-900/90">
                           ({group.inspections.length})
                         </span>
@@ -1324,265 +1536,302 @@ export default function WorkspaceDetail() {
       </div>
 
       {/* Scoped list (non-leaf): all floors/buildings under current drill level */}
-      {!drillDown.isLeaf && !showUnassigned && !showDeleted && scopeListFilter && workspaceId && (
-        <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-gray-900">
-              {scopeListFilter === 'pending' && 'Not yet inspected'}
-              {scopeListFilter === 'checked' && 'Passed, failed, and replaced'}
-              {scopeListFilter === 'pass' && 'Passed'}
-              {scopeListFilter === 'fail' && 'Failed'}
-              {scopeListFilter === 'replaced' && 'Replaced'}
-              <span className="ml-2 text-sm font-normal text-gray-500">
-                {scopeListFilter === 'checked'
-                  ? `(${scopeListRowsPassed.length} passed, ${scopeListRowsFailed.length} failed in this area)`
-                  : `(${scopeListRows.length} in this area)`}
-              </span>
-            </h2>
-            <button
-              type="button"
-              onClick={() => setScopeListFilter(null)}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Clear list
-            </button>
-          </div>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            {scopeListFilter === 'pending' && (
-              <>
-                <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                  View
-                </label>
-                <div className="inline-flex rounded-md border border-gray-300 bg-white p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setPendingScopeViewMode('grouped')}
-                    className={`rounded px-3 py-1.5 text-sm font-medium ${
-                      pendingScopeViewMode === 'grouped'
-                        ? 'bg-red-50 text-red-700'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Grouped
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPendingScopeViewMode('table')}
-                    className={`rounded px-3 py-1.5 text-sm font-medium ${
-                      pendingScopeViewMode === 'table'
-                        ? 'bg-red-50 text-red-700'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Table
-                  </button>
-                </div>
-              </>
-            )}
-            {(scopeListFilter !== 'pending' || pendingScopeViewMode === 'table') && (
-              <>
-                <label
-                  htmlFor="workspace-scope-sort-mode"
-                  className="text-xs font-medium uppercase tracking-wide text-gray-500"
-                >
-                  Sort mode
-                </label>
-                <select
-                  id="workspace-scope-sort-mode"
-                  value={sortMode}
-                  onChange={(e) => setSortMode(e.target.value as InspectionSortMode)}
-                  className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
-                >
-                  <option value="table">Column</option>
-                  <option value="numeric">Numeric</option>
-                  <option value="floor">Floor</option>
-                  <option value="spatial">Spatial</option>
-                </select>
-              </>
-            )}
-            {scopeListFilter === 'pending' && pendingScopeViewMode === 'grouped' && (
-              <>
-                <label
-                  htmlFor="workspace-pending-location-filter"
-                  className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500"
-                >
-                  Location
-                </label>
-                <select
-                  id="workspace-pending-location-filter"
-                  value={pendingGroupedLocationFilter}
-                  onChange={(e) => setPendingGroupedLocationFilter(e.target.value)}
-                  className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
-                >
-                  <option value="all">All locations</option>
-                  {groupedPendingScopeRows.map((group) => (
-                    <option key={group.key} value={group.key}>
-                      {group.label}
-                    </option>
-                  ))}
-                </select>
-                <label
-                  htmlFor="workspace-pending-asset-sort"
-                  className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500"
-                >
-                  Asset
-                </label>
-                <select
-                  id="workspace-pending-asset-sort"
-                  value={pendingGroupedAssetDir}
-                  onChange={(e) => setPendingGroupedAssetDir(e.target.value as 'asc' | 'desc')}
-                  className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
-                >
-                  <option value="asc">Asset asc</option>
-                  <option value="desc">Asset desc</option>
-                </select>
-              </>
-            )}
-          </div>
-          {scopeListRows.length === 0 ? (
-            <p className="text-sm text-gray-500">Nothing in this category for this location scope.</p>
-          ) : scopeListFilter === 'pending' && pendingScopeViewMode === 'grouped' ? (
-            <div className="space-y-3">
-              {visibleGroupedPendingScopeRows.map((group) => {
-                const isCollapsed = collapsedPendingGroups[group.key] ?? false;
-                return (
-                  <section key={group.key} className="rounded-lg border border-gray-200 bg-gray-50/80">
+      {!drillDown.isLeaf &&
+        !showUnassigned &&
+        !showDeleted &&
+        scopeListFilter &&
+        workspaceId && (
+          <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-gray-900">
+                {scopeListFilter === 'pending' && 'Not yet inspected'}
+                {scopeListFilter === 'checked' &&
+                  'Passed, failed, and replaced'}
+                {scopeListFilter === 'pass' && 'Passed'}
+                {scopeListFilter === 'fail' && 'Failed'}
+                {scopeListFilter === 'replaced' && 'Replaced'}
+                <span className="ml-2 text-sm font-normal text-gray-500">
+                  {scopeListFilter === 'checked'
+                    ? `(${scopeListRowsPassed.length} passed, ${scopeListRowsFailed.length} failed in this area)`
+                    : `(${scopeListRows.length} in this area)`}
+                </span>
+              </h2>
+              <button
+                type="button"
+                onClick={() => setScopeListFilter(null)}
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Clear list
+              </button>
+            </div>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {scopeListFilter === 'pending' && (
+                <>
+                  <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    View
+                  </label>
+                  <div className="inline-flex rounded-md border border-gray-300 bg-white p-0.5">
                     <button
                       type="button"
-                      onClick={() =>
-                        setCollapsedPendingGroups((prev) => ({
-                          ...prev,
-                          [group.key]: !isCollapsed,
-                        }))
-                      }
-                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                      onClick={() => setPendingScopeViewMode('grouped')}
+                      className={`rounded px-3 py-1.5 text-sm font-medium ${
+                        pendingScopeViewMode === 'grouped'
+                          ? 'bg-red-50 text-red-700'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
                     >
-                      <span className="text-sm font-semibold text-gray-900">{group.label}</span>
-                      <span className="flex items-center gap-2">
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                          {group.inspections.length}
-                        </span>
-                        <ChevronDown
-                          className={`h-4 w-4 text-gray-500 transition-transform ${
-                            isCollapsed ? '' : 'rotate-180'
-                          }`}
-                        />
-                      </span>
+                      Grouped
                     </button>
-                    {!isCollapsed && (
-                      <div className="border-t border-gray-200 bg-white px-2 pb-3 pt-2">
-                        <LeafExtinguisherTable
-                          inspections={group.inspections}
-                          vicinityByExtinguisherId={vicinityByExtinguisherId}
-                          sortKey={sortKey}
-                          sortDir={sortDir}
-                          onToggleSort={toggleSort}
-                          workspaceId={workspaceId}
-                          returnTo={returnTo}
-                          navigate={navigate}
-                          isArchived={!!isArchived}
-                        />
-                      </div>
-                    )}
-                  </section>
-                );
-              })}
-              {visibleGroupedPendingScopeRows.length === 0 && (
-                <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
-                  No pending extinguishers in the selected location.
-                </p>
+                    <button
+                      type="button"
+                      onClick={() => setPendingScopeViewMode('table')}
+                      className={`rounded px-3 py-1.5 text-sm font-medium ${
+                        pendingScopeViewMode === 'table'
+                          ? 'bg-red-50 text-red-700'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      Table
+                    </button>
+                  </div>
+                </>
               )}
-            </div>
-          ) : scopeListFilter === 'checked' ? (
-            <div className="space-y-6">
-              <section>
-                <h3 className="mb-2 flex flex-wrap items-center gap-2 text-sm font-semibold text-green-900">
-                  <span>Passed</span>
-                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">
-                    {scopeListRowsPassed.length}
-                  </span>
-                </h3>
-                {scopeListRowsPassed.length === 0 ? (
-                  <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600">No passed extinguishers in this area.</p>
-                ) : (
-                  <LeafExtinguisherTable
-                    inspections={sortInspectionsByMode({
-                      list: scopeListRowsPassed,
-                      mode: sortMode,
-                      sortKey,
-                      sortDir,
-                      extinguishers,
-                      locations,
-                    })}
-                    vicinityByExtinguisherId={vicinityByExtinguisherId}
-                    sortKey={sortKey}
-                    sortDir={sortDir}
-                    onToggleSort={toggleSort}
-                    workspaceId={workspaceId}
-                    returnTo={returnTo}
-                    navigate={navigate}
-                    isArchived={!!isArchived}
-                  />
+              {(scopeListFilter !== 'pending' ||
+                pendingScopeViewMode === 'table') && (
+                <>
+                  <label
+                    htmlFor="workspace-scope-sort-mode"
+                    className="text-xs font-medium uppercase tracking-wide text-gray-500"
+                  >
+                    Sort mode
+                  </label>
+                  <select
+                    id="workspace-scope-sort-mode"
+                    value={sortMode}
+                    onChange={(e) =>
+                      setSortMode(e.target.value as InspectionSortMode)
+                    }
+                    className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
+                  >
+                    <option value="table">Column</option>
+                    <option value="numeric">Numeric</option>
+                    <option value="floor">Floor</option>
+                    <option value="spatial">Spatial</option>
+                  </select>
+                </>
+              )}
+              {scopeListFilter === 'pending' &&
+                pendingScopeViewMode === 'grouped' && (
+                  <>
+                    <label
+                      htmlFor="workspace-pending-location-filter"
+                      className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500"
+                    >
+                      Location
+                    </label>
+                    <select
+                      id="workspace-pending-location-filter"
+                      value={pendingGroupedLocationFilter}
+                      onChange={(e) =>
+                        setPendingGroupedLocationFilter(e.target.value)
+                      }
+                      className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
+                    >
+                      <option value="all">All locations</option>
+                      {groupedPendingScopeRows.map((group) => (
+                        <option key={group.key} value={group.key}>
+                          {group.label}
+                        </option>
+                      ))}
+                    </select>
+                    <label
+                      htmlFor="workspace-pending-asset-sort"
+                      className="ml-2 text-xs font-medium uppercase tracking-wide text-gray-500"
+                    >
+                      Asset
+                    </label>
+                    <select
+                      id="workspace-pending-asset-sort"
+                      value={pendingGroupedAssetDir}
+                      onChange={(e) =>
+                        setPendingGroupedAssetDir(
+                          e.target.value as 'asc' | 'desc',
+                        )
+                      }
+                      className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
+                    >
+                      <option value="asc">Asset asc</option>
+                      <option value="desc">Asset desc</option>
+                    </select>
+                  </>
                 )}
-              </section>
-              <section>
-                <h3 className="mb-2 flex flex-wrap items-center gap-2 text-sm font-semibold text-red-900">
-                  <span>Failed</span>
-                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">
-                    {scopeListRowsFailed.length}
-                  </span>
-                </h3>
-                {scopeListRowsFailed.length === 0 ? (
-                  <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600">No failed extinguishers in this area.</p>
-                ) : (
-                  <LeafExtinguisherTable
-                    inspections={sortInspectionsByMode({
-                      list: scopeListRowsFailed,
-                      mode: sortMode,
-                      sortKey,
-                      sortDir,
-                      extinguishers,
-                      locations,
-                    })}
-                    vicinityByExtinguisherId={vicinityByExtinguisherId}
-                    sortKey={sortKey}
-                    sortDir={sortDir}
-                    onToggleSort={toggleSort}
-                    workspaceId={workspaceId}
-                    returnTo={returnTo}
-                    navigate={navigate}
-                    isArchived={!!isArchived}
-                  />
-                )}
-              </section>
             </div>
-          ) : (
-            <LeafExtinguisherTable
-              inspections={sortInspectionsByMode({ list: scopeListRows, mode: sortMode, sortKey, sortDir, extinguishers, locations })}
-              vicinityByExtinguisherId={vicinityByExtinguisherId}
-              sortKey={sortKey}
-              sortDir={sortDir}
-              onToggleSort={toggleSort}
-              workspaceId={workspaceId}
-              returnTo={returnTo}
-              navigate={navigate}
-              isArchived={!!isArchived}
+            {scopeListRows.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Nothing in this category for this location scope.
+              </p>
+            ) : scopeListFilter === 'pending' &&
+              pendingScopeViewMode === 'grouped' ? (
+              <div className="space-y-3">
+                {visibleGroupedPendingScopeRows.map((group) => {
+                  const isCollapsed =
+                    collapsedPendingGroups[group.key] ?? false;
+                  return (
+                    <section
+                      key={group.key}
+                      className="rounded-lg border border-gray-200 bg-gray-50/80"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCollapsedPendingGroups((prev) => ({
+                            ...prev,
+                            [group.key]: !isCollapsed,
+                          }))
+                        }
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                      >
+                        <span className="text-sm font-semibold text-gray-900">
+                          {group.label}
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                            {group.inspections.length}
+                          </span>
+                          <ChevronDown
+                            className={`h-4 w-4 text-gray-500 transition-transform ${
+                              isCollapsed ? '' : 'rotate-180'
+                            }`}
+                          />
+                        </span>
+                      </button>
+                      {!isCollapsed && (
+                        <div className="border-t border-gray-200 bg-white px-2 pb-3 pt-2">
+                          <LeafExtinguisherTable
+                            inspections={group.inspections}
+                            vicinityByExtinguisherId={vicinityByExtinguisherId}
+                            sortKey={sortKey}
+                            sortDir={sortDir}
+                            onToggleSort={toggleSort}
+                            workspaceId={workspaceId}
+                            returnTo={returnTo}
+                            navigate={navigate}
+                            isArchived={!!isArchived}
+                          />
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
+                {visibleGroupedPendingScopeRows.length === 0 && (
+                  <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                    No pending extinguishers in the selected location.
+                  </p>
+                )}
+              </div>
+            ) : scopeListFilter === 'checked' ? (
+              <div className="space-y-6">
+                <section>
+                  <h3 className="mb-2 flex flex-wrap items-center gap-2 text-sm font-semibold text-green-900">
+                    <span>Passed</span>
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">
+                      {scopeListRowsPassed.length}
+                    </span>
+                  </h3>
+                  {scopeListRowsPassed.length === 0 ? (
+                    <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600">
+                      No passed extinguishers in this area.
+                    </p>
+                  ) : (
+                    <LeafExtinguisherTable
+                      inspections={sortInspectionsByMode({
+                        list: scopeListRowsPassed,
+                        mode: sortMode,
+                        sortKey,
+                        sortDir,
+                        extinguishers,
+                        locations,
+                      })}
+                      vicinityByExtinguisherId={vicinityByExtinguisherId}
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onToggleSort={toggleSort}
+                      workspaceId={workspaceId}
+                      returnTo={returnTo}
+                      navigate={navigate}
+                      isArchived={!!isArchived}
+                    />
+                  )}
+                </section>
+                <section>
+                  <h3 className="mb-2 flex flex-wrap items-center gap-2 text-sm font-semibold text-red-900">
+                    <span>Failed</span>
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">
+                      {scopeListRowsFailed.length}
+                    </span>
+                  </h3>
+                  {scopeListRowsFailed.length === 0 ? (
+                    <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-600">
+                      No failed extinguishers in this area.
+                    </p>
+                  ) : (
+                    <LeafExtinguisherTable
+                      inspections={sortInspectionsByMode({
+                        list: scopeListRowsFailed,
+                        mode: sortMode,
+                        sortKey,
+                        sortDir,
+                        extinguishers,
+                        locations,
+                      })}
+                      vicinityByExtinguisherId={vicinityByExtinguisherId}
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onToggleSort={toggleSort}
+                      workspaceId={workspaceId}
+                      returnTo={returnTo}
+                      navigate={navigate}
+                      isArchived={!!isArchived}
+                    />
+                  )}
+                </section>
+              </div>
+            ) : (
+              <LeafExtinguisherTable
+                inspections={sortInspectionsByMode({
+                  list: scopeListRows,
+                  mode: sortMode,
+                  sortKey,
+                  sortDir,
+                  extinguishers,
+                  locations,
+                })}
+                vicinityByExtinguisherId={vicinityByExtinguisherId}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggleSort={toggleSort}
+                workspaceId={workspaceId}
+                returnTo={returnTo}
+                navigate={navigate}
+                isArchived={!!isArchived}
+              />
+            )}
+            <ScopeStatusCards
+              passed={scopeListStats.passed}
+              failed={scopeListStats.failed}
+              unchecked={scopeListStats.unchecked}
             />
-          )}
-          <ScopeStatusCards
-            passed={scopeListStats.passed}
-            failed={scopeListStats.failed}
-            unchecked={scopeListStats.unchecked}
-          />
-        </div>
-      )}
+          </div>
+        )}
 
       {/* Compliance Report — archived workspaces only */}
       {isArchived && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <FileText className="h-5 w-5 text-red-600" />
-            <h2 className="text-base font-semibold text-gray-900">Compliance Report</h2>
+            <h2 className="text-base font-semibold text-gray-900">
+              Compliance Report
+            </h2>
           </div>
           {report === undefined && (
             <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -1591,22 +1840,30 @@ export default function WorkspaceDetail() {
             </div>
           )}
           {report === null && (
-            <p className="text-sm text-gray-500">Report data not available for this workspace.</p>
+            <p className="text-sm text-gray-500">
+              Report data not available for this workspace.
+            </p>
           )}
           {report !== undefined && report !== null && (
             <>
               <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
                   <p className="text-xs text-gray-500">Total</p>
-                  <p className="text-lg font-bold text-gray-900">{report.totalExtinguishers}</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {report.totalExtinguishers}
+                  </p>
                 </div>
                 <div className="rounded-lg bg-green-50 px-3 py-2 text-center">
                   <p className="text-xs text-green-600">Passed</p>
-                  <p className="text-lg font-bold text-green-700">{report.passedCount}</p>
+                  <p className="text-lg font-bold text-green-700">
+                    {report.passedCount}
+                  </p>
                 </div>
                 <div className="rounded-lg bg-red-50 px-3 py-2 text-center">
                   <p className="text-xs text-red-500">Failed</p>
-                  <p className="text-lg font-bold text-red-700">{report.failedCount}</p>
+                  <p className="text-lg font-bold text-red-700">
+                    {report.failedCount}
+                  </p>
                 </div>
                 <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
                   <p className="text-xs text-gray-500">Pass Rate</p>
@@ -1618,10 +1875,24 @@ export default function WorkspaceDetail() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <span className="self-center text-xs text-gray-500 font-medium mr-1">Download:</span>
-                <ReportDownloadButton orgId={orgId} workspaceId={workspaceId!} format="csv" />
-                <ReportDownloadButton orgId={orgId} workspaceId={workspaceId!} format="pdf" />
-                <ReportDownloadButton orgId={orgId} workspaceId={workspaceId!} format="json" />
+                <span className="self-center text-xs text-gray-500 font-medium mr-1">
+                  Download:
+                </span>
+                <ReportDownloadButton
+                  orgId={orgId}
+                  workspaceId={workspaceId!}
+                  format="csv"
+                />
+                <ReportDownloadButton
+                  orgId={orgId}
+                  workspaceId={workspaceId!}
+                  format="pdf"
+                />
+                <ReportDownloadButton
+                  orgId={orgId}
+                  workspaceId={workspaceId!}
+                  format="json"
+                />
               </div>
             </>
           )}
@@ -1632,7 +1903,9 @@ export default function WorkspaceDetail() {
       {!drillDown.isLeaf && !showUnassigned && !showDeleted && (
         <>
           <h2 className="mb-3 text-lg font-semibold text-gray-900">
-            {drillDown.isRoot ? 'Locations' : drillDown.currentLocation?.name ?? 'Locations'}
+            {drillDown.isRoot
+              ? 'Locations'
+              : (drillDown.currentLocation?.name ?? 'Locations')}
           </h2>
 
           {drillDown.currentChildren.length === 0 && drillDown.isRoot ? (
@@ -1668,14 +1941,16 @@ export default function WorkspaceDetail() {
               )}
 
               {/* Show "Deleted" card for orphaned inspection records from soft-deleted extinguishers */}
-              {drillDown.isRoot && !isArchived && locationStatsMap.has('__deleted__') && (
-                <LocationCard
-                  name="Deleted"
-                  locationType="other"
-                  stats={locationStatsMap.get('__deleted__')!}
-                  onClick={() => setShowDeleted(true)}
-                />
-              )}
+              {drillDown.isRoot &&
+                !isArchived &&
+                locationStatsMap.has('__deleted__') && (
+                  <LocationCard
+                    name="Deleted"
+                    locationType="other"
+                    stats={locationStatsMap.get('__deleted__')!}
+                    onClick={() => setShowDeleted(true)}
+                  />
+                )}
             </div>
           )}
         </>
@@ -1684,7 +1959,9 @@ export default function WorkspaceDetail() {
       {/* ===== VIEW: Unassigned Extinguishers ===== */}
       {showUnassigned && (
         <>
-          <h2 className="mb-3 text-lg font-semibold text-gray-900">Unassigned Extinguishers</h2>
+          <h2 className="mb-3 text-lg font-semibold text-gray-900">
+            Unassigned Extinguishers
+          </h2>
 
           <div className="mb-4">
             <FilterPanel filters={filters} onChange={setFilters} showStatus />
@@ -1705,41 +1982,74 @@ export default function WorkspaceDetail() {
 
           {unassignedInspections.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-              <p className="text-sm text-gray-500">No unassigned extinguishers match your filters.</p>
+              <p className="text-sm text-gray-500">
+                No unassigned extinguishers match your filters.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Asset ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Serial</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">Vicinity</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Action</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Asset ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Serial
+                    </th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">
+                      Vicinity
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {unassignedInspections.map((insp) => {
-                    const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+                    const style =
+                      STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
                     const Icon = style.icon;
-                    const vic = vicinityByExtinguisherId.get(insp.extinguisherId) || '';
+                    const vic =
+                      vicinityByExtinguisherId.get(insp.extinguisherId) || '';
                     return (
                       <tr
                         key={insp.id}
                         className="cursor-pointer hover:bg-gray-50"
-                        onClick={() => navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`, { state: { returnTo } })}
+                        onClick={() =>
+                          navigate(
+                            `/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`,
+                            { state: { returnTo } },
+                          )
+                        }
                       >
-                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">{insp.assetId}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{insp.serial || '--'}</td>
-                        <td className="hidden max-w-xs truncate px-4 py-3 text-sm text-gray-600 sm:table-cell" title={vic || insp.section || undefined}>{vic || insp.section || '--'}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                          {insp.assetId}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                          {insp.serial || '--'}
+                        </td>
+                        <td
+                          className="hidden max-w-xs truncate px-4 py-3 text-sm text-gray-600 sm:table-cell"
+                          title={vic || insp.section || undefined}
+                        >
+                          {vic || insp.section || '--'}
+                        </td>
                         <td className="whitespace-nowrap px-4 py-3">
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}
+                          >
                             <Icon className="h-3 w-3" />
-                            {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                            {insp.status.charAt(0).toUpperCase() +
+                              insp.status.slice(1)}
                           </span>
                         </td>
-                        <td className={`whitespace-nowrap px-4 py-3 text-right text-sm font-medium ${isArchived ? 'text-gray-500' : 'text-red-600'}`}>
+                        <td
+                          className={`whitespace-nowrap px-4 py-3 text-right text-sm font-medium ${isArchived ? 'text-gray-500' : 'text-red-600'}`}
+                        >
                           {isArchived ? 'View' : 'Inspect'}
                         </td>
                       </tr>
@@ -1760,10 +2070,12 @@ export default function WorkspaceDetail() {
       {/* ===== VIEW: Deleted Extinguishers (orphaned inspection records) ===== */}
       {showDeleted && !isArchived && (
         <>
-          <h2 className="mb-1 text-lg font-semibold text-gray-900">Deleted Extinguishers</h2>
+          <h2 className="mb-1 text-lg font-semibold text-gray-900">
+            Deleted Extinguishers
+          </h2>
           <p className="mb-4 text-sm text-gray-500">
-            These inspection records belong to extinguishers that have been soft-deleted.
-            They will be cleaned up automatically.
+            These inspection records belong to extinguishers that have been
+            soft-deleted. They will be cleaned up automatically.
           </p>
 
           <div className="mb-4">
@@ -1785,33 +2097,59 @@ export default function WorkspaceDetail() {
 
           {deletedInspections.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-              <p className="text-sm text-gray-500">No deleted extinguisher records match your filters.</p>
+              <p className="text-sm text-gray-500">
+                No deleted extinguisher records match your filters.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-red-100 bg-white shadow-sm">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-red-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Asset ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Serial</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">Vicinity</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Asset ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Serial
+                    </th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 sm:table-cell">
+                      Vicinity
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {deletedInspections.map((insp) => {
-                    const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+                    const style =
+                      STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
                     const Icon = style.icon;
-                    const vic = vicinityByExtinguisherId.get(insp.extinguisherId) || insp.section || '';
+                    const vic =
+                      vicinityByExtinguisherId.get(insp.extinguisherId) ||
+                      insp.section ||
+                      '';
                     return (
                       <tr key={insp.id} className="opacity-60 hover:bg-gray-50">
-                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-500 line-through">{insp.assetId}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400">{insp.serial || '--'}</td>
-                        <td className="hidden max-w-xs truncate px-4 py-3 text-sm text-gray-400 sm:table-cell" title={vic || undefined}>{vic || '--'}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-500 line-through">
+                          {insp.assetId}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400">
+                          {insp.serial || '--'}
+                        </td>
+                        <td
+                          className="hidden max-w-xs truncate px-4 py-3 text-sm text-gray-400 sm:table-cell"
+                          title={vic || undefined}
+                        >
+                          {vic || '--'}
+                        </td>
                         <td className="whitespace-nowrap px-4 py-3">
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}
+                          >
                             <Icon className="h-3 w-3" />
-                            {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
+                            {insp.status.charAt(0).toUpperCase() +
+                              insp.status.slice(1)}
                           </span>
                         </td>
                       </tr>
@@ -1870,7 +2208,10 @@ export default function WorkspaceDetail() {
                 onClick={() => {
                   const first = sortedLeafPending[0];
                   if (first) {
-                    navigate(`/dashboard/workspaces/${workspaceId}/inspect-ext/${first.extinguisherId}`, { state: { returnTo } });
+                    navigate(
+                      `/dashboard/workspaces/${workspaceId}/inspect-ext/${first.extinguisherId}`,
+                      { state: { returnTo } },
+                    );
                   }
                 }}
                 className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
@@ -1889,7 +2230,9 @@ export default function WorkspaceDetail() {
               <select
                 id="workspace-leaf-sort-mode"
                 value={sortMode}
-                onChange={(e) => setSortMode(e.target.value as InspectionSortMode)}
+                onChange={(e) =>
+                  setSortMode(e.target.value as InspectionSortMode)
+                }
                 className="rounded-md border-gray-300 py-2 text-sm focus:border-red-500 focus:ring-red-500"
               >
                 <option value="table">Column</option>
@@ -1902,21 +2245,33 @@ export default function WorkspaceDetail() {
 
           {searchQuery && (
             <p className="mb-3 text-xs text-gray-500">
-              Showing {(floorScanGrouped ? leafInspectionsBase : leafInspections).length} result
-              {(floorScanGrouped ? leafInspectionsBase : leafInspections).length !== 1 ? 's' : ''}
+              Showing{' '}
+              {
+                (floorScanGrouped ? leafInspectionsBase : leafInspections)
+                  .length
+              }{' '}
+              result
+              {(floorScanGrouped ? leafInspectionsBase : leafInspections)
+                .length !== 1
+                ? 's'
+                : ''}
             </p>
           )}
 
           {!floorScanGrouped && (
             <p className="mb-3 text-xs text-gray-600">
-              Status filters are on — showing a single combined list. Clear status filters in the panel above to return to Pending vs Checked.
+              Status filters are on — showing a single combined list. Clear
+              status filters in the panel above to return to Pending vs Checked.
             </p>
           )}
 
           {/* Extinguisher list: grouped by status (default) or classic filtered table */}
-          {(floorScanGrouped ? leafInspectionsBase : leafInspections).length === 0 ? (
+          {(floorScanGrouped ? leafInspectionsBase : leafInspections).length ===
+          0 ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-              <p className="text-sm text-gray-500">No extinguishers match your filters.</p>
+              <p className="text-sm text-gray-500">
+                No extinguishers match your filters.
+              </p>
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
@@ -1933,12 +2288,15 @@ export default function WorkspaceDetail() {
                 <p className="mb-2 text-xs text-gray-600">
                   {isArchived ? (
                     <>
-                      This archived workspace is read-only. Open rows to review historical inspection records.
+                      This archived workspace is read-only. Open rows to review
+                      historical inspection records.
                     </>
                   ) : (
                     <>
-                      Open the month workspace, pick a location, then work the <span className="font-semibold">Pending</span> list.
-                      Pass or fail removes a unit from Pending and moves it under <span className="font-semibold">Checked</span>.
+                      Open the month workspace, pick a location, then work the{' '}
+                      <span className="font-semibold">Pending</span> list. Pass
+                      or fail removes a unit from Pending and moves it under{' '}
+                      <span className="font-semibold">Checked</span>.
                     </>
                   )}
                 </p>
@@ -1963,7 +2321,8 @@ export default function WorkspaceDetail() {
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    Checked — pass & fail ({sortedLeafPassed.length + sortedLeafFailed.length})
+                    Checked — pass & fail (
+                    {sortedLeafPassed.length + sortedLeafFailed.length})
                   </button>
                   <button
                     type="button"
@@ -1990,7 +2349,8 @@ export default function WorkspaceDetail() {
                     </h3>
                     {sortedLeafPending.length === 0 ? (
                       <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-6 text-center text-sm text-green-800">
-                        Nothing left to inspect here for this month. Open <span className="font-semibold">Checked</span> to review
+                        Nothing left to inspect here for this month. Open{' '}
+                        <span className="font-semibold">Checked</span> to review
                         passed and failed units.
                       </div>
                     ) : (
@@ -2070,7 +2430,8 @@ export default function WorkspaceDetail() {
                     </h3>
                     {sortedLeafReplaced.length === 0 ? (
                       <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
-                        No monthly inspection rows are marked replaced in this view.
+                        No monthly inspection rows are marked replaced in this
+                        view.
                       </div>
                     ) : (
                       <LeafExtinguisherTable
@@ -2111,7 +2472,10 @@ export default function WorkspaceDetail() {
                     <select
                       aria-label="Rows per page"
                       value={leafPageSize}
-                      onChange={(e) => { setLeafPageSize(Number(e.target.value)); setLeafPage(1); }}
+                      onChange={(e) => {
+                        setLeafPageSize(Number(e.target.value));
+                        setLeafPage(1);
+                      }}
                       className="rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
                     >
                       <option value={25}>25</option>
@@ -2133,7 +2497,9 @@ export default function WorkspaceDetail() {
                       Page {leafPage} of {leafTotalPages}
                     </span>
                     <button
-                      onClick={() => setLeafPage((p) => Math.min(leafTotalPages, p + 1))}
+                      onClick={() =>
+                        setLeafPage((p) => Math.min(leafTotalPages, p + 1))
+                      }
                       disabled={leafPage >= leafTotalPages}
                       className="flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                     >
@@ -2147,22 +2513,27 @@ export default function WorkspaceDetail() {
           )}
 
           {/* Section Timer (feature-gated) */}
-          {hasFeature(featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan) && timerSection && (
-            <div className="mb-4">
-              <SectionTimer
-                section={timerSection}
-                activeSection={timerActiveSection}
-                totalTime={getTotalTime(timerSection)}
-                onStart={startTimer}
-                onPause={pauseTimer}
-                onStop={stopTimer}
-                onResetSection={clearSectionTime}
-                onResetAll={clearAllTimes}
-                disabled={isArchived}
-                formatTime={formatTime}
-              />
-            </div>
-          )}
+          {hasFeature(
+            featureFlags as Record<string, boolean> | null | undefined,
+            'sectionTimeTracking',
+            org?.plan,
+          ) &&
+            timerSection && (
+              <div className="mb-4">
+                <SectionTimer
+                  section={timerSection}
+                  activeSection={timerActiveSection}
+                  totalTime={getTotalTime(timerSection)}
+                  onStart={startTimer}
+                  onPause={pauseTimer}
+                  onStop={stopTimer}
+                  onResetSection={clearSectionTime}
+                  onResetAll={clearAllTimes}
+                  disabled={isArchived}
+                  formatTime={formatTime}
+                />
+              </div>
+            )}
 
           {/* Section Notes */}
           {timerSection && (
@@ -2170,7 +2541,9 @@ export default function WorkspaceDetail() {
               <SectionNotes
                 section={timerSection}
                 notes={sectionNotes[timerSection]?.notes ?? ''}
-                saveForNextMonth={sectionNotes[timerSection]?.saveForNextMonth ?? false}
+                saveForNextMonth={
+                  sectionNotes[timerSection]?.saveForNextMonth ?? false
+                }
                 lastUpdated={sectionNotes[timerSection]?.lastUpdated ?? null}
                 allNotes={sectionNotes}
                 onSave={handleSaveNote}
@@ -2196,9 +2569,15 @@ export default function WorkspaceDetail() {
                 <span className="text-lg">⏱</span>
               </div>
               <div>
-                <h2 className="text-base font-semibold text-gray-900">Still working?</h2>
+                <h2 className="text-base font-semibold text-gray-900">
+                  Still working?
+                </h2>
                 <p className="mt-0.5 text-sm text-gray-500">
-                  Your timer in <span className="font-medium text-gray-800">{idlePromptSection}</span> has been running for 30 minutes.
+                  Your timer in{' '}
+                  <span className="font-medium text-gray-800">
+                    {idlePromptSection}
+                  </span>{' '}
+                  has been running for 30 minutes.
                 </p>
               </div>
             </div>

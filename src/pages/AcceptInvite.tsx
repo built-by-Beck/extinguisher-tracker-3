@@ -4,7 +4,12 @@ import { CheckCircle, XCircle, Loader2, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { callAcceptInvite } from '../services/memberService.ts';
 
-type AcceptState = 'loading' | 'unauthenticated' | 'accepting' | 'success' | 'error';
+type AcceptState =
+  | 'loading'
+  | 'unauthenticated'
+  | 'accepting'
+  | 'success'
+  | 'error';
 
 export default function AcceptInvite() {
   const { token } = useParams<{ token: string }>();
@@ -41,7 +46,8 @@ export default function AcceptInvite() {
         setTimeout(() => navigate('/dashboard', { replace: true }), 2500);
       })
       .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : 'Failed to accept invite.';
+        const message =
+          err instanceof Error ? err.message : 'Failed to accept invite.';
         setErrorMessage(message);
         setState('error');
       });
@@ -52,22 +58,32 @@ export default function AcceptInvite() {
       <div className="w-full max-w-md rounded-lg bg-white p-8 shadow">
         {/* Brand */}
         <div className="mb-6 flex flex-col items-center gap-3">
-          <img src="/logo.png" alt="ExtinguisherTracker" className="h-32 w-32 rounded-2xl object-contain drop-shadow-xl" />
-          <span className="text-2xl font-bold text-gray-900">ExtinguisherTracker</span>
+          <img
+            src="/logo.png"
+            alt="ExtinguisherTracker"
+            className="h-32 w-32 rounded-2xl object-contain drop-shadow-xl"
+          />
+          <span className="text-2xl font-bold text-gray-900">
+            ExtinguisherTracker
+          </span>
         </div>
 
         {/* Loading auth */}
         {state === 'loading' && (
           <div className="text-center">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-red-600" />
-            <p className="mt-4 text-sm text-gray-500">Checking authentication...</p>
+            <p className="mt-4 text-sm text-gray-500">
+              Checking authentication...
+            </p>
           </div>
         )}
 
         {/* Not authenticated */}
         {state === 'unauthenticated' && (
           <div className="text-center">
-            <h1 className="mb-2 text-xl font-bold text-gray-900">You have been invited!</h1>
+            <h1 className="mb-2 text-xl font-bold text-gray-900">
+              You have been invited!
+            </h1>
             <p className="mb-6 text-sm text-gray-600">
               Please sign in or create an account to accept this invitation.
             </p>
@@ -94,7 +110,9 @@ export default function AcceptInvite() {
         {state === 'accepting' && (
           <div className="text-center">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-red-600" />
-            <p className="mt-4 text-sm text-gray-500">Accepting invitation...</p>
+            <p className="mt-4 text-sm text-gray-500">
+              Accepting invitation...
+            </p>
           </div>
         )}
 

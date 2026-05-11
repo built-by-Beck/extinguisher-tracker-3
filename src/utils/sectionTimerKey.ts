@@ -8,8 +8,14 @@ import type { Extinguisher } from '../services/extinguisherService.ts';
 import type { Inspection } from '../services/inspectionService.ts';
 import type { Location } from '../services/locationService.ts';
 
-export type SectionTimerExtinguisherPlacement = Pick<Extinguisher, 'locationId' | 'section'>;
-export type SectionTimerInspectionPlacement = Pick<Inspection, 'locationId' | 'section'>;
+export type SectionTimerExtinguisherPlacement = Pick<
+  Extinguisher,
+  'locationId' | 'section'
+>;
+export type SectionTimerInspectionPlacement = Pick<
+  Inspection,
+  'locationId' | 'section'
+>;
 
 export function resolveSectionTimerKey(
   ext: SectionTimerExtinguisherPlacement,

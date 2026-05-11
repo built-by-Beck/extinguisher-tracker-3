@@ -25,11 +25,18 @@ export const markNotificationRead = onCall(async (request) => {
   const { uid } = validateAuth(request);
   const { orgId, notificationId } = request.data as MarkReadInput;
 
-  if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
-  if (!notificationId || typeof notificationId !== 'string') throwInvalidArgument('notificationId is required.');
+  if (!orgId || typeof orgId !== 'string')
+    throwInvalidArgument('orgId is required.');
+  if (!notificationId || typeof notificationId !== 'string')
+    throwInvalidArgument('notificationId is required.');
 
   // Any active member can mark notifications as read
-  await validateMembership(orgId, uid, ['owner', 'admin', 'inspector', 'viewer']);
+  await validateMembership(orgId, uid, [
+    'owner',
+    'admin',
+    'inspector',
+    'viewer',
+  ]);
 
   const notifRef = adminDb.doc(`org/${orgId}/notifications/${notificationId}`);
   const notifSnap = await notifRef.get();

@@ -15,7 +15,12 @@ interface QuickFailModalProps {
   saving: boolean;
 }
 
-export function QuickFailModal({ open, onClose, onSubmit, saving }: QuickFailModalProps) {
+export function QuickFailModal({
+  open,
+  onClose,
+  onSubmit,
+  saving,
+}: QuickFailModalProps) {
   const [notes, setNotes] = useState('');
   const [validationError, setValidationError] = useState('');
 
@@ -24,7 +29,9 @@ export function QuickFailModal({ open, onClose, onSubmit, saving }: QuickFailMod
   function handleSubmit() {
     const trimmed = notes.trim();
     if (trimmed.length < 3) {
-      setValidationError('Please provide at least a brief reason (3+ characters).');
+      setValidationError(
+        'Please provide at least a brief reason (3+ characters).',
+      );
       return;
     }
     setValidationError('');
@@ -45,7 +52,9 @@ export function QuickFailModal({ open, onClose, onSubmit, saving }: QuickFailMod
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
           <div className="flex items-center gap-2">
             <XCircle className="h-5 w-5 text-red-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Mark as Failed</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Mark as Failed
+            </h2>
           </div>
           <button
             onClick={handleClose}
@@ -60,7 +69,8 @@ export function QuickFailModal({ open, onClose, onSubmit, saving }: QuickFailMod
         {/* Body */}
         <div className="p-4 space-y-4">
           <p className="text-sm text-gray-600">
-            Why did this extinguisher fail? Notes are required for failed inspections.
+            Why did this extinguisher fail? Notes are required for failed
+            inspections.
           </p>
 
           <div>

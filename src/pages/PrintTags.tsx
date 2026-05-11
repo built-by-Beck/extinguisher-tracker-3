@@ -4,7 +4,10 @@ import { ArrowLeft, Printer, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { hasFeature } from '../lib/planConfig.ts';
-import { getExtinguisher, type Extinguisher } from '../services/extinguisherService.ts';
+import {
+  getExtinguisher,
+  type Extinguisher,
+} from '../services/extinguisherService.ts';
 import { generateQRDataUrl, getExtinguisherQRUrl } from '../utils/qrCode.ts';
 import { TagLabel } from '../components/extinguisher/TagLabel.tsx';
 
@@ -145,15 +148,20 @@ export default function PrintTags() {
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
         ) : extinguishers.length === 0 ? (
-          <p className="py-10 text-center text-gray-500">No extinguishers found.</p>
+          <p className="py-10 text-center text-gray-500">
+            No extinguishers found.
+          </p>
         ) : (
           <>
             <div className="no-print mb-3 text-sm text-gray-700">
-              {extinguishers.length} tag{extinguishers.length !== 1 ? 's' : ''} ready to print
+              {extinguishers.length} tag{extinguishers.length !== 1 ? 's' : ''}{' '}
+              ready to print
             </div>
             <div
               className="grid gap-4"
-              style={{ gridTemplateColumns: `repeat(${COLS[labelSize]}, max-content)` }}
+              style={{
+                gridTemplateColumns: `repeat(${COLS[labelSize]}, max-content)`,
+              }}
             >
               {extinguishers.map((ext) => (
                 <TagLabel

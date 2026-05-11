@@ -1,4 +1,11 @@
-import { Pause, Play, RotateCcw, StopCircle, Timer, Trash2 } from 'lucide-react';
+import {
+  Pause,
+  Play,
+  RotateCcw,
+  StopCircle,
+  Timer,
+  Trash2,
+} from 'lucide-react';
 
 interface SectionTimerProps {
   section: string;
@@ -37,9 +44,13 @@ export function SectionTimer({
       <div className="flex items-center justify-between">
         {/* Left side: timer display */}
         <div className="flex items-center gap-3">
-          <Timer className={`h-5 w-5 ${isActive ? 'text-red-600 animate-pulse' : 'text-gray-400'}`} />
+          <Timer
+            className={`h-5 w-5 ${isActive ? 'text-red-600 animate-pulse' : 'text-gray-400'}`}
+          />
           <div>
-            <p className={`text-lg font-bold ${isActive ? 'text-red-600' : totalTime > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+            <p
+              className={`text-lg font-bold ${isActive ? 'text-red-600' : totalTime > 0 ? 'text-gray-900' : 'text-gray-400'}`}
+            >
               {displayTime}
             </p>
             {totalTime > 0 && (

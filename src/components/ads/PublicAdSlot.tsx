@@ -42,7 +42,9 @@ export function PublicAdSlot({ format, className = '' }: PublicAdSlotProps) {
   if (!pubId) return null;
 
   return (
-    <div className={`ad-slot ad-slot-${format} print:hidden ${FORMAT_STYLES[format]} ${className}`}>
+    <div
+      className={`ad-slot ad-slot-${format} print:hidden ${FORMAT_STYLES[format]} ${className}`}
+    >
       <ins
         ref={adRef}
         className="adsbygoogle"

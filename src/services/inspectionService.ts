@@ -13,7 +13,10 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../lib/firebase.ts';
 import { queueInspection } from './offlineSyncService.ts';
-import type { ChecklistAnswer, CustomAssetInspectionItem } from './assetService.ts';
+import type {
+  ChecklistAnswer,
+  CustomAssetInspectionItem,
+} from './assetService.ts';
 
 export interface ChecklistData {
   pinPresent: string;
@@ -144,7 +147,11 @@ export function subscribeToInspections(
   orgId: string,
   workspaceId: string,
   callback: (items: Inspection[]) => void,
-  options: { section?: string; status?: string; includeAssetInspections?: boolean } = {},
+  options: {
+    section?: string;
+    status?: string;
+    includeAssetInspections?: boolean;
+  } = {},
 ): () => void {
   const constraints: QueryConstraint[] = [
     where('workspaceId', '==', workspaceId),
@@ -166,14 +173,21 @@ export function subscribeToInspections(
       id: d.id,
       ...d.data(),
     })) as Inspection[];
-    callback(options.includeAssetInspections ? items : items.filter((item) => item.targetType !== 'asset'));
+    callback(
+      options.includeAssetInspections
+        ? items
+        : items.filter((item) => item.targetType !== 'asset'),
+    );
   });
 }
 
 /**
  * Get a single inspection by ID.
  */
-export async function getInspection(orgId: string, inspectionId: string): Promise<Inspection | null> {
+export async function getInspection(
+  orgId: string,
+  inspectionId: string,
+): Promise<Inspection | null> {
   const ref = doc(db, 'org', orgId, 'inspections', inspectionId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
@@ -203,10 +217,10 @@ export async function saveInspectionCall(
     } | null;
   },
 ): Promise<{ inspectionId: string; status: string; previousStatus: string }> {
-  const fn = httpsCallable<unknown, { inspectionId: string; status: string; previousStatus: string }>(
-    functions,
-    'saveInspection',
-  );
+  const fn = httpsCallable<
+    unknown,
+    { inspectionId: string; status: string; previousStatus: string }
+  >(functions, 'saveInspection');
   const result = await fn({ orgId, inspectionId, ...data });
   return result.data;
 }
@@ -322,7 +336,10 @@ export async function getInspectionForAssetInWorkspace(
   );
   const querySnap = await getDocs(q);
   if (querySnap.empty) return null;
-  return { id: querySnap.docs[0].id, ...querySnap.docs[0].data() } as Inspection;
+  return {
+    id: querySnap.docs[0].id,
+    ...querySnap.docs[0].data(),
+  } as Inspection;
 }
 
 /**
@@ -342,7 +359,7 @@ export async function getInspectionHistoryForExtinguisher(
     limit(limitCount),
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Inspection));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Inspection);
 }
 
 export async function getInspectionHistoryForAsset(
@@ -358,7 +375,7 @@ export async function getInspectionHistoryForAsset(
     limit(limitCount),
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Inspection));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Inspection);
 }
 
 /**
@@ -369,7 +386,11 @@ export async function addExtinguisherToWorkspaceChecklistCall(
   orgId: string,
   extId: string,
   workspaceId: string,
-): Promise<{ inspectionId: string; created: boolean; alreadyExisted: boolean }> {
+): Promise<{
+  inspectionId: string;
+  created: boolean;
+  alreadyExisted: boolean;
+}> {
   const fn = httpsCallable<
     { orgId: string; workspaceId: string; extinguisherId: string },
     { inspectionId: string; created: boolean; alreadyExisted: boolean }

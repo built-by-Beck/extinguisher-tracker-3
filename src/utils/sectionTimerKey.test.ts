@@ -23,27 +23,34 @@ const locations: Location[] = [
 describe('resolveSectionTimerKey', () => {
   it('uses location name when locationId matches', () => {
     expect(
-      resolveSectionTimerKey({ locationId: 'loc-a', section: 'Legacy' }, locations),
+      resolveSectionTimerKey(
+        { locationId: 'loc-a', section: 'Legacy' },
+        locations,
+      ),
     ).toBe('Floor 2 East');
   });
 
   it('falls back to ext.section when locationId unknown', () => {
     expect(
-      resolveSectionTimerKey({ locationId: 'missing', section: 'Basement' }, locations),
+      resolveSectionTimerKey(
+        { locationId: 'missing', section: 'Basement' },
+        locations,
+      ),
     ).toBe('Basement');
   });
 
   it('uses inspection locationId when ext has none', () => {
     expect(
-      resolveSectionTimerKey(
-        { locationId: null, section: '' },
-        locations,
-        { locationId: 'loc-a', section: '' },
-      ),
+      resolveSectionTimerKey({ locationId: null, section: '' }, locations, {
+        locationId: 'loc-a',
+        section: '',
+      }),
     ).toBe('Floor 2 East');
   });
 
   it('returns empty string when nothing to resolve', () => {
-    expect(resolveSectionTimerKey({ locationId: null, section: '' }, locations)).toBe('');
+    expect(
+      resolveSectionTimerKey({ locationId: null, section: '' }, locations),
+    ).toBe('');
   });
 });

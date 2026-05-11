@@ -14,7 +14,14 @@ import { useState } from 'react';
 import { Calculator as CalcIcon, AlertTriangle, Info } from 'lucide-react';
 
 type HazardClass = 'light' | 'ordinary' | 'extra';
-type OccupancyType = 'office' | 'warehouse' | 'manufacturing' | 'retail' | 'education' | 'healthcare' | 'other';
+type OccupancyType =
+  | 'office'
+  | 'warehouse'
+  | 'manufacturing'
+  | 'retail'
+  | 'education'
+  | 'healthcare'
+  | 'other';
 
 interface CalculationResult {
   minExtinguishers: number;
@@ -36,10 +43,13 @@ interface CalculationResult {
  * - Ordinary hazard: 50 ft travel distance
  * - Extra hazard:    50 ft travel distance
  */
-const NFPA_CLASS_A: Record<HazardClass, { maxAreaPerUnit: number; travelDistance: number; minRating: string }> = {
-  light:    { maxAreaPerUnit: 6000, travelDistance: 75, minRating: '2-A' },
+const NFPA_CLASS_A: Record<
+  HazardClass,
+  { maxAreaPerUnit: number; travelDistance: number; minRating: string }
+> = {
+  light: { maxAreaPerUnit: 6000, travelDistance: 75, minRating: '2-A' },
   ordinary: { maxAreaPerUnit: 3000, travelDistance: 75, minRating: '2-A' },
-  extra:    { maxAreaPerUnit: 3000, travelDistance: 75, minRating: '4-A' },
+  extra: { maxAreaPerUnit: 3000, travelDistance: 75, minRating: '4-A' },
 };
 
 const HAZARD_LABELS: Record<HazardClass, string> = {
@@ -75,7 +85,11 @@ function getRecommendedTypes(hazard: HazardClass): string[] {
     case 'ordinary':
       return ['ABC Dry Chemical (10 lb or 20 lb)', 'CO2 (10 lb or 15 lb)'];
     case 'extra':
-      return ['ABC Dry Chemical (20 lb)', 'Purple K (20 lb)', 'CO2 (15 lb or 20 lb)'];
+      return [
+        'ABC Dry Chemical (20 lb)',
+        'Purple K (20 lb)',
+        'CO2 (15 lb or 20 lb)',
+      ];
   }
 }
 
@@ -93,14 +107,24 @@ function calculate(
 
   const notes: string[] = [];
   notes.push(`Based on ${HAZARD_LABELS[hazard]} classification`);
-  notes.push(`Total area: ${totalArea.toLocaleString()} sq ft (${sqft.toLocaleString()} sq ft x ${floors} floor${floors !== 1 ? 's' : ''})`);
-  notes.push(`Maximum area per extinguisher: ${config.maxAreaPerUnit.toLocaleString()} sq ft`);
-  notes.push(`Maximum travel distance to nearest extinguisher: ${config.travelDistance} ft`);
+  notes.push(
+    `Total area: ${totalArea.toLocaleString()} sq ft (${sqft.toLocaleString()} sq ft x ${floors} floor${floors !== 1 ? 's' : ''})`,
+  );
+  notes.push(
+    `Maximum area per extinguisher: ${config.maxAreaPerUnit.toLocaleString()} sq ft`,
+  );
+  notes.push(
+    `Maximum travel distance to nearest extinguisher: ${config.travelDistance} ft`,
+  );
   if (minFromFloors > minFromArea) {
-    notes.push(`Minimum of 1 extinguisher per floor applied (${floors} floors)`);
+    notes.push(
+      `Minimum of 1 extinguisher per floor applied (${floors} floors)`,
+    );
   }
   if (hazard === 'extra') {
-    notes.push('Extra hazard areas may require additional Class B:C rated extinguishers');
+    notes.push(
+      'Extra hazard areas may require additional Class B:C rated extinguishers',
+    );
   }
 
   return {
@@ -148,7 +172,9 @@ export default function Calculator() {
             <CalcIcon className="h-6 w-6 text-red-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Fire Extinguisher Calculator</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Fire Extinguisher Calculator
+            </h1>
             <p className="text-sm text-gray-500">
               NFPA 10 based calculation for minimum extinguisher requirements
             </p>
@@ -159,11 +185,16 @@ export default function Calculator() {
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Input form */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Building Information</h2>
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            Building Information
+          </h2>
 
           <div className="space-y-4">
             <div>
-              <label htmlFor="sqft" className="mb-1 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="sqft"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
                 Square Footage (per floor)
               </label>
               <input
@@ -178,7 +209,10 @@ export default function Calculator() {
             </div>
 
             <div>
-              <label htmlFor="floors" className="mb-1 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="floors"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
                 Number of Floors
               </label>
               <input
@@ -193,25 +227,35 @@ export default function Calculator() {
             </div>
 
             <div>
-              <label htmlFor="occupancy" className="mb-1 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="occupancy"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
                 Occupancy Type
               </label>
               <select
                 id="occupancy"
                 value={occupancy}
-                onChange={(e) => handleOccupancyChange(e.target.value as OccupancyType)}
+                onChange={(e) =>
+                  handleOccupancyChange(e.target.value as OccupancyType)
+                }
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               >
-                {(Object.keys(OCCUPANCY_LABELS) as OccupancyType[]).map((key) => (
-                  <option key={key} value={key}>
-                    {OCCUPANCY_LABELS[key]}
-                  </option>
-                ))}
+                {(Object.keys(OCCUPANCY_LABELS) as OccupancyType[]).map(
+                  (key) => (
+                    <option key={key} value={key}>
+                      {OCCUPANCY_LABELS[key]}
+                    </option>
+                  ),
+                )}
               </select>
             </div>
 
             <div>
-              <label htmlFor="hazard" className="mb-1 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="hazard"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
                 Hazard Classification
               </label>
               <select
@@ -254,33 +298,56 @@ export default function Calculator() {
           {result ? (
             <div className="space-y-4">
               <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-lg font-semibold text-gray-900">Results</h2>
+                <h2 className="mb-4 text-lg font-semibold text-gray-900">
+                  Results
+                </h2>
 
                 <div className="mb-6 rounded-lg bg-red-50 p-4 text-center">
-                  <p className="text-sm font-medium text-red-700">Minimum Extinguishers Required</p>
-                  <p className="mt-1 text-4xl font-bold text-red-600">{result.minExtinguishers}</p>
+                  <p className="text-sm font-medium text-red-700">
+                    Minimum Extinguishers Required
+                  </p>
+                  <p className="mt-1 text-4xl font-bold text-red-600">
+                    {result.minExtinguishers}
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-lg border border-gray-200 p-3">
-                    <p className="text-xs font-medium text-gray-500">Max Travel Distance</p>
-                    <p className="mt-1 text-lg font-semibold text-gray-900">{result.maxTravelDistanceFt} ft</p>
+                    <p className="text-xs font-medium text-gray-500">
+                      Max Travel Distance
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-gray-900">
+                      {result.maxTravelDistanceFt} ft
+                    </p>
                   </div>
                   <div className="rounded-lg border border-gray-200 p-3">
-                    <p className="text-xs font-medium text-gray-500">Max Area Per Unit</p>
-                    <p className="mt-1 text-lg font-semibold text-gray-900">{result.maxFloorAreaPerUnit.toLocaleString()} sq ft</p>
+                    <p className="text-xs font-medium text-gray-500">
+                      Max Area Per Unit
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-gray-900">
+                      {result.maxFloorAreaPerUnit.toLocaleString()} sq ft
+                    </p>
                   </div>
                   <div className="rounded-lg border border-gray-200 p-3">
-                    <p className="text-xs font-medium text-gray-500">Minimum Rating</p>
-                    <p className="mt-1 text-lg font-semibold text-gray-900">{result.recommendedRating}</p>
+                    <p className="text-xs font-medium text-gray-500">
+                      Minimum Rating
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-gray-900">
+                      {result.recommendedRating}
+                    </p>
                   </div>
                 </div>
 
                 <div className="mt-4">
-                  <h3 className="mb-2 text-sm font-semibold text-gray-900">Recommended Types</h3>
+                  <h3 className="mb-2 text-sm font-semibold text-gray-900">
+                    Recommended Types
+                  </h3>
                   <ul className="space-y-1">
                     {result.recommendedTypes.map((t) => (
-                      <li key={t} className="flex items-start gap-2 text-sm text-gray-600">
+                      <li
+                        key={t}
+                        className="flex items-start gap-2 text-sm text-gray-600"
+                      >
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
                         {t}
                       </li>
@@ -296,7 +363,9 @@ export default function Calculator() {
                 </h3>
                 <ul className="space-y-1">
                   {result.notes.map((n, i) => (
-                    <li key={i} className="text-xs text-gray-600">{n}</li>
+                    <li key={i} className="text-xs text-gray-600">
+                      {n}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -323,11 +392,12 @@ export default function Calculator() {
         <div className="text-xs text-amber-800">
           <p className="font-semibold">Disclaimer</p>
           <p className="mt-1">
-            This calculator provides estimates based on NFPA 10 general requirements for Class A
-            hazards. Actual requirements may vary based on local codes, specific hazard types (Class
-            B/C/D/K), building layout, egress paths, and Authority Having Jurisdiction (AHJ)
-            requirements. Always consult a licensed fire protection professional for site-specific
-            recommendations.
+            This calculator provides estimates based on NFPA 10 general
+            requirements for Class A hazards. Actual requirements may vary based
+            on local codes, specific hazard types (Class B/C/D/K), building
+            layout, egress paths, and Authority Having Jurisdiction (AHJ)
+            requirements. Always consult a licensed fire protection professional
+            for site-specific recommendations.
           </p>
         </div>
       </div>

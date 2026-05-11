@@ -5,10 +5,21 @@
  */
 
 import type { LucideIcon } from 'lucide-react';
-import { ClipboardList, ListChecks, CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
+import {
+  ClipboardList,
+  ListChecks,
+  CheckCircle2,
+  RefreshCw,
+  XCircle,
+} from 'lucide-react';
 import type { WorkspaceInspectionBucketStats } from '../../utils/workspaceInspectionStats.ts';
 
-export type WorkspaceScopeCardFilter = 'pending' | 'checked' | 'pass' | 'fail' | 'replaced';
+export type WorkspaceScopeCardFilter =
+  | 'pending'
+  | 'checked'
+  | 'pass'
+  | 'fail'
+  | 'replaced';
 
 interface WorkspaceInspectionScopeCardsProps {
   stats: WorkspaceInspectionBucketStats;
@@ -45,8 +56,12 @@ function Card({
     >
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-gray-500 sm:text-sm">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 sm:text-2xl">{value}</p>
+          <p className="text-xs font-medium text-gray-500 sm:text-sm">
+            {label}
+          </p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 sm:text-2xl">
+            {value}
+          </p>
         </div>
         <div className={`shrink-0 rounded-lg p-2.5 sm:p-3 ${color}`}>
           <Icon className="h-5 w-5 text-white sm:h-6 sm:w-6" />
@@ -72,7 +87,9 @@ export function WorkspaceInspectionScopeCards({
         icon={ClipboardList}
         color="bg-amber-500"
         selected={activeFilter === 'pending'}
-        onClick={() => onSelectFilter(activeFilter === 'pending' ? null : 'pending')}
+        onClick={() =>
+          onSelectFilter(activeFilter === 'pending' ? null : 'pending')
+        }
       />
       <Card
         label="Checked"
@@ -80,7 +97,9 @@ export function WorkspaceInspectionScopeCards({
         icon={ListChecks}
         color="bg-slate-600"
         selected={activeFilter === 'checked'}
-        onClick={() => onSelectFilter(activeFilter === 'checked' ? null : 'checked')}
+        onClick={() =>
+          onSelectFilter(activeFilter === 'checked' ? null : 'checked')
+        }
       />
       <Card
         label="Passed"
@@ -104,7 +123,9 @@ export function WorkspaceInspectionScopeCards({
         icon={RefreshCw}
         color="bg-orange-500"
         selected={activeFilter === 'replaced'}
-        onClick={() => onSelectFilter(activeFilter === 'replaced' ? null : 'replaced')}
+        onClick={() =>
+          onSelectFilter(activeFilter === 'replaced' ? null : 'replaced')
+        }
       />
     </div>
   );

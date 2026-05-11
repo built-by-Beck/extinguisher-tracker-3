@@ -3,15 +3,24 @@ import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { validateSubscriptionTx } from '../utils/subscription.js';
-import { throwInvalidArgument, throwNotFound, throwFailedPrecondition } from '../utils/errors.js';
+import {
+  throwInvalidArgument,
+  throwNotFound,
+  throwFailedPrecondition,
+} from '../utils/errors.js';
 import { FieldValue } from 'firebase-admin/firestore';
 
 export const resetInspection = onCall(async (request) => {
   const { uid, email } = validateAuth(request);
-  const { orgId, inspectionId } = request.data as { orgId: string; inspectionId: string };
+  const { orgId, inspectionId } = request.data as {
+    orgId: string;
+    inspectionId: string;
+  };
 
-  if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
-  if (!inspectionId || typeof inspectionId !== 'string') throwInvalidArgument('inspectionId is required.');
+  if (!orgId || typeof orgId !== 'string')
+    throwInvalidArgument('orgId is required.');
+  if (!inspectionId || typeof inspectionId !== 'string')
+    throwInvalidArgument('inspectionId is required.');
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
 
@@ -27,7 +36,9 @@ export const resetInspection = onCall(async (request) => {
     const inspData = inspSnap.data()!;
     const previousStatus = inspData.status as string;
 
-    const wsRef = adminDb.doc(`org/${orgId}/workspaces/${inspData.workspaceId}`);
+    const wsRef = adminDb.doc(
+      `org/${orgId}/workspaces/${inspData.workspaceId}`,
+    );
     const wsSnap = await tx.get(wsRef);
 
     // 3. Validation
@@ -36,7 +47,9 @@ export const resetInspection = onCall(async (request) => {
     }
 
     if (wsSnap.exists && wsSnap.data()?.status === 'archived') {
-      throwFailedPrecondition('Cannot reset inspections in an archived workspace.');
+      throwFailedPrecondition(
+        'Cannot reset inspections in an archived workspace.',
+      );
     }
 
     const serverTimestamp = FieldValue.serverTimestamp();
@@ -92,13 +105,14 @@ export const resetInspection = onCall(async (request) => {
         'stats.lastUpdated': serverTimestamp,
         'stats.pending': FieldValue.increment(1),
       };
-      if (previousStatus === 'pass') statsUpdate['stats.passed'] = FieldValue.increment(-1);
-      else if (previousStatus === 'fail') statsUpdate['stats.failed'] = FieldValue.increment(-1);
-      
+      if (previousStatus === 'pass')
+        statsUpdate['stats.passed'] = FieldValue.increment(-1);
+      else if (previousStatus === 'fail')
+        statsUpdate['stats.failed'] = FieldValue.increment(-1);
+
       tx.update(wsRef, statsUpdate);
     }
 
     return { inspectionId, previousStatus };
   });
 });
-

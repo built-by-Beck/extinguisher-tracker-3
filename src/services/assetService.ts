@@ -17,8 +17,17 @@ import {
 import { db } from '../lib/firebase.ts';
 import type { Location } from './locationService.ts';
 
-export type CustomAssetStatus = 'active' | 'inactive' | 'retired' | 'out_of_service';
-export type CustomAssetRecurrence = 'monthly' | 'weekly' | 'quarterly' | 'annual' | 'custom';
+export type CustomAssetStatus =
+  | 'active'
+  | 'inactive'
+  | 'retired'
+  | 'out_of_service';
+export type CustomAssetRecurrence =
+  | 'monthly'
+  | 'weekly'
+  | 'quarterly'
+  | 'annual'
+  | 'custom';
 export type CustomAssetInspectionResult = 'pass' | 'fail' | 'na' | 'unchecked';
 
 export interface CustomAssetInspectionItem {
@@ -115,7 +124,10 @@ function templatesRef(orgId: string) {
   return collection(db, 'org', orgId, 'assetInspectionTemplates');
 }
 
-export function createInspectionItem(label: string, order: number): CustomAssetInspectionItem {
+export function createInspectionItem(
+  label: string,
+  order: number,
+): CustomAssetInspectionItem {
   return {
     id: crypto.randomUUID(),
     label: label.trim(),
@@ -125,7 +137,9 @@ export function createInspectionItem(label: string, order: number): CustomAssetI
   };
 }
 
-export function copyInspectionItemsForAsset(items: CustomAssetInspectionItem[]): CustomAssetInspectionItem[] {
+export function copyInspectionItemsForAsset(
+  items: CustomAssetInspectionItem[],
+): CustomAssetInspectionItem[] {
   return items
     .filter((item) => item.active !== false && item.label.trim())
     .sort((a, b) => a.order - b.order)
@@ -139,7 +153,11 @@ export function copyInspectionItemsForAsset(items: CustomAssetInspectionItem[]):
     }));
 }
 
-function normalizeAssetInput(orgId: string, uid: string, input: CreateAssetInput) {
+function normalizeAssetInput(
+  orgId: string,
+  uid: string,
+  input: CreateAssetInput,
+) {
   return {
     orgId,
     name: input.name.trim(),
@@ -174,7 +192,11 @@ function normalizeAssetInput(orgId: string, uid: string, input: CreateAssetInput
   };
 }
 
-export async function createAsset(orgId: string, uid: string, input: CreateAssetInput): Promise<string> {
+export async function createAsset(
+  orgId: string,
+  uid: string,
+  input: CreateAssetInput,
+): Promise<string> {
   const ref = doc(assetsRef(orgId));
   await setDoc(ref, normalizeAssetInput(orgId, uid, input));
   return ref.id;
@@ -184,7 +206,10 @@ export async function updateAsset(
   orgId: string,
   assetId: string,
   uid: string,
-  updates: Partial<CreateAssetInput> & { active?: boolean; status?: CustomAssetStatus },
+  updates: Partial<CreateAssetInput> & {
+    active?: boolean;
+    status?: CustomAssetStatus;
+  },
 ): Promise<void> {
   const patch: Record<string, unknown> = {
     updatedAt: serverTimestamp(),
@@ -192,12 +217,17 @@ export async function updateAsset(
   };
 
   if (updates.name !== undefined) patch.name = updates.name.trim();
-  if (updates.assetType !== undefined) patch.assetType = updates.assetType.trim();
-  if (updates.assetCode !== undefined) patch.assetCode = updates.assetCode.trim();
+  if (updates.assetType !== undefined)
+    patch.assetType = updates.assetType.trim();
+  if (updates.assetCode !== undefined)
+    patch.assetCode = updates.assetCode.trim();
   if (updates.barcode !== undefined) patch.barcode = updates.barcode.trim();
-  if (updates.serialNumber !== undefined) patch.serialNumber = updates.serialNumber.trim();
-  if (updates.locationId !== undefined) patch.locationId = updates.locationId || '';
-  if (updates.locationName !== undefined) patch.locationName = updates.locationName || '';
+  if (updates.serialNumber !== undefined)
+    patch.serialNumber = updates.serialNumber.trim();
+  if (updates.locationId !== undefined)
+    patch.locationId = updates.locationId || '';
+  if (updates.locationName !== undefined)
+    patch.locationName = updates.locationName || '';
   if (updates.notes !== undefined) patch.notes = updates.notes.trim();
   if (updates.details !== undefined) patch.details = updates.details.trim();
   if (updates.recurrence !== undefined) patch.recurrence = updates.recurrence;
@@ -220,7 +250,11 @@ export async function updateAsset(
   await updateDoc(doc(db, 'org', orgId, 'assets', assetId), patch);
 }
 
-export async function retireAsset(orgId: string, assetId: string, uid: string): Promise<void> {
+export async function retireAsset(
+  orgId: string,
+  assetId: string,
+  uid: string,
+): Promise<void> {
   await updateDoc(doc(db, 'org', orgId, 'assets', assetId), {
     active: false,
     status: 'retired',
@@ -231,7 +265,10 @@ export async function retireAsset(orgId: string, assetId: string, uid: string): 
   });
 }
 
-export async function getAsset(orgId: string, assetId: string): Promise<CustomAsset | null> {
+export async function getAsset(
+  orgId: string,
+  assetId: string,
+): Promise<CustomAsset | null> {
   const snap = await getDoc(doc(db, 'org', orgId, 'assets', assetId));
   if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() } as CustomAsset;
@@ -241,14 +278,20 @@ function assetConstraints(filters: ListAssetsFilters = {}): QueryConstraint[] {
   const constraints: QueryConstraint[] = [];
   if (filters.activeOnly) constraints.push(where('active', '==', true));
   if (filters.status) constraints.push(where('status', '==', filters.status));
-  if (filters.locationId) constraints.push(where('locationId', '==', filters.locationId));
+  if (filters.locationId)
+    constraints.push(where('locationId', '==', filters.locationId));
   constraints.push(orderBy('name', 'asc'));
   return constraints;
 }
 
-export async function listAssets(orgId: string, filters: ListAssetsFilters = {}): Promise<CustomAsset[]> {
-  const snap = await getDocs(query(assetsRef(orgId), ...assetConstraints(filters)));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as CustomAsset));
+export async function listAssets(
+  orgId: string,
+  filters: ListAssetsFilters = {},
+): Promise<CustomAsset[]> {
+  const snap = await getDocs(
+    query(assetsRef(orgId), ...assetConstraints(filters)),
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as CustomAsset);
 }
 
 export function listenToAssets(
@@ -256,9 +299,14 @@ export function listenToAssets(
   callback: (items: CustomAsset[]) => void,
   filters: ListAssetsFilters = {},
 ): () => void {
-  return onSnapshot(query(assetsRef(orgId), ...assetConstraints(filters)), (snap) => {
-    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as CustomAsset)));
-  });
+  return onSnapshot(
+    query(assetsRef(orgId), ...assetConstraints(filters)),
+    (snap) => {
+      callback(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }) as CustomAsset),
+      );
+    },
+  );
 }
 
 export function listenToAssetInspectionTemplates(
@@ -271,11 +319,19 @@ export function listenToAssetInspectionTemplates(
     orderBy('name', 'asc'),
   );
   return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as CustomAssetInspectionTemplate)));
+    callback(
+      snap.docs.map(
+        (d) => ({ id: d.id, ...d.data() }) as CustomAssetInspectionTemplate,
+      ),
+    );
   });
 }
 
-function normalizeTemplateInput(orgId: string, uid: string, input: CreateAssetInspectionTemplateInput) {
+function normalizeTemplateInput(
+  orgId: string,
+  uid: string,
+  input: CreateAssetInspectionTemplateInput,
+) {
   return {
     orgId,
     name: input.name.trim(),
@@ -310,15 +366,24 @@ export async function updateAssetInspectionTemplate(
     updatedBy: uid,
   };
   if (updates.name !== undefined) patch.name = updates.name.trim();
-  if (updates.assetType !== undefined) patch.assetType = updates.assetType.trim();
+  if (updates.assetType !== undefined)
+    patch.assetType = updates.assetType.trim();
   if (updates.inspectionItems !== undefined) {
-    patch.inspectionItems = copyInspectionItemsForAsset(updates.inspectionItems);
+    patch.inspectionItems = copyInspectionItemsForAsset(
+      updates.inspectionItems,
+    );
   }
   if (updates.active !== undefined) patch.active = updates.active;
-  await updateDoc(doc(db, 'org', orgId, 'assetInspectionTemplates', templateId), patch);
+  await updateDoc(
+    doc(db, 'org', orgId, 'assetInspectionTemplates', templateId),
+    patch,
+  );
 }
 
-export function getLocationName(locations: Location[], locationId: string | null | undefined): string {
+export function getLocationName(
+  locations: Location[],
+  locationId: string | null | undefined,
+): string {
   if (!locationId) return '';
   return locations.find((loc) => loc.id === locationId)?.name ?? '';
 }
@@ -337,13 +402,23 @@ export async function ensureCustomAssetInspectionForWorkspace(
     const existing = await tx.get(inspectionDoc);
     if (existing.exists()) return;
 
-    const [assetSnap, workspaceSnap] = await Promise.all([tx.get(assetDoc), tx.get(workspaceDoc)]);
+    const [assetSnap, workspaceSnap] = await Promise.all([
+      tx.get(assetDoc),
+      tx.get(workspaceDoc),
+    ]);
     if (!assetSnap.exists()) throw new Error('Custom asset not found.');
-    if (!workspaceSnap.exists()) throw new Error('Inspection workspace not found.');
+    if (!workspaceSnap.exists())
+      throw new Error('Inspection workspace not found.');
 
     const asset = { id: assetSnap.id, ...assetSnap.data() } as CustomAsset;
-    if (!asset.active || asset.status !== 'active' || asset.recurrence !== 'monthly') {
-      throw new Error('Only active monthly custom assets can be added to the current workspace.');
+    if (
+      !asset.active ||
+      asset.status !== 'active' ||
+      asset.recurrence !== 'monthly'
+    ) {
+      throw new Error(
+        'Only active monthly custom assets can be added to the current workspace.',
+      );
     }
 
     const checklistSnapshot = [...asset.inspectionItems]

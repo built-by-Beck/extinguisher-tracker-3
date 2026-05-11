@@ -43,8 +43,12 @@ export interface UseLocationDrillDownReturn {
   currentLocationAndDescendants: Set<string>;
 }
 
-export function useLocationDrillDown(locations: Location[]): UseLocationDrillDownReturn {
-  const [currentLocationId, setCurrentLocationId] = useState<string | null>(null);
+export function useLocationDrillDown(
+  locations: Location[],
+): UseLocationDrillDownReturn {
+  const [currentLocationId, setCurrentLocationId] = useState<string | null>(
+    null,
+  );
 
   const tree = useMemo(() => buildLocationTree(locations), [locations]);
 

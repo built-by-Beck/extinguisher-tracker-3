@@ -92,7 +92,10 @@ interface ReportResultFirestore {
   checklistData: Record<string, string> | null;
 }
 
-function selectReportRows(reportData: ReportDocData, options: ReportGenerationOptions | null) {
+function selectReportRows(
+  reportData: ReportDocData,
+  options: ReportGenerationOptions | null,
+) {
   const allResults = reportData.results ?? [];
 
   if (!options) {
@@ -119,7 +122,10 @@ function selectReportRows(reportData: ReportDocData, options: ReportGenerationOp
   };
 }
 
-async function buildReportResultsFromInspections(orgId: string, workspaceId: string) {
+async function buildReportResultsFromInspections(
+  orgId: string,
+  workspaceId: string,
+) {
   const inspSnap = await adminDb
     .collection(`org/${orgId}/inspections`)
     .where('workspaceId', '==', workspaceId)
@@ -145,11 +151,17 @@ async function buildReportResultsFromInspections(orgId: string, workspaceId: str
       locationName: data.locationName ?? '',
       section: data.section ?? '',
       vicinity: data.vicinity ?? '',
-      manufactureYear: typeof data.manufactureYear === 'number' ? data.manufactureYear : null,
-      expirationYear: typeof data.expirationYear === 'number' ? data.expirationYear : null,
+      manufactureYear:
+        typeof data.manufactureYear === 'number' ? data.manufactureYear : null,
+      expirationYear:
+        typeof data.expirationYear === 'number' ? data.expirationYear : null,
       isExpired: data.isExpired === true,
-      lifecycleStatus: typeof data.lifecycleStatus === 'string' ? data.lifecycleStatus : null,
-      complianceStatus: typeof data.complianceStatus === 'string' ? data.complianceStatus : null,
+      lifecycleStatus:
+        typeof data.lifecycleStatus === 'string' ? data.lifecycleStatus : null,
+      complianceStatus:
+        typeof data.complianceStatus === 'string'
+          ? data.complianceStatus
+          : null,
       status: data.status ?? 'pending',
       inspectedAt: data.inspectedAt ?? null,
       inspectedBy: data.inspectedBy ?? null,
@@ -170,20 +182,34 @@ async function buildReportResultsFromInspections(orgId: string, workspaceId: str
 
 export const generateReport = onCall(async (request) => {
   const { uid } = validateAuth(request);
-  const { orgId, workspaceId, format, options: rawOptions } = request.data as {
+  const {
+    orgId,
+    workspaceId,
+    format,
+    options: rawOptions,
+  } = request.data as {
     orgId: string;
     workspaceId: string;
     format: unknown;
     options?: unknown;
   };
 
-  if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
-  if (!workspaceId || typeof workspaceId !== 'string') throwInvalidArgument('workspaceId is required.');
-  if (!isValidFormat(format)) throwInvalidArgument('format must be one of: csv, pdf, json.');
-  const options = rawOptions === undefined ? null : parseReportOptions(rawOptions);
+  if (!orgId || typeof orgId !== 'string')
+    throwInvalidArgument('orgId is required.');
+  if (!workspaceId || typeof workspaceId !== 'string')
+    throwInvalidArgument('workspaceId is required.');
+  if (!isValidFormat(format))
+    throwInvalidArgument('format must be one of: csv, pdf, json.');
+  const options =
+    rawOptions === undefined ? null : parseReportOptions(rawOptions);
 
   // Any active member can generate/download reports
-  const member = await validateMembership(orgId, uid, ['owner', 'admin', 'inspector', 'viewer']);
+  const member = await validateMembership(orgId, uid, [
+    'owner',
+    'admin',
+    'inspector',
+    'viewer',
+  ]);
 
   // 1. Load workspace
   const wsRef = adminDb.doc(`org/${orgId}/workspaces/${workspaceId}`);
@@ -197,7 +223,10 @@ export const generateReport = onCall(async (request) => {
 
   if (!reportSnap.exists) {
     // Build results array from inspections (on-demand for workspaces archived before Phase 5)
-    const snapshot = await buildReportResultsFromInspections(orgId, workspaceId);
+    const snapshot = await buildReportResultsFromInspections(
+      orgId,
+      workspaceId,
+    );
 
     const newReportDoc: ReportDocData & {
       archivedAt: unknown;
@@ -232,7 +261,10 @@ export const generateReport = onCall(async (request) => {
   let reportData = reportSnap.data() as ReportDocData;
   let forceRegenerate = false;
   if (!hasFinderFields(reportData.results)) {
-    const snapshot = await buildReportResultsFromInspections(orgId, workspaceId);
+    const snapshot = await buildReportResultsFromInspections(
+      orgId,
+      workspaceId,
+    );
     await reportRef.update({
       totalExtinguishers: snapshot.totalExtinguishers,
       passedCount: snapshot.passedCount,
@@ -263,7 +295,10 @@ export const generateReport = onCall(async (request) => {
     };
     forceRegenerate = true;
   }
-  const filePathKey = `${format}FilePath` as 'csvFilePath' | 'pdfFilePath' | 'jsonFilePath';
+  const filePathKey = `${format}FilePath` as
+    | 'csvFilePath'
+    | 'pdfFilePath'
+    | 'jsonFilePath';
   const existingFilePath = reportData[filePathKey];
 
   const bucket = getStorage().bucket();
@@ -302,19 +337,21 @@ export const generateReport = onCall(async (request) => {
       ];
       const lines: string[] = [csvHeaders.join(',')];
       for (const r of results) {
-        lines.push([
-          escapeCSVField(r.assetId),
-          escapeCSVField(r.serial),
-          escapeCSVField(r.parentLocation),
-          escapeCSVField(r.locationName),
-          escapeCSVField(r.section),
-          escapeCSVField(r.vicinity),
-          escapeCSVField(r.status),
-          escapeCSVField(timestampToString(r.inspectedAt)),
-          escapeCSVField(r.inspectedBy),
-          escapeCSVField(r.inspectedByEmail),
-          escapeCSVField(r.notes),
-        ].join(','));
+        lines.push(
+          [
+            escapeCSVField(r.assetId),
+            escapeCSVField(r.serial),
+            escapeCSVField(r.parentLocation),
+            escapeCSVField(r.locationName),
+            escapeCSVField(r.section),
+            escapeCSVField(r.vicinity),
+            escapeCSVField(r.status),
+            escapeCSVField(timestampToString(r.inspectedAt)),
+            escapeCSVField(r.inspectedBy),
+            escapeCSVField(r.inspectedByEmail),
+            escapeCSVField(r.notes),
+          ].join(','),
+        );
       }
       const csvContent = lines.join('\n');
       const file = bucket.file(storagePath);
@@ -322,7 +359,10 @@ export const generateReport = onCall(async (request) => {
         contentType: 'text/csv',
         metadata: { cacheControl: 'private, max-age=3600' },
       });
-      const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 60 * 60 * 1000 });
+      const [url] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 60 * 60 * 1000,
+      });
       downloadUrl = url;
     } else if (format === 'json') {
       const jsonContent = JSON.stringify(
@@ -352,14 +392,17 @@ export const generateReport = onCall(async (request) => {
           })),
         },
         null,
-        2
+        2,
       );
       const file = bucket.file(storagePath);
       await file.save(jsonContent, {
         contentType: 'application/json',
         metadata: { cacheControl: 'private, max-age=3600' },
       });
-      const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 60 * 60 * 1000 });
+      const [url] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 60 * 60 * 1000,
+      });
       downloadUrl = url;
     } else {
       // PDF
@@ -400,7 +443,10 @@ export const generateReport = onCall(async (request) => {
         contentType: 'application/pdf',
         metadata: { cacheControl: 'private, max-age=3600' },
       });
-      const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 60 * 60 * 1000 });
+      const [url] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 60 * 60 * 1000,
+      });
       downloadUrl = url;
     }
 

@@ -58,11 +58,19 @@ export const exportExtinguishersCSV = onCall(async (request) => {
   }
 
   // Any active member can export
-  await validateMembership(orgId, uid, ['owner', 'admin', 'inspector', 'viewer']);
+  await validateMembership(orgId, uid, [
+    'owner',
+    'admin',
+    'inspector',
+    'viewer',
+  ]);
 
   // Fetch all active extinguishers
   const extRef = adminDb.collection(`org/${orgId}/extinguishers`);
-  const snapshot = await extRef.where('deletedAt', '==', null).orderBy('assetId').get();
+  const snapshot = await extRef
+    .where('deletedAt', '==', null)
+    .orderBy('assetId')
+    .get();
 
   // Build CSV content
   const lines: string[] = [CSV_HEADERS.join(',')];

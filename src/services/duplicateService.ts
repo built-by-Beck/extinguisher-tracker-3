@@ -17,7 +17,9 @@ export interface DuplicateGroup {
  * Returns only groups with 2+ extinguishers.
  * Uses smart preference to pick the "keep" extinguisher.
  */
-export function findDuplicates(extinguishers: Extinguisher[]): DuplicateGroup[] {
+export function findDuplicates(
+  extinguishers: Extinguisher[],
+): DuplicateGroup[] {
   const groups: Record<string, Extinguisher[]> = {};
 
   extinguishers.forEach((ext) => {
@@ -34,7 +36,9 @@ export function findDuplicates(extinguishers: Extinguisher[]): DuplicateGroup[] 
   Object.entries(groups).forEach(([, items]) => {
     if (items.length > 1) {
       // Find the best candidate to keep
-      const keep = items.reduce((best, current) => pickPreferred(best, current));
+      const keep = items.reduce((best, current) =>
+        pickPreferred(best, current),
+      );
       const remove = items.filter((item) => item.id !== keep.id);
 
       duplicateGroups.push({
@@ -66,8 +70,10 @@ export function pickPreferred(a: Extinguisher, b: Extinguisher): Extinguisher {
 
   // 2. Both same inspection status — check inspection dates
   if (aInspected && bInspected) {
-    const aTime = (a.lastMonthlyInspection as { seconds?: number })?.seconds || 0;
-    const bTime = (b.lastMonthlyInspection as { seconds?: number })?.seconds || 0;
+    const aTime =
+      (a.lastMonthlyInspection as { seconds?: number })?.seconds || 0;
+    const bTime =
+      (b.lastMonthlyInspection as { seconds?: number })?.seconds || 0;
     if (aTime !== bTime) return aTime > bTime ? a : b;
   }
 
@@ -111,7 +117,9 @@ export function mergeExtinguisherData(
   const history = [...(keep.replacementHistory || [])];
   remove.forEach((r) => {
     (r.replacementHistory || []).forEach((h) => {
-      if (!history.some((existing) => existing.replacedExtId === h.replacedExtId)) {
+      if (
+        !history.some((existing) => existing.replacedExtId === h.replacedExtId)
+      ) {
         history.push(h);
       }
     });

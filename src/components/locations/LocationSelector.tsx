@@ -23,7 +23,10 @@ interface LocationSelectorProps {
 /**
  * Flatten the tree in depth-first order for indented display.
  */
-function flattenTree(nodes: LocationTreeNode[], depth: number = 0): Array<{ loc: Location; depth: number }> {
+function flattenTree(
+  nodes: LocationTreeNode[],
+  depth: number = 0,
+): Array<{ loc: Location; depth: number }> {
   const result: Array<{ loc: Location; depth: number }> = [];
   for (const node of nodes) {
     result.push({ loc: node, depth });

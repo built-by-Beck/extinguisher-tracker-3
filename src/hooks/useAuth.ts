@@ -1,5 +1,8 @@
 import { useContext } from 'react';
-import { AuthContext, type AuthContextValue } from '../contexts/AuthContext.tsx';
+import {
+  AuthContext,
+  type AuthContextValue,
+} from '../contexts/AuthContext.tsx';
 
 /**
  * Hook to access authentication state and actions.

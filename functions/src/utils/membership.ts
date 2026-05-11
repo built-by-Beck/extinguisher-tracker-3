@@ -25,7 +25,10 @@ interface MemberData {
  * Loads a member document from org/{orgId}/members/{uid}.
  * Returns the member data or throws not_found.
  */
-export async function getMember(orgId: string, uid: string): Promise<MemberData> {
+export async function getMember(
+  orgId: string,
+  uid: string,
+): Promise<MemberData> {
   const memberRef = adminDb.doc(`org/${orgId}/members/${uid}`);
   const memberSnap = await memberRef.get();
 
@@ -49,11 +52,15 @@ export async function validateMembership(
   const member = await getMember(orgId, uid);
 
   if (member.status !== 'active') {
-    throwPermissionDenied('Your membership in this organization is not active.');
+    throwPermissionDenied(
+      'Your membership in this organization is not active.',
+    );
   }
 
   if (!requiredRoles.includes(member.role)) {
-    throwPermissionDenied(`This action requires one of the following roles: ${requiredRoles.join(', ')}.`);
+    throwPermissionDenied(
+      `This action requires one of the following roles: ${requiredRoles.join(', ')}.`,
+    );
   }
 
   return member;

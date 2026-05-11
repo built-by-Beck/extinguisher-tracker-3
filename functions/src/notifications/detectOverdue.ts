@@ -59,11 +59,17 @@ export const overdueDetectionJob = onSchedule('30 6 * * *', async () => {
       .get();
 
     // Combine into a map of extinguisher IDs -> doc snapshots (deduplicated)
-    const overdueDocMap = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+    const overdueDocMap = new Map<
+      string,
+      FirebaseFirestore.QueryDocumentSnapshot
+    >();
     for (const d of overdueMonthlySnap.docs) overdueDocMap.set(d.id, d);
-    for (const d of overdueAnnualSnap.docs) if (!overdueDocMap.has(d.id)) overdueDocMap.set(d.id, d);
-    for (const d of overdueSixYearSnap.docs) if (!overdueDocMap.has(d.id)) overdueDocMap.set(d.id, d);
-    for (const d of overdueHydroSnap.docs) if (!overdueDocMap.has(d.id)) overdueDocMap.set(d.id, d);
+    for (const d of overdueAnnualSnap.docs)
+      if (!overdueDocMap.has(d.id)) overdueDocMap.set(d.id, d);
+    for (const d of overdueSixYearSnap.docs)
+      if (!overdueDocMap.has(d.id)) overdueDocMap.set(d.id, d);
+    for (const d of overdueHydroSnap.docs)
+      if (!overdueDocMap.has(d.id)) overdueDocMap.set(d.id, d);
 
     if (overdueDocMap.size === 0) continue;
 
@@ -81,15 +87,21 @@ export const overdueDetectionJob = onSchedule('30 6 * * *', async () => {
       const ext: ExtinguisherForCalc = {
         lifecycleStatus: extData.lifecycleStatus as string | null,
         extinguisherType: extData.extinguisherType as string | null,
-        requiresSixYearMaintenance: extData.requiresSixYearMaintenance as boolean | null,
-        lastMonthlyInspection: extData.lastMonthlyInspection as Timestamp | null,
+        requiresSixYearMaintenance: extData.requiresSixYearMaintenance as
+          | boolean
+          | null,
+        lastMonthlyInspection:
+          extData.lastMonthlyInspection as Timestamp | null,
         lastAnnualInspection: extData.lastAnnualInspection as Timestamp | null,
-        lastSixYearMaintenance: extData.lastSixYearMaintenance as Timestamp | null,
+        lastSixYearMaintenance:
+          extData.lastSixYearMaintenance as Timestamp | null,
         lastHydroTest: extData.lastHydroTest as Timestamp | null,
         hydroTestIntervalYears: extData.hydroTestIntervalYears as number | null,
-        nextMonthlyInspection: extData.nextMonthlyInspection as Timestamp | null,
+        nextMonthlyInspection:
+          extData.nextMonthlyInspection as Timestamp | null,
         nextAnnualInspection: extData.nextAnnualInspection as Timestamp | null,
-        nextSixYearMaintenance: extData.nextSixYearMaintenance as Timestamp | null,
+        nextSixYearMaintenance:
+          extData.nextSixYearMaintenance as Timestamp | null,
         nextHydroTest: extData.nextHydroTest as Timestamp | null,
       };
 

@@ -36,45 +36,58 @@ describe('repairWorkspaceChecklist', () => {
     ext2NextMonthlyInspection?: unknown;
     extinguisherDocs?: Array<{ id: string; data: Record<string, unknown> }>;
   } = {}) {
-    const memberSnap = { exists: true, data: () => ({ role: 'owner', status: 'active' }) };
-    const orgSnap = { exists: true, data: () => ({ subscriptionStatus: 'active' }) };
+    const memberSnap = {
+      exists: true,
+      data: () => ({ role: 'owner', status: 'active' }),
+    };
+    const orgSnap = {
+      exists: true,
+      data: () => ({ subscriptionStatus: 'active' }),
+    };
     const wsRef = {
       path: 'org/org-1/workspaces/2026-04',
-      get: jest.fn().mockResolvedValue({ exists: true, data: () => ({ status: workspaceStatus }) }),
+      get: jest.fn().mockResolvedValue({
+        exists: true,
+        data: () => ({ status: workspaceStatus }),
+      }),
       update: jest.fn().mockResolvedValue(undefined),
     };
 
     adminDb.doc.mockImplementation((path: string) => {
-      if (path === 'org/org-1/members/owner-1') return { path, get: jest.fn().mockResolvedValue(memberSnap) };
-      if (path === 'org/org-1') return { path, get: jest.fn().mockResolvedValue(orgSnap) };
+      if (path === 'org/org-1/members/owner-1')
+        return { path, get: jest.fn().mockResolvedValue(memberSnap) };
+      if (path === 'org/org-1')
+        return { path, get: jest.fn().mockResolvedValue(orgSnap) };
       if (path === 'org/org-1/workspaces/2026-04') return wsRef;
       return { path };
     });
 
-    const extDocs = (extinguisherDocs ?? [
-      {
-        id: 'ext-1',
-        data: () => ({
-          assetId: 'FE-001',
-          category: 'standard',
-          lifecycleStatus: 'active',
-          status: 'active',
-          deletedAt: null,
-          nextMonthlyInspection: null,
-        }),
-      },
-      {
-        id: 'ext-2',
-        data: () => ({
-          assetId: 'FE-002',
-          category: 'standard',
-          lifecycleStatus: 'active',
-          status: 'active',
-          deletedAt: null,
-          nextMonthlyInspection: ext2NextMonthlyInspection,
-        }),
-      },
-    ]).map((row) => ({
+    const extDocs = (
+      extinguisherDocs ?? [
+        {
+          id: 'ext-1',
+          data: () => ({
+            assetId: 'FE-001',
+            category: 'standard',
+            lifecycleStatus: 'active',
+            status: 'active',
+            deletedAt: null,
+            nextMonthlyInspection: null,
+          }),
+        },
+        {
+          id: 'ext-2',
+          data: () => ({
+            assetId: 'FE-002',
+            category: 'standard',
+            lifecycleStatus: 'active',
+            status: 'active',
+            deletedAt: null,
+            nextMonthlyInspection: ext2NextMonthlyInspection,
+          }),
+        },
+      ]
+    ).map((row) => ({
       id: row.id,
       data: typeof row.data === 'function' ? row.data : () => row.data,
     }));
@@ -85,8 +98,17 @@ describe('repairWorkspaceChecklist', () => {
     }));
 
     const collectionGetByPath = new Map<string, jest.Mock>([
-      ['org/org-1/extinguishers', jest.fn().mockResolvedValue({ docs: extDocs })],
-      ['org/org-1/inspections', jest.fn().mockResolvedValueOnce({ docs: inspDocs }).mockResolvedValue({ docs: inspDocs })],
+      [
+        'org/org-1/extinguishers',
+        jest.fn().mockResolvedValue({ docs: extDocs }),
+      ],
+      [
+        'org/org-1/inspections',
+        jest
+          .fn()
+          .mockResolvedValueOnce({ docs: inspDocs })
+          .mockResolvedValue({ docs: inspDocs }),
+      ],
     ]);
     adminDb.collection.mockImplementation((path: string) => ({
       where: jest.fn().mockReturnThis(),
@@ -127,7 +149,9 @@ describe('repairWorkspaceChecklist', () => {
   it('rejects archived workspaces before changing checklist scope', async () => {
     const { batch } = setup({ workspaceStatus: 'archived' });
 
-    await expect(wrapped(baseRequest)).rejects.toThrow(/Repair is only supported for active workspaces/);
+    await expect(wrapped(baseRequest)).rejects.toThrow(
+      /Repair is only supported for active workspaces/,
+    );
     expect(batch.set).not.toHaveBeenCalled();
     expect(batch.commit).not.toHaveBeenCalled();
   });

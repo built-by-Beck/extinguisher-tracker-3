@@ -24,9 +24,18 @@ import {
   subscribeToWorkspaces,
   type Workspace,
 } from '../../services/workspaceService.ts';
-import { subscribeToExtinguishers, type Extinguisher } from '../../services/extinguisherService.ts';
-import { subscribeToInspections, type Inspection } from '../../services/inspectionService.ts';
-import { subscribeToLocations, type Location } from '../../services/locationService.ts';
+import {
+  subscribeToExtinguishers,
+  type Extinguisher,
+} from '../../services/extinguisherService.ts';
+import {
+  subscribeToInspections,
+  type Inspection,
+} from '../../services/inspectionService.ts';
+import {
+  subscribeToLocations,
+  type Location,
+} from '../../services/locationService.ts';
 import {
   buildMonthlyWorkspaceInspectionSnapshot,
   EMPTY_MONTHLY_WORKSPACE_STATS,
@@ -45,7 +54,9 @@ export function WorkspaceSwitcher({ open, onClose }: WorkspaceSwitcherProps) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [extinguishers, setExtinguishers] = useState<Extinguisher[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [inspectionsByWorkspace, setInspectionsByWorkspace] = useState<Record<string, Inspection[]>>({});
+  const [inspectionsByWorkspace, setInspectionsByWorkspace] = useState<
+    Record<string, Inspection[]>
+  >({});
 
   useEffect(() => {
     if (!orgId || !open) return;
@@ -54,7 +65,10 @@ export function WorkspaceSwitcher({ open, onClose }: WorkspaceSwitcherProps) {
 
   const activeWorkspaces = workspaces.filter((w) => w.status === 'active');
   const archivedCount = workspaces.length - activeWorkspaces.length;
-  const activeWorkspaceIdsKey = activeWorkspaces.map((w) => w.id).sort().join('|');
+  const activeWorkspaceIdsKey = activeWorkspaces
+    .map((w) => w.id)
+    .sort()
+    .join('|');
   const activeWorkspaceStatsById = useMemo(() => {
     const map = new Map<string, typeof EMPTY_MONTHLY_WORKSPACE_STATS>();
     for (const ws of activeWorkspaces) {
@@ -79,7 +93,10 @@ export function WorkspaceSwitcher({ open, onClose }: WorkspaceSwitcherProps) {
       setLocations([]);
       return;
     }
-    const unsubExtinguishers = subscribeToExtinguishers(orgId, setExtinguishers);
+    const unsubExtinguishers = subscribeToExtinguishers(
+      orgId,
+      setExtinguishers,
+    );
     const unsubLocations = subscribeToLocations(orgId, setLocations);
     return () => {
       unsubExtinguishers();
@@ -126,7 +143,9 @@ export function WorkspaceSwitcher({ open, onClose }: WorkspaceSwitcherProps) {
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-red-600" />
-            <h2 className="text-lg font-bold text-gray-900">Inspection Months</h2>
+            <h2 className="text-lg font-bold text-gray-900">
+              Inspection Months
+            </h2>
           </div>
           <button
             type="button"
@@ -144,16 +163,21 @@ export function WorkspaceSwitcher({ open, onClose }: WorkspaceSwitcherProps) {
             <div className="py-8 text-center">
               <Calendar className="mx-auto h-10 w-10 text-gray-300" />
               <p className="mt-2 text-sm text-gray-500">No active workspaces</p>
-              <p className="text-xs text-gray-400">Create one to start inspecting</p>
+              <p className="text-xs text-gray-400">
+                Create one to start inspecting
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
               {activeWorkspaces.map((ws) => {
                 const isCurrent = ws.monthYear === currentMonthYear;
-                const stats = activeWorkspaceStatsById.get(ws.id) ?? EMPTY_MONTHLY_WORKSPACE_STATS;
+                const stats =
+                  activeWorkspaceStatsById.get(ws.id) ??
+                  EMPTY_MONTHLY_WORKSPACE_STATS;
                 const completed = stats.passed + stats.failed;
                 const total = stats?.total ?? 0;
-                const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+                const pct =
+                  total > 0 ? Math.round((completed / total) * 100) : 0;
 
                 return (
                   <button
@@ -170,7 +194,9 @@ export function WorkspaceSwitcher({ open, onClose }: WorkspaceSwitcherProps) {
                         <Calendar
                           className={`h-4 w-4 ${isCurrent ? 'text-red-600' : 'text-gray-400'}`}
                         />
-                        <span className="font-semibold text-gray-900">{ws.label}</span>
+                        <span className="font-semibold text-gray-900">
+                          {ws.label}
+                        </span>
                         {isCurrent && (
                           <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
                             Current
@@ -207,7 +233,13 @@ export function WorkspaceSwitcher({ open, onClose }: WorkspaceSwitcherProps) {
                             preserveAspectRatio="none"
                             aria-hidden="true"
                           >
-                            <rect className="fill-green-500 transition-all" x="0" y="0" width={(stats.passed / total) * 100} height="6" />
+                            <rect
+                              className="fill-green-500 transition-all"
+                              x="0"
+                              y="0"
+                              width={(stats.passed / total) * 100}
+                              height="6"
+                            />
                             <rect
                               className="fill-red-500 transition-all"
                               x={(stats.passed / total) * 100}

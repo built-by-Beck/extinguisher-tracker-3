@@ -16,7 +16,10 @@ import { saveInspectionCall } from './inspectionService.ts';
  * Returns the generated queueId.
  */
 export async function queueInspection(
-  data: Omit<QueuedInspection, 'queueId' | 'attempts' | 'lastAttemptAt' | 'error' | 'syncStatus'>,
+  data: Omit<
+    QueuedInspection,
+    'queueId' | 'attempts' | 'lastAttemptAt' | 'error' | 'syncStatus'
+  >,
 ): Promise<string> {
   const db = await getOfflineDb();
   const queueId = crypto.randomUUID();
@@ -43,7 +46,11 @@ export async function processQueue(
   const db = await getOfflineDb();
 
   // Get all pending or failed records for this org, ordered by queuedAt ASC
-  const allRecords = await db.getAllFromIndex('inspectionQueue', 'by-orgId', orgId);
+  const allRecords = await db.getAllFromIndex(
+    'inspectionQueue',
+    'by-orgId',
+    orgId,
+  );
   const eligible = allRecords
     .filter((r) => r.syncStatus === 'pending' || r.syncStatus === 'failed')
     .sort((a, b) => a.queuedAt - b.queuedAt);
@@ -71,7 +78,11 @@ export async function processQueue(
       });
 
       // Success
-      const done: QueuedInspection = { ...syncing, syncStatus: 'synced', error: null };
+      const done: QueuedInspection = {
+        ...syncing,
+        syncStatus: 'synced',
+        error: null,
+      };
       await db.put('inspectionQueue', done);
       synced++;
     } catch (err: unknown) {
@@ -111,13 +122,19 @@ export async function processQueue(
 function detectConflictReason(errorMessage: string): string | null {
   const lower = errorMessage.toLowerCase();
 
-  if (lower.includes('failed-precondition') || (lower.includes('workspace') && lower.includes('archive'))) {
+  if (
+    lower.includes('failed-precondition') ||
+    (lower.includes('workspace') && lower.includes('archive'))
+  ) {
     return 'workspace_archived';
   }
   if (lower.includes('not-found') || lower.includes('not found')) {
     return 'entity_deleted';
   }
-  if (lower.includes('permission-denied') || lower.includes('permission denied')) {
+  if (
+    lower.includes('permission-denied') ||
+    lower.includes('permission denied')
+  ) {
     return 'permission_denied';
   }
 
@@ -129,7 +146,11 @@ function detectConflictReason(errorMessage: string): string | null {
  */
 export async function getPendingCount(orgId: string): Promise<number> {
   const db = await getOfflineDb();
-  const allRecords = await db.getAllFromIndex('inspectionQueue', 'by-orgId', orgId);
+  const allRecords = await db.getAllFromIndex(
+    'inspectionQueue',
+    'by-orgId',
+    orgId,
+  );
   return allRecords.filter(
     (r) => r.syncStatus === 'pending' || r.syncStatus === 'failed',
   ).length;
@@ -138,9 +159,15 @@ export async function getPendingCount(orgId: string): Promise<number> {
 /**
  * Get all queued inspections for the given org, ordered by queuedAt ASC.
  */
-export async function getQueuedInspections(orgId: string): Promise<QueuedInspection[]> {
+export async function getQueuedInspections(
+  orgId: string,
+): Promise<QueuedInspection[]> {
   const db = await getOfflineDb();
-  const allRecords = await db.getAllFromIndex('inspectionQueue', 'by-orgId', orgId);
+  const allRecords = await db.getAllFromIndex(
+    'inspectionQueue',
+    'by-orgId',
+    orgId,
+  );
   return allRecords.sort((a, b) => a.queuedAt - b.queuedAt);
 }
 
@@ -149,7 +176,11 @@ export async function getQueuedInspections(orgId: string): Promise<QueuedInspect
  */
 export async function clearSyncedItems(orgId: string): Promise<void> {
   const db = await getOfflineDb();
-  const allRecords = await db.getAllFromIndex('inspectionQueue', 'by-orgId', orgId);
+  const allRecords = await db.getAllFromIndex(
+    'inspectionQueue',
+    'by-orgId',
+    orgId,
+  );
   const tx = db.transaction('inspectionQueue', 'readwrite');
   for (const record of allRecords) {
     if (record.syncStatus === 'synced') {
@@ -164,7 +195,11 @@ export async function clearSyncedItems(orgId: string): Promise<void> {
  */
 export async function clearOrgQueue(orgId: string): Promise<void> {
   const db = await getOfflineDb();
-  const allRecords = await db.getAllFromIndex('inspectionQueue', 'by-orgId', orgId);
+  const allRecords = await db.getAllFromIndex(
+    'inspectionQueue',
+    'by-orgId',
+    orgId,
+  );
   const tx = db.transaction('inspectionQueue', 'readwrite');
   for (const record of allRecords) {
     await tx.store.delete(record.queueId);

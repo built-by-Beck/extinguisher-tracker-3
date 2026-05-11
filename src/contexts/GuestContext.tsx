@@ -95,7 +95,9 @@ export function GuestProvider({ children }: GuestProviderProps) {
 
           // Check expiration from member doc
           if (member.expiresAt) {
-            const expiry = (member.expiresAt as unknown as { toDate: () => Date }).toDate();
+            const expiry = (
+              member.expiresAt as unknown as { toDate: () => Date }
+            ).toDate();
             if (expiry <= new Date()) {
               // Session expired — sign out
               void handleSignOut();
@@ -112,105 +114,133 @@ export function GuestProvider({ children }: GuestProviderProps) {
     );
   }
 
-  const activateWithToken = useCallback(async (orgId: string, token: string): Promise<void> => {
-    setLoading(true);
-    setError(null);
+  const activateWithToken = useCallback(
+    async (orgId: string, token: string): Promise<void> => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      // Sign in anonymously
-      const credential = await signInAnonymously(auth);
-      const anonUid = credential.user.uid;
+      try {
+        // Sign in anonymously
+        const credential = await signInAnonymously(auth);
+        const anonUid = credential.user.uid;
 
-      // Activate guest session via Cloud Function
-      const result = await activateGuestSessionCall({ orgId, token });
+        // Activate guest session via Cloud Function
+        const result = await activateGuestSessionCall({ orgId, token });
 
-      const expires = new Date(result.expiresAt);
-      subscribeToGuestData(orgId, anonUid, expires);
-      setIsGuest(true);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to activate guest session.';
-      setError(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+        const expires = new Date(result.expiresAt);
+        subscribeToGuestData(orgId, anonUid, expires);
+        setIsGuest(true);
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Failed to activate guest session.';
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stable activate API; subscribeToGuestData is in-component helper (not listed to avoid identity churn)
+    [],
+  );
 
-  const activateWithCode = useCallback(async (shareCode: string): Promise<void> => {
-    setLoading(true);
-    setError(null);
+  const activateWithCode = useCallback(
+    async (shareCode: string): Promise<void> => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      // Sign in anonymously
-      const credential = await signInAnonymously(auth);
-      const anonUid = credential.user.uid;
+      try {
+        // Sign in anonymously
+        const credential = await signInAnonymously(auth);
+        const anonUid = credential.user.uid;
 
-      // Activate guest session via Cloud Function
-      const result = await activateGuestSessionCall({ shareCode });
+        // Activate guest session via Cloud Function
+        const result = await activateGuestSessionCall({ shareCode });
 
-      const expires = new Date(result.expiresAt);
-      subscribeToGuestData(result.orgId, anonUid, expires);
-      setIsGuest(true);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to activate guest session.';
-      setError(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+        const expires = new Date(result.expiresAt);
+        subscribeToGuestData(result.orgId, anonUid, expires);
+        setIsGuest(true);
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Failed to activate guest session.';
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stable activate API; subscribeToGuestData is in-component helper (not listed to avoid identity churn)
+    [],
+  );
 
   /**
    * Resume an existing guest session for code-path guests.
    * The anonymous user + member doc already exist (created by GuestCodeEntry).
    * This reads the member doc to confirm it exists, then subscribes.
    */
-  const resumeSession = useCallback(async (orgId: string): Promise<void> => {
-    setLoading(true);
-    setError(null);
+  const resumeSession = useCallback(
+    async (orgId: string): Promise<void> => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const currentUser = auth.currentUser;
-      if (!currentUser || !currentUser.isAnonymous) {
-        throw new Error('No anonymous session found. Please use a share code or link.');
+      try {
+        const currentUser = auth.currentUser;
+        if (!currentUser || !currentUser.isAnonymous) {
+          throw new Error(
+            'No anonymous session found. Please use a share code or link.',
+          );
+        }
+
+        const anonUid = currentUser.uid;
+
+        // Read the member doc to confirm it exists
+        const memberRef = doc(db, 'org', orgId, 'members', anonUid);
+        const memberSnap = await getDoc(memberRef);
+
+        if (!memberSnap.exists()) {
+          throw new Error(
+            'Guest session not found. The session may have expired.',
+          );
+        }
+
+        const memberData = memberSnap.data() as OrgMember;
+        const expiresTimestamp = memberData.expiresAt;
+        let expires: Date;
+        if (
+          expiresTimestamp &&
+          typeof (expiresTimestamp as unknown as { toDate: () => Date })
+            .toDate === 'function'
+        ) {
+          expires = (
+            expiresTimestamp as unknown as { toDate: () => Date }
+          ).toDate();
+        } else {
+          expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // fallback: 24h
+        }
+
+        if (expires <= new Date()) {
+          throw new Error('Guest session has expired.');
+        }
+
+        subscribeToGuestData(orgId, anonUid, expires);
+        setIsGuest(true);
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Failed to resume guest session.';
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
       }
-
-      const anonUid = currentUser.uid;
-
-      // Read the member doc to confirm it exists
-      const memberRef = doc(db, 'org', orgId, 'members', anonUid);
-      const memberSnap = await getDoc(memberRef);
-
-      if (!memberSnap.exists()) {
-        throw new Error('Guest session not found. The session may have expired.');
-      }
-
-      const memberData = memberSnap.data() as OrgMember;
-      const expiresTimestamp = memberData.expiresAt;
-      let expires: Date;
-      if (expiresTimestamp && typeof (expiresTimestamp as unknown as { toDate: () => Date }).toDate === 'function') {
-        expires = (expiresTimestamp as unknown as { toDate: () => Date }).toDate();
-      } else {
-        expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // fallback: 24h
-      }
-
-      if (expires <= new Date()) {
-        throw new Error('Guest session has expired.');
-      }
-
-      subscribeToGuestData(orgId, anonUid, expires);
-      setIsGuest(true);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to resume guest session.';
-      setError(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stable resume API; subscribeToGuestData is in-component helper (not listed to avoid identity churn)
+    [],
+  );
 
   async function handleSignOut(): Promise<void> {
     // Cleanup listeners
@@ -252,8 +282,6 @@ export function GuestProvider({ children }: GuestProviderProps) {
   };
 
   return (
-    <GuestContext.Provider value={value}>
-      {children}
-    </GuestContext.Provider>
+    <GuestContext.Provider value={value}>{children}</GuestContext.Provider>
   );
 }

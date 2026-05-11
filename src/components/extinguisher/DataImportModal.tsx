@@ -1,10 +1,17 @@
 import { useState, useRef } from 'react';
-import { Upload, FileJson, CheckCircle, AlertTriangle, X, Loader2 } from 'lucide-react';
-import { 
-  parseAndValidateBackup, 
-  importExtinguishers, 
-  type ValidationResult, 
-  type ImportResult 
+import {
+  Upload,
+  FileJson,
+  CheckCircle,
+  AlertTriangle,
+  X,
+  Loader2,
+} from 'lucide-react';
+import {
+  parseAndValidateBackup,
+  importExtinguishers,
+  type ValidationResult,
+  type ImportResult,
 } from '../../services/jsonImportService.ts';
 
 interface DataImportModalProps {
@@ -58,7 +65,12 @@ export function DataImportModal({
     if (!validation) return;
     setImporting(true);
     try {
-      const result = await importExtinguishers(orgId, uid, validation.extinguishers, assetLimit);
+      const result = await importExtinguishers(
+        orgId,
+        uid,
+        validation.extinguishers,
+        assetLimit,
+      );
       setImportResult(result);
       setStep('result');
     } catch {
@@ -75,7 +87,9 @@ export function DataImportModal({
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <div className="flex items-center gap-2">
             <FileJson className="h-5 w-5 text-indigo-600" />
-            <h2 className="text-xl font-bold text-gray-900">Import JSON Backup</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              Import JSON Backup
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -97,7 +111,9 @@ export function DataImportModal({
                 <p className="mt-4 text-sm font-medium text-gray-900">
                   {file ? file.name : 'Click or drag JSON file to upload'}
                 </p>
-                <p className="mt-1 text-xs text-gray-500">Only .json files from ExtinguisherTracker backups</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Only .json files from ExtinguisherTracker backups
+                </p>
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -123,12 +139,16 @@ export function DataImportModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
                   <p className="text-sm text-gray-500">Extinguishers found</p>
-                  <p className="text-2xl font-bold text-gray-900">{validation.extinguishers.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {validation.extinguishers.length}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
                   <p className="text-sm text-gray-500">Asset Limit</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {assetLimit ? `${currentCount} / ${assetLimit}` : 'Unlimited'}
+                    {assetLimit
+                      ? `${currentCount} / ${assetLimit}`
+                      : 'Unlimited'}
                   </p>
                 </div>
               </div>
@@ -140,7 +160,9 @@ export function DataImportModal({
                     <div className="text-sm text-amber-800 max-h-32 overflow-y-auto">
                       <p className="font-bold">Warnings:</p>
                       <ul className="list-disc pl-5 mt-1">
-                        {validation.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                        {validation.warnings.map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
                       </ul>
                     </div>
                   </div>
@@ -148,29 +170,45 @@ export function DataImportModal({
               )}
 
               <div className="space-y-2">
-                <p className="text-sm font-bold text-gray-700">Data Preview (first 10 items):</p>
+                <p className="text-sm font-bold text-gray-700">
+                  Data Preview (first 10 items):
+                </p>
                 <div className="overflow-x-auto rounded-lg border border-gray-200">
                   <table className="min-w-full divide-y divide-gray-200 text-xs">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Asset ID</th>
-                        <th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Serial</th>
-                        <th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Type</th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">
+                          Asset ID
+                        </th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">
+                          Serial
+                        </th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">
+                          Type
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
                       {validation.extinguishers.slice(0, 10).map((ext, i) => (
                         <tr key={i}>
-                          <td className="px-3 py-2 text-gray-900">{ext.assetId}</td>
-                          <td className="px-3 py-2 text-gray-600">{ext.serial}</td>
-                          <td className="px-3 py-2 text-gray-600">{ext.extinguisherType}</td>
+                          <td className="px-3 py-2 text-gray-900">
+                            {ext.assetId}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600">
+                            {ext.serial}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600">
+                            {ext.extinguisherType}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
                 {validation.extinguishers.length > 10 && (
-                  <p className="text-xs text-gray-500 text-center italic">...and {validation.extinguishers.length - 10} more</p>
+                  <p className="text-xs text-gray-500 text-center italic">
+                    ...and {validation.extinguishers.length - 10} more
+                  </p>
                 )}
               </div>
             </div>
@@ -179,22 +217,36 @@ export function DataImportModal({
           {step === 'result' && importResult && (
             <div className="flex flex-col items-center justify-center py-6 text-center">
               <CheckCircle className="h-16 w-16 text-green-500" />
-              <h3 className="mt-4 text-xl font-bold text-gray-900">Import Complete</h3>
+              <h3 className="mt-4 text-xl font-bold text-gray-900">
+                Import Complete
+              </h3>
               <div className="mt-6 grid grid-cols-2 gap-8">
                 <div>
-                  <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">Created</p>
-                  <p className="text-3xl font-extrabold text-indigo-600">{importResult.created}</p>
+                  <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">
+                    Created
+                  </p>
+                  <p className="text-3xl font-extrabold text-indigo-600">
+                    {importResult.created}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">Skipped</p>
-                  <p className="text-3xl font-extrabold text-gray-400">{importResult.skipped}</p>
+                  <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">
+                    Skipped
+                  </p>
+                  <p className="text-3xl font-extrabold text-gray-400">
+                    {importResult.skipped}
+                  </p>
                 </div>
               </div>
               {importResult.errors.length > 0 && (
                 <div className="mt-6 rounded-md bg-red-50 p-4 border border-red-200 text-left w-full">
-                  <p className="text-sm font-bold text-red-800">Errors/Notices:</p>
+                  <p className="text-sm font-bold text-red-800">
+                    Errors/Notices:
+                  </p>
                   <ul className="list-disc pl-5 mt-1 text-sm text-red-700">
-                    {importResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+                    {importResult.errors.map((e, i) => (
+                      <li key={i}>{e}</li>
+                    ))}
                   </ul>
                 </div>
               )}

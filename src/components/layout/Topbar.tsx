@@ -1,13 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
-import {
-  Menu,
-  ChevronDown,
-  LogOut,
-  User,
-  Building2,
-} from 'lucide-react';
+import { Menu, ChevronDown, LogOut, User, Building2 } from 'lucide-react';
 import { storage } from '../../lib/firebase.ts';
 import { hasFeature } from '../../lib/planConfig.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
@@ -38,7 +32,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const navigate = useNavigate();
 
   const orgId = userProfile?.activeOrgId ?? '';
-  const canUseBranding = hasFeature(org?.featureFlags, 'organizationBranding', org?.plan);
+  const canUseBranding = hasFeature(
+    org?.featureFlags,
+    'organizationBranding',
+    org?.plan,
+  );
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
@@ -49,10 +47,16 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   // Close menus on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(e.target as Node)
+      ) {
         setUserMenuOpen(false);
       }
-      if (orgMenuRef.current && !orgMenuRef.current.contains(e.target as Node)) {
+      if (
+        orgMenuRef.current &&
+        !orgMenuRef.current.contains(e.target as Node)
+      ) {
         setOrgMenuOpen(false);
       }
     }
@@ -116,7 +120,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-900 hover:bg-gray-100"
             >
               {orgLogoUrl ? (
-                <img src={orgLogoUrl} alt="" className="h-5 w-5 rounded object-contain" />
+                <img
+                  src={orgLogoUrl}
+                  alt=""
+                  className="h-5 w-5 rounded object-contain"
+                />
               ) : (
                 <Building2 className="h-4 w-4 text-gray-500" />
               )}
@@ -133,7 +141,9 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                   >
                     <Building2 className="h-4 w-4 text-gray-400" />
                     <span className="truncate">{entry.orgId}</span>
-                    <span className="ml-auto text-xs text-gray-400">{entry.role}</span>
+                    <span className="ml-auto text-xs text-gray-400">
+                      {entry.role}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -142,7 +152,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         ) : (
           <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
             {orgLogoUrl ? (
-              <img src={orgLogoUrl} alt="" className="h-5 w-5 rounded object-contain" />
+              <img
+                src={orgLogoUrl}
+                alt=""
+                className="h-5 w-5 rounded object-contain"
+              />
             ) : (
               <Building2 className="h-4 w-4 text-gray-500" />
             )}

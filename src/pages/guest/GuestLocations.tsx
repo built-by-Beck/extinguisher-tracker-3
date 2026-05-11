@@ -15,7 +15,13 @@ import {
   type LocationTreeNode,
 } from '../../services/locationService.ts';
 
-function ReadOnlyTreeNode({ node, depth }: { node: LocationTreeNode; depth: number }) {
+function ReadOnlyTreeNode({
+  node,
+  depth,
+}: {
+  node: LocationTreeNode;
+  depth: number;
+}) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children.length > 0;
 
@@ -30,7 +36,11 @@ function ReadOnlyTreeNode({ node, depth }: { node: LocationTreeNode; depth: numb
             onClick={() => setExpanded(!expanded)}
             className="text-gray-400 hover:text-gray-600"
           >
-            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            {expanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
           </button>
         ) : (
           <span className="w-4" />
@@ -43,9 +53,13 @@ function ReadOnlyTreeNode({ node, depth }: { node: LocationTreeNode; depth: numb
             Level {depth + 1}
           </span>
         </div>
-        <span className="text-xs text-gray-400">{getLocationTypeLabel(node.locationType)}</span>
+        <span className="text-xs text-gray-400">
+          {getLocationTypeLabel(node.locationType)}
+        </span>
         {node.description && (
-          <span className="max-w-xs truncate text-xs text-gray-400">{node.description}</span>
+          <span className="max-w-xs truncate text-xs text-gray-400">
+            {node.description}
+          </span>
         )}
       </div>
 

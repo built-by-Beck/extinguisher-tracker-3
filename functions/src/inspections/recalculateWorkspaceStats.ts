@@ -11,7 +11,11 @@ import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { validateSubscription } from '../utils/subscription.js';
-import { throwInvalidArgument, throwFailedPrecondition, throwNotFound } from '../utils/errors.js';
+import {
+  throwInvalidArgument,
+  throwFailedPrecondition,
+  throwNotFound,
+} from '../utils/errors.js';
 
 interface LooseInspection {
   id: string;
@@ -54,8 +58,12 @@ function inspectionActivityMs(insp: LooseInspection): number {
   return 0;
 }
 
-function dedupeInspectionsByExtinguisherLatest(inspections: LooseInspection[]): LooseInspection[] {
-  const sorted = [...inspections].sort((a, b) => inspectionActivityMs(b) - inspectionActivityMs(a));
+function dedupeInspectionsByExtinguisherLatest(
+  inspections: LooseInspection[],
+): LooseInspection[] {
+  const sorted = [...inspections].sort(
+    (a, b) => inspectionActivityMs(b) - inspectionActivityMs(a),
+  );
   const seen = new Set<string>();
   const out: LooseInspection[] = [];
   for (const insp of sorted) {
@@ -72,15 +80,26 @@ function inspectionIdentity(insp: LooseInspection): string {
   return `ext:${insp.extinguisherId || insp.id}`;
 }
 
-function calculateStatsFromInspectionRows(inspections: LooseInspection[]): BucketStats {
-  const stats: BucketStats = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+function calculateStatsFromInspectionRows(
+  inspections: LooseInspection[],
+): BucketStats {
+  const stats: BucketStats = {
+    total: 0,
+    passed: 0,
+    failed: 0,
+    pending: 0,
+    percentage: 0,
+  };
   for (const insp of dedupeInspectionsByExtinguisherLatest(inspections)) {
     stats.total += 1;
     if (insp.status === 'pass') stats.passed += 1;
     else if (insp.status === 'fail') stats.failed += 1;
     else stats.pending += 1;
   }
-  stats.percentage = stats.total > 0 ? Math.round(((stats.passed + stats.failed) / stats.total) * 100) : 0;
+  stats.percentage =
+    stats.total > 0
+      ? Math.round(((stats.passed + stats.failed) / stats.total) * 100)
+      : 0;
   return stats;
 }
 
@@ -88,8 +107,10 @@ export const recalculateWorkspaceInspectionStats = onCall(async (request) => {
   const { uid } = validateAuth(request);
   const data = request.data as { orgId?: string; workspaceId?: string };
   const { orgId, workspaceId } = data;
-  if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
-  if (!workspaceId || typeof workspaceId !== 'string') throwInvalidArgument('workspaceId is required.');
+  if (!orgId || typeof orgId !== 'string')
+    throwInvalidArgument('orgId is required.');
+  if (!workspaceId || typeof workspaceId !== 'string')
+    throwInvalidArgument('workspaceId is required.');
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
   await validateSubscription(orgId);
@@ -101,10 +122,15 @@ export const recalculateWorkspaceInspectionStats = onCall(async (request) => {
   const wsData = wsSnap.data()!;
   const isArchived = wsData.status === 'archived';
   if (isArchived) {
-    throwFailedPrecondition('Recalculation is only supported for active workspaces.');
+    throwFailedPrecondition(
+      'Recalculation is only supported for active workspaces.',
+    );
   }
 
-  const inspSnap = await adminDb.collection(`org/${orgId}/inspections`).where('workspaceId', '==', workspaceId).get();
+  const inspSnap = await adminDb
+    .collection(`org/${orgId}/inspections`)
+    .where('workspaceId', '==', workspaceId)
+    .get();
   const inspections: LooseInspection[] = inspSnap.docs.map((d) => ({
     id: d.id,
     ...(d.data() as Record<string, unknown>),
@@ -135,8 +161,10 @@ export const repairWorkspaceChecklist = onCall(async (request) => {
   const { uid } = validateAuth(request);
   const data = request.data as { orgId?: string; workspaceId?: string };
   const { orgId, workspaceId } = data;
-  if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
-  if (!workspaceId || typeof workspaceId !== 'string') throwInvalidArgument('workspaceId is required.');
+  if (!orgId || typeof orgId !== 'string')
+    throwInvalidArgument('orgId is required.');
+  if (!workspaceId || typeof workspaceId !== 'string')
+    throwInvalidArgument('workspaceId is required.');
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
   await validateSubscription(orgId);
@@ -148,7 +176,10 @@ export const repairWorkspaceChecklist = onCall(async (request) => {
     throwFailedPrecondition('Repair is only supported for active workspaces.');
   }
 
-  const inspSnap = await adminDb.collection(`org/${orgId}/inspections`).where('workspaceId', '==', workspaceId).get();
+  const inspSnap = await adminDb
+    .collection(`org/${orgId}/inspections`)
+    .where('workspaceId', '==', workspaceId)
+    .get();
 
   const byIdentity = new Map<string, typeof inspSnap.docs>();
   for (const doc of inspSnap.docs) {
@@ -171,7 +202,10 @@ export const repairWorkspaceChecklist = onCall(async (request) => {
       const bData = { id: b.id, ...b.data() } as LooseInspection;
       return inspectionActivityMs(bData) - inspectionActivityMs(aData);
     });
-    const keeper = sorted.find((doc) => doc.data().status === 'pass' || doc.data().status === 'fail') ?? sorted[0];
+    const keeper =
+      sorted.find(
+        (doc) => doc.data().status === 'pass' || doc.data().status === 'fail',
+      ) ?? sorted[0];
     for (const doc of sorted) {
       if (doc.id === keeper.id) continue;
       if (doc.data().status !== 'pending') continue;
@@ -188,7 +222,10 @@ export const repairWorkspaceChecklist = onCall(async (request) => {
 
   if (batchCount > 0) await batch.commit();
 
-  const repairedSnap = await adminDb.collection(`org/${orgId}/inspections`).where('workspaceId', '==', workspaceId).get();
+  const repairedSnap = await adminDb
+    .collection(`org/${orgId}/inspections`)
+    .where('workspaceId', '==', workspaceId)
+    .get();
   const repairedInspections: LooseInspection[] = repairedSnap.docs.map((d) => ({
     id: d.id,
     ...(d.data() as Record<string, unknown>),

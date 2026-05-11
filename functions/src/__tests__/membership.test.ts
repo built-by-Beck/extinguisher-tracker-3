@@ -55,8 +55,9 @@ describe('Membership Security Logic', () => {
     };
     adminDb.doc.mockReturnValue(mockDoc);
 
-    await expect(validateMembership(orgId, uid, ['owner', 'admin']))
-      .rejects.toThrow(/This action requires one of the following roles/);
+    await expect(
+      validateMembership(orgId, uid, ['owner', 'admin']),
+    ).rejects.toThrow(/This action requires one of the following roles/);
   });
 
   it('should block inactive members', async () => {
@@ -71,8 +72,9 @@ describe('Membership Security Logic', () => {
     };
     adminDb.doc.mockReturnValue(mockDoc);
 
-    await expect(validateMembership(orgId, uid, ['owner']))
-      .rejects.toThrow(/Your membership in this organization is not active/);
+    await expect(validateMembership(orgId, uid, ['owner'])).rejects.toThrow(
+      /Your membership in this organization is not active/,
+    );
   });
 
   it('should block users who are not members', async () => {
@@ -83,7 +85,8 @@ describe('Membership Security Logic', () => {
     };
     adminDb.doc.mockReturnValue(mockDoc);
 
-    await expect(validateMembership(orgId, uid, ['owner']))
-      .rejects.toThrow(/Member not found in this organization/);
+    await expect(validateMembership(orgId, uid, ['owner'])).rejects.toThrow(
+      /Member not found in this organization/,
+    );
   });
 });

@@ -19,58 +19,58 @@ interface CleanupOutput {
  *
  * Owner-only.
  */
-export const cleanupPendingInspections = onCall<CleanupInput, Promise<CleanupOutput>>(
-  { enforceAppCheck: false },
-  async (request) => {
-    const { uid } = validateAuth(request);
-    const { orgId } = request.data;
+export const cleanupPendingInspections = onCall<
+  CleanupInput,
+  Promise<CleanupOutput>
+>({ enforceAppCheck: false }, async (request) => {
+  const { uid } = validateAuth(request);
+  const { orgId } = request.data;
 
-    if (!orgId || typeof orgId !== 'string') {
-      throwInvalidArgument('Organization ID is required.');
-    }
+  if (!orgId || typeof orgId !== 'string') {
+    throwInvalidArgument('Organization ID is required.');
+  }
 
-    // Only owners can run cleanup
-    await validateMembership(orgId, uid, ['owner']);
+  // Only owners can run cleanup
+  await validateMembership(orgId, uid, ['owner']);
 
-    // 1. Find all deleted extinguisher IDs
-    const deletedSnap = await adminDb
-      .collection(`org/${orgId}/extinguishers`)
-      .where('lifecycleStatus', '==', 'deleted')
+  // 1. Find all deleted extinguisher IDs
+  const deletedSnap = await adminDb
+    .collection(`org/${orgId}/extinguishers`)
+    .where('lifecycleStatus', '==', 'deleted')
+    .get();
+
+  if (deletedSnap.empty) {
+    return { removed: 0 };
+  }
+
+  const deletedIds = deletedSnap.docs.map((d) => d.id);
+
+  // 2. Find and delete their pending inspections
+  let totalRemoved = 0;
+  const chunkSize = 30; // Firestore 'in' query limit
+
+  for (let i = 0; i < deletedIds.length; i += chunkSize) {
+    const chunk = deletedIds.slice(i, i + chunkSize);
+    const inspSnap = await adminDb
+      .collection(`org/${orgId}/inspections`)
+      .where('extinguisherId', 'in', chunk)
+      .where('status', '==', 'pending')
       .get();
 
-    if (deletedSnap.empty) {
-      return { removed: 0 };
-    }
+    if (inspSnap.empty) continue;
 
-    const deletedIds = deletedSnap.docs.map((d) => d.id);
-
-    // 2. Find and delete their pending inspections
-    let totalRemoved = 0;
-    const chunkSize = 30; // Firestore 'in' query limit
-
-    for (let i = 0; i < deletedIds.length; i += chunkSize) {
-      const chunk = deletedIds.slice(i, i + chunkSize);
-      const inspSnap = await adminDb
-        .collection(`org/${orgId}/inspections`)
-        .where('extinguisherId', 'in', chunk)
-        .where('status', '==', 'pending')
-        .get();
-
-      if (inspSnap.empty) continue;
-
-      // Delete in batches of 499 (Firestore batch limit)
-      const docs = inspSnap.docs;
-      for (let j = 0; j < docs.length; j += 499) {
-        const batch = adminDb.batch();
-        const batchDocs = docs.slice(j, j + 499);
-        for (const d of batchDocs) {
-          batch.delete(d.ref);
-        }
-        await batch.commit();
-        totalRemoved += batchDocs.length;
+    // Delete in batches of 499 (Firestore batch limit)
+    const docs = inspSnap.docs;
+    for (let j = 0; j < docs.length; j += 499) {
+      const batch = adminDb.batch();
+      const batchDocs = docs.slice(j, j + 499);
+      for (const d of batchDocs) {
+        batch.delete(d.ref);
       }
+      await batch.commit();
+      totalRemoved += batchDocs.length;
     }
+  }
 
-    return { removed: totalRemoved };
-  },
-);
+  return { removed: totalRemoved };
+});

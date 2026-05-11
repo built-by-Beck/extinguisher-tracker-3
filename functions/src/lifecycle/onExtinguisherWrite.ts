@@ -44,23 +44,38 @@ export const onExtinguisherCreated = onDocumentCreated(
       if (!extSnap.exists) return; // Doc deleted between trigger and tx
       const orgSnap = await tx.get(adminDb.doc(`org/${orgId}`));
       const orgData = orgSnap.data() ?? {};
-      const orgSettings = (orgData.settings as Record<string, unknown> | undefined) ?? {};
-      const monthlySchedule = normalizeMonthlyInspectionSchedule(orgSettings.monthlyInspectionSchedule);
-      const orgTimezone = typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
+      const orgSettings =
+        (orgData.settings as Record<string, unknown> | undefined) ?? {};
+      const monthlySchedule = normalizeMonthlyInspectionSchedule(
+        orgSettings.monthlyInspectionSchedule,
+      );
+      const orgTimezone =
+        typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
 
       const currentExtData = extSnap.data()!;
       if (currentExtData.lifecycleStatus !== 'active') return;
 
       const extType = (currentExtData.extinguisherType as string | null) ?? '';
-      const hydroInterval = (currentExtData.hydroTestIntervalYears as number | null) ?? getHydroIntervalByType(extType);
-      const needsSixYear = (currentExtData.requiresSixYearMaintenance as boolean | null) ?? requiresSixYear(extType);
+      const hydroInterval =
+        (currentExtData.hydroTestIntervalYears as number | null) ??
+        getHydroIntervalByType(extType);
+      const needsSixYear =
+        (currentExtData.requiresSixYearMaintenance as boolean | null) ??
+        requiresSixYear(extType);
 
-      const lastMonthly = currentExtData.lastMonthlyInspection as Timestamp | null;
-      const lastAnnual = currentExtData.lastAnnualInspection as Timestamp | null;
-      const lastSixYear = currentExtData.lastSixYearMaintenance as Timestamp | null;
+      const lastMonthly =
+        currentExtData.lastMonthlyInspection as Timestamp | null;
+      const lastAnnual =
+        currentExtData.lastAnnualInspection as Timestamp | null;
+      const lastSixYear =
+        currentExtData.lastSixYearMaintenance as Timestamp | null;
       const lastHydro = currentExtData.lastHydroTest as Timestamp | null;
 
-      const nextMonthlyInspection = calculateNextMonthlyInspection(lastMonthly, monthlySchedule, orgTimezone);
+      const nextMonthlyInspection = calculateNextMonthlyInspection(
+        lastMonthly,
+        monthlySchedule,
+        orgTimezone,
+      );
       const nextAnnualInspection = calculateNextAnnualInspection(lastAnnual);
       const nextHydroTest = calculateNextHydroTest(lastHydro, hydroInterval);
       const nextSixYearMaintenance = needsSixYear
@@ -82,7 +97,8 @@ export const onExtinguisherCreated = onDocumentCreated(
         nextHydroTest,
       };
 
-      const { complianceStatus, overdueFlags } = calculateComplianceStatus(calcInput);
+      const { complianceStatus, overdueFlags } =
+        calculateComplianceStatus(calcInput);
       const serverTimestamp = FieldValue.serverTimestamp();
 
       // 1. Update extinguisher lifecycle
@@ -101,4 +117,3 @@ export const onExtinguisherCreated = onDocumentCreated(
     });
   },
 );
-

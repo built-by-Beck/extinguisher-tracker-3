@@ -123,10 +123,7 @@ export async function isLocationNameTaken(
   parentLocationId: string | null,
   excludeId?: string,
 ): Promise<boolean> {
-  const q = query(
-    locationsRef(orgId),
-    where('deletedAt', '==', null),
-  );
+  const q = query(locationsRef(orgId), where('deletedAt', '==', null));
   const snap = await getDocs(q);
   const normalized = normalizeLocationName(name);
 
@@ -187,7 +184,10 @@ export async function updateLocation(
 /**
  * Soft-delete a location.
  */
-export async function softDeleteLocation(orgId: string, locId: string): Promise<void> {
+export async function softDeleteLocation(
+  orgId: string,
+  locId: string,
+): Promise<void> {
   const ref = doc(db, 'org', orgId, 'locations', locId);
   await updateDoc(ref, {
     deletedAt: serverTimestamp(),
@@ -248,7 +248,10 @@ export function buildLocationTree(locations: Location[]): LocationTreeNode[] {
 /**
  * Get all descendant location IDs for a given location (recursive).
  */
-export function getAllDescendantIds(locations: Location[], locationId: string): Set<string> {
+export function getAllDescendantIds(
+  locations: Location[],
+  locationId: string,
+): Set<string> {
   const childMap = new Map<string, string[]>();
   for (const loc of locations) {
     if (loc.parentLocationId) {
@@ -274,7 +277,10 @@ export function getAllDescendantIds(locations: Location[], locationId: string): 
 /**
  * Get ancestor chain for a location (from root to immediate parent).
  */
-export function getAncestorChain(locations: Location[], locationId: string): Location[] {
+export function getAncestorChain(
+  locations: Location[],
+  locationId: string,
+): Location[] {
   const map = new Map(locations.map((l) => [l.id!, l]));
   const ancestors: Location[] = [];
   let current = map.get(locationId);
@@ -294,14 +300,19 @@ export function getAncestorChain(locations: Location[], locationId: string): Loc
 /**
  * Get the full path for a location (e.g., "Campus A > Building 2 > Floor 3").
  */
-export function getLocationPath(locations: Location[], locationId: string): string {
+export function getLocationPath(
+  locations: Location[],
+  locationId: string,
+): string {
   const map = new Map(locations.map((l) => [l.id!, l]));
   const parts: string[] = [];
   let current = map.get(locationId);
 
   while (current) {
     parts.unshift(current.name);
-    current = current.parentLocationId ? map.get(current.parentLocationId) : undefined;
+    current = current.parentLocationId
+      ? map.get(current.parentLocationId)
+      : undefined;
   }
 
   return parts.join(' > ');

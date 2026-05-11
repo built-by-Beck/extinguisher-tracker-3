@@ -38,7 +38,7 @@ export function getAdTier(plan?: string | null): AdTier {
  * These are path segments that match against the current route within /dashboard/*.
  */
 export const AD_ALLOWED_DASHBOARD_PAGES = new Set([
-  '',           // dashboard index
+  '', // dashboard index
   'inventory',
   'locations',
   'workspaces',

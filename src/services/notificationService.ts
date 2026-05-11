@@ -51,7 +51,10 @@ export function subscribeToNotifications(
  * Returns the count of notifications that the given userId has NOT read.
  * Uses client-side filtering since Firestore doesn't support array-not-contains.
  */
-export function getUnreadCount(notifications: Notification[], userId: string): number {
+export function getUnreadCount(
+  notifications: Notification[],
+  userId: string,
+): number {
   return notifications.filter((n) => !n.readBy.includes(userId)).length;
 }
 
@@ -59,7 +62,10 @@ export function getUnreadCount(notifications: Notification[], userId: string): n
  * Marks a notification as read for the current user.
  * Calls the markNotificationRead Cloud Function (security rules block direct client writes).
  */
-export async function markNotificationRead(orgId: string, notificationId: string): Promise<void> {
+export async function markNotificationRead(
+  orgId: string,
+  notificationId: string,
+): Promise<void> {
   const fn = httpsCallable(functions, 'markNotificationRead');
   await fn({ orgId, notificationId });
 }

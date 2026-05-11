@@ -29,21 +29,38 @@ import {
   CHECKLIST_ITEMS,
   type Inspection,
 } from '../services/inspectionService.ts';
-import { getCachedInspectionsForWorkspace, getCachedWorkspace } from '../services/offlineCacheService.ts';
+import {
+  getCachedInspectionsForWorkspace,
+  getCachedWorkspace,
+} from '../services/offlineCacheService.ts';
 import { InspectionPanel } from '../components/inspection/InspectionPanel.tsx';
 import { WorkspaceInspectionSummaryCards } from '../components/workspace/WorkspaceInspectionSummaryCards.tsx';
 import { getWorkspace, type Workspace } from '../services/workspaceService.ts';
 
 function formatDate(timestamp: unknown): string {
   if (!timestamp) return 'Unknown';
-  if (typeof timestamp === 'object' && timestamp !== null && 'toDate' in timestamp) {
-    return (timestamp as { toDate: () => Date }).toDate().toLocaleDateString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
+  if (
+    typeof timestamp === 'object' &&
+    timestamp !== null &&
+    'toDate' in timestamp
+  ) {
+    return (timestamp as { toDate: () => Date })
+      .toDate()
+      .toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
   }
   if (typeof timestamp === 'string') {
     return new Date(timestamp).toLocaleDateString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   }
   return 'Unknown';
@@ -51,7 +68,10 @@ function formatDate(timestamp: unknown): string {
 
 export default function InspectionForm() {
   const navigate = useNavigate();
-  const { workspaceId, inspectionId } = useParams<{ workspaceId: string; inspectionId: string }>();
+  const { workspaceId, inspectionId } = useParams<{
+    workspaceId: string;
+    inspectionId: string;
+  }>();
   const { user, userProfile } = useAuth();
   const { hasRole } = useOrg();
 
@@ -67,7 +87,9 @@ export default function InspectionForm() {
   // Inspection history state
   const [history, setHistory] = useState<Inspection[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [expandedHistoryIdx, setExpandedHistoryIdx] = useState<number | null>(null);
+  const [expandedHistoryIdx, setExpandedHistoryIdx] = useState<number | null>(
+    null,
+  );
 
   const loadInspection = useCallback(async () => {
     if (!orgId || !inspectionId) return;
@@ -105,8 +127,13 @@ export default function InspectionForm() {
       if (!isOnline && workspaceId) {
         try {
           const cachedWorkspace = await getCachedWorkspace(orgId, workspaceId);
-          setWorkspace(cachedWorkspace ? (cachedWorkspace as unknown as Workspace) : null);
-          const cached = await getCachedInspectionsForWorkspace(orgId, workspaceId);
+          setWorkspace(
+            cachedWorkspace ? (cachedWorkspace as unknown as Workspace) : null,
+          );
+          const cached = await getCachedInspectionsForWorkspace(
+            orgId,
+            workspaceId,
+          );
           const match = cached.find((c) => c['id'] === inspectionId);
           if (match) {
             setInspection(match as unknown as Inspection);
@@ -138,7 +165,9 @@ export default function InspectionForm() {
   }
 
   if (!inspection) {
-    return <div className="p-6 text-sm text-gray-500">Inspection not found.</div>;
+    return (
+      <div className="p-6 text-sm text-gray-500">Inspection not found.</div>
+    );
   }
 
   const isWorkspaceReadOnly = workspace?.status === 'archived';
@@ -162,12 +191,17 @@ export default function InspectionForm() {
             </h1>
             <p className="mt-1 text-sm text-gray-500">
               Section: {inspection.section || 'None'} | Status:{' '}
-              <span className={
-                inspection.status === 'pass' ? 'font-semibold text-green-600' :
-                inspection.status === 'fail' ? 'font-semibold text-red-600' :
-                'text-gray-600'
-              }>
-                {inspection.status.charAt(0).toUpperCase() + inspection.status.slice(1)}
+              <span
+                className={
+                  inspection.status === 'pass'
+                    ? 'font-semibold text-green-600'
+                    : inspection.status === 'fail'
+                      ? 'font-semibold text-red-600'
+                      : 'text-gray-600'
+                }
+              >
+                {inspection.status.charAt(0).toUpperCase() +
+                  inspection.status.slice(1)}
               </span>
             </p>
           </div>
@@ -176,14 +210,20 @@ export default function InspectionForm() {
 
       {orgId && workspaceId && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <WorkspaceInspectionSummaryCards orgId={orgId} workspaceId={workspaceId} />
+          <WorkspaceInspectionSummaryCards
+            orgId={orgId}
+            workspaceId={workspaceId}
+          />
         </div>
       )}
 
       {isWorkspaceReadOnly && (
         <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-          <span className="font-semibold text-gray-900">{workspace?.label ?? 'This workspace'} is archived.</span>{' '}
-          Historical inspections are read-only, so pass, fail, reset, and edit controls are disabled.
+          <span className="font-semibold text-gray-900">
+            {workspace?.label ?? 'This workspace'} is archived.
+          </span>{' '}
+          Historical inspections are read-only, so pass, fail, reset, and edit
+          controls are disabled.
         </div>
       )}
 
@@ -191,7 +231,8 @@ export default function InspectionForm() {
       {!isOnline && (
         <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           <WifiOff className="h-4 w-4 shrink-0" />
-          You are offline. Viewing cached data. Photos cannot be uploaded while offline.
+          You are offline. Viewing cached data. Photos cannot be uploaded while
+          offline.
         </div>
       )}
 
@@ -225,7 +266,10 @@ export default function InspectionForm() {
 
           <div className="space-y-3">
             {history.map((entry, idx) => (
-              <div key={entry.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div
+                key={entry.id}
+                className="rounded-lg border border-gray-100 bg-gray-50 p-3"
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {entry.status === 'pass' ? (
@@ -233,10 +277,15 @@ export default function InspectionForm() {
                     ) : (
                       <XCircle className="h-4 w-4 text-red-500" />
                     )}
-                    <span className={`text-sm font-medium ${
-                      entry.status === 'pass' ? 'text-green-700' : 'text-red-700'
-                    }`}>
-                      {entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
+                    <span
+                      className={`text-sm font-medium ${
+                        entry.status === 'pass'
+                          ? 'text-green-700'
+                          : 'text-red-700'
+                      }`}
+                    >
+                      {entry.status.charAt(0).toUpperCase() +
+                        entry.status.slice(1)}
                     </span>
                     <span className="flex items-center gap-1 text-xs text-gray-500">
                       <Clock className="h-3 w-3" />
@@ -247,7 +296,11 @@ export default function InspectionForm() {
                   {entry.checklistData && (
                     <button
                       type="button"
-                      onClick={() => setExpandedHistoryIdx(expandedHistoryIdx === idx ? null : idx)}
+                      onClick={() =>
+                        setExpandedHistoryIdx(
+                          expandedHistoryIdx === idx ? null : idx,
+                        )
+                      }
                       className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
                     >
                       {expandedHistoryIdx === idx ? 'Hide' : 'View'} Checklist
@@ -284,14 +337,23 @@ export default function InspectionForm() {
                     {CHECKLIST_ITEMS.map((item) => {
                       const val = entry.checklistData?.[item.key] ?? 'n/a';
                       return (
-                        <div key={item.key} className="flex items-center justify-between border-b border-gray-50 py-1.5 last:border-0">
+                        <div
+                          key={item.key}
+                          className="flex items-center justify-between border-b border-gray-50 py-1.5 last:border-0"
+                        >
                           <span className="text-gray-600">{item.label}</span>
-                          <span className={`text-xs font-medium ${
-                            val === 'pass' ? 'text-green-600' :
-                            val === 'fail' ? 'text-red-600' :
-                            'text-gray-400'
-                          }`}>
-                            {val === 'n/a' ? 'N/A' : val.charAt(0).toUpperCase() + val.slice(1)}
+                          <span
+                            className={`text-xs font-medium ${
+                              val === 'pass'
+                                ? 'text-green-600'
+                                : val === 'fail'
+                                  ? 'text-red-600'
+                                  : 'text-gray-400'
+                            }`}
+                          >
+                            {val === 'n/a'
+                              ? 'N/A'
+                              : val.charAt(0).toUpperCase() + val.slice(1)}
                           </span>
                         </div>
                       );

@@ -65,7 +65,12 @@ async function createNotification(
   relatedEntityType: 'extinguisher' | 'workspace' | 'org' | null,
   relatedEntityId: string | null,
 ): Promise<void> {
-  const exists = await notificationExists(orgId, type, dueMonth, relatedEntityId);
+  const exists = await notificationExists(
+    orgId,
+    type,
+    dueMonth,
+    relatedEntityId,
+  );
   if (exists) return;
 
   const now = Timestamp.now();
@@ -224,5 +229,4 @@ export const complianceReminderJob = onSchedule('0 6 * * *', async () => {
       );
     }
   }
-
 });

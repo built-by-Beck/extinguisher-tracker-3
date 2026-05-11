@@ -2,7 +2,10 @@ import { onCall } from 'firebase-functions/v2/https';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
-import { throwInvalidArgument, throwFailedPrecondition } from '../utils/errors.js';
+import {
+  throwInvalidArgument,
+  throwFailedPrecondition,
+} from '../utils/errors.js';
 import { writeAuditLog } from '../utils/auditLog.js';
 import { type PlanName } from '../billing/planConfig.js';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -28,11 +31,15 @@ function parseCSV(csvContent: string): CSVRow[] {
   const lines = csvContent.trim().split('\n');
   if (lines.length < 2) return [];
 
-  const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
+  const headers = lines[0]
+    .split(',')
+    .map((h) => h.trim().replace(/^"|"$/g, ''));
   const rows: CSVRow[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map((v) => v.trim().replace(/^"|"$/g, ''));
+    const values = lines[i]
+      .split(',')
+      .map((v) => v.trim().replace(/^"|"$/g, ''));
     const row: Record<string, string> = {};
     headers.forEach((header, idx) => {
       row[header] = values[idx] ?? '';
@@ -48,7 +55,10 @@ function parseCSV(csvContent: string): CSVRow[] {
 
 export const importExtinguishersCSV = onCall(async (request) => {
   const { uid } = validateAuth(request);
-  const { orgId, csvContent } = request.data as { orgId: string; csvContent: string };
+  const { orgId, csvContent } = request.data as {
+    orgId: string;
+    csvContent: string;
+  };
 
   if (!orgId || typeof orgId !== 'string') {
     throwInvalidArgument('orgId is required.');
@@ -70,18 +80,27 @@ export const importExtinguishersCSV = onCall(async (request) => {
   const subscriptionStatus = orgData.subscriptionStatus as string | null;
 
   // Enterprise plans are managed manually — no Stripe subscription required
-  if (plan !== 'enterprise' && !['active', 'trialing'].includes(subscriptionStatus ?? '')) {
-    throwFailedPrecondition('Active subscription required to import extinguishers.');
+  if (
+    plan !== 'enterprise' &&
+    !['active', 'trialing'].includes(subscriptionStatus ?? '')
+  ) {
+    throwFailedPrecondition(
+      'Active subscription required to import extinguishers.',
+    );
   }
 
   // Import requires an active plan
   if (!plan) {
-    throwFailedPrecondition('An active plan is required to import extinguishers.');
+    throwFailedPrecondition(
+      'An active plan is required to import extinguishers.',
+    );
   }
 
   const rows = parseCSV(csvContent);
   if (rows.length === 0) {
-    throwInvalidArgument('CSV contains no valid rows. Ensure headers include assetId.');
+    throwInvalidArgument(
+      'CSV contains no valid rows. Ensure headers include assetId.',
+    );
   }
 
   // Count existing active extinguishers
@@ -94,15 +113,19 @@ export const importExtinguishersCSV = onCall(async (request) => {
   if (assetLimit && currentCount + rows.length > assetLimit) {
     throwFailedPrecondition(
       `Import would exceed asset limit. Current: ${currentCount}, importing: ${rows.length}, limit: ${assetLimit}. ` +
-      `You can import up to ${Math.max(0, assetLimit - currentCount)} more extinguishers.`,
+        `You can import up to ${Math.max(0, assetLimit - currentCount)} more extinguishers.`,
     );
   }
 
   // Check for duplicate assetIds within the CSV
   const csvAssetIds = rows.map((r) => r.assetId);
-  const duplicatesInCSV = csvAssetIds.filter((id, idx) => csvAssetIds.indexOf(id) !== idx);
+  const duplicatesInCSV = csvAssetIds.filter(
+    (id, idx) => csvAssetIds.indexOf(id) !== idx,
+  );
   if (duplicatesInCSV.length > 0) {
-    throwInvalidArgument(`Duplicate asset IDs in CSV: ${[...new Set(duplicatesInCSV)].join(', ')}`);
+    throwInvalidArgument(
+      `Duplicate asset IDs in CSV: ${[...new Set(duplicatesInCSV)].join(', ')}`,
+    );
   }
 
   // Check for conflicts with existing assetIds
@@ -146,10 +169,14 @@ export const importExtinguishersCSV = onCall(async (request) => {
       serviceClass: row.serviceClass || null,
       extinguisherSize: row.extinguisherSize || null,
       manufactureDate: null,
-      manufactureYear: row.manufactureYear ? parseInt(row.manufactureYear, 10) : null,
+      manufactureYear: row.manufactureYear
+        ? parseInt(row.manufactureYear, 10)
+        : null,
       installDate: null,
       inServiceDate: null,
-      expirationYear: row.expirationYear ? parseInt(row.expirationYear, 10) : null,
+      expirationYear: row.expirationYear
+        ? parseInt(row.expirationYear, 10)
+        : null,
       vicinity: row.vicinity || '',
       parentLocation: row.parentLocation || '',
       section: row.section || '',

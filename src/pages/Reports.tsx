@@ -9,9 +9,17 @@
 import { useState, useEffect } from 'react';
 import { FileText, Loader2, Download } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
-import { subscribeToReports, generateReportDownload } from '../services/reportService.ts';
+import {
+  subscribeToReports,
+  generateReportDownload,
+} from '../services/reportService.ts';
 import { ReportDownloadButton } from '../components/reports/ReportDownloadButton.tsx';
-import type { Report, ReportFormat, ReportScope, ReportSortBy } from '../types/report.ts';
+import type {
+  Report,
+  ReportFormat,
+  ReportScope,
+  ReportSortBy,
+} from '../types/report.ts';
 
 function formatTimestamp(timestamp: unknown): string {
   if (!timestamp) return '--';
@@ -67,7 +75,8 @@ export default function Reports() {
       setReports(data);
       setGenWorkspaceId((current) => {
         if (data.length === 0) return '';
-        if (current && data.some((report) => report.workspaceId === current)) return current;
+        if (current && data.some((report) => report.workspaceId === current))
+          return current;
         return data[0].workspaceId;
       });
       setLoading(false);
@@ -80,13 +89,20 @@ export default function Reports() {
     setGenerating(true);
     setGenError('');
     try {
-      const { downloadUrl } = await generateReportDownload(orgId, genWorkspaceId, genFormat, {
-        scope: genScope,
-        sortBy: genSortBy,
-      });
+      const { downloadUrl } = await generateReportDownload(
+        orgId,
+        genWorkspaceId,
+        genFormat,
+        {
+          scope: genScope,
+          sortBy: genSortBy,
+        },
+      );
       window.open(downloadUrl, '_blank');
     } catch (err) {
-      setGenError(err instanceof Error ? err.message : 'Failed to generate report.');
+      setGenError(
+        err instanceof Error ? err.message : 'Failed to generate report.',
+      );
     } finally {
       setGenerating(false);
     }
@@ -98,24 +114,27 @@ export default function Reports() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Compliance Reports</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Download inspection reports for archived workspaces. Reports are generated on demand.
+          Download inspection reports for archived workspaces. Reports are
+          generated on demand.
         </p>
       </div>
 
       {/* Page description */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
         <p>
-          Compliance reports are generated from archived workspaces. Each report includes
-          pass/fail counts, inspector details, and extinguisher finder fields — asset number,
-          serial number, location, section, and vicinity — ready to hand to a fire marshal or
-          keep on file for your records.
+          Compliance reports are generated from archived workspaces. Each report
+          includes pass/fail counts, inspector details, and extinguisher finder
+          fields — asset number, serial number, location, section, and vicinity
+          — ready to hand to a fire marshal or keep on file for your records.
         </p>
       </div>
 
       {/* Generate Report Card */}
       {!loading && reports.length > 0 && (
         <div className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-base font-semibold text-gray-900">Generate Report</h2>
+          <h2 className="mb-4 text-base font-semibold text-gray-900">
+            Generate Report
+          </h2>
           {genError && (
             <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
               {genError}
@@ -123,7 +142,10 @@ export default function Reports() {
           )}
           <div className="grid gap-4 md:grid-cols-[minmax(220px,1fr)_minmax(180px,240px)_minmax(150px,180px)_minmax(120px,150px)_auto] md:items-end">
             <div className="flex-1 min-w-[200px]">
-              <label htmlFor="report-workspace" className="mb-1 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="report-workspace"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
                 Select Workspace
               </label>
               <select
@@ -141,7 +163,10 @@ export default function Reports() {
               </select>
             </div>
             <div>
-              <label htmlFor="report-scope" className="mb-1 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="report-scope"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
                 Report On
               </label>
               <select
@@ -154,11 +179,16 @@ export default function Reports() {
                 <option value="failed_or_expired">Failed or expired</option>
                 <option value="passed">Passed only</option>
                 <option value="pending">Pending / not inspected</option>
-                <option value="replacement_candidates">Replacement candidates</option>
+                <option value="replacement_candidates">
+                  Replacement candidates
+                </option>
               </select>
             </div>
             <div>
-              <label htmlFor="report-sort" className="mb-1 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="report-sort"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
                 Sort By
               </label>
               <select
@@ -173,7 +203,10 @@ export default function Reports() {
               </select>
             </div>
             <div className="w-32">
-              <label htmlFor="report-format" className="mb-1 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="report-format"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
                 Format
               </label>
               <select
@@ -222,7 +255,9 @@ export default function Reports() {
       {!loading && reports.length === 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <FileText className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-sm font-semibold text-gray-900">No reports yet</h3>
+          <h3 className="mt-4 text-sm font-semibold text-gray-900">
+            No reports yet
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
             Archive a workspace to generate your first compliance report.
           </p>
@@ -235,7 +270,9 @@ export default function Reports() {
           {reports.map((report) => {
             const passRate =
               report.totalExtinguishers > 0
-                ? Math.round((report.passedCount / report.totalExtinguishers) * 100)
+                ? Math.round(
+                    (report.passedCount / report.totalExtinguishers) * 100,
+                  )
                 : 0;
 
             return (
@@ -246,9 +283,12 @@ export default function Reports() {
                 {/* Report header */}
                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-semibold text-gray-900">{report.label}</h2>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      {report.label}
+                    </h2>
                     <p className="text-sm text-gray-500">
-                      {report.monthYear} &middot; Archived {formatTimestamp(report.archivedAt)}
+                      {report.monthYear} &middot; Archived{' '}
+                      {formatTimestamp(report.archivedAt)}
                     </p>
                   </div>
                   {/* Pass rate badge */}
@@ -257,8 +297,8 @@ export default function Reports() {
                       passRate >= 80
                         ? 'bg-green-100 text-green-700'
                         : passRate >= 50
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-red-100 text-red-700'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-red-100 text-red-700'
                     }`}
                   >
                     {passRate}% Pass Rate
@@ -269,28 +309,50 @@ export default function Reports() {
                 <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
                     <p className="text-xs text-gray-500">Total</p>
-                    <p className="text-lg font-bold text-gray-900">{report.totalExtinguishers}</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {report.totalExtinguishers}
+                    </p>
                   </div>
                   <div className="rounded-lg bg-green-50 px-3 py-2 text-center">
                     <p className="text-xs text-green-600">Passed</p>
-                    <p className="text-lg font-bold text-green-700">{report.passedCount}</p>
+                    <p className="text-lg font-bold text-green-700">
+                      {report.passedCount}
+                    </p>
                   </div>
                   <div className="rounded-lg bg-red-50 px-3 py-2 text-center">
                     <p className="text-xs text-red-500">Failed</p>
-                    <p className="text-lg font-bold text-red-700">{report.failedCount}</p>
+                    <p className="text-lg font-bold text-red-700">
+                      {report.failedCount}
+                    </p>
                   </div>
                   <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
                     <p className="text-xs text-gray-500">Pending</p>
-                    <p className="text-lg font-bold text-gray-600">{report.pendingCount}</p>
+                    <p className="text-lg font-bold text-gray-600">
+                      {report.pendingCount}
+                    </p>
                   </div>
                 </div>
 
                 {/* Download buttons */}
                 <div className="flex flex-wrap gap-2">
-                  <span className="self-center text-xs text-gray-500 font-medium mr-1">Download:</span>
-                  <ReportDownloadButton orgId={orgId} workspaceId={report.workspaceId} format="csv" />
-                  <ReportDownloadButton orgId={orgId} workspaceId={report.workspaceId} format="pdf" />
-                  <ReportDownloadButton orgId={orgId} workspaceId={report.workspaceId} format="json" />
+                  <span className="self-center text-xs text-gray-500 font-medium mr-1">
+                    Download:
+                  </span>
+                  <ReportDownloadButton
+                    orgId={orgId}
+                    workspaceId={report.workspaceId}
+                    format="csv"
+                  />
+                  <ReportDownloadButton
+                    orgId={orgId}
+                    workspaceId={report.workspaceId}
+                    format="pdf"
+                  />
+                  <ReportDownloadButton
+                    orgId={orgId}
+                    workspaceId={report.workspaceId}
+                    format="json"
+                  />
                 </div>
               </div>
             );

@@ -57,7 +57,10 @@ export async function getCachedExtinguisher(
   extinguisherId: string,
 ): Promise<Record<string, unknown> | null> {
   const db = await getOfflineDb();
-  const record = await db.get('cachedExtinguishers', `${orgId}_${extinguisherId}`);
+  const record = await db.get(
+    'cachedExtinguishers',
+    `${orgId}_${extinguisherId}`,
+  );
   return record?.data ?? null;
 }
 

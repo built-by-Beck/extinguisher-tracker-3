@@ -15,8 +15,13 @@ interface CreateOrgOutput {
 /**
  * Calls the createOrganization Cloud Function.
  */
-export async function callCreateOrganization(input: CreateOrgInput): Promise<CreateOrgOutput> {
-  const fn = httpsCallable<CreateOrgInput, CreateOrgOutput>(functions, 'createOrganization');
+export async function callCreateOrganization(
+  input: CreateOrgInput,
+): Promise<CreateOrgOutput> {
+  const fn = httpsCallable<CreateOrgInput, CreateOrgOutput>(
+    functions,
+    'createOrganization',
+  );
   const result = await fn(input);
   return result.data;
 }

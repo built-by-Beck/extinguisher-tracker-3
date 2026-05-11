@@ -3,14 +3,18 @@ import { HttpsError } from 'firebase-functions/v2/https';
 /**
  * Throws an unauthenticated error.
  */
-export function throwUnauthenticated(message = 'You must be authenticated to perform this action.'): never {
+export function throwUnauthenticated(
+  message = 'You must be authenticated to perform this action.',
+): never {
   throw new HttpsError('unauthenticated', message);
 }
 
 /**
  * Throws a permission denied error.
  */
-export function throwPermissionDenied(message = 'You do not have permission to perform this action.'): never {
+export function throwPermissionDenied(
+  message = 'You do not have permission to perform this action.',
+): never {
   throw new HttpsError('permission-denied', message);
 }
 

@@ -6,7 +6,10 @@
  * Author: built_by_Beck
  */
 
-import { getComplianceSeverity, getComplianceLabel } from '../../utils/compliance.ts';
+import {
+  getComplianceSeverity,
+  getComplianceLabel,
+} from '../../utils/compliance.ts';
 
 interface ComplianceSummaryCardProps {
   /** Compliance status value (drives color scheme), or a special key like 'total' */
@@ -40,10 +43,17 @@ const labelColorMap: Record<string, string> = {
   neutral: 'text-gray-500',
 };
 
-export function ComplianceSummaryCard({ status, count, label, onClick }: ComplianceSummaryCardProps) {
+export function ComplianceSummaryCard({
+  status,
+  count,
+  label,
+  onClick,
+}: ComplianceSummaryCardProps) {
   // 'total' is a special non-compliance status used for the "All Active" card
-  const severity = status === 'total' ? 'neutral' : getComplianceSeverity(status);
-  const resolvedLabel = label ?? (status === 'total' ? 'Total Active' : getComplianceLabel(status));
+  const severity =
+    status === 'total' ? 'neutral' : getComplianceSeverity(status);
+  const resolvedLabel =
+    label ?? (status === 'total' ? 'Total Active' : getComplianceLabel(status));
 
   const cardClass = cardColorMap[severity];
   const countClass = countColorMap[severity];
@@ -58,7 +68,9 @@ export function ComplianceSummaryCard({ status, count, label, onClick }: Complia
       }`}
     >
       <span className={`text-2xl font-bold ${countClass}`}>{count}</span>
-      <span className={`mt-1 text-sm font-medium ${labelClass}`}>{resolvedLabel}</span>
+      <span className={`mt-1 text-sm font-medium ${labelClass}`}>
+        {resolvedLabel}
+      </span>
     </button>
   );
 }

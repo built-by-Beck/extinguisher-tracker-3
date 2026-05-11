@@ -6,7 +6,10 @@
  */
 
 import { useContext } from 'react';
-import { OfflineContext, type OfflineContextValue } from '../contexts/OfflineContext.tsx';
+import {
+  OfflineContext,
+  type OfflineContextValue,
+} from '../contexts/OfflineContext.tsx';
 
 export function useOffline(): OfflineContextValue {
   const ctx = useContext(OfflineContext);

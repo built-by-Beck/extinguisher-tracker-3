@@ -1,13 +1,28 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import Stripe from 'stripe';
 import { adminDb } from '../utils/admin.js';
-import { stripeSecretKey, stripeWebhookSecret, getStripePriceIds } from '../config/params.js';
-import { PLAN_CONFIGS, planFromPriceId, type PlanName, type StripePriceIds } from './planConfig.js';
+import {
+  stripeSecretKey,
+  stripeWebhookSecret,
+  getStripePriceIds,
+} from '../config/params.js';
+import {
+  PLAN_CONFIGS,
+  planFromPriceId,
+  type PlanName,
+  type StripePriceIds,
+} from './planConfig.js';
 import { getStripe } from './stripeClient.js';
 import { writeAuditLog } from '../utils/auditLog.js';
 
 function buildOrgUpdate(plan: PlanName, subscription: Stripe.Subscription) {
   const config = PLAN_CONFIGS[plan];
+  /** Stripe Subscription resource includes current_period_end (SDK typings vary by API version). */
+  const periodEndSec = (
+    subscription as Stripe.Subscription & {
+      current_period_end?: number;
+    }
+  ).current_period_end;
   return {
     plan,
     assetLimit: config.assetLimit,
@@ -15,19 +30,29 @@ function buildOrgUpdate(plan: PlanName, subscription: Stripe.Subscription) {
     stripeSubscriptionId: subscription.id,
     subscriptionStatus: subscription.status,
     subscriptionPriceId: subscription.items.data[0]?.price?.id ?? null,
-    subscriptionCurrentPeriodEnd: subscription.items.data[0]?.current_period_end
-      ? new Date(subscription.items.data[0].current_period_end * 1000)
+    subscriptionCurrentPeriodEnd: periodEndSec
+      ? new Date(periodEndSec * 1000)
       : null,
-    trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+    trialEnd: subscription.trial_end
+      ? new Date(subscription.trial_end * 1000)
+      : null,
+    /** Once Pro enters trialing, org cannot start another no-card Pro trial checkout. */
+    ...(subscription.status === 'trialing' && plan === 'pro'
+      ? { proTrialConsumed: true }
+      : {}),
     featureFlags: config.featureFlags,
     updatedAt: new Date(),
   };
 }
 
-async function resolveOrgId(subscription: Stripe.Subscription): Promise<string | undefined> {
+async function resolveOrgId(
+  subscription: Stripe.Subscription,
+): Promise<string | undefined> {
   let orgId = subscription.metadata?.orgId;
   if (!orgId) {
-    const customer = await getStripe().customers.retrieve(subscription.customer as string);
+    const customer = await getStripe().customers.retrieve(
+      subscription.customer as string,
+    );
     if (!customer.deleted) {
       orgId = customer.metadata?.orgId;
     }
@@ -35,10 +60,16 @@ async function resolveOrgId(subscription: Stripe.Subscription): Promise<string |
   return orgId;
 }
 
-async function handleSubscriptionEvent(subscription: Stripe.Subscription, prices: StripePriceIds) {
+async function handleSubscriptionEvent(
+  subscription: Stripe.Subscription,
+  prices: StripePriceIds,
+) {
   const orgId = await resolveOrgId(subscription);
   if (!orgId) {
-    console.error('No orgId found in subscription or customer metadata', subscription.id);
+    console.error(
+      'No orgId found in subscription or customer metadata',
+      subscription.id,
+    );
     return;
   }
 
@@ -63,11 +94,17 @@ async function handleSubscriptionEvent(subscription: Stripe.Subscription, prices
     performedBy: 'stripe-webhook',
     entityType: 'billing',
     entityId: orgId,
-    details: { plan, subscriptionId: subscription.id, status: subscription.status },
+    details: {
+      plan,
+      subscriptionId: subscription.id,
+      status: subscription.status,
+    },
   });
 }
 
-async function getSubscriptionFromInvoice(invoice: Stripe.Invoice): Promise<{ subscription: Stripe.Subscription; orgId?: string } | null> {
+async function getSubscriptionFromInvoice(
+  invoice: Stripe.Invoice,
+): Promise<{ subscription: Stripe.Subscription; orgId?: string } | null> {
   const subRef = invoice.parent?.subscription_details?.subscription;
   if (!subRef) return null;
 
@@ -106,7 +143,9 @@ export const stripeWebhook = onRequest(
         case 'checkout.session.completed': {
           const session = event.data.object as Stripe.Checkout.Session;
           if (session.subscription && session.metadata?.orgId) {
-            const subscription = await getStripe().subscriptions.retrieve(session.subscription as string);
+            const subscription = await getStripe().subscriptions.retrieve(
+              session.subscription as string,
+            );
             await getStripe().subscriptions.update(subscription.id, {
               metadata: { orgId: session.metadata.orgId },
             });
@@ -153,9 +192,25 @@ export const stripeWebhook = onRequest(
           const invoice = event.data.object as Stripe.Invoice;
           const result = await getSubscriptionFromInvoice(invoice);
           if (result?.orgId) {
-            await adminDb.doc(`org/${result.orgId}`).update({
-              subscriptionStatus: 'active',
-              updatedAt: new Date(),
+            // Full sync from Stripe (preserves trialing; avoids forcing active on $0 trial invoices)
+            await handleSubscriptionEvent(result.subscription, prices);
+          }
+          break;
+        }
+
+        case 'customer.subscription.trial_will_end': {
+          const subscription = event.data.object as Stripe.Subscription;
+          const orgId = await resolveOrgId(subscription);
+          if (orgId) {
+            await writeAuditLog(orgId, {
+              action: 'billing.trial_will_end',
+              performedBy: 'stripe-webhook',
+              entityType: 'billing',
+              entityId: orgId,
+              details: {
+                subscriptionId: subscription.id,
+                trialEnd: subscription.trial_end ?? null,
+              },
             });
           }
           break;

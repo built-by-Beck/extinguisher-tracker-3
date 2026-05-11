@@ -28,7 +28,10 @@ import {
   getUnreadCount,
   markNotificationRead,
 } from '../../services/notificationService.ts';
-import type { Notification, NotificationType } from '../../types/notification.ts';
+import type {
+  Notification,
+  NotificationType,
+} from '../../types/notification.ts';
 
 interface NotificationBellProps {
   orgId: string;
@@ -103,14 +106,19 @@ export function NotificationBell({ orgId }: NotificationBellProps) {
   // Real-time notifications (last 20)
   useEffect(() => {
     if (!orgId) return;
-    const unsub = subscribeToNotifications(orgId, setNotifications, { limit: 20 });
+    const unsub = subscribeToNotifications(orgId, setNotifications, {
+      limit: 20,
+    });
     return () => unsub();
   }, [orgId]);
 
   // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     }
@@ -157,7 +165,9 @@ export function NotificationBell({ orgId }: NotificationBellProps) {
         <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-white shadow-lg">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-            <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+            <h3 className="text-sm font-semibold text-gray-900">
+              Notifications
+            </h3>
             <button
               onClick={() => setOpen(false)}
               className="rounded p-0.5 text-gray-400 hover:text-gray-600"
@@ -171,11 +181,15 @@ export function NotificationBell({ orgId }: NotificationBellProps) {
             {recentNotifs.length === 0 ? (
               <div className="px-4 py-8 text-center">
                 <Bell className="mx-auto h-8 w-8 text-gray-300" />
-                <p className="mt-2 text-sm text-gray-500">No notifications yet</p>
+                <p className="mt-2 text-sm text-gray-500">
+                  No notifications yet
+                </p>
               </div>
             ) : (
               recentNotifs.map((notif) => {
-                const isUnread = user ? !notif.readBy.includes(user.uid) : false;
+                const isUnread = user
+                  ? !notif.readBy.includes(user.uid)
+                  : false;
                 const bgClass = isUnread
                   ? (severityBg[notif.severity] ?? 'bg-gray-50')
                   : 'bg-white';
@@ -194,7 +208,9 @@ export function NotificationBell({ orgId }: NotificationBellProps) {
 
                     {/* Content */}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-900 leading-snug">{notif.title}</p>
+                      <p className="text-sm text-gray-900 leading-snug">
+                        {notif.title}
+                      </p>
                       <p className="mt-0.5 text-xs text-gray-500 leading-snug line-clamp-2">
                         {notif.message}
                       </p>

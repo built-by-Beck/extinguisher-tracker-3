@@ -46,24 +46,67 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/dashboard/workspaces', label: 'Inspections', icon: ClipboardList, end: false },
+  {
+    to: '/dashboard/workspaces',
+    label: 'Inspections',
+    icon: ClipboardList,
+    end: false,
+  },
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
-  { to: '/dashboard/custom-asset-inspections', label: 'Custom Asset Inspections', icon: ClipboardCheck, end: false, requiredFeature: 'customAssetInspections' },
+  {
+    to: '/dashboard/custom-asset-inspections',
+    label: 'Custom Asset Inspections',
+    icon: ClipboardCheck,
+    end: false,
+    requiredFeature: 'customAssetInspections',
+  },
   {
     to: '/dashboard/replaced-extinguishers',
     label: 'Replaced extinguishers',
     icon: Archive,
     end: false,
   },
-  { to: '/dashboard/data-organizer', label: 'Data Organizer', icon: Wrench, end: false, roles: ['owner', 'admin'] },
-  { to: '/dashboard/getting-started', label: 'Getting Started', icon: BookOpenCheck, end: false },
+  {
+    to: '/dashboard/data-organizer',
+    label: 'Data Organizer',
+    icon: Wrench,
+    end: false,
+    roles: ['owner', 'admin'],
+  },
+  {
+    to: '/dashboard/getting-started',
+    label: 'Getting Started',
+    icon: BookOpenCheck,
+    end: false,
+  },
   { to: '/dashboard/faq', label: 'FAQ', icon: CircleHelp, end: false },
   { to: '/dashboard/locations', label: 'Locations', icon: MapPin, end: false },
-  { to: '/dashboard/members', label: 'Members', icon: Users, end: false, requiredFeature: 'teamMembers' },
-  { to: '/dashboard/notifications', label: 'Notifications', icon: Bell, end: false },
-  { to: '/dashboard/sync-queue', label: 'Sync Queue', icon: RefreshCw, end: false },
+  {
+    to: '/dashboard/members',
+    label: 'Members',
+    icon: Users,
+    end: false,
+    requiredFeature: 'teamMembers',
+  },
+  {
+    to: '/dashboard/notifications',
+    label: 'Notifications',
+    icon: Bell,
+    end: false,
+  },
+  {
+    to: '/dashboard/sync-queue',
+    label: 'Sync Queue',
+    icon: RefreshCw,
+    end: false,
+  },
   { to: '/dashboard/reports', label: 'Reports', icon: FileText, end: false },
-  { to: '/dashboard/calculator', label: 'Calculator', icon: Calculator, end: false },
+  {
+    to: '/dashboard/calculator',
+    label: 'Calculator',
+    icon: Calculator,
+    end: false,
+  },
   {
     to: '/dashboard/audit-logs',
     label: 'Audit Logs',
@@ -87,7 +130,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const visibleNavItems = navItems.filter(
     (item) =>
       (!item.roles || hasRole(item.roles)) &&
-      (!item.requiredFeature || hasFeature(org?.featureFlags, item.requiredFeature, org?.plan)),
+      (!item.requiredFeature ||
+        hasFeature(org?.featureFlags, item.requiredFeature, org?.plan)),
   );
 
   return (
@@ -112,8 +156,14 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         {/* Brand header */}
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 px-3">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="ExtinguisherTracker" className="h-9 w-9 rounded-lg object-contain" />
-            <span className="text-base font-bold leading-tight text-gray-900">Extinguisher<span className="text-red-600">Tracker</span></span>
+            <img
+              src="/logo.png"
+              alt="ExtinguisherTracker"
+              className="h-9 w-9 rounded-lg object-contain"
+            />
+            <span className="text-base font-bold leading-tight text-gray-900">
+              Extinguisher<span className="text-red-600">Tracker</span>
+            </span>
           </div>
           <button
             onClick={onClose}
@@ -170,7 +220,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </div>
       </aside>
 
-      <WorkspaceSwitcher open={showSwitcher} onClose={() => setShowSwitcher(false)} />
+      <WorkspaceSwitcher
+        open={showSwitcher}
+        onClose={() => setShowSwitcher(false)}
+      />
     </>
   );
 }

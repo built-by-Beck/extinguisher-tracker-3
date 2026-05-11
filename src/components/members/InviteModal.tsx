@@ -35,11 +35,16 @@ export function InviteModal({ orgId, onClose, onSuccess }: InviteModalProps) {
 
     setLoading(true);
     try {
-      const result = await callCreateInvite({ orgId, email: email.trim().toLowerCase(), role });
+      const result = await callCreateInvite({
+        orgId,
+        email: email.trim().toLowerCase(),
+        role,
+      });
       setInviteUrl(result.inviteUrl);
       onSuccess();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to send invite.';
+      const message =
+        err instanceof Error ? err.message : 'Failed to send invite.';
       setError(message);
     } finally {
       setLoading(false);
@@ -63,7 +68,10 @@ export function InviteModal({ orgId, onClose, onSuccess }: InviteModalProps) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
           <div className="mb-4">
-            <label htmlFor="invite-email" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="invite-email"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Email address
             </label>
             <div className="relative">
@@ -81,7 +89,10 @@ export function InviteModal({ orgId, onClose, onSuccess }: InviteModalProps) {
           </div>
 
           <div className="mb-4">
-            <label htmlFor="invite-role" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="invite-role"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Role
             </label>
             <select
@@ -99,14 +110,20 @@ export function InviteModal({ orgId, onClose, onSuccess }: InviteModalProps) {
           </div>
 
           {error && (
-            <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+            <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
           )}
 
           {inviteUrl && (
             <div className="mb-4 rounded-md bg-green-50 px-4 py-3">
-              <p className="text-sm font-medium text-green-800">Invite created!</p>
+              <p className="text-sm font-medium text-green-800">
+                Invite created!
+              </p>
               <p className="mt-1 text-xs text-green-700">
-                Copy this link and send it to <span className="font-medium">{email}</span>. The link expires in 7 days.
+                Copy this link and send it to{' '}
+                <span className="font-medium">{email}</span>. The link expires
+                in 7 days.
               </p>
               <div className="mt-2 flex items-center gap-2">
                 <input
@@ -125,7 +142,11 @@ export function InviteModal({ orgId, onClose, onSuccess }: InviteModalProps) {
                   }}
                   className="flex shrink-0 items-center gap-1 rounded bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
                 >
-                  {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  {copied ? (
+                    <Check className="h-3 w-3" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>

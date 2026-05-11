@@ -43,7 +43,12 @@ const FORMAT_STYLES: Record<AdFormat, string> = {
  * - Checks the user's plan to determine ad tier.
  * - Only renders if the user's ad tier meets the minTier for this slot.
  */
-export function AdSlot({ format, minTier = 'minimal', forceTier, className = '' }: AdSlotProps) {
+export function AdSlot({
+  format,
+  minTier = 'minimal',
+  forceTier,
+  className = '',
+}: AdSlotProps) {
   const adRef = useRef<HTMLModElement>(null);
   const pushed = useRef(false);
   const pubId = getAdSensePubId();
@@ -67,7 +72,9 @@ export function AdSlot({ format, minTier = 'minimal', forceTier, className = '' 
   if (!pubId || tierLevel < requiredLevel) return null;
 
   return (
-    <div className={`ad-slot ad-slot-${format} print:hidden ${FORMAT_STYLES[format]} ${className}`}>
+    <div
+      className={`ad-slot ad-slot-${format} print:hidden ${FORMAT_STYLES[format]} ${className}`}
+    >
       <ins
         ref={adRef}
         className="adsbygoogle"

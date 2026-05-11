@@ -1,5 +1,14 @@
 import { Link } from 'react-router-dom';
-import { Building2, ClipboardList, FileText, LineChart, UserPlus, Bot, Share2, WifiOff } from 'lucide-react';
+import {
+  Building2,
+  ClipboardList,
+  FileText,
+  LineChart,
+  UserPlus,
+  Bot,
+  Share2,
+  WifiOff,
+} from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { marketingSeo } from './marketingSeo.ts';
@@ -60,14 +69,22 @@ export default function MarketingHowItWorksPage() {
 
   return (
     <>
-      <MarketingPageMeta title={seo.title} description={seo.description} path={seo.path} />
+      <MarketingPageMeta
+        title={seo.title}
+        description={seo.description}
+        path={seo.path}
+      />
       <PublicMarketingLayout>
         <div className="border-b border-gray-200 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900">How it works</h1>
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900">
+              How it works
+            </h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
-              A straightforward path from setup to sustained operations with AI support, offline-aware field work, timed routes, and audit-ready records.
-              Your exact screens and entitlements depend on your plan and configuration inside the app.
+              A straightforward path from setup to sustained operations with AI
+              support, offline-aware field work, timed routes, and audit-ready
+              records. Your exact screens and entitlements depend on your plan
+              and configuration inside the app.
             </p>
           </div>
         </div>
@@ -75,7 +92,10 @@ export default function MarketingHowItWorksPage() {
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
           <ol className="space-y-10">
             {steps.map(({ step, title, body, icon: Icon }) => (
-              <li key={step} className="flex flex-col gap-4 sm:flex-row sm:gap-8">
+              <li
+                key={step}
+                className="flex flex-col gap-4 sm:flex-row sm:gap-8"
+              >
                 <div className="flex shrink-0 items-center gap-4 sm:flex-col sm:items-start">
                   <span className="flex h-12 w-12 items-center justify-center rounded-full bg-red-600 text-lg font-bold text-white">
                     {step}
@@ -92,9 +112,10 @@ export default function MarketingHowItWorksPage() {
             ))}
           </ol>
           <p className="mt-8 max-w-3xl text-sm text-gray-500">
-            AI responses use the NFPA reference configured in Organization Settings, with NFPA 10 (2022) as the new-org
-            fallback. Because jurisdictions and organizations may adopt different editions, your team should confirm
-            final decisions against your adopted standard.
+            AI responses use the NFPA reference configured in Organization
+            Settings, with NFPA 10 (2022) as the new-org fallback. Because
+            jurisdictions and organizations may adopt different editions, your
+            team should confirm final decisions against your adopted standard.
           </p>
 
           <div className="mt-14 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
@@ -104,7 +125,10 @@ export default function MarketingHowItWorksPage() {
             >
               Create account
             </Link>
-            <Link to="/pricing" className="text-sm font-medium text-red-600 hover:text-red-500">
+            <Link
+              to="/pricing"
+              className="text-sm font-medium text-red-600 hover:text-red-500"
+            >
               Compare plans →
             </Link>
           </div>

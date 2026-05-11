@@ -7,7 +7,15 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Trash2, WifiOff, CheckCircle2, AlertTriangle, Clock, Loader2 } from 'lucide-react';
+import {
+  RefreshCw,
+  Trash2,
+  WifiOff,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  Loader2,
+} from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOffline } from '../hooks/useOffline.ts';
 import {
@@ -20,7 +28,11 @@ function formatTimestamp(ms: number): string {
   return new Date(ms).toLocaleString();
 }
 
-function SyncStatusBadge({ status }: { status: QueuedInspection['syncStatus'] }) {
+function SyncStatusBadge({
+  status,
+}: {
+  status: QueuedInspection['syncStatus'];
+}) {
   switch (status) {
     case 'pending':
       return (
@@ -169,12 +181,15 @@ export default function SyncQueue() {
       {!isOnline && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
           <WifiOff className="h-4 w-4 shrink-0" />
-          You are offline. Sync will occur automatically when connection returns.
+          You are offline. Sync will occur automatically when connection
+          returns.
         </div>
       )}
 
       {error && (
-        <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
       )}
 
       {loading ? (
@@ -184,19 +199,33 @@ export default function SyncQueue() {
       ) : items.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-green-400" />
-          <p className="text-sm text-gray-500">No pending offline inspections.</p>
+          <p className="text-sm text-gray-500">
+            No pending offline inspections.
+          </p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Inspection ID</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Result</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Queued At</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Attempts</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Details</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Inspection ID
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Result
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Queued At
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Attempts
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Details
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -212,7 +241,8 @@ export default function SyncQueue() {
                     <span
                       className={`font-medium ${item.status === 'pass' ? 'text-green-700' : 'text-red-700'}`}
                     >
-                      {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                      {item.status.charAt(0).toUpperCase() +
+                        item.status.slice(1)}
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">

@@ -8,7 +8,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { X, Camera, CameraOff, Keyboard } from 'lucide-react';
-import createBarcodeScanner, { type Scanner } from '../../lib/barcodeScanner.ts';
+import createBarcodeScanner, {
+  type Scanner,
+} from '../../lib/barcodeScanner.ts';
 
 export interface ScanResult {
   text: string;
@@ -21,7 +23,11 @@ interface BarcodeScannerModalProps {
   onScan: (result: ScanResult) => void;
 }
 
-export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeScannerModalProps) {
+export default function BarcodeScannerModal({
+  open,
+  onClose,
+  onScan,
+}: BarcodeScannerModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [manualMode, setManualMode] = useState(false);
   const [manualValue, setManualValue] = useState('');
@@ -46,7 +52,9 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
     scannedRef.current = false;
 
     try {
-      await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)));
+      await new Promise((resolve) =>
+        window.requestAnimationFrame(() => resolve(undefined)),
+      );
       if (!videoRef.current) throw new Error('Video element is not ready');
       const scanner = createBarcodeScanner({
         video: videoRef.current,
@@ -72,10 +80,16 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
       setHasPermission(false);
       if (err instanceof Error) {
         const name = (err as { name?: string }).name || 'Error';
-        if (name === 'NotAllowedError') setError('Camera permission denied. Please allow camera access and try again.');
-        else if (name === 'NotFoundError') setError('No camera found on this device.');
-        else if (name === 'NotSupportedError' || name === 'SecurityError') setError('Camera requires HTTPS (iOS Safari). Use a secure origin.');
-        else if (name === 'NotReadableError') setError('Camera is busy. Close other apps and retry.');
+        if (name === 'NotAllowedError')
+          setError(
+            'Camera permission denied. Please allow camera access and try again.',
+          );
+        else if (name === 'NotFoundError')
+          setError('No camera found on this device.');
+        else if (name === 'NotSupportedError' || name === 'SecurityError')
+          setError('Camera requires HTTPS (iOS Safari). Use a secure origin.');
+        else if (name === 'NotReadableError')
+          setError('Camera is busy. Close other apps and retry.');
         else setError(`Error accessing camera: ${err.message}`);
       } else {
         setError('An unknown error occurred while accessing the camera.');
@@ -213,7 +227,8 @@ export default function BarcodeScannerModal({ open, onClose, onScan }: BarcodeSc
                 Point your camera at a barcode or QR code
               </p>
 
-              {(hasPermission === false || (hasPermission === true && error)) && (
+              {(hasPermission === false ||
+                (hasPermission === true && error)) && (
                 <button
                   onClick={() => void initializeScanner()}
                   className="w-full rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"

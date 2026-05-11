@@ -29,7 +29,9 @@ export default function ExtinguisherCreate() {
       if (org?.assetLimit) {
         const count = await getActiveExtinguisherCount(orgId);
         if (count >= org.assetLimit) {
-          throw new Error(`Asset limit reached (${org.assetLimit}). Upgrade your plan to add more extinguishers.`);
+          throw new Error(
+            `Asset limit reached (${org.assetLimit}). Upgrade your plan to add more extinguishers.`,
+          );
         }
       }
 
@@ -40,7 +42,9 @@ export default function ExtinguisherCreate() {
       }
 
       const extId = await createExtinguisher(orgId, user.uid, data);
-      navigate(`/dashboard/inventory/${extId}`, { state: { returnTo: '/dashboard/inventory' } });
+      navigate(`/dashboard/inventory/${extId}`, {
+        state: { returnTo: '/dashboard/inventory' },
+      });
     } finally {
       setLoading(false);
     }
@@ -49,7 +53,9 @@ export default function ExtinguisherCreate() {
   if (!canCreate) {
     return (
       <div className="p-6">
-        <p className="text-sm text-gray-500">You don't have permission to add extinguishers.</p>
+        <p className="text-sm text-gray-500">
+          You don't have permission to add extinguishers.
+        </p>
       </div>
     );
   }
@@ -65,7 +71,9 @@ export default function ExtinguisherCreate() {
           Back to Inventory
         </button>
         <h1 className="text-2xl font-bold text-gray-900">Add Extinguisher</h1>
-        <p className="mt-1 text-sm text-gray-500">Fill in the details for the new extinguisher.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Fill in the details for the new extinguisher.
+        </p>
       </div>
 
       <ExtinguisherForm

@@ -30,18 +30,43 @@ import {
   type Location,
 } from '../../services/locationService.ts';
 import { useLocationDrillDown } from '../../hooks/useLocationDrillDown.ts';
-import { LocationCard, type LocationCardStats } from '../../components/locations/LocationCard.tsx';
+import {
+  LocationCard,
+  type LocationCardStats,
+} from '../../components/locations/LocationCard.tsx';
 import { LocationBreadcrumb } from '../../components/locations/LocationBreadcrumb.tsx';
 
-const STATUS_STYLES: Record<string, { icon: typeof CheckCircle2; color: string; bg: string; label: string }> = {
-  pass: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100', label: 'Pass' },
-  fail: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-100', label: 'Fail' },
-  pending: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: 'Pending' },
+const STATUS_STYLES: Record<
+  string,
+  { icon: typeof CheckCircle2; color: string; bg: string; label: string }
+> = {
+  pass: {
+    icon: CheckCircle2,
+    color: 'text-green-600',
+    bg: 'bg-green-100',
+    label: 'Pass',
+  },
+  fail: {
+    icon: XCircle,
+    color: 'text-red-600',
+    bg: 'bg-red-100',
+    label: 'Fail',
+  },
+  pending: {
+    icon: Clock,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100',
+    label: 'Pending',
+  },
 };
 
 export default function GuestWorkspaceDetail() {
   const navigate = useNavigate();
-  const { orgId: urlOrgId, token: urlToken, workspaceId } = useParams<{
+  const {
+    orgId: urlOrgId,
+    token: urlToken,
+    workspaceId,
+  } = useParams<{
     orgId: string;
     token: string;
     workspaceId: string;
@@ -69,9 +94,14 @@ export default function GuestWorkspaceDetail() {
   useEffect(() => {
     if (!resolvedOrgId || !workspaceId) return;
     const wsRef = doc(db, 'org', resolvedOrgId, 'workspaces', workspaceId);
-    return onSnapshot(wsRef, (snap) => {
-      if (snap.exists()) setWorkspace({ id: snap.id, ...snap.data() } as Workspace);
-    }, () => undefined);
+    return onSnapshot(
+      wsRef,
+      (snap) => {
+        if (snap.exists())
+          setWorkspace({ id: snap.id, ...snap.data() } as Workspace);
+      },
+      () => undefined,
+    );
   }, [resolvedOrgId, workspaceId]);
 
   // Subscribe to inspections
@@ -90,7 +120,14 @@ export default function GuestWorkspaceDetail() {
   const locationStatsMap = useMemo(() => {
     const map = new Map<string, LocationCardStats>();
     function getStats(id: string): LocationCardStats {
-      if (!map.has(id)) map.set(id, { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 });
+      if (!map.has(id))
+        map.set(id, {
+          total: 0,
+          passed: 0,
+          failed: 0,
+          pending: 0,
+          percentage: 0,
+        });
       return map.get(id)!;
     }
 
@@ -116,7 +153,10 @@ export default function GuestWorkspaceDetail() {
     }
 
     for (const stats of map.values()) {
-      stats.percentage = stats.total > 0 ? Math.round(((stats.passed + stats.failed) / stats.total) * 100) : 0;
+      stats.percentage =
+        stats.total > 0
+          ? Math.round(((stats.passed + stats.failed) / stats.total) * 100)
+          : 0;
     }
     return map;
   }, [inspections, locations, hasLocationIdData]);
@@ -124,7 +164,13 @@ export default function GuestWorkspaceDetail() {
   function getAggregatedStats(locationId: string): LocationCardStats {
     const descendants = getAllDescendantIds(locations, locationId);
     const allIds = [locationId, ...descendants];
-    const agg: LocationCardStats = { total: 0, passed: 0, failed: 0, pending: 0, percentage: 0 };
+    const agg: LocationCardStats = {
+      total: 0,
+      passed: 0,
+      failed: 0,
+      pending: 0,
+      percentage: 0,
+    };
     for (const id of allIds) {
       const stats = locationStatsMap.get(id);
       if (stats) {
@@ -134,7 +180,10 @@ export default function GuestWorkspaceDetail() {
         agg.pending += stats.pending;
       }
     }
-    agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed) / agg.total) * 100) : 0;
+    agg.percentage =
+      agg.total > 0
+        ? Math.round(((agg.passed + agg.failed) / agg.total) * 100)
+        : 0;
     return agg;
   }
 
@@ -146,35 +195,57 @@ export default function GuestWorkspaceDetail() {
     let list: Inspection[];
 
     if (hasLocationIdData) {
-      list = inspections.filter((insp) => relevantLocIds.has(insp.locationId || '__unassigned__'));
+      list = inspections.filter((insp) =>
+        relevantLocIds.has(insp.locationId || '__unassigned__'),
+      );
     } else {
       const nameToId = new Map(locations.map((l) => [l.name, l.id!]));
-      list = inspections.filter((insp) => relevantLocIds.has(nameToId.get(insp.section) ?? '__unassigned__'));
-    }
-
-    if (statusFilter) list = list.filter((insp) => insp.status === statusFilter);
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter((insp) =>
-        insp.assetId?.toLowerCase().includes(q) || insp.section?.toLowerCase().includes(q),
+      list = inspections.filter((insp) =>
+        relevantLocIds.has(nameToId.get(insp.section) ?? '__unassigned__'),
       );
     }
 
-    return list.sort((a, b) => (a.assetId ?? '').localeCompare(b.assetId ?? ''));
-  }, [drillDown.isLeaf, drillDown.currentLocationAndDescendants, inspections, locations, hasLocationIdData, statusFilter, searchQuery]);
+    if (statusFilter)
+      list = list.filter((insp) => insp.status === statusFilter);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (insp) =>
+          insp.assetId?.toLowerCase().includes(q) ||
+          insp.section?.toLowerCase().includes(q),
+      );
+    }
+
+    return list.sort((a, b) =>
+      (a.assetId ?? '').localeCompare(b.assetId ?? ''),
+    );
+  }, [
+    drillDown.isLeaf,
+    drillDown.currentLocationAndDescendants,
+    inspections,
+    locations,
+    hasLocationIdData,
+    statusFilter,
+    searchQuery,
+  ]);
 
   // Unassigned inspections (no locationId)
   const unassignedInspections = useMemo(() => {
     if (!showUnassigned) return [];
     let list = inspections.filter((insp) => !insp.locationId);
-    if (statusFilter) list = list.filter((insp) => insp.status === statusFilter);
+    if (statusFilter)
+      list = list.filter((insp) => insp.status === statusFilter);
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter((insp) =>
-        insp.assetId?.toLowerCase().includes(q) || insp.section?.toLowerCase().includes(q),
+      list = list.filter(
+        (insp) =>
+          insp.assetId?.toLowerCase().includes(q) ||
+          insp.section?.toLowerCase().includes(q),
       );
     }
-    return list.sort((a, b) => (a.assetId ?? '').localeCompare(b.assetId ?? ''));
+    return list.sort((a, b) =>
+      (a.assetId ?? '').localeCompare(b.assetId ?? ''),
+    );
   }, [showUnassigned, inspections, statusFilter, searchQuery]);
 
   return (
@@ -222,12 +293,18 @@ export default function GuestWorkspaceDetail() {
             <FolderOpen className="h-6 w-6 text-gray-400" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {drillDown.isRoot ? workspace.label : drillDown.currentLocation?.name ?? workspace.label}
+                {drillDown.isRoot
+                  ? workspace.label
+                  : (drillDown.currentLocation?.name ?? workspace.label)}
               </h1>
               <div className="mt-1 flex items-center gap-2">
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  workspace.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
-                }`}>
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    workspace.status === 'active'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
                   {workspace.status === 'active' ? 'Active' : 'Archived'}
                 </span>
               </div>
@@ -237,15 +314,21 @@ export default function GuestWorkspaceDetail() {
           <div className="mt-4 flex gap-6">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <span className="text-sm text-gray-700">{workspace.stats.passed} passed</span>
+              <span className="text-sm text-gray-700">
+                {workspace.stats.passed} passed
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <XCircle className="h-4 w-4 text-red-600" />
-              <span className="text-sm text-gray-700">{workspace.stats.failed} failed</span>
+              <span className="text-sm text-gray-700">
+                {workspace.stats.failed} failed
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-700">{workspace.stats.pending} pending</span>
+              <span className="text-sm text-gray-700">
+                {workspace.stats.pending} pending
+              </span>
             </div>
           </div>
         </div>
@@ -259,7 +342,9 @@ export default function GuestWorkspaceDetail() {
           {drillDown.currentChildren.length === 0 && drillDown.isRoot ? (
             <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
               <MapPin className="mx-auto h-8 w-8 text-gray-300" />
-              <p className="mt-2 text-sm text-gray-500">No locations configured.</p>
+              <p className="mt-2 text-sm text-gray-500">
+                No locations configured.
+              </p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -290,7 +375,9 @@ export default function GuestWorkspaceDetail() {
       {/* Unassigned Extinguisher List */}
       {showUnassigned && (
         <>
-          <h2 className="mb-3 text-lg font-semibold text-gray-900">Unassigned Extinguishers</h2>
+          <h2 className="mb-3 text-lg font-semibold text-gray-900">
+            Unassigned Extinguishers
+          </h2>
           <div className="mb-4 flex flex-wrap gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -318,26 +405,44 @@ export default function GuestWorkspaceDetail() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Asset ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Section</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Asset ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Section
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {unassignedInspections.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-400">No unassigned inspections found.</td>
+                      <td
+                        colSpan={3}
+                        className="px-4 py-8 text-center text-sm text-gray-400"
+                      >
+                        No unassigned inspections found.
+                      </td>
                     </tr>
                   ) : (
                     unassignedInspections.map((insp) => {
-                      const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+                      const style =
+                        STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
                       const StatusIcon = style.icon;
                       return (
                         <tr key={insp.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{insp.assetId ?? '—'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{insp.section ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            {insp.assetId ?? '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {insp.section ?? '—'}
+                          </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}
+                            >
                               <StatusIcon className="h-3 w-3" />
                               {style.label}
                             </span>
@@ -386,44 +491,72 @@ export default function GuestWorkspaceDetail() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Asset ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Location</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Inspector</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Asset ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Location
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Inspector
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Date
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
+                      <td
+                        colSpan={5}
+                        className="px-4 py-8 text-center text-sm text-gray-400"
+                      >
                         No inspections found.
                       </td>
                     </tr>
                   ) : (
                     filtered.map((insp) => {
-                      const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
+                      const style =
+                        STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
                       const StatusIcon = style.icon;
                       const inspectedDate = insp.inspectedAt
                         ? new Date(
-                            typeof insp.inspectedAt === 'object' && insp.inspectedAt !== null && 'toDate' in insp.inspectedAt
-                              ? (insp.inspectedAt as { toDate: () => Date }).toDate()
+                            typeof insp.inspectedAt === 'object' &&
+                              insp.inspectedAt !== null &&
+                              'toDate' in insp.inspectedAt
+                              ? (
+                                  insp.inspectedAt as { toDate: () => Date }
+                                ).toDate()
                               : (insp.inspectedAt as string | number | Date),
                           ).toLocaleDateString()
                         : '—';
 
                       return (
                         <tr key={insp.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{insp.assetId ?? '—'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{insp.section ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            {insp.assetId ?? '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {insp.section ?? '—'}
+                          </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}>
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}
+                            >
                               <StatusIcon className="h-3 w-3" />
                               {style.label}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{insp.inspectedByEmail ?? '—'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{inspectedDate}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {insp.inspectedByEmail ?? '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {inspectedDate}
+                          </td>
                         </tr>
                       );
                     })

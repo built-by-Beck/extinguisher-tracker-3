@@ -7,7 +7,10 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
-import { getLocationTypeLabel, type Location } from '../../services/locationService.ts';
+import {
+  getLocationTypeLabel,
+  type Location,
+} from '../../services/locationService.ts';
 
 export interface FilterState {
   statuses: Set<string>;
@@ -110,7 +113,10 @@ export function FilterPanel({
   }
 
   function handleLocationToggle(locId: string) {
-    onChange({ ...filters, locationIds: toggleSet(filters.locationIds, locId) });
+    onChange({
+      ...filters,
+      locationIds: toggleSet(filters.locationIds, locId),
+    });
   }
 
   function clearAll() {
@@ -166,14 +172,19 @@ export function FilterPanel({
                 </p>
                 <div className="flex flex-col gap-1.5">
                   {STATUS_OPTIONS.map((opt) => (
-                    <label key={opt.value} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <label
+                      key={opt.value}
+                      className="flex items-center gap-2 text-sm cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         checked={filters.statuses.has(opt.value)}
                         onChange={() => handleStatusToggle(opt.value)}
                         className="h-3.5 w-3.5 rounded border-gray-300 text-red-600 focus:ring-red-500"
                       />
-                      <span className={opt.color ?? 'text-gray-700'}>{opt.label}</span>
+                      <span className={opt.color ?? 'text-gray-700'}>
+                        {opt.label}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -188,7 +199,10 @@ export function FilterPanel({
                 </p>
                 <div className="flex flex-col gap-1.5">
                   {CATEGORY_OPTIONS.map((opt) => (
-                    <label key={opt.value} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <label
+                      key={opt.value}
+                      className="flex items-center gap-2 text-sm cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         checked={filters.categories.has(opt.value)}
@@ -210,7 +224,10 @@ export function FilterPanel({
                 </p>
                 <div className="flex flex-col gap-1.5">
                   {COMPLIANCE_OPTIONS.map((opt) => (
-                    <label key={opt.value} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <label
+                      key={opt.value}
+                      className="flex items-center gap-2 text-sm cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         checked={filters.compliance.has(opt.value)}
@@ -232,7 +249,10 @@ export function FilterPanel({
                 </p>
                 <div className="flex flex-col gap-1.5">
                   {siblingLocations.map((loc) => (
-                    <label key={loc.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <label
+                      key={loc.id}
+                      className="flex items-center gap-2 text-sm cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         checked={filters.locationIds.has(loc.id!)}

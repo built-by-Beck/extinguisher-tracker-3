@@ -2257,3 +2257,13 @@ Added a lesson and resolved error-log entry: parent-provided data refactors must
 **Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build`, `npm --prefix functions test`.
 
 **Review verdict:** ACCEPTED WITH MINOR CONCERNS (two “retired” paths: metadata vs full retire — documented in UI).
+
+## 2026-05-11 — Merge conflict resolution (main ↔ incoming)
+
+**Task:** Resolve six `both modified` paths after merge; no `<<<<<<<` markers remained in the working tree (index still unmerged until `git add`).
+
+**Resolution choices:** Kept **local/ours** product behavior for `useSectionTimer` (12h segment cap, idle flush, `clearActiveTimer` / `skipNextSectionTimesPersistRef`) and `ReplacedExtinguishers` (monthly grouping, stats, `_seconds` CF timestamps). Kept **collectionGroup** `listReplacementHistory` in `updateReplacementHistoryStatus.ts` (matches `replaceExtinguisher` writing `orgId` on rows + existing index). README bullet stayed “Section Timer Controls” (not shorter “Section Auto Timer”). `error_log.jsonl` kept May 7 unify-list-sources entries; removed stray blank line between JSONL records. `lessons_learned.md` kept merged end state.
+
+**Commit:** `626d191` — `merge: resolve conflicts built_by_Beck`.
+
+**Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build`, `npm --prefix functions test` (all pass).

@@ -44,7 +44,12 @@ const steps = [
     title: 'Manage replacements and spare returns',
     body: 'When a physical unit is replaced, confirm the old details, choose whether to reuse or change the asset ID, and review archived retired-unit details from Replaced Extinguishers. Returned old units can be added back as active spare inventory with a new spare asset ID.',
     icon: Archive,
-    links: [{ to: '/dashboard/replaced-extinguishers', label: 'Open replaced extinguishers' }],
+    links: [
+      {
+        to: '/dashboard/replaced-extinguishers',
+        label: 'Open replaced extinguishers',
+      },
+    ],
   },
   {
     title: 'Run Data Organizer cleanup',
@@ -52,7 +57,10 @@ const steps = [
     icon: Wrench,
     links: [
       { to: '/dashboard/data-organizer', label: 'Open Data Organizer' },
-      { to: '/dashboard/data-organizer-guide', label: 'Read Data Organizer guide' },
+      {
+        to: '/dashboard/data-organizer-guide',
+        label: 'Read Data Organizer guide',
+      },
     ],
   },
   {
@@ -99,7 +107,10 @@ const steps = [
     icon: Share2,
     links: [
       { to: '/dashboard/members', label: 'Manage members' },
-      { to: '/dashboard/custom-asset-inspections', label: 'Open custom assets' },
+      {
+        to: '/dashboard/custom-asset-inspections',
+        label: 'Open custom assets',
+      },
     ],
   },
 ] as const;
@@ -110,13 +121,17 @@ export default function GettingStarted() {
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold text-gray-900">Getting Started</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Follow this checklist to go from account setup to your first completed inspection cycle.
+          Follow this checklist to go from account setup to your first completed
+          inspection cycle.
         </p>
       </div>
 
       <div className="mt-6 space-y-4">
         {steps.map(({ title, body, icon: Icon, links }, index) => (
-          <section key={title} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <section
+            key={title}
+            className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+          >
             <div className="flex items-start gap-4">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">
                 {index + 1}
@@ -124,7 +139,9 @@ export default function GettingStarted() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <Icon className="h-5 w-5 text-red-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    {title}
+                  </h2>
                 </div>
                 <p className="mt-2 text-sm text-gray-600">{body}</p>
                 <div className="mt-3 flex flex-wrap gap-3">
@@ -149,9 +166,25 @@ export default function GettingStarted() {
         <div className="flex items-start gap-3">
           <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
           <div>
-            <p className="text-sm font-semibold text-blue-900">Pro+ tip: the AI is built for active field work</p>
+            <p className="text-sm font-semibold text-blue-900">
+              Pro+ tip: the AI is built for active field work
+            </p>
             <p className="mt-1 text-sm text-blue-800">
-              Ask compliance questions like <span className="font-medium">"Can you tell me how far extinguishers are supposed to be apart according to NFPA 2022?"</span> — request an overdue summary, upload a temporary photo for analysis, or say <span className="font-medium">"Draft a follow-up note for this unit: tamper seal broken, gauge in green, needs recheck next week"</span> and get clean note language ready to copy. The AI retains context within the session so follow-up questions build naturally. Confirm final decisions against your locally adopted code edition and AHJ direction.
+              Ask compliance questions like{' '}
+              <span className="font-medium">
+                "Can you tell me how far extinguishers are supposed to be apart
+                according to NFPA 2022?"
+              </span>{' '}
+              — request an overdue summary, upload a temporary photo for
+              analysis, or say{' '}
+              <span className="font-medium">
+                "Draft a follow-up note for this unit: tamper seal broken, gauge
+                in green, needs recheck next week"
+              </span>{' '}
+              and get clean note language ready to copy. The AI retains context
+              within the session so follow-up questions build naturally. Confirm
+              final decisions against your locally adopted code edition and AHJ
+              direction.
             </p>
           </div>
         </div>
@@ -160,7 +193,8 @@ export default function GettingStarted() {
       <div className="mt-6 rounded-xl bg-gray-900 px-6 py-8 text-center">
         <h2 className="text-xl font-bold text-white">Ready to begin?</h2>
         <p className="mt-2 text-sm text-gray-300">
-          Start with locations and inventory, then create your current month workspace.
+          Start with locations and inventory, then create your current month
+          workspace.
         </p>
         <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link

@@ -6,7 +6,10 @@
  */
 
 import { useContext } from 'react';
-import { GuestContext, type GuestContextValue } from '../contexts/GuestContext.tsx';
+import {
+  GuestContext,
+  type GuestContextValue,
+} from '../contexts/GuestContext.tsx';
 
 export function useGuest(): GuestContextValue {
   const ctx = useContext(GuestContext);

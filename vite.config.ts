@@ -27,15 +27,15 @@ function adsTxtPlugin(env: Record<string, string>): Plugin {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, 'VITE_');
   return {
-  plugins: [react(), tailwindcss(), adsTxtPlugin(env)],
-  build: {
-    chunkSizeWarningLimit: 1000,
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}'],
-  },
-};
+    plugins: [react(), tailwindcss(), adsTxtPlugin(env)],
+    build: {
+      chunkSizeWarningLimit: 1000,
+    },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: ['./src/test/setup.ts'],
+      include: ['src/**/*.test.{ts,tsx}'],
+    },
+  };
 });

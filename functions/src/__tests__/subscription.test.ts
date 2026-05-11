@@ -2,7 +2,10 @@
 // @ts-nocheck
 import { jest, describe, it, expect } from '@jest/globals';
 import { adminDb } from '../utils/admin.js';
-import { validateSubscription, validateSubscriptionTx } from '../utils/subscription.js';
+import {
+  validateSubscription,
+  validateSubscriptionTx,
+} from '../utils/subscription.js';
 
 // Manually mock the doc method
 adminDb.doc = jest.fn();
@@ -49,8 +52,9 @@ describe('Subscription Gating Logic', () => {
     };
     adminDb.doc.mockReturnValue(mockDoc);
 
-    await expect(validateSubscription(orgId))
-      .rejects.toThrow(/An active subscription is required for this action/);
+    await expect(validateSubscription(orgId)).rejects.toThrow(
+      /An active subscription is required for this action/,
+    );
   });
 
   it('should block canceled subscriptions', async () => {
@@ -64,8 +68,9 @@ describe('Subscription Gating Logic', () => {
     };
     adminDb.doc.mockReturnValue(mockDoc);
 
-    await expect(validateSubscription(orgId))
-      .rejects.toThrow(/An active subscription is required for this action/);
+    await expect(validateSubscription(orgId)).rejects.toThrow(
+      /An active subscription is required for this action/,
+    );
   });
 
   it('should block missing subscriptions', async () => {
@@ -79,8 +84,9 @@ describe('Subscription Gating Logic', () => {
     };
     adminDb.doc.mockReturnValue(mockDoc);
 
-    await expect(validateSubscription(orgId))
-      .rejects.toThrow(/An active subscription is required for this action/);
+    await expect(validateSubscription(orgId)).rejects.toThrow(
+      /An active subscription is required for this action/,
+    );
   });
 
   it('should work within a transaction', async () => {

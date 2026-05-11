@@ -35,8 +35,12 @@ export interface MonthlyWorkspaceInspectionSnapshot {
   hasLocationIdData: boolean;
 }
 
-export function countMonthlyInspectionRows(rows: Inspection[]): WorkspaceInspectionBucketStats {
-  const stats: WorkspaceInspectionBucketStats = { ...EMPTY_MONTHLY_WORKSPACE_STATS };
+export function countMonthlyInspectionRows(
+  rows: Inspection[],
+): WorkspaceInspectionBucketStats {
+  const stats: WorkspaceInspectionBucketStats = {
+    ...EMPTY_MONTHLY_WORKSPACE_STATS,
+  };
   for (const row of rows) {
     stats.total += 1;
     if (row.status === 'pass') stats.passed += 1;
@@ -45,11 +49,15 @@ export function countMonthlyInspectionRows(rows: Inspection[]): WorkspaceInspect
     else stats.pending += 1;
   }
   stats.percentage =
-    stats.total > 0 ? Math.round(((stats.passed + stats.failed) / stats.total) * 100) : 0;
+    stats.total > 0
+      ? Math.round(((stats.passed + stats.failed) / stats.total) * 100)
+      : 0;
   return stats;
 }
 
-export function getMonthlyCheckedCount(stats: WorkspaceInspectionBucketStats): number {
+export function getMonthlyCheckedCount(
+  stats: WorkspaceInspectionBucketStats,
+): number {
   return stats.passed + stats.failed;
 }
 
@@ -60,7 +68,13 @@ export function buildMonthlyWorkspaceInspectionSnapshot(params: {
   locations: Location[];
   isArchived?: boolean;
 }): MonthlyWorkspaceInspectionSnapshot {
-  const { workspaceId, inspections, extinguishers, locations, isArchived = false } = params;
+  const {
+    workspaceId,
+    inspections,
+    extinguishers,
+    locations,
+    isArchived = false,
+  } = params;
   if (!workspaceId) {
     return {
       rows: [],
@@ -70,8 +84,13 @@ export function buildMonthlyWorkspaceInspectionSnapshot(params: {
     };
   }
 
-  const workspaceRows = inspections.filter((row) => !row.workspaceId || row.workspaceId === workspaceId);
-  const hasLocationIdData = detectHasLocationIdData(workspaceRows, extinguishers);
+  const workspaceRows = inspections.filter(
+    (row) => !row.workspaceId || row.workspaceId === workspaceId,
+  );
+  const hasLocationIdData = detectHasLocationIdData(
+    workspaceRows,
+    extinguishers,
+  );
   const rows = collectInspectionRowsForScope({
     extinguishers,
     inspections: workspaceRows,

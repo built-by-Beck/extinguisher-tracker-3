@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Check, Loader2, Sparkles, X as XIcon } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
-import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
+import {
+  PLANS,
+  type PlanName,
+  YEARLY_DISCOUNT_FRACTION,
+} from '../../lib/planConfig.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 
@@ -15,7 +19,8 @@ function formatUsd(amount: number): string {
 export function PlanSelector() {
   const { org } = useOrg();
   const { userProfile } = useAuth();
-  const [billingInterval, setBillingInterval] = useState<BillingIntervalUi>('month');
+  const [billingInterval, setBillingInterval] =
+    useState<BillingIntervalUi>('month');
   const [loading, setLoading] = useState<PlanName | null>(null);
   const [error, setError] = useState('');
 
@@ -36,13 +41,16 @@ export function PlanSelector() {
       const result = await createCheckoutSession({
         orgId,
         plan,
-        ...(billingInterval === 'year' ? { billingInterval: 'year' as const } : {}),
+        ...(billingInterval === 'year'
+          ? { billingInterval: 'year' as const }
+          : {}),
       });
       if (result.data.url) {
         window.location.href = result.data.url;
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to start checkout.';
+      const message =
+        err instanceof Error ? err.message : 'Failed to start checkout.';
       setError(message);
     } finally {
       setLoading(null);
@@ -52,7 +60,9 @@ export function PlanSelector() {
   return (
     <div>
       {error && (
-        <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
       )}
 
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -92,8 +102,9 @@ export function PlanSelector() {
           </h3>
         </div>
         <p className="mb-3 text-sm text-gray-600">
-          How to use AI: open the dashboard assistant and ask about overdue inspections, due
-          dates, or a quick compliance summary. It works in Pro, Elite, and Enterprise plans.
+          How to use AI: open the dashboard assistant and ask about overdue
+          inspections, due dates, or a quick compliance summary. It works in
+          Pro, Elite, and Enterprise plans.
         </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {[
@@ -102,7 +113,10 @@ export function PlanSelector() {
             '"Summarize my compliance status"',
             '"What does NFPA 10 require monthly?"',
           ].map((q) => (
-            <div key={q} className="flex items-center gap-2 rounded-md bg-white/70 px-3 py-1.5 text-xs text-gray-700">
+            <div
+              key={q}
+              className="flex items-center gap-2 rounded-md bg-white/70 px-3 py-1.5 text-xs text-gray-700"
+            >
               <Sparkles className="h-3 w-3 shrink-0 text-blue-500" />
               {q}
             </div>
@@ -114,6 +128,11 @@ export function PlanSelector() {
         {PLANS.filter((p) => p.name !== 'enterprise').map((plan) => {
           const isCurrent = currentPlan === plan.name;
           const isLoading = loading === plan.name;
+          const offerProTrialUi =
+            plan.name === 'pro' &&
+            billingInterval === 'month' &&
+            !org?.stripeSubscriptionId &&
+            org?.proTrialConsumed !== true;
 
           return (
             <div
@@ -124,7 +143,9 @@ export function PlanSelector() {
                   : 'border-gray-200 bg-white hover:border-gray-300'
               }`}
             >
-              <h3 className="text-lg font-bold text-gray-900">{plan.displayName}</h3>
+              <h3 className="text-lg font-bold text-gray-900">
+                {plan.displayName}
+              </h3>
               {billingInterval === 'month' ? (
                 <p className="mt-1 text-3xl font-bold text-gray-900">
                   {formatUsd(plan.monthlyPrice!)}
@@ -134,11 +155,17 @@ export function PlanSelector() {
                 <>
                   <p className="mt-1 text-3xl font-bold text-gray-900">
                     {formatUsd(plan.yearlyTotalPrice!)}
-                    <span className="text-sm font-normal text-gray-500">/yr</span>
+                    <span className="text-sm font-normal text-gray-500">
+                      /yr
+                    </span>
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
-                    {formatUsd(plan.monthlyPrice! * 12)} if paid monthly — you save{' '}
-                    {formatUsd(plan.monthlyPrice! * 12 - plan.yearlyTotalPrice!)} per year
+                    {formatUsd(plan.monthlyPrice! * 12)} if paid monthly — you
+                    save{' '}
+                    {formatUsd(
+                      plan.monthlyPrice! * 12 - plan.yearlyTotalPrice!,
+                    )}{' '}
+                    per year
                   </p>
                 </>
               )}
@@ -149,19 +176,41 @@ export function PlanSelector() {
                     ? 'Adds camera barcode scanning, GPS capture, inspection photos, and the AI assistant.'
                     : 'Everything in Pro, plus team members & invites, higher scale, and priority support.'}
               </p>
+              {plan.name === 'pro' &&
+                billingInterval === 'month' &&
+                !org?.stripeSubscriptionId &&
+                org?.proTrialConsumed !== true && (
+                  <p className="mt-2 rounded-md bg-blue-50 px-2 py-1.5 text-xs font-medium text-blue-800">
+                    7-day Pro trial — no credit card at checkout. Add a payment
+                    method before the trial ends to keep Pro access (see Terms).
+                  </p>
+                )}
 
               <ul className="mt-4 space-y-2">
                 {plan.features.map((feature) => {
                   const isAiFeature = feature.toLowerCase().includes('ai');
-                  const isExcluded = feature.toLowerCase().includes('not included');
+                  const isExcluded = feature
+                    .toLowerCase()
+                    .includes('not included');
                   return (
-                    <li key={feature} className={`flex items-start gap-2 text-sm ${isExcluded ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <li
+                      key={feature}
+                      className={`flex items-start gap-2 text-sm ${isExcluded ? 'text-gray-400' : 'text-gray-600'}`}
+                    >
                       {isExcluded ? (
                         <XIcon className="mt-0.5 h-4 w-4 shrink-0 text-gray-300" />
                       ) : (
-                        <Check className={`mt-0.5 h-4 w-4 shrink-0 ${isAiFeature ? 'text-blue-500' : 'text-green-500'}`} />
+                        <Check
+                          className={`mt-0.5 h-4 w-4 shrink-0 ${isAiFeature ? 'text-blue-500' : 'text-green-500'}`}
+                        />
                       )}
-                      <span className={isAiFeature && !isExcluded ? 'font-medium text-blue-700' : ''}>
+                      <span
+                        className={
+                          isAiFeature && !isExcluded
+                            ? 'font-medium text-blue-700'
+                            : ''
+                        }
+                      >
                         {feature}
                         {isAiFeature && !isExcluded && (
                           <Sparkles className="ml-1 inline h-3 w-3 text-blue-500" />
@@ -185,6 +234,8 @@ export function PlanSelector() {
                   <Loader2 className="mx-auto h-4 w-4 animate-spin" />
                 ) : isCurrent ? (
                   'Current Plan'
+                ) : plan.name === 'pro' && offerProTrialUi ? (
+                  'Start 7-day trial'
                 ) : currentPlan ? (
                   'Switch Plan'
                 ) : (
@@ -201,7 +252,8 @@ export function PlanSelector() {
         <div className="mt-4 rounded-lg border-2 border-red-500 bg-red-50 p-4 text-center">
           <p className="text-sm font-semibold text-gray-900">Enterprise Plan</p>
           <p className="mt-1 text-sm text-gray-600">
-            Unlimited assets, all features, custom pricing, and priority support.
+            Unlimited assets, all features, custom pricing, and priority
+            support.
           </p>
           <span className="mt-2 inline-block rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
             Current Plan
@@ -210,11 +262,16 @@ export function PlanSelector() {
       ) : (
         <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
           <p className="text-sm text-gray-600">
-            Need more than {PLANS.find((p) => p.name === 'elite')?.assetLimit ?? 500} extinguishers?{' '}
-            <span className="font-semibold text-gray-900">Enterprise</span> plans with unlimited
-            assets, AI access, and custom pricing are available.
+            Need more than{' '}
+            {PLANS.find((p) => p.name === 'elite')?.assetLimit ?? 500}{' '}
+            extinguishers?{' '}
+            <span className="font-semibold text-gray-900">Enterprise</span>{' '}
+            plans with unlimited assets, AI access, and custom pricing are
+            available.
           </p>
-          <p className="mt-1 text-sm text-gray-500">Contact us at help@extinguishertracker.com</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Contact us at help@extinguishertracker.com
+          </p>
         </div>
       )}
     </div>

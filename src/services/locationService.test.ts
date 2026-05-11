@@ -8,7 +8,12 @@ import {
   type Location,
 } from './locationService.ts';
 
-const makeLoc = (id: string, name: string, parentId: string | null = null, type = 'building'): Location => ({
+const makeLoc = (
+  id: string,
+  name: string,
+  parentId: string | null = null,
+  type = 'building',
+): Location => ({
   id,
   name,
   parentLocationId: parentId,
@@ -38,7 +43,9 @@ describe('normalizeLocationName', () => {
   });
 
   it('treats "1st floor" and "1st  Floor" as equal after normalization', () => {
-    expect(normalizeLocationName('1st floor')).toBe(normalizeLocationName('1st  Floor'));
+    expect(normalizeLocationName('1st floor')).toBe(
+      normalizeLocationName('1st  Floor'),
+    );
   });
 });
 

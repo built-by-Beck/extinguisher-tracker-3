@@ -7,7 +7,11 @@ interface DeleteConfirmModalProps {
   onCancel: () => void;
 }
 
-export function DeleteConfirmModal({ assetId, onConfirm, onCancel }: DeleteConfirmModalProps) {
+export function DeleteConfirmModal({
+  assetId,
+  onConfirm,
+  onCancel,
+}: DeleteConfirmModalProps) {
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +32,10 @@ export function DeleteConfirmModal({ assetId, onConfirm, onCancel }: DeleteConfi
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onCancel}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onCancel}
+    >
       <div
         className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
@@ -39,26 +46,36 @@ export function DeleteConfirmModal({ assetId, onConfirm, onCancel }: DeleteConfi
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Delete Extinguisher</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Delete Extinguisher
+              </h3>
               <p className="text-sm text-gray-500">Asset: {assetId}</p>
             </div>
           </div>
-          <button onClick={onCancel} className="text-gray-400 hover:text-gray-600">
+          <button
+            onClick={onCancel}
+            className="text-gray-400 hover:text-gray-600"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <p className="mb-4 text-sm text-gray-600">
-          This will soft-delete the extinguisher. It can be viewed in the deleted items list but
-          will no longer appear in the active inventory.
+          This will soft-delete the extinguisher. It can be viewed in the
+          deleted items list but will no longer appear in the active inventory.
         </p>
 
         {error && (
-          <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
         )}
 
         <div className="mb-4">
-          <label htmlFor="deleteReason" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="deleteReason"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
             Reason for deletion <span className="text-red-500">*</span>
           </label>
           <textarea

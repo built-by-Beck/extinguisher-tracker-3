@@ -7,7 +7,10 @@
 
 declare module 'pdfmake' {
   export type Alignment = 'left' | 'center' | 'right' | 'justify';
-  export type MarginValue = [number, number, number, number] | [number, number] | number;
+  export type MarginValue =
+    | [number, number, number, number]
+    | [number, number]
+    | number;
 
   export interface Style {
     fontSize?: number;
@@ -72,7 +75,12 @@ declare module 'pdfmake' {
     margin?: MarginValue;
   }
 
-  export type ContentCell = string | ContentText | ContentStack | ContentColumns | TableNode;
+  export type ContentCell =
+    | string
+    | ContentText
+    | ContentStack
+    | ContentColumns
+    | TableNode;
   export type ContentElement = ContentCell | ContentCanvas;
 
   export interface DocumentDefinition {
