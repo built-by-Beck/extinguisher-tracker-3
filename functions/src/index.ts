@@ -59,6 +59,7 @@ export {
 export { dedupeActiveExtinguishersByAssetId } from './lifecycle/dedupeActiveExtinguishersByAssetId.js';
 export { repairStaleReplacementLinks } from './lifecycle/repairStaleReplacementLinks.js';
 export { retireExtinguisher } from './lifecycle/retireExtinguisher.js';
+export { updateExtinguisherStatus } from './lifecycle/updateExtinguisherStatus.js';
 
 // Lifecycle engine (Firestore trigger)
 export { onExtinguisherCreated } from './lifecycle/onExtinguisherWrite.js';

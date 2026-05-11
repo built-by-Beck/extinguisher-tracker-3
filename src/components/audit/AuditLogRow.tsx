@@ -31,6 +31,7 @@ const ACTION_LABELS: Record<string, string> = {
   'extinguisher.deleted': 'Extinguisher Deleted',
   'extinguisher.replaced': 'Extinguisher Replaced',
   'extinguisher.retired': 'Extinguisher Retired',
+  'extinguisher.status_updated': 'Extinguisher Status Updated',
   'extinguisher.imported': 'Extinguishers Imported',
   'workspace.created': 'Workspace Created',
   'workspace.archived': 'Workspace Archived',
@@ -109,8 +110,10 @@ function formatRelativeTime(timestamp: unknown): string {
     const diffDays = Math.floor(diffHours / 24);
 
     if (diffSeconds < 60) return 'just now';
-    if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+    if (diffMinutes < 60)
+      return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+    if (diffHours < 24)
+      return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
     if (diffDays < 30) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
 
     // Fall back to formatted date for older entries
@@ -132,7 +135,8 @@ export function AuditLogRow({ log }: AuditLogRowProps) {
   const [expanded, setExpanded] = useState(false);
 
   const actionLabel = ACTION_LABELS[log.action] ?? log.action;
-  const performerDisplay = log.performedByEmail ?? `${log.performedBy.slice(0, 8)}...`;
+  const performerDisplay =
+    log.performedByEmail ?? `${log.performedBy.slice(0, 8)}...`;
   const timestamp = log.performedAt ?? log.createdAt;
   const badgeClass = getEntityTypeBadgeClass(log.entityType);
   const detailEntries = Object.entries(log.details ?? {});
@@ -151,7 +155,9 @@ export function AuditLogRow({ log }: AuditLogRowProps) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             {/* Action label */}
-            <span className="text-sm font-semibold text-gray-900">{actionLabel}</span>
+            <span className="text-sm font-semibold text-gray-900">
+              {actionLabel}
+            </span>
 
             {/* Entity type badge */}
             {log.entityType && (
@@ -165,9 +171,14 @@ export function AuditLogRow({ log }: AuditLogRowProps) {
 
           {/* Performer + timestamp */}
           <p className="mt-0.5 text-xs text-gray-500">
-            By <span className="font-medium text-gray-700">{performerDisplay}</span>
+            By{' '}
+            <span className="font-medium text-gray-700">
+              {performerDisplay}
+            </span>
             {' · '}
-            <span title={String(timestamp)}>{formatRelativeTime(timestamp)}</span>
+            <span title={String(timestamp)}>
+              {formatRelativeTime(timestamp)}
+            </span>
           </p>
 
           {/* Expandable details */}
@@ -190,9 +201,13 @@ export function AuditLogRow({ log }: AuditLogRowProps) {
                   <dl className="space-y-1">
                     {detailEntries.map(([key, value]) => (
                       <div key={key} className="flex gap-2">
-                        <dt className="shrink-0 font-medium text-gray-500">{key}:</dt>
+                        <dt className="shrink-0 font-medium text-gray-500">
+                          {key}:
+                        </dt>
                         <dd className="text-gray-700 break-all">
-                          {typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')}
+                          {typeof value === 'object'
+                            ? JSON.stringify(value)
+                            : String(value ?? '')}
                         </dd>
                       </div>
                     ))}

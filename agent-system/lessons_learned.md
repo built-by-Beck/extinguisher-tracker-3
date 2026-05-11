@@ -311,3 +311,19 @@ Split `Workspaces.tsx` into `allActiveWorkspaces` for summary/subscription data 
 
 **Prevention rule:**
 When lifting data into parent components to remove duplicate listeners, preserve the child component's original data scope separately from any UI search/filter scope.
+
+## 2026-05-08 - `eslint-disable-next-line` Must Target the Next Line the Rule Reports
+
+**What happened:** `GuestContext` had `// eslint-disable-next-line react-hooks/exhaustive-deps` inside the async callback body (before the closing `}` of the function passed to `useCallback`). ESLint still reported missing `subscribeToGuestData` in the dependency array and flagged the disable comments as unused.
+
+**Fix used:** Move the disable comment to the line immediately above the dependency array (`[]`), or fix dependencies properly. For `resumeSession`, use a multi-line `useCallback(` form so the comment sits between the callback and `[],`.
+
+**Prevention rule:** For `react-hooks/exhaustive-deps`, place `eslint-disable-next-line` directly above the hook's dependency array (or use `eslint-disable-line` on the same line as `[]`), not inside the callback body.
+
+## 2026-05-08 - Avoid Date.now in React Render for Trial Countdown
+
+**What happened:** ESLint React purity (`react-hooks/purity`) flagged `Date.now()` used during `DashboardLayout` render to decide whether to show the “trial ends in 3 days” banner.
+
+**Fix used:** Hold “current time” in React state initialized once, refresh with `setInterval` every 60s so comparisons stay deterministic within render.
+
+**Prevention rule:** For countdown UI driven off wall-clock time, use state/effects, `useSyncExternalStore`, or a ticking clock hook — not bare `Date.now()` in the component body.

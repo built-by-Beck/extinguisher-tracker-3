@@ -14,6 +14,11 @@ import type { NfpaEdition } from '../types/organization.ts';
 import { APP_KNOWLEDGE_BASE } from '../lib/aiKnowledgeBase.ts';
 import { parseAiMemoryIntent } from './aiQueryIntentService.ts';
 import { queryAiMemoryCall } from './aiQueryService.ts';
+import { parseAiExtinguisherStatusChangeIntent } from './aiStatusChangeIntentService.ts';
+import {
+  updateExtinguisherStatus,
+  type UpdateExtinguisherStatusResult,
+} from './lifecycleService.ts';
 import type {
   AiMemoryExpiringExtinguisher,
   AiMemoryInspectionStatusMatch,
@@ -60,7 +65,10 @@ export interface AiImageAttachment {
   size?: number;
 }
 
-function formatNfpaReference(edition?: NfpaEdition, customLabel?: string): string {
+function formatNfpaReference(
+  edition?: NfpaEdition,
+  customLabel?: string,
+): string {
   if (edition === 'other') {
     return customLabel?.trim() || 'Other / AHJ-specific NFPA 10 reference';
   }
@@ -84,11 +92,44 @@ export async function askAssistant(
     nfpaEdition?: NfpaEdition;
     nfpaEditionLabel?: string;
     localComplianceNotes?: string;
+    /** Owner/admin: allows deterministic extinguisher status updates from chat. */
+    canMutateInventory?: boolean;
   },
 ): Promise<string> {
   const lastMessage = messages[messages.length - 1];
   const latestImageAttachments = lastMessage.imageAttachments ?? [];
   const hasImageAttachment = latestImageAttachments.length > 0;
+
+  const orgIdForStatus =
+    context?.orgId && context?.canMutateInventory && !hasImageAttachment
+      ? context.orgId
+      : null;
+  const statusChangeIntent = orgIdForStatus
+    ? parseAiExtinguisherStatusChangeIntent(lastMessage.content)
+    : null;
+  if (statusChangeIntent && orgIdForStatus) {
+    try {
+      const result = await updateExtinguisherStatus(orgIdForStatus, {
+        extinguisherId: statusChangeIntent.extinguisherId,
+        assetId: statusChangeIntent.assetId,
+        newStatus: statusChangeIntent.newStatus,
+        reason: 'AI assistant user request',
+      });
+      return formatAiStatusChangeResponse(result);
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' &&
+              err &&
+              'message' in err &&
+              typeof (err as { message: unknown }).message === 'string'
+            ? (err as { message: string }).message
+            : 'Could not update extinguisher status.';
+      return `I could not update the extinguisher status: **${msg}**\n\nIf this is a permissions issue, only **owners** and **admins** can change lifecycle status. You can also change status from the extinguisher detail page.`;
+    }
+  }
+
   const intent = parseAiMemoryIntent(lastMessage.content);
   if (context?.orgId && intent && !hasImageAttachment) {
     try {
@@ -96,7 +137,10 @@ export async function askAssistant(
       return formatDeterministicMemoryResponse(result);
     } catch (err) {
       // Continue to conversational fallback on deterministic query failures.
-      console.warn('Deterministic memory query failed. Falling back to Gemini.', err);
+      console.warn(
+        'Deterministic memory query failed. Falling back to Gemini.',
+        err,
+      );
     }
   }
 
@@ -107,12 +151,18 @@ export async function askAssistant(
     if (context.orgName) {
       parts.push(`Organization: ${context.orgName}`);
     }
-    parts.push(`Selected compliance reference: ${formatNfpaReference(context.nfpaEdition, context.nfpaEditionLabel)}`);
+    parts.push(
+      `Selected compliance reference: ${formatNfpaReference(context.nfpaEdition, context.nfpaEditionLabel)}`,
+    );
     if (context.localComplianceNotes?.trim()) {
-      parts.push(`Local AHJ / internal policy notes: ${context.localComplianceNotes.trim()}`);
+      parts.push(
+        `Local AHJ / internal policy notes: ${context.localComplianceNotes.trim()}`,
+      );
     }
     if (context.complianceSummary) {
-      parts.push(`Compliance Summary: ${JSON.stringify(context.complianceSummary)}`);
+      parts.push(
+        `Compliance Summary: ${JSON.stringify(context.complianceSummary)}`,
+      );
     }
     if (context.activeWorkspaceId || context.activeWorkspaceLabel) {
       parts.push(
@@ -125,7 +175,8 @@ export async function askAssistant(
         assetId: e.assetId,
         serial: e.serial,
         parentLocation: e.parentLocation,
-        locationName: (e as Extinguisher & { locationName?: string }).locationName,
+        locationName: (e as Extinguisher & { locationName?: string })
+          .locationName,
         vicinity: e.vicinity,
         category: e.category,
         extinguisherType: e.extinguisherType,
@@ -143,7 +194,9 @@ export async function askAssistant(
         nextHydroTest: e.nextHydroTest,
         manufactureDate: e.manufactureDate,
       }));
-      parts.push(`Inventory (${context.extinguishers.length} total, showing first ${summary.length}):\n${JSON.stringify(summary, null, 2)}`);
+      parts.push(
+        `Inventory (${context.extinguishers.length} total, showing first ${summary.length}):\n${JSON.stringify(summary, null, 2)}`,
+      );
     }
     if (context.inspections && context.inspections.length > 0) {
       const inspectionSummary = context.inspections.slice(0, 300).map((i) => ({
@@ -168,12 +221,14 @@ export async function askAssistant(
       );
     }
     if (context.sectionNotes && Object.keys(context.sectionNotes).length > 0) {
-      const notesSummary = Object.entries(context.sectionNotes).map(([section, value]) => ({
-        section,
-        notes: value.notes,
-        saveForNextMonth: value.saveForNextMonth,
-        lastUpdated: value.lastUpdated,
-      }));
+      const notesSummary = Object.entries(context.sectionNotes).map(
+        ([section, value]) => ({
+          section,
+          notes: value.notes,
+          saveForNextMonth: value.saveForNextMonth,
+          lastUpdated: value.lastUpdated,
+        }),
+      );
       parts.push(
         `Section notes context (${notesSummary.length} total):\n${JSON.stringify(notesSummary, null, 2)}`,
       );
@@ -188,14 +243,21 @@ export async function askAssistant(
 
   // Convert message history to Gemini content format
   const history = messages.slice(0, -1).map((m) => ({
-    role: m.role === 'user' ? 'user' as const : 'model' as const,
+    role: m.role === 'user' ? ('user' as const) : ('model' as const),
     parts: [{ text: m.content }],
   }));
 
   const chat = geminiModel.startChat({
     history: [
       { role: 'user', parts: [{ text: 'System context: ' + fullPrompt }] },
-      { role: 'model', parts: [{ text: 'Understood. I\'m the ExtinguisherTracker AI Assistant by Beck-Publishing. I\'m ready to help with NFPA 10 compliance, inspection guidance, and inventory analysis. How can I help?' }] },
+      {
+        role: 'model',
+        parts: [
+          {
+            text: "Understood. I'm the ExtinguisherTracker AI Assistant by Beck-Publishing. I'm ready to help with NFPA 10 compliance, inspection guidance, and inventory analysis. How can I help?",
+          },
+        ],
+      },
       ...history,
     ],
   });
@@ -222,7 +284,21 @@ export async function askAssistant(
   return result.response.text();
 }
 
-function formatDeterministicMemoryResponse(result: AiMemoryQueryResponse): string {
+function formatAiStatusChangeResponse(result: UpdateExtinguisherStatusResult): string {
+  const label = result.newStatus.replace(/_/g, ' ');
+  if (result.unchanged) {
+    return `**${result.assetId || result.extinguisherId}** is already **${label}** — no database change was needed.`;
+  }
+  return [
+    `Updated extinguisher **${result.assetId || '(no asset #)'}** (record id \`${result.extinguisherId}\`) to **${label}**.`,
+    '',
+    'If due dates or compliance look wrong after this correction, open the extinguisher in Inventory and use **Edit** → save, or ask an admin to run lifecycle recalculation from the app.',
+  ].join('\n');
+}
+
+function formatDeterministicMemoryResponse(
+  result: AiMemoryQueryResponse,
+): string {
   const filters = Object.entries(result.appliedFilters)
     .map(([k, v]) => `- ${k}: ${v === null ? 'none' : String(v)}`)
     .join('\n');
@@ -231,13 +307,25 @@ function formatDeterministicMemoryResponse(result: AiMemoryQueryResponse): strin
     return formatNotesResult(result.count, filters, result.notes ?? []);
   }
   if (result.intentType === 'list_expiring_by_year') {
-    return formatExpiringResult(result.count, filters, result.expiringExtinguishers ?? []);
+    return formatExpiringResult(
+      result.count,
+      filters,
+      result.expiringExtinguishers ?? [],
+    );
   }
   if (result.intentType === 'list_marked_expired') {
-    return formatMarkedExpiredResult(result.count, filters, result.expiredExtinguishers ?? []);
+    return formatMarkedExpiredResult(
+      result.count,
+      filters,
+      result.expiredExtinguishers ?? [],
+    );
   }
   if (result.intentType === 'list_expired_candidates') {
-    return formatExpiredCandidatesResult(result.count, filters, result.expiredCandidateExtinguishers ?? []);
+    return formatExpiredCandidatesResult(
+      result.count,
+      filters,
+      result.expiredCandidateExtinguishers ?? [],
+    );
   }
   if (result.intentType === 'get_extinguisher_inspection_status') {
     return formatInspectionStatusResult(
@@ -246,12 +334,22 @@ function formatDeterministicMemoryResponse(result: AiMemoryQueryResponse): strin
       result.inspectionStatusMatches ?? [],
     );
   }
-  return formatReplacementResult(result.count, filters, result.replacementEvents ?? []);
+  return formatReplacementResult(
+    result.count,
+    filters,
+    result.replacementEvents ?? [],
+  );
 }
 
-function formatNotesResult(count: number, filters: string, notes: AiMemoryNoteResult[]): string {
+function formatNotesResult(
+  count: number,
+  filters: string,
+  notes: AiMemoryNoteResult[],
+): string {
   const items = notes.slice(0, 10).map((note) => {
-    const created = note.createdAt ? new Date(note.createdAt).toLocaleDateString() : 'unknown date';
+    const created = note.createdAt
+      ? new Date(note.createdAt).toLocaleDateString()
+      : 'unknown date';
     return `- ${created} | ${note.status} | ${note.content}`;
   });
 
@@ -262,7 +360,9 @@ function formatNotesResult(count: number, filters: string, notes: AiMemoryNoteRe
     '**Applied filters**',
     filters,
     '',
-    items.length > 0 ? '**Top matches**' : '**Top matches**\n- No notes matched this filter window.',
+    items.length > 0
+      ? '**Top matches**'
+      : '**Top matches**\n- No notes matched this filter window.',
     ...items,
     '',
     '_If you meant a different month or only open/resolved notes, tell me and I will rerun it._',
@@ -271,15 +371,26 @@ function formatNotesResult(count: number, filters: string, notes: AiMemoryNoteRe
 
 type FinderDetails = Pick<
   AiMemoryExpiringExtinguisher,
-  'assetId' | 'serial' | 'parentLocation' | 'locationName' | 'section' | 'vicinity'
+  | 'assetId'
+  | 'serial'
+  | 'parentLocation'
+  | 'locationName'
+  | 'section'
+  | 'vicinity'
 >;
 
-function displayField(value: string | null | undefined, fallback = '--'): string {
+function displayField(
+  value: string | null | undefined,
+  fallback = '--',
+): string {
   return value?.trim() || fallback;
 }
 
 function formatFinderDetails(row: FinderDetails): string {
-  const location = displayField(row.parentLocation || row.locationName, 'unassigned');
+  const location = displayField(
+    row.parentLocation || row.locationName,
+    'unassigned',
+  );
   return [
     `asset number: ${displayField(row.assetId)}`,
     `serial number: ${displayField(row.serial, 'no serial')}`,
@@ -305,7 +416,9 @@ function formatExpiringResult(
     '**Applied filters**',
     filters,
     '',
-    items.length > 0 ? '**Top matches**' : '**Top matches**\n- No extinguishers matched this year.',
+    items.length > 0
+      ? '**Top matches**'
+      : '**Top matches**\n- No extinguishers matched this year.',
     ...items,
     '',
     '_If you want this grouped by location or exported, ask and I can format it._',
@@ -318,8 +431,10 @@ function formatMarkedExpiredResult(
   extinguishers: AiMemoryExpiringExtinguisher[],
 ): string {
   const items = extinguishers.map((ext) => {
-    const mfg = ext.manufactureYear != null ? ` | mfg: ${ext.manufactureYear}` : '';
-    const exp = ext.expirationYear != null ? ` | exp: ${ext.expirationYear}` : '';
+    const mfg =
+      ext.manufactureYear != null ? ` | mfg: ${ext.manufactureYear}` : '';
+    const exp =
+      ext.expirationYear != null ? ` | exp: ${ext.expirationYear}` : '';
     return `- ${formatFinderDetails(ext)}${mfg}${exp}`;
   });
 
@@ -330,7 +445,9 @@ function formatMarkedExpiredResult(
     '**Applied filters**',
     filters,
     '',
-    items.length > 0 ? '**Printable list**' : '**Printable list**\n- No extinguishers are marked expired.',
+    items.length > 0
+      ? '**Printable list**'
+      : '**Printable list**\n- No extinguishers are marked expired.',
     ...items,
     '',
     '_This official replacement list only includes units where the expired checkbox has been saved. Possible candidates are separate; ask for possible expired candidates if you want that advisory list too._',
@@ -353,7 +470,9 @@ function formatExpiredCandidatesResult(
     '**Applied filters**',
     filters,
     '',
-    items.length > 0 ? '**Candidate list**' : '**Candidate list**\n- No possible candidates matched this rule.',
+    items.length > 0
+      ? '**Candidate list**'
+      : '**Candidate list**\n- No possible candidates matched this rule.',
     ...items,
     '',
     '_This is not the official expired list. It is only a follow-up list to help catch units someone may have forgotten to mark expired._',
@@ -366,7 +485,9 @@ function formatReplacementResult(
   replacementEvents: AiMemoryReplacementEvent[],
 ): string {
   const items = replacementEvents.slice(0, 20).map((event) => {
-    const date = event.performedAt ? new Date(event.performedAt).toLocaleDateString() : 'unknown date';
+    const date = event.performedAt
+      ? new Date(event.performedAt).toLocaleDateString()
+      : 'unknown date';
     const oldAsset = event.oldAssetId ?? 'unknown old asset';
     const newAsset = event.newAssetId ?? 'unknown new asset';
     return `- ${date} | ${oldAsset} -> ${newAsset}`;
@@ -379,7 +500,9 @@ function formatReplacementResult(
     '**Applied filters**',
     filters,
     '',
-    items.length > 0 ? '**Recent replacement events**' : '**Recent replacement events**\n- No replacements were logged in this window.',
+    items.length > 0
+      ? '**Recent replacement events**'
+      : '**Recent replacement events**\n- No replacements were logged in this window.',
     ...items,
     '',
     '_If you want only one building/section, ask with that location and month._',
@@ -393,7 +516,9 @@ function formatInspectionStatusResult(
 ): string {
   const items = matches.slice(0, 20).map((row) => {
     const checked =
-      row.status === 'pending' ? 'Not yet inspected' : `Checked (${row.status.toUpperCase()})`;
+      row.status === 'pending'
+        ? 'Not yet inspected'
+        : `Checked (${row.status.toUpperCase()})`;
     const inspectedWhen = row.inspectedAt
       ? new Date(row.inspectedAt).toLocaleString()
       : 'not inspected yet';
@@ -429,6 +554,8 @@ ${JSON.stringify(complianceSummary, null, 2)}
 Provide a brief 2-3 sentence insight about the organization's compliance health.
 Focus on the most urgent items. Be direct and actionable. No markdown headers.`;
 
-  const result = await geminiModel.generateContent(SYSTEM_PROMPT + '\n\n' + prompt);
+  const result = await geminiModel.generateContent(
+    SYSTEM_PROMPT + '\n\n' + prompt,
+  );
   return result.response.text();
 }

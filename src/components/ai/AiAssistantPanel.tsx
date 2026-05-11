@@ -7,9 +7,23 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, Loader2, Sparkles, Trash2, NotebookPen, Camera, FolderOpen } from 'lucide-react';
+import {
+  Bot,
+  X,
+  Send,
+  Loader2,
+  Sparkles,
+  Trash2,
+  NotebookPen,
+  Camera,
+  FolderOpen,
+} from 'lucide-react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { askAssistant, type AiImageAttachment, type AiMessage } from '../../services/aiService.ts';
+import {
+  askAssistant,
+  type AiImageAttachment,
+  type AiMessage,
+} from '../../services/aiService.ts';
 import {
   createAiNoteCall,
   subscribeToAiNotes,
@@ -22,7 +36,10 @@ import type { Extinguisher } from '../../services/extinguisherService.ts';
 import type { AiNote, AiNoteStatus } from '../../types/aiNote.ts';
 import type { NfpaEdition } from '../../types/organization.ts';
 import type { Workspace } from '../../services/workspaceService.ts';
-import { subscribeToInspections, type Inspection } from '../../services/inspectionService.ts';
+import {
+  subscribeToInspections,
+  type Inspection,
+} from '../../services/inspectionService.ts';
 import { subscribeToSectionNotes } from '../../services/sectionNotesService.ts';
 import type { SectionNotesMap } from '../../services/workspaceService.ts';
 
@@ -37,10 +54,17 @@ interface SelectedAiImage {
 }
 
 const AI_IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp';
-const AI_IMAGE_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const AI_IMAGE_ALLOWED_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
 const AI_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
 
-function formatNfpaReference(edition?: NfpaEdition, customLabel?: string): string {
+function formatNfpaReference(
+  edition?: NfpaEdition,
+  customLabel?: string,
+): string {
   if (edition === 'other') {
     return customLabel?.trim() || 'our AHJ-specific NFPA reference';
   }
@@ -75,8 +99,12 @@ function extractNoteContent(message: string): string | null {
   return content || null;
 }
 
-function buildComplianceSummary(extinguishers: Extinguisher[]): Record<string, number> {
-  const activeExts = extinguishers.filter((e) => e.lifecycleStatus === 'active');
+function buildComplianceSummary(
+  extinguishers: Extinguisher[],
+): Record<string, number> {
+  const activeExts = extinguishers.filter(
+    (e) => e.lifecycleStatus === 'active',
+  );
   const summary: Record<string, number> = {
     total: activeExts.length,
     compliant: 0,
@@ -110,12 +138,16 @@ function fileToBase64(file: Blob): Promise<string> {
       const [, base64 = ''] = result.split(',');
       resolve(base64);
     };
-    reader.onerror = () => reject(new Error('Could not read the selected image.'));
+    reader.onerror = () =>
+      reject(new Error('Could not read the selected image.'));
     reader.readAsDataURL(file);
   });
 }
 
-export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssistantPanelProps) {
+export function AiAssistantPanel({
+  extinguishers,
+  complianceSummary,
+}: AiAssistantPanelProps) {
   const { org, hasRole } = useOrg();
   const { user, userProfile } = useAuth();
   const orgId = userProfile?.activeOrgId ?? '';
@@ -126,12 +158,18 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orgExtinguishers, setOrgExtinguishers] = useState<Extinguisher[]>([]);
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
-  const [activeWorkspaceInspections, setActiveWorkspaceInspections] = useState<Inspection[]>([]);
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(
+    null,
+  );
+  const [activeWorkspaceInspections, setActiveWorkspaceInspections] = useState<
+    Inspection[]
+  >([]);
   const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
   const [notes, setNotes] = useState<AiNote[]>([]);
   const [noteBusyId, setNoteBusyId] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<SelectedAiImage | null>(null);
+  const [selectedImage, setSelectedImage] = useState<SelectedAiImage | null>(
+    null,
+  );
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraStarting, setCameraStarting] = useState(false);
 
@@ -151,7 +189,9 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
     );
 
     return onSnapshot(q, (snap) => {
-      const exts = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Extinguisher));
+      const exts = snap.docs.map(
+        (d) => ({ id: d.id, ...d.data() }) as Extinguisher,
+      );
       setOrgExtinguishers(exts);
     });
   }, [extinguishers, orgId]);
@@ -180,7 +220,10 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
       setActiveWorkspace(null);
       return;
     }
-    const q = query(collection(db, 'org', orgId, 'workspaces'), where('status', '==', 'active'));
+    const q = query(
+      collection(db, 'org', orgId, 'workspaces'),
+      where('status', '==', 'active'),
+    );
     return onSnapshot(
       q,
       (snap) => {
@@ -189,8 +232,10 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
           return;
         }
         const latest = snap.docs
-          .map((d) => ({ id: d.id, ...d.data() } as Workspace))
-          .sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0];
+          .map((d) => ({ id: d.id, ...d.data() }) as Workspace)
+          .sort((a, b) =>
+            (b.monthYear ?? '').localeCompare(a.monthYear ?? ''),
+          )[0];
         setActiveWorkspace(latest ?? null);
       },
       () => setActiveWorkspace(null),
@@ -202,7 +247,11 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
       setActiveWorkspaceInspections([]);
       return;
     }
-    return subscribeToInspections(orgId, activeWorkspace.id, setActiveWorkspaceInspections);
+    return subscribeToInspections(
+      orgId,
+      activeWorkspace.id,
+      setActiveWorkspaceInspections,
+    );
   }, [orgId, activeWorkspace?.id]);
 
   useEffect(() => {
@@ -213,7 +262,10 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
     return subscribeToSectionNotes(orgId, user.uid, setSectionNotes);
   }, [orgId, user?.uid]);
 
-  async function saveNoteFromText(content: string, source: 'manual' | 'ai_suggested' = 'manual') {
+  async function saveNoteFromText(
+    content: string,
+    source: 'manual' | 'ai_suggested' = 'manual',
+  ) {
     if (!orgId) return;
     try {
       await createAiNoteCall({ orgId, content, source });
@@ -229,7 +281,8 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
     try {
       await updateAiNoteStatusCall({ orgId, noteId, status });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to update note status';
+      const msg =
+        err instanceof Error ? err.message : 'Failed to update note status';
       setError(msg);
     } finally {
       setNoteBusyId(null);
@@ -263,7 +316,9 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
 
     videoRef.current.srcObject = cameraStreamRef.current;
     void videoRef.current.play().catch(() => {
-      setError('Camera started, but the preview could not play. Try using file upload instead.');
+      setError(
+        'Camera started, but the preview could not play. Try using file upload instead.',
+      );
     });
   }, [cameraOpen]);
 
@@ -286,14 +341,19 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
       return;
     }
     if (file.size > AI_IMAGE_MAX_BYTES) {
-      setError(`Please choose an image smaller than ${formatBytes(AI_IMAGE_MAX_BYTES)}.`);
+      setError(
+        `Please choose an image smaller than ${formatBytes(AI_IMAGE_MAX_BYTES)}.`,
+      );
       return;
     }
 
     try {
       await setTemporaryImage(file, file.name);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not read the selected image.';
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'Could not read the selected image.';
       setError(msg);
     }
   }
@@ -327,7 +387,9 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
   async function startCamera() {
     setError(null);
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError('This browser does not support live camera capture. Use file upload instead.');
+      setError(
+        'This browser does not support live camera capture. Use file upload instead.',
+      );
       return;
     }
 
@@ -341,9 +403,10 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
       cameraStreamRef.current = stream;
       setCameraOpen(true);
     } catch (err) {
-      const msg = err instanceof Error && err.name === 'NotAllowedError'
-        ? 'Camera permission was denied. Allow camera access or use file upload instead.'
-        : 'Could not open the camera. Use file upload instead.';
+      const msg =
+        err instanceof Error && err.name === 'NotAllowedError'
+          ? 'Camera permission was denied. Allow camera access or use file upload instead.'
+          : 'Could not open the camera. Use file upload instead.';
       setError(msg);
     } finally {
       setCameraStarting(false);
@@ -375,7 +438,9 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
       return;
     }
     if (blob.size > AI_IMAGE_MAX_BYTES) {
-      setError(`Captured photo is larger than ${formatBytes(AI_IMAGE_MAX_BYTES)}. Try file upload with a smaller image.`);
+      setError(
+        `Captured photo is larger than ${formatBytes(AI_IMAGE_MAX_BYTES)}. Try file upload with a smaller image.`,
+      );
       return;
     }
 
@@ -439,8 +504,12 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
         nfpaEdition: org?.settings?.nfpaEdition,
         nfpaEditionLabel: org?.settings?.nfpaEditionLabel,
         localComplianceNotes: org?.settings?.localComplianceNotes,
+        canMutateInventory: hasRole(['owner', 'admin']),
       });
-      setMessages([...updatedMessages, { role: 'assistant', content: response }]);
+      setMessages([
+        ...updatedMessages,
+        { role: 'assistant', content: response },
+      ]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'AI request failed';
       setError(msg);
@@ -475,7 +544,9 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5 text-red-600" />
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">AI Assistant</h3>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  AI Assistant
+                </h3>
                 <p className="text-xs text-gray-500">
                   {nfpaReference} compliance help for Pro, Elite, and Enterprise
                 </p>
@@ -515,16 +586,26 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                 </div>
                 <div className="space-y-2">
                   {notes.slice(0, 3).map((note) => (
-                    <div key={note.id} className="rounded border border-gray-200 bg-white p-2">
-                      <p className="text-xs text-gray-700 line-clamp-2">{note.content}</p>
+                    <div
+                      key={note.id}
+                      className="rounded border border-gray-200 bg-white p-2"
+                    >
+                      <p className="text-xs text-gray-700 line-clamp-2">
+                        {note.content}
+                      </p>
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-[10px] text-gray-500">Status</span>
+                        <span className="text-[10px] text-gray-500">
+                          Status
+                        </span>
                         <select
                           aria-label={`Status for note ${note.id}`}
                           value={note.status}
                           disabled={!canManageNotes || noteBusyId === note.id}
                           onChange={(e) =>
-                            void handleNoteStatusChange(note.id, e.target.value as AiNoteStatus)
+                            void handleNoteStatusChange(
+                              note.id,
+                              e.target.value as AiNoteStatus,
+                            )
                           }
                           className="rounded border border-gray-300 px-1.5 py-0.5 text-[10px] text-gray-700 disabled:opacity-60"
                         >
@@ -547,16 +628,20 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                     Hi{user?.displayName ? `, ${user.displayName}` : ''}!
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
-                    Ask me about NFPA 10 compliance, your inventory, or inspection schedules.
+                    Ask me about NFPA 10 compliance, your inventory, or
+                    inspection schedules.
                   </p>
                   <p className="mt-2 text-[11px] text-gray-400">
-                    How to use AI: your org reference is {nfpaReference}. Ask for overdue inspections,
-                    maintenance dates, section notes,
-                    route pace guidance, marked expired units, or possible expired candidates.
+                    How to use AI: your org reference is {nfpaReference}. Ask
+                    for overdue inspections, maintenance dates, section notes,
+                    route pace guidance, marked expired units, or possible
+                    expired candidates.
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-gray-400 uppercase">Try asking</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase">
+                    Try asking
+                  </p>
                   {suggestedPrompts.map((prompt) => (
                     <button
                       key={prompt}
@@ -583,15 +668,24 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                   }`}
                 >
                   {msg.imageAttachments?.map((image, imageIndex) => (
-                    <div key={`${image.name ?? 'image'}-${imageIndex}`} className="mb-2">
+                    <div
+                      key={`${image.name ?? 'image'}-${imageIndex}`}
+                      className="mb-2"
+                    >
                       <img
                         src={`data:${image.mimeType};base64,${image.data}`}
-                        alt={image.name ? `Attached ${image.name}` : 'Attached image'}
+                        alt={
+                          image.name
+                            ? `Attached ${image.name}`
+                            : 'Attached image'
+                        }
                         className="max-h-32 rounded-md border border-white/30 object-cover"
                       />
                     </div>
                   ))}
-                  <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                  <div className="whitespace-pre-wrap break-words">
+                    {msg.content}
+                  </div>
                   {msg.role === 'user' && canManageNotes && (
                     <button
                       type="button"
@@ -670,7 +764,8 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                     {selectedImage.attachment.name ?? 'Attached image'}
                   </p>
                   <p className="text-[10px] text-gray-500">
-                    Temporary photo, not saved. {selectedImage.attachment.size
+                    Temporary photo, not saved.{' '}
+                    {selectedImage.attachment.size
                       ? formatBytes(selectedImage.attachment.size)
                       : ''}
                   </p>
@@ -687,7 +782,10 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
               </div>
             )}
             <form
-              onSubmit={(e) => { e.preventDefault(); void handleSend(); }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleSend();
+              }}
               className="flex items-center gap-2"
             >
               <input
@@ -708,14 +806,22 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
                 aria-label="Open camera"
                 title="Open camera"
               >
-                {cameraStarting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                {cameraStarting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4" />
+                )}
               </button>
               <button
                 type="button"
                 onClick={() => imageInputRef.current?.click()}
                 disabled={loading || cameraStarting}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label={selectedImage ? 'Change uploaded photo' : 'Upload photo from files'}
+                aria-label={
+                  selectedImage
+                    ? 'Change uploaded photo'
+                    : 'Upload photo from files'
+                }
                 title={selectedImage ? 'Change uploaded photo' : 'Upload photo'}
               >
                 <FolderOpen className="h-4 w-4" />
@@ -739,7 +845,8 @@ export function AiAssistantPanel({ extinguishers, complianceSummary }: AiAssista
               </button>
             </form>
             <p className="mt-1.5 text-center text-[10px] text-gray-400">
-              Pro+ AI can answer text or one temporary photo question. Reference: {nfpaReference}.
+              Pro+ AI can answer text or one temporary photo question.
+              Reference: {nfpaReference}.
             </p>
           </div>
         </div>

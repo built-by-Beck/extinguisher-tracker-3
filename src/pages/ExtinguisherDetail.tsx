@@ -59,7 +59,10 @@ import {
   getWorkspace,
   type Workspace,
 } from '../services/workspaceService.ts';
-import { subscribeToLocations, type Location } from '../services/locationService.ts';
+import {
+  subscribeToLocations,
+  type Location,
+} from '../services/locationService.ts';
 import { useSectionTimer } from '../hooks/useSectionTimer.ts';
 import { resolveSectionTimerKey } from '../utils/sectionTimerKey.ts';
 import { InspectionPanel } from '../components/inspection/InspectionPanel.tsx';
@@ -67,18 +70,32 @@ import { WorkspaceInspectionSummaryCards } from '../components/workspace/Workspa
 import { ReplaceExtinguisherModal } from '../components/extinguisher/ReplaceExtinguisherModal.tsx';
 import { PromptModal } from '../components/ui/PromptModal.tsx';
 import { softDeleteExtinguisher } from '../services/extinguisherService.ts';
+import {
+  updateExtinguisherStatus,
+  recalculateLifecycle,
+} from '../services/lifecycleService.ts';
+import {
+  EXTINGUISHER_LIFECYCLE_STATUS_OPTIONS,
+  getExtinguisherLifecycleFormValue,
+  type ExtinguisherLifecycleStatusValue,
+} from '../lib/extinguisherLifecycleStatus.ts';
 import { getComplianceLabel } from '../utils/compliance.ts';
 
 function formatTimestamp(ts: unknown): string {
   if (!ts) return '--';
   try {
     const maybeTs = ts as { toDate?: () => Date; seconds?: number };
-    const date = typeof maybeTs.toDate === 'function'
-      ? maybeTs.toDate()
-      : maybeTs.seconds
-        ? new Date(maybeTs.seconds * 1000)
-        : new Date(ts as string);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const date =
+      typeof maybeTs.toDate === 'function'
+        ? maybeTs.toDate()
+        : maybeTs.seconds
+          ? new Date(maybeTs.seconds * 1000)
+          : new Date(ts as string);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   } catch {
     return '--';
   }
@@ -102,7 +119,9 @@ function InfoRow({ label, value }: InfoRowProps) {
   return (
     <div className="flex items-start justify-between gap-4 py-2 border-b border-gray-50 last:border-0">
       <span className="text-sm text-gray-500 shrink-0">{label}</span>
-      <span className="text-sm font-medium text-gray-900 text-right">{value || '--'}</span>
+      <span className="text-sm font-medium text-gray-900 text-right">
+        {value || '--'}
+      </span>
     </div>
   );
 }
@@ -110,7 +129,10 @@ function InfoRow({ label, value }: InfoRowProps) {
 export default function ExtinguisherDetail() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { extId, workspaceId } = useParams<{ extId: string; workspaceId?: string }>();
+  const { extId, workspaceId } = useParams<{
+    extId: string;
+    workspaceId?: string;
+  }>();
   const { user, userProfile } = useAuth();
   const { org, hasRole } = useOrg();
   const { isOnline } = useOffline();
@@ -119,8 +141,13 @@ export default function ExtinguisherDetail() {
   const canInspect = hasRole(['owner', 'admin', 'inspector']);
   const canReset = hasRole(['owner', 'admin']);
   const canEdit = hasRole(['owner', 'admin']);
-  const stateReturnTo = (location.state as { returnTo?: string } | null)?.returnTo;
-  const returnTo = stateReturnTo || (workspaceId ? `/dashboard/workspaces/${workspaceId}` : '/dashboard/inventory');
+  const stateReturnTo = (location.state as { returnTo?: string } | null)
+    ?.returnTo;
+  const returnTo =
+    stateReturnTo ||
+    (workspaceId
+      ? `/dashboard/workspaces/${workspaceId}`
+      : '/dashboard/inventory');
 
   // State for extinguisher data
   const [ext, setExt] = useState<Extinguisher | null>(null);
@@ -129,12 +156,20 @@ export default function ExtinguisherDetail() {
   const [restoring, setRestoring] = useState(false);
 
   // State for current inspection
-  const [inspection, setInspection] = useState<Inspection | null | undefined>(undefined);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
-  const [workspaceContext, setWorkspaceContext] = useState<Workspace | null>(null);
+  const [inspection, setInspection] = useState<Inspection | null | undefined>(
+    undefined,
+  );
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
+    null,
+  );
+  const [workspaceContext, setWorkspaceContext] = useState<Workspace | null>(
+    null,
+  );
   const [noActiveWorkspace, setNoActiveWorkspace] = useState(false);
   const [addingToChecklist, setAddingToChecklist] = useState(false);
-  const [addToChecklistError, setAddToChecklistError] = useState<string | null>(null);
+  const [addToChecklistError, setAddToChecklistError] = useState<string | null>(
+    null,
+  );
 
   const {
     activeSection: timerActiveSection,
@@ -157,9 +192,20 @@ export default function ExtinguisherDetail() {
   // Inspection history
   const [history, setHistory] = useState<Inspection[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
-  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(
+    null,
+  );
   const [locations, setLocations] = useState<Location[]>([]);
-  const [replacementHistoryRows, setReplacementHistoryRows] = useState<ReplacementHistoryRow[]>([]);
+  const [replacementHistoryRows, setReplacementHistoryRows] = useState<
+    ReplacementHistoryRow[]
+  >([]);
+
+  const [statusDraft, setStatusDraft] =
+    useState<ExtinguisherLifecycleStatusValue>('active');
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(
+    null,
+  );
 
   // Load extinguisher
   useEffect(() => {
@@ -183,8 +229,18 @@ export default function ExtinguisherDetail() {
       setReplacementHistoryRows([]);
       return;
     }
-    return subscribeToReplacementHistory(orgId, extId, setReplacementHistoryRows);
+    return subscribeToReplacementHistory(
+      orgId,
+      extId,
+      setReplacementHistoryRows,
+    );
   }, [orgId, extId]);
+
+  useEffect(() => {
+    if (!ext) return;
+    setStatusDraft(getExtinguisherLifecycleFormValue(ext));
+    setStatusUpdateError(null);
+  }, [ext]);
 
   // Load inspection (and resolve workspace if needed). Missing rows are not auto-created:
   // owners/admins explicitly add new inventory to the month checklist.
@@ -218,7 +274,11 @@ export default function ExtinguisherDetail() {
 
     setActiveWorkspaceId(resolvedWsId);
     setWorkspaceContext(resolvedWorkspace);
-    const insp = await getInspectionForExtinguisherInWorkspace(orgId, extId, resolvedWsId);
+    const insp = await getInspectionForExtinguisherInWorkspace(
+      orgId,
+      extId,
+      resolvedWsId,
+    );
 
     setInspection(insp ?? null);
   }, [orgId, extId, workspaceId]);
@@ -246,8 +306,10 @@ export default function ExtinguisherDetail() {
     return subscribeToLocations(orgId, setLocations);
   }, [orgId]);
 
-  const isWorkspaceArchived = !!workspaceId && workspaceContext?.status === 'archived';
-  const isWorkspaceReadOnly = !!workspaceId && workspaceContext?.status !== 'active';
+  const isWorkspaceArchived =
+    !!workspaceId && workspaceContext?.status === 'archived';
+  const isWorkspaceReadOnly =
+    !!workspaceId && workspaceContext?.status !== 'active';
   const canInspectInContext = canInspect && !isWorkspaceReadOnly;
   const canResetInContext = canReset && !isWorkspaceReadOnly;
   const canEditInContext = canEdit && !isWorkspaceReadOnly;
@@ -257,6 +319,34 @@ export default function ExtinguisherDetail() {
     loadInspection().catch(() => setInspection(null));
     refreshHistory();
   }, [loadInspection, refreshHistory]);
+
+  async function handleApplyInventoryStatus() {
+    if (!orgId || !extId || !ext || isWorkspaceReadOnly) return;
+    setStatusSaving(true);
+    setStatusUpdateError(null);
+    try {
+      await updateExtinguisherStatus(orgId, {
+        extinguisherId: extId,
+        newStatus: statusDraft,
+        reason: 'Detail page inventory status correction',
+      });
+      if (statusDraft === 'active') {
+        try {
+          await recalculateLifecycle(orgId, extId);
+        } catch {
+          // Recalculation is optional if the record is still warming up.
+        }
+      }
+      const updated = await getExtinguisher(orgId, extId);
+      if (updated) setExt(updated);
+    } catch (err: unknown) {
+      setStatusUpdateError(
+        err instanceof Error ? err.message : 'Failed to update status.',
+      );
+    } finally {
+      setStatusSaving(false);
+    }
+  }
 
   async function handleRestore() {
     if (!orgId || !extId || isWorkspaceReadOnly) return;
@@ -283,7 +373,11 @@ export default function ExtinguisherDetail() {
         activeWorkspaceId &&
         ext &&
         canInspectInContext &&
-        hasFeature(org?.featureFlags as Record<string, boolean> | null | undefined, 'sectionTimeTracking', org?.plan)
+        hasFeature(
+          org?.featureFlags as Record<string, boolean> | null | undefined,
+          'sectionTimeTracking',
+          org?.plan,
+        )
       ) {
         const key = resolveSectionTimerKey(ext, locations, inspection ?? null);
         if (key) startTimer(key);
@@ -316,7 +410,8 @@ export default function ExtinguisherDetail() {
       // Reload inspection — workspace now exists and eligible inventory was seeded.
       await loadInspection();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create workspace.';
+      const msg =
+        err instanceof Error ? err.message : 'Failed to create workspace.';
       setWsCreateError(msg);
     } finally {
       setCreatingWorkspace(false);
@@ -328,10 +423,18 @@ export default function ExtinguisherDetail() {
     setAddingToChecklist(true);
     setAddToChecklistError(null);
     try {
-      await addExtinguisherToWorkspaceChecklistCall(orgId, extId, activeWorkspaceId);
+      await addExtinguisherToWorkspaceChecklistCall(
+        orgId,
+        extId,
+        activeWorkspaceId,
+      );
       await loadInspection();
     } catch (err: unknown) {
-      setAddToChecklistError(err instanceof Error ? err.message : 'Failed to add to this month checklist.');
+      setAddToChecklistError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to add to this month checklist.',
+      );
     } finally {
       setAddingToChecklist(false);
     }
@@ -364,12 +467,17 @@ export default function ExtinguisherDetail() {
   if (extError || !ext) {
     return (
       <div className="p-6">
-        <button onClick={handleBack} className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+        <button
+          onClick={handleBack}
+          className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+        >
           <ArrowLeft className="h-4 w-4" />
           Back
         </button>
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
-          <p className="text-sm text-red-700">{extError ?? 'Extinguisher not found.'}</p>
+          <p className="text-sm text-red-700">
+            {extError ?? 'Extinguisher not found.'}
+          </p>
         </div>
       </div>
     );
@@ -378,7 +486,10 @@ export default function ExtinguisherDetail() {
   const isDeleted = !!ext.deletedAt;
 
   const nowDate = new Date();
-  const currentMonthLabel = nowDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const currentMonthLabel = nowDate.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   return (
     <div className="mx-auto max-w-3xl p-6">
@@ -413,7 +524,8 @@ export default function ExtinguisherDetail() {
           <span className="font-semibold text-gray-900">
             {workspaceContext?.label ?? 'This workspace'} is archived.
           </span>{' '}
-          Historical records are read-only, so inspection, pass/fail, reset, and edit actions are disabled here.
+          Historical records are read-only, so inspection, pass/fail, reset, and
+          edit actions are disabled here.
         </div>
       )}
 
@@ -423,7 +535,9 @@ export default function ExtinguisherDetail() {
           <div className="flex items-center gap-2 text-sm text-red-700">
             <Trash2 className="h-4 w-4 shrink-0" />
             <span>
-              <span className="font-medium">This extinguisher has been deleted.</span>
+              <span className="font-medium">
+                This extinguisher has been deleted.
+              </span>
               {ext.deletionReason && <> Reason: {ext.deletionReason}</>}
             </span>
           </div>
@@ -442,15 +556,22 @@ export default function ExtinguisherDetail() {
 
       {/* Action buttons row */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {hasFeature(org?.featureFlags as Record<string, boolean> | null | undefined, 'tagPrinting', org?.plan) && extId && (
-          <button
-            onClick={() => navigate(`/dashboard/inventory/print-tags?ids=${extId}`)}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <Printer className="h-4 w-4" />
-            Print Tag
-          </button>
-        )}
+        {hasFeature(
+          org?.featureFlags as Record<string, boolean> | null | undefined,
+          'tagPrinting',
+          org?.plan,
+        ) &&
+          extId && (
+            <button
+              onClick={() =>
+                navigate(`/dashboard/inventory/print-tags?ids=${extId}`)
+              }
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Printer className="h-4 w-4" />
+              Print Tag
+            </button>
+          )}
         {canEditInContext && extId && !isDeleted && (
           <button
             onClick={() => setReplaceOpen(true)}
@@ -481,43 +602,111 @@ export default function ExtinguisherDetail() {
         )}
       </div>
 
+      {canEditInContext && extId && !isDeleted && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+          <h3 className="text-sm font-semibold text-gray-900">
+            Inventory status
+          </h3>
+          <p className="mt-1 text-xs text-gray-600">
+            Correct lifecycle flags when a unit was marked incorrectly (for
+            example <strong>Replaced</strong> while it is still the live asset).
+            Full retirement that removes active inspection rows uses the{' '}
+            <strong>Retire</strong> action from Edit. Owners and admins only.
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs font-medium text-gray-700">
+              Status
+              <select
+                value={statusDraft}
+                onChange={(e) =>
+                  setStatusDraft(e.target.value as ExtinguisherLifecycleStatusValue)
+                }
+                disabled={statusSaving}
+                className="min-w-[12rem] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+              >
+                {EXTINGUISHER_LIFECYCLE_STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => void handleApplyInventoryStatus()}
+              disabled={
+                statusSaving ||
+                getExtinguisherLifecycleFormValue(ext) === statusDraft
+              }
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {statusSaving ? 'Saving…' : 'Apply status'}
+            </button>
+          </div>
+          {statusUpdateError && (
+            <p className="mt-2 text-xs text-red-700">{statusUpdateError}</p>
+          )}
+        </div>
+      )}
+
       {/* ---- Asset Information Card ---- */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
         {/* Prominent Asset # and Serial # */}
         <div className="mb-4 grid grid-cols-2 gap-4">
           <div className="rounded-lg bg-gray-50 p-3 text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Asset #</p>
-            <p className="mt-0.5 text-2xl font-bold text-gray-900">{ext.assetId}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Asset #
+            </p>
+            <p className="mt-0.5 text-2xl font-bold text-gray-900">
+              {ext.assetId}
+            </p>
           </div>
           <div className="rounded-lg bg-red-50 p-3 text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Serial #</p>
-            <p className="mt-0.5 text-2xl font-bold text-red-700 break-all">{ext.serial || '--'}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-red-400">
+              Serial #
+            </p>
+            <p className="mt-0.5 text-2xl font-bold text-red-700 break-all">
+              {ext.serial || '--'}
+            </p>
           </div>
         </div>
 
         {/* Location fields */}
-        {(ext.parentLocation || ext.section || ext.vicinity || ext.locationId) && (
+        {(ext.parentLocation ||
+          ext.section ||
+          ext.vicinity ||
+          ext.locationId) && (
           <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/50 p-3">
             <div className="mb-1.5 flex items-center gap-1.5">
               <MapPin className="h-4 w-4 text-blue-500" />
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-500">Location</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-500">
+                Location
+              </p>
             </div>
             {ext.parentLocation && (
               <div className="flex items-start justify-between gap-4 py-1">
-                <span className="text-sm text-gray-500">Building / Parent Location</span>
-                <span className="text-sm font-medium text-gray-900 text-right">{ext.parentLocation}</span>
+                <span className="text-sm text-gray-500">
+                  Building / Parent Location
+                </span>
+                <span className="text-sm font-medium text-gray-900 text-right">
+                  {ext.parentLocation}
+                </span>
               </div>
             )}
             {ext.section && (
               <div className="flex items-start justify-between gap-4 py-1">
                 <span className="text-sm text-gray-500">Section / Floor</span>
-                <span className="text-sm font-medium text-gray-900 text-right">{ext.section}</span>
+                <span className="text-sm font-medium text-gray-900 text-right">
+                  {ext.section}
+                </span>
               </div>
             )}
             {ext.vicinity && (
               <div className="flex items-start justify-between gap-4 py-1">
                 <span className="text-sm text-gray-500">Vicinity</span>
-                <span className="text-sm font-medium text-gray-900 text-right">{ext.vicinity}</span>
+                <span className="text-sm font-medium text-gray-900 text-right">
+                  {ext.vicinity}
+                </span>
               </div>
             )}
           </div>
@@ -534,21 +723,27 @@ export default function ExtinguisherDetail() {
         </div>
 
         {/* NFPA maintenance schedule (Pass/Fail is only under Inspection below) */}
-        {(ext.complianceStatus || (ext.overdueFlags && ext.overdueFlags.length > 0)) && (
+        {(ext.complianceStatus ||
+          (ext.overdueFlags && ext.overdueFlags.length > 0)) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {ext.complianceStatus && (
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                ext.complianceStatus === 'compliant'
-                  ? 'bg-green-100 text-green-700'
-                  : ext.complianceStatus === 'overdue'
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-amber-100 text-amber-700'
-              }`}>
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  ext.complianceStatus === 'compliant'
+                    ? 'bg-green-100 text-green-700'
+                    : ext.complianceStatus === 'overdue'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-amber-100 text-amber-700'
+                }`}
+              >
                 {getComplianceLabel(ext.complianceStatus)}
               </span>
             )}
             {ext.overdueFlags?.map((flag) => (
-              <span key={flag} className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-600">
+              <span
+                key={flag}
+                className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-600"
+              >
                 {flag}
               </span>
             ))}
@@ -574,8 +769,10 @@ export default function ExtinguisherDetail() {
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline"
               >
-                NFPA 10 Section 7.2.2 — Inspection Procedures for Portable Fire Extinguishers
-              </a>.
+                NFPA 10 Section 7.2.2 — Inspection Procedures for Portable Fire
+                Extinguishers
+              </a>
+              .
             </p>
           </div>
 
@@ -588,7 +785,10 @@ export default function ExtinguisherDetail() {
             ) &&
             timerActiveSection && (
               <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                <Clock className="h-4 w-4 shrink-0 text-amber-700" aria-hidden />
+                <Clock
+                  className="h-4 w-4 shrink-0 text-amber-700"
+                  aria-hidden
+                />
                 <span className="font-medium">Section timer</span>
                 <span className="text-amber-800">{timerActiveSection}</span>
                 <span className="font-mono tabular-nums text-amber-900">
@@ -603,9 +803,12 @@ export default function ExtinguisherDetail() {
               <div className="flex items-start gap-3">
                 <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-blue-900">Start {currentMonthLabel} Inspections</p>
+                  <p className="text-sm font-semibold text-blue-900">
+                    Start {currentMonthLabel} Inspections
+                  </p>
                   <p className="mt-1 text-sm text-blue-700">
-                    Create this month&apos;s workspace to begin inspecting extinguishers.
+                    Create this month&apos;s workspace to begin inspecting
+                    extinguishers.
                   </p>
                   {wsCreateError && (
                     <p className="mt-2 text-sm text-red-600">{wsCreateError}</p>
@@ -621,7 +824,9 @@ export default function ExtinguisherDetail() {
                       ) : (
                         <Plus className="h-4 w-4" />
                       )}
-                      {creatingWorkspace ? 'Creating...' : 'Create Workspace & Start Inspecting'}
+                      {creatingWorkspace
+                        ? 'Creating...'
+                        : 'Create Workspace & Start Inspecting'}
                     </button>
                   ) : (
                     <p className="mt-2 text-sm text-blue-600">
@@ -647,7 +852,9 @@ export default function ExtinguisherDetail() {
                   : 'New inventory does not change an active monthly checklist until an owner or admin adds it.'}
               </p>
               {addToChecklistError && (
-                <p className="mt-2 text-sm text-red-600">{addToChecklistError}</p>
+                <p className="mt-2 text-sm text-red-600">
+                  {addToChecklistError}
+                </p>
               )}
               {canEditInContext && activeWorkspaceId ? (
                 <button
@@ -656,12 +863,19 @@ export default function ExtinguisherDetail() {
                   disabled={addingToChecklist}
                   className="mt-3 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {addingToChecklist ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  {addingToChecklist ? 'Adding...' : 'Add to Current Month Checklist'}
+                  {addingToChecklist ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  {addingToChecklist
+                    ? 'Adding...'
+                    : 'Add to Current Month Checklist'}
                 </button>
               ) : (
                 <p className="mt-2 text-sm text-amber-800">
-                  Ask an owner or admin to add it to the current month checklist.
+                  Ask an owner or admin to add it to the current month
+                  checklist.
                 </p>
               )}
             </div>
@@ -676,23 +890,36 @@ export default function ExtinguisherDetail() {
           )}
 
           {/* Inspection present — render InspectionPanel */}
-          {inspection !== undefined && inspection !== null && activeWorkspaceId && (
-            <InspectionPanel
-              orgId={orgId}
-              extId={extId!}
-              inspectionId={inspection.id!}
-              workspaceId={activeWorkspaceId}
-              inspection={inspection}
-              canInspect={canInspectInContext}
-              canReset={canResetInContext}
-              isOnline={isOnline}
-              inspectorName={user?.displayName ?? user?.email ?? 'Unknown'}
-              previousNotes={history.find((h) => (h.status === 'pass' || h.status === 'fail') && h.notes)?.notes}
-              previousPhotoUrl={history.find((h) => (h.status === 'pass' || h.status === 'fail') && h.photoUrl)?.photoUrl}
-              onInspectionUpdated={handleInspectionUpdated}
-              onInspectionSaved={handleInspectionSaved}
-            />
-          )}
+          {inspection !== undefined &&
+            inspection !== null &&
+            activeWorkspaceId && (
+              <InspectionPanel
+                orgId={orgId}
+                extId={extId!}
+                inspectionId={inspection.id!}
+                workspaceId={activeWorkspaceId}
+                inspection={inspection}
+                canInspect={canInspectInContext}
+                canReset={canResetInContext}
+                isOnline={isOnline}
+                inspectorName={user?.displayName ?? user?.email ?? 'Unknown'}
+                previousNotes={
+                  history.find(
+                    (h) =>
+                      (h.status === 'pass' || h.status === 'fail') && h.notes,
+                  )?.notes
+                }
+                previousPhotoUrl={
+                  history.find(
+                    (h) =>
+                      (h.status === 'pass' || h.status === 'fail') &&
+                      h.photoUrl,
+                  )?.photoUrl
+                }
+                onInspectionUpdated={handleInspectionUpdated}
+                onInspectionSaved={handleInspectionSaved}
+              />
+            )}
         </>
       )}
 
@@ -711,20 +938,28 @@ export default function ExtinguisherDetail() {
             Loading history...
           </div>
         ) : history.length === 0 ? (
-          <p className="text-sm text-gray-500">No inspection history available.</p>
+          <p className="text-sm text-gray-500">
+            No inspection history available.
+          </p>
         ) : (
           <div className="divide-y divide-gray-100">
             {history.map((h) => {
               const isExpanded = expandedHistoryId === h.id;
               const hChecklist = h.checklistData as ChecklistData | null;
-              const hGps = h.gps as { lat?: number; lng?: number; altitude?: number } | null;
+              const hGps = h.gps as {
+                lat?: number;
+                lng?: number;
+                altitude?: number;
+              } | null;
 
               return (
                 <div key={h.id} className="py-3 -mx-5 px-5">
                   {/* Header row */}
                   <div
                     className="flex items-start justify-between cursor-pointer hover:bg-gray-50 rounded-lg"
-                    onClick={() => setExpandedHistoryId(isExpanded ? null : h.id ?? null)}
+                    onClick={() =>
+                      setExpandedHistoryId(isExpanded ? null : (h.id ?? null))
+                    }
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -736,24 +971,34 @@ export default function ExtinguisherDetail() {
                         <p className="text-sm font-medium text-gray-900">
                           {formatWorkspaceLabel(h.workspaceId)}
                         </p>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          h.status === 'pass'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            h.status === 'pass'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}
+                        >
                           {h.status.toUpperCase()}
                         </span>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5 ml-6">
                         {h.inspectedByEmail ?? 'Unknown inspector'}
-                        {!!h.inspectedAt && <> · {formatTimestamp(h.inspectedAt)}</>}
+                        {!!h.inspectedAt && (
+                          <> · {formatTimestamp(h.inspectedAt)}</>
+                        )}
                       </p>
                       {h.notes && (
-                        <p className="text-xs text-gray-400 mt-0.5 ml-6 truncate max-w-xs">{h.notes}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 ml-6 truncate max-w-xs">
+                          {h.notes}
+                        </p>
                       )}
                     </div>
                     <button className="ml-2 shrink-0 p-1 text-gray-400 hover:text-gray-600">
-                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
 
@@ -763,14 +1008,21 @@ export default function ExtinguisherDetail() {
                       {/* Checklist details */}
                       {hChecklist && (
                         <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Checklist</p>
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                            Checklist
+                          </p>
                           {CHECKLIST_SECTIONS.map((section) => (
                             <div key={section.title} className="mb-3 last:mb-0">
-                              <p className="mb-1 text-xs font-medium text-gray-500">{section.title}</p>
+                              <p className="mb-1 text-xs font-medium text-gray-500">
+                                {section.title}
+                              </p>
                               {section.items.map((item) => {
                                 const val = hChecklist[item.key];
                                 return (
-                                  <div key={item.key} className="flex items-center gap-2 py-0.5">
+                                  <div
+                                    key={item.key}
+                                    className="flex items-center gap-2 py-0.5"
+                                  >
                                     {val === 'pass' ? (
                                       <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
                                     ) : val === 'fail' ? (
@@ -778,7 +1030,9 @@ export default function ExtinguisherDetail() {
                                     ) : (
                                       <span className="h-3.5 w-3.5 rounded-full border border-gray-300" />
                                     )}
-                                    <span className={`text-xs ${val === 'fail' ? 'text-red-700 font-medium' : 'text-gray-600'}`}>
+                                    <span
+                                      className={`text-xs ${val === 'fail' ? 'text-red-700 font-medium' : 'text-gray-600'}`}
+                                    >
                                       {item.label}
                                     </span>
                                   </div>
@@ -813,9 +1067,13 @@ export default function ExtinguisherDetail() {
                       {hGps && hGps.lat != null && hGps.lng != null && (
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           <Navigation className="h-3.5 w-3.5 shrink-0" />
-                          <span>{hGps.lat.toFixed(6)}, {hGps.lng.toFixed(6)}</span>
+                          <span>
+                            {hGps.lat.toFixed(6)}, {hGps.lng.toFixed(6)}
+                          </span>
                           {hGps.altitude != null && (
-                            <span className="text-gray-400">· {hGps.altitude.toFixed(1)}m alt</span>
+                            <span className="text-gray-400">
+                              · {hGps.altitude.toFixed(1)}m alt
+                            </span>
                           )}
                           <a
                             href={`https://www.google.com/maps?q=${hGps.lat},${hGps.lng}`}
@@ -861,36 +1119,51 @@ export default function ExtinguisherDetail() {
       )}
 
       {/* ---- Replacement History (subcollection + legacy array) ---- */}
-      {(replacementHistoryRows.length > 0 || (ext.replacementHistory && ext.replacementHistory.length > 0)) && (
+      {(replacementHistoryRows.length > 0 ||
+        (ext.replacementHistory && ext.replacementHistory.length > 0)) && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <RefreshCw className="h-5 w-5 text-gray-400" />
-            <h2 className="text-base font-semibold text-gray-900">Replacement History</h2>
+            <h2 className="text-base font-semibold text-gray-900">
+              Replacement History
+            </h2>
           </div>
           <p className="mb-4 text-xs text-gray-500">
-            Prior physical units for this asset slot (previous serial numbers and barcodes). Scans only match the
-            current active unit.
+            Prior physical units for this asset slot (previous serial numbers
+            and barcodes). Scans only match the current active unit.
           </p>
           {replacementHistoryRows.length > 0 && (
             <div className="mb-4 divide-y divide-gray-100">
               {replacementHistoryRows.map((r) => {
                 const snapSerial =
-                  (r.priorSnapshot?.serial as string | undefined) ?? r.previousSerial ?? '—';
-                const snapBarcode = (r.priorSnapshot?.barcode as string | null | undefined) ?? r.previousBarcode;
+                  (r.priorSnapshot?.serial as string | undefined) ??
+                  r.previousSerial ??
+                  '—';
+                const snapBarcode =
+                  (r.priorSnapshot?.barcode as string | null | undefined) ??
+                  r.previousBarcode;
                 return (
                   <div key={r.id} className="py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          Prior unit — serial <span className="font-mono">{snapSerial}</span>
+                          Prior unit — serial{' '}
+                          <span className="font-mono">{snapSerial}</span>
                         </p>
                         {snapBarcode ? (
                           <p className="mt-0.5 text-xs text-gray-600">
-                            Barcode: <span className="font-mono">{snapBarcode}</span>
+                            Barcode:{' '}
+                            <span className="font-mono">{snapBarcode}</span>
                           </p>
                         ) : null}
-                        <p className="mt-1 text-xs text-gray-500">Recorded {formatTimestamp(r.replacedAt)}</p>
-                        {r.reason ? <p className="mt-0.5 text-xs text-gray-400">{r.reason}</p> : null}
+                        <p className="mt-1 text-xs text-gray-500">
+                          Recorded {formatTimestamp(r.replacedAt)}
+                        </p>
+                        {r.reason ? (
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            {r.reason}
+                          </p>
+                        ) : null}
                       </div>
                       <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
                         Archived
@@ -903,7 +1176,9 @@ export default function ExtinguisherDetail() {
           )}
           {ext.replacementHistory && ext.replacementHistory.length > 0 && (
             <div className="divide-y divide-gray-100">
-              <p className="pb-2 text-xs font-medium uppercase tracking-wide text-gray-400">Legacy chain metadata</p>
+              <p className="pb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+                Legacy chain metadata
+              </p>
               {ext.replacementHistory.map((r, idx) => (
                 <div key={idx} className="py-3">
                   <div className="flex items-start justify-between">
@@ -911,11 +1186,19 @@ export default function ExtinguisherDetail() {
                       <p className="text-sm font-medium text-gray-900">
                         Replaced on {formatTimestamp(r.replacedAt)}
                       </p>
-                      <p className="mt-0.5 text-xs text-gray-500">By {r.replacedByEmail}</p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        By {r.replacedByEmail}
+                      </p>
                       {r.replacedAssetId && (
-                        <p className="mt-0.5 text-xs text-gray-400">Previous asset: {r.replacedAssetId}</p>
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          Previous asset: {r.replacedAssetId}
+                        </p>
                       )}
-                      {r.reason && <p className="mt-0.5 text-xs text-gray-400">{r.reason}</p>}
+                      {r.reason && (
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          {r.reason}
+                        </p>
+                      )}
                     </div>
                     <span className="ml-3 shrink-0 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700">
                       Replaced
@@ -932,18 +1215,50 @@ export default function ExtinguisherDetail() {
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-gray-400" />
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Compliance &amp; Lifecycle</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+            Compliance &amp; Lifecycle
+          </h2>
         </div>
-        <InfoRow label="Last Monthly Inspection" value={formatTimestamp(ext.lastMonthlyInspection)} />
-        <InfoRow label="Next Monthly Inspection" value={formatTimestamp(ext.nextMonthlyInspection)} />
-        <InfoRow label="Last Annual Inspection" value={formatTimestamp(ext.lastAnnualInspection)} />
-        <InfoRow label="Next Annual Inspection" value={formatTimestamp(ext.nextAnnualInspection)} />
-        <InfoRow label="Last Six-Year Maintenance" value={formatTimestamp(ext.lastSixYearMaintenance)} />
-        <InfoRow label="Next Six-Year Maintenance" value={formatTimestamp(ext.nextSixYearMaintenance)} />
-        <InfoRow label="Last Hydro Test" value={formatTimestamp(ext.lastHydroTest)} />
-        <InfoRow label="Next Hydro Test" value={formatTimestamp(ext.nextHydroTest)} />
-        <InfoRow label="Install Date" value={formatTimestamp(ext.installDate)} />
-        <InfoRow label="In-Service Date" value={formatTimestamp(ext.inServiceDate)} />
+        <InfoRow
+          label="Last Monthly Inspection"
+          value={formatTimestamp(ext.lastMonthlyInspection)}
+        />
+        <InfoRow
+          label="Next Monthly Inspection"
+          value={formatTimestamp(ext.nextMonthlyInspection)}
+        />
+        <InfoRow
+          label="Last Annual Inspection"
+          value={formatTimestamp(ext.lastAnnualInspection)}
+        />
+        <InfoRow
+          label="Next Annual Inspection"
+          value={formatTimestamp(ext.nextAnnualInspection)}
+        />
+        <InfoRow
+          label="Last Six-Year Maintenance"
+          value={formatTimestamp(ext.lastSixYearMaintenance)}
+        />
+        <InfoRow
+          label="Next Six-Year Maintenance"
+          value={formatTimestamp(ext.nextSixYearMaintenance)}
+        />
+        <InfoRow
+          label="Last Hydro Test"
+          value={formatTimestamp(ext.lastHydroTest)}
+        />
+        <InfoRow
+          label="Next Hydro Test"
+          value={formatTimestamp(ext.nextHydroTest)}
+        />
+        <InfoRow
+          label="Install Date"
+          value={formatTimestamp(ext.installDate)}
+        />
+        <InfoRow
+          label="In-Service Date"
+          value={formatTimestamp(ext.inServiceDate)}
+        />
       </div>
     </div>
   );

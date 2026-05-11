@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Archive, ChevronDown, ChevronRight, Download, Loader2, RefreshCw } from 'lucide-react';
+import {
+  Archive,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  Loader2,
+  RefreshCw,
+} from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import {
@@ -19,12 +26,24 @@ import {
 function formatTimestamp(ts: unknown): string {
   if (!ts) return '—';
   // Firestore Timestamp with toDate() (client-side Firestore SDK)
-  if (typeof ts === 'object' && ts !== null && 'toDate' in ts && typeof (ts as { toDate: () => Date }).toDate === 'function') {
+  if (
+    typeof ts === 'object' &&
+    ts !== null &&
+    'toDate' in ts &&
+    typeof (ts as { toDate: () => Date }).toDate === 'function'
+  ) {
     return (ts as { toDate: () => Date }).toDate().toLocaleDateString();
   }
   // Serialized Firestore Timestamp from Cloud Function: { _seconds, _nanoseconds }
-  if (typeof ts === 'object' && ts !== null && '_seconds' in ts && typeof (ts as { _seconds: unknown })._seconds === 'number') {
-    return new Date((ts as { _seconds: number })._seconds * 1000).toLocaleDateString();
+  if (
+    typeof ts === 'object' &&
+    ts !== null &&
+    '_seconds' in ts &&
+    typeof (ts as { _seconds: unknown })._seconds === 'number'
+  ) {
+    return new Date(
+      (ts as { _seconds: number })._seconds * 1000,
+    ).toLocaleDateString();
   }
   const d = new Date(String(ts));
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
@@ -36,10 +55,20 @@ function text(value: unknown): string {
 
 function tsToDate(ts: unknown): Date | null {
   if (!ts) return null;
-  if (typeof ts === 'object' && ts !== null && 'toDate' in ts && typeof (ts as { toDate: () => Date }).toDate === 'function') {
+  if (
+    typeof ts === 'object' &&
+    ts !== null &&
+    'toDate' in ts &&
+    typeof (ts as { toDate: () => Date }).toDate === 'function'
+  ) {
     return (ts as { toDate: () => Date }).toDate();
   }
-  if (typeof ts === 'object' && ts !== null && '_seconds' in ts && typeof (ts as { _seconds: unknown })._seconds === 'number') {
+  if (
+    typeof ts === 'object' &&
+    ts !== null &&
+    '_seconds' in ts &&
+    typeof (ts as { _seconds: unknown })._seconds === 'number'
+  ) {
     return new Date((ts as { _seconds: number })._seconds * 1000);
   }
   const d = new Date(String(ts));
@@ -89,7 +118,11 @@ export default function ReplacedExtinguishers() {
     try {
       setRows(await listReplacementHistory(orgId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load replaced extinguishers.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load replaced extinguishers.',
+      );
     } finally {
       setLoading(false);
     }
@@ -104,7 +137,10 @@ export default function ReplacedExtinguishers() {
     void loadRows();
   }, [loadRows]);
 
-  const extById = useMemo(() => new Map(extinguishers.map((ext) => [ext.id, ext])), [extinguishers]);
+  const extById = useMemo(
+    () => new Map(extinguishers.map((ext) => [ext.id, ext])),
+    [extinguishers],
+  );
 
   // Group rows by month key, sorted newest first
   const monthGroups = useMemo(() => {
@@ -128,22 +164,34 @@ export default function ReplacedExtinguishers() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   })();
 
-  const thisMonthCount = rows.filter((r) => toMonthKey(r.replacedAt) === currentMonthKey).length;
-  const lastMonthCount = rows.filter((r) => toMonthKey(r.replacedAt) === prevMonthKey).length;
+  const thisMonthCount = rows.filter(
+    (r) => toMonthKey(r.replacedAt) === currentMonthKey,
+  ).length;
+  const lastMonthCount = rows.filter(
+    (r) => toMonthKey(r.replacedAt) === prevMonthKey,
+  ).length;
   const awaitingCount = rows.filter((r) => !r.discarded && !r.returned).length;
 
   function toggleMonth(key: string) {
     setExpandedMonths((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) { next.delete(key); } else { next.add(key); }
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
       return next;
     });
   }
 
-  async function saveStatus(row: ReplacementHistoryListRow, patch: Partial<ReplacementHistoryListRow>) {
+  async function saveStatus(
+    row: ReplacementHistoryListRow,
+    patch: Partial<ReplacementHistoryListRow>,
+  ) {
     if (!orgId || !canEdit) return;
     const nextStatus = {
-      waitingForService: patch.waitingForService ?? row.waitingForService === true,
+      waitingForService:
+        patch.waitingForService ?? row.waitingForService === true,
       sentForService: patch.sentForService ?? row.sentForService === true,
       discarded: patch.discarded ?? row.discarded === true,
       returned: patch.returned ?? row.returned === true,
@@ -151,10 +199,19 @@ export default function ReplacedExtinguishers() {
     setSavingId(row.id);
     setError('');
     try {
-      await updateReplacementHistoryStatus(orgId, row.currentExtinguisherId, row.id, nextStatus);
+      await updateReplacementHistoryStatus(
+        orgId,
+        row.currentExtinguisherId,
+        row.id,
+        nextStatus,
+      );
       await loadRows();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update replacement status.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to update replacement status.',
+      );
     } finally {
       setSavingId(null);
     }
@@ -167,15 +224,21 @@ export default function ReplacedExtinguishers() {
     const serial = returnModal.serial.trim();
     const barcode = returnModal.barcode.trim();
     if (!assetId || !serial) {
-      setReturnModal({ ...returnModal, error: 'Spare asset ID and serial number are required.' });
+      setReturnModal({
+        ...returnModal,
+        error: 'Spare asset ID and serial number are required.',
+      });
       return;
     }
 
     setReturnModal({ ...returnModal, saving: true, error: '' });
     try {
-      if (await isAssetIdTaken(orgId, assetId)) throw new Error(`Asset ID "${assetId}" is already active.`);
-      if (await isSerialTaken(orgId, serial)) throw new Error(`Serial number "${serial}" is already active.`);
-      if (barcode && (await isBarcodeTaken(orgId, barcode))) throw new Error(`Barcode "${barcode}" is already active.`);
+      if (await isAssetIdTaken(orgId, assetId))
+        throw new Error(`Asset ID "${assetId}" is already active.`);
+      if (await isSerialTaken(orgId, serial))
+        throw new Error(`Serial number "${serial}" is already active.`);
+      if (barcode && (await isBarcodeTaken(orgId, barcode)))
+        throw new Error(`Barcode "${barcode}" is already active.`);
 
       const prior = currentModal.row.priorSnapshot ?? {};
       await updateReplacementHistoryStatus(
@@ -192,8 +255,12 @@ export default function ReplacedExtinguishers() {
           assetId,
           serial,
           barcode: barcode || null,
-          locationId: text(prior.locationId) === '—' ? null : text(prior.locationId),
-          parentLocation: text(prior.parentLocation) === '—' ? null : text(prior.parentLocation),
+          locationId:
+            text(prior.locationId) === '—' ? null : text(prior.locationId),
+          parentLocation:
+            text(prior.parentLocation) === '—'
+              ? null
+              : text(prior.parentLocation),
           section: text(prior.section) === '—' ? null : text(prior.section),
           vicinity: text(prior.vicinity) === '—' ? null : text(prior.vicinity),
         },
@@ -204,7 +271,10 @@ export default function ReplacedExtinguishers() {
       setReturnModal({
         ...returnModal,
         saving: false,
-        error: err instanceof Error ? err.message : 'Failed to return extinguisher to spare inventory.',
+        error:
+          err instanceof Error
+            ? err.message
+            : 'Failed to return extinguisher to spare inventory.',
       });
     }
   }
@@ -232,16 +302,21 @@ export default function ReplacedExtinguishers() {
     ];
     const escape = (v: unknown) => {
       const s = typeof v === 'string' ? v : v == null ? '' : String(v);
-      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"`
+        : s;
     };
     const rowLines = rows.map((row) => {
       const prior = row.priorSnapshot ?? {};
       const current = extById.get(row.currentExtinguisherId);
-      const oldLocation = [text(prior.parentLocation), text(prior.section), text(prior.vicinity)]
-        .filter((v) => v !== '—')
-        .join(' / ') || '—';
+      const oldLocation =
+        [text(prior.parentLocation), text(prior.section), text(prior.vicinity)]
+          .filter((v) => v !== '—')
+          .join(' / ') || '—';
       const newLocation = current
-        ? [current.parentLocation, current.section, current.vicinity].filter(Boolean).join(' / ') || '—'
+        ? [current.parentLocation, current.section, current.vicinity]
+            .filter(Boolean)
+            .join(' / ') || '—'
         : '—';
       return [
         formatTimestamp(row.replacedAt),
@@ -280,14 +355,24 @@ export default function ReplacedExtinguishers() {
     const prior = row.priorSnapshot ?? {};
     const current = extById.get(row.currentExtinguisherId);
     return (
-      <div key={row.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div
+        key={row.id}
+        className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+      >
         <div className="mb-4 flex flex-col gap-2 border-b border-gray-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-gray-900">Replaced {formatTimestamp(row.replacedAt)}</p>
-            <p className="text-xs text-gray-500">{row.reason || 'No reason recorded'}</p>
+            <p className="text-sm font-semibold text-gray-900">
+              Replaced {formatTimestamp(row.replacedAt)}
+            </p>
+            <p className="text-xs text-gray-500">
+              {row.reason || 'No reason recorded'}
+            </p>
           </div>
           {current?.id && (
-            <Link to={`/dashboard/inventory/${current.id}`} className="text-sm font-medium text-red-700 hover:underline">
+            <Link
+              to={`/dashboard/inventory/${current.id}`}
+              className="text-sm font-medium text-red-700 hover:underline"
+            >
               Open current extinguisher
             </Link>
           )}
@@ -295,48 +380,130 @@ export default function ReplacedExtinguishers() {
 
         <div className="grid gap-4 lg:grid-cols-[1fr_1fr_260px]">
           <div className="rounded-lg border border-orange-100 bg-orange-50 p-4">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-orange-900">Old retired unit</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-orange-900">
+              Old retired unit
+            </h3>
             <div className="space-y-1 text-sm text-orange-950">
-              <div>Asset ID: <span className="font-mono">{row.previousAssetId ?? text(prior.assetId)}</span></div>
-              <div>Serial: <span className="font-mono">{row.previousSerial ?? text(prior.serial)}</span></div>
-              <div>Barcode: <span className="font-mono">{row.previousBarcode ?? text(prior.barcode)}</span></div>
+              <div>
+                Asset ID:{' '}
+                <span className="font-mono">
+                  {row.previousAssetId ?? text(prior.assetId)}
+                </span>
+              </div>
+              <div>
+                Serial:{' '}
+                <span className="font-mono">
+                  {row.previousSerial ?? text(prior.serial)}
+                </span>
+              </div>
+              <div>
+                Barcode:{' '}
+                <span className="font-mono">
+                  {row.previousBarcode ?? text(prior.barcode)}
+                </span>
+              </div>
               <div>Type: {text(prior.extinguisherType)}</div>
               <div>Size: {text(prior.extinguisherSize)}</div>
-              <div>Location: {[text(prior.parentLocation), text(prior.section), text(prior.vicinity)].filter((v) => v !== '—').join(' / ') || '—'}</div>
+              <div>
+                Location:{' '}
+                {[
+                  text(prior.parentLocation),
+                  text(prior.section),
+                  text(prior.vicinity),
+                ]
+                  .filter((v) => v !== '—')
+                  .join(' / ') || '—'}
+              </div>
             </div>
           </div>
 
           <div className="rounded-lg border border-green-100 bg-green-50 p-4">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-green-900">Current replacement unit</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-green-900">
+              Current replacement unit
+            </h3>
             <div className="space-y-1 text-sm text-green-950">
-              <div>Asset ID: <span className="font-mono">{current?.assetId ?? row.newAssetId ?? '—'}</span></div>
-              <div>Serial: <span className="font-mono">{current?.serial ?? row.newSerial ?? '—'}</span></div>
-              <div>Barcode: <span className="font-mono">{current?.barcode ?? row.newBarcode ?? '—'}</span></div>
+              <div>
+                Asset ID:{' '}
+                <span className="font-mono">
+                  {current?.assetId ?? row.newAssetId ?? '—'}
+                </span>
+              </div>
+              <div>
+                Serial:{' '}
+                <span className="font-mono">
+                  {current?.serial ?? row.newSerial ?? '—'}
+                </span>
+              </div>
+              <div>
+                Barcode:{' '}
+                <span className="font-mono">
+                  {current?.barcode ?? row.newBarcode ?? '—'}
+                </span>
+              </div>
               <div>Type: {current?.extinguisherType ?? '—'}</div>
               <div>Size: {current?.extinguisherSize ?? '—'}</div>
-              <div>Location: {current ? [current.parentLocation, current.section, current.vicinity].filter(Boolean).join(' / ') || '—' : '—'}</div>
+              <div>
+                Location:{' '}
+                {current
+                  ? [current.parentLocation, current.section, current.vicinity]
+                      .filter(Boolean)
+                      .join(' / ') || '—'
+                  : '—'}
+              </div>
             </div>
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-700">Retired service status</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-700">
+              Retired service status
+            </h3>
             <div className="space-y-2 text-sm">
               <label className="flex items-center gap-2">
-                <input type="checkbox" disabled={!canEdit || savingId === row.id} checked={row.waitingForService === true} onChange={(e) => void saveStatus(row, { waitingForService: e.target.checked })} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                <input
+                  type="checkbox"
+                  disabled={!canEdit || savingId === row.id}
+                  checked={row.waitingForService === true}
+                  onChange={(e) =>
+                    void saveStatus(row, {
+                      waitingForService: e.target.checked,
+                    })
+                  }
+                  className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                />
                 Waiting for service
               </label>
               <label className="flex items-center gap-2">
-                <input type="checkbox" disabled={!canEdit || savingId === row.id} checked={row.sentForService === true} onChange={(e) => void saveStatus(row, { sentForService: e.target.checked })} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                <input
+                  type="checkbox"
+                  disabled={!canEdit || savingId === row.id}
+                  checked={row.sentForService === true}
+                  onChange={(e) =>
+                    void saveStatus(row, { sentForService: e.target.checked })
+                  }
+                  className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                />
                 Sent off for 6-year / hydro
               </label>
               <label className="flex items-center gap-2">
-                <input type="checkbox" disabled={!canEdit || savingId === row.id || row.returned === true} checked={row.discarded === true} onChange={(e) => void saveStatus(row, { discarded: e.target.checked })} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                <input
+                  type="checkbox"
+                  disabled={
+                    !canEdit || savingId === row.id || row.returned === true
+                  }
+                  checked={row.discarded === true}
+                  onChange={(e) =>
+                    void saveStatus(row, { discarded: e.target.checked })
+                  }
+                  className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                />
                 Discarded
               </label>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  disabled={!canEdit || savingId === row.id || row.returned === true}
+                  disabled={
+                    !canEdit || savingId === row.id || row.returned === true
+                  }
                   checked={row.returned === true}
                   onChange={(e) => {
                     if (!e.target.checked) return;
@@ -354,7 +521,10 @@ export default function ReplacedExtinguishers() {
                 Returned to spare inventory
               </label>
               {row.returnedSpareExtinguisherId && (
-                <Link to={`/dashboard/inventory/${row.returnedSpareExtinguisherId}`} className="block text-xs font-medium text-red-700 hover:underline">
+                <Link
+                  to={`/dashboard/inventory/${row.returnedSpareExtinguisherId}`}
+                  className="block text-xs font-medium text-red-700 hover:underline"
+                >
                   Open spare record
                 </Link>
               )}
@@ -369,9 +539,12 @@ export default function ReplacedExtinguishers() {
     <div className="p-4 sm:p-6">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Replaced Extinguishers</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Replaced Extinguishers
+          </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Old physical extinguishers archived during replacement, shown beside the current unit that replaced them.
+            Old physical extinguishers archived during replacement, shown beside
+            the current unit that replaced them.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -400,7 +573,9 @@ export default function ReplacedExtinguishers() {
       {!loading && (
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center">
-            <p className="text-2xl font-bold text-orange-700">{thisMonthCount}</p>
+            <p className="text-2xl font-bold text-orange-700">
+              {thisMonthCount}
+            </p>
             <p className="mt-1 text-xs font-medium text-orange-600">
               {monthKeyLabel(currentMonthKey)}
             </p>
@@ -416,13 +591,21 @@ export default function ReplacedExtinguishers() {
             <p className="mt-1 text-xs font-medium text-gray-500">All Time</p>
           </div>
           <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-center">
-            <p className="text-2xl font-bold text-yellow-700">{awaitingCount}</p>
-            <p className="mt-1 text-xs font-medium text-yellow-600">Awaiting Disposition</p>
+            <p className="text-2xl font-bold text-yellow-700">
+              {awaitingCount}
+            </p>
+            <p className="mt-1 text-xs font-medium text-yellow-600">
+              Awaiting Disposition
+            </p>
           </div>
         </div>
       )}
 
-      {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      {error && (
+        <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </p>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white p-12">
@@ -431,8 +614,12 @@ export default function ReplacedExtinguishers() {
       ) : rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center">
           <Archive className="mx-auto h-10 w-10 text-gray-300" />
-          <h2 className="mt-3 text-base font-semibold text-gray-900">No replacements recorded yet</h2>
-          <p className="mt-1 text-sm text-gray-500">Use Replace Extinguisher from an active extinguisher detail page.</p>
+          <h2 className="mt-3 text-base font-semibold text-gray-900">
+            No replacements recorded yet
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Use Replace Extinguisher from an active extinguisher detail page.
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -440,7 +627,10 @@ export default function ReplacedExtinguishers() {
             const isCurrentMonth = key === currentMonthKey;
             const isExpanded = isCurrentMonth || expandedMonths.has(key);
             return (
-              <div key={key} className="rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div
+                key={key}
+                className="rounded-xl border border-gray-200 bg-white shadow-sm"
+              >
                 <button
                   type="button"
                   onClick={() => toggleMonth(key)}
@@ -452,7 +642,9 @@ export default function ReplacedExtinguishers() {
                     ) : (
                       <ChevronRight className="h-4 w-4 text-gray-400" />
                     )}
-                    <span className="font-semibold text-gray-900">{monthKeyLabel(key)}</span>
+                    <span className="font-semibold text-gray-900">
+                      {monthKeyLabel(key)}
+                    </span>
                     {isCurrentMonth && (
                       <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
                         Current month
@@ -460,7 +652,8 @@ export default function ReplacedExtinguishers() {
                     )}
                   </div>
                   <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-sm font-medium text-gray-600">
-                    {groupRows.length} {groupRows.length === 1 ? 'replacement' : 'replacements'}
+                    {groupRows.length}{' '}
+                    {groupRows.length === 1 ? 'replacement' : 'replacements'}
                   </span>
                 </button>
                 {isExpanded && (
@@ -477,31 +670,68 @@ export default function ReplacedExtinguishers() {
       {returnModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-gray-900">Return to spare inventory</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Return to spare inventory
+            </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Create a new active spare record for the returned old extinguisher.
+              Create a new active spare record for the returned old
+              extinguisher.
             </p>
             <div className="mt-4 space-y-3">
               <label className="block text-sm font-medium text-gray-700">
                 Spare asset ID
-                <input value={returnModal.assetId} onChange={(e) => setReturnModal({ ...returnModal, assetId: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" />
+                <input
+                  value={returnModal.assetId}
+                  onChange={(e) =>
+                    setReturnModal({ ...returnModal, assetId: e.target.value })
+                  }
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                />
               </label>
               <label className="block text-sm font-medium text-gray-700">
                 Serial
-                <input value={returnModal.serial} onChange={(e) => setReturnModal({ ...returnModal, serial: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" />
+                <input
+                  value={returnModal.serial}
+                  onChange={(e) =>
+                    setReturnModal({ ...returnModal, serial: e.target.value })
+                  }
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                />
               </label>
               <label className="block text-sm font-medium text-gray-700">
                 Barcode
-                <input value={returnModal.barcode} onChange={(e) => setReturnModal({ ...returnModal, barcode: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" />
+                <input
+                  value={returnModal.barcode}
+                  onChange={(e) =>
+                    setReturnModal({ ...returnModal, barcode: e.target.value })
+                  }
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                />
               </label>
             </div>
-            {returnModal.error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{returnModal.error}</p>}
+            {returnModal.error && (
+              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                {returnModal.error}
+              </p>
+            )}
             <div className="mt-5 flex gap-3">
-              <button type="button" disabled={returnModal.saving} onClick={() => setReturnModal(null)} className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              <button
+                type="button"
+                disabled={returnModal.saving}
+                onClick={() => setReturnModal(null)}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
                 Cancel
               </button>
-              <button type="button" disabled={returnModal.saving} onClick={() => void submitReturnToSpare()} className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
-                {returnModal.saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              <button
+                type="button"
+                disabled={returnModal.saving}
+                onClick={() => void submitReturnToSpare()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {returnModal.saving && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
                 Create Spare
               </button>
             </div>

@@ -2200,3 +2200,60 @@ Updated `README.md` Key Features copy from "Section Auto Timer" to "Section Time
 
 **Lessons / Error Log:**
 Added a lesson and resolved error-log entry: parent-provided data refactors must preserve the child component's original data scope separately from UI search/filter scope.
+
+## 2026-05-07 - Bundle split + Prettier tooling
+
+**Task:** Route-based code splitting to address Vite chunk size warning; add optional Prettier scripts and ignore file (no full-repo format pass).
+
+**Outcome:**
+- `React.lazy` + `Suspense` for page routes in `src/routes/index.tsx`; shared `src/components/routes/RouteFallback.tsx`.
+- `read-excel-file` v9: use `readSheet` from `read-excel-file/browser` in `ImportExportBar.tsx` (build fix).
+- Dev dependency `prettier`; scripts `format` / `format:check`; `.prettierrc` (semi + singleQuote aligned with app); `.prettierignore` (build outputs, lockfiles, BUILD-SPECS, agents, `.cursor`, `agent-system`, `pbrd-kit`).
+
+**Validation:** `pnpm build` (large chunk warning resolved), `pnpm lint`, `pnpm test` (93 tests) — all pass. `pnpm format:check` may still report diffs until a baseline format run on remaining included paths.
+
+## 2026-05-08 — Follow-up: peer/build/lint/format
+
+**Task:** Address issues called out after bundle work: Tailwind+Vite peer mismatch, pnpm ignored postinstall scripts, stale `AGENTS.md` lint note, Prettier drift, `GuestContext` exhaustive-deps warnings.
+
+**Outcome:**
+- Bumped `@tailwindcss/vite` and `tailwindcss` to **4.2.4** (declares Vite 8 in peer range).
+- `package.json` → `pnpm.onlyBuiltDependencies`: `esbuild`, `@firebase/util` so installs run postinstall without interactive `approve-builds`.
+- Ran Prettier baseline on all non-ignored paths; `pnpm format:check` clean.
+- `GuestContext.tsx`: moved `eslint-disable-next-line react-hooks/exhaustive-deps` to sit above each `[]` deps array (and resumed `resumeSession` `useCallback` formatting).
+
+**Validation:** `pnpm install`, `pnpm format:check`, `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build` — pass.
+
+## 2026-05-08 — Pro 7-day trial (monthly, no card at Checkout)
+
+**Task:** Stripe-backed Pro-only monthly trial; webhook/eligibility; UI + Terms/Privacy/README/BUILD-SPEC 09.
+
+**Outcome:**
+- [`functions/src/billing/createCheckoutSession.ts`](functions/src/billing/createCheckoutSession.ts): `payment_method_collection: if_required`, `subscription_data` trial + `trial_settings.end_behavior.missing_payment_method: cancel`, audit `billing.pro_trial_checkout_started`.
+- [`functions/src/billing/proTrialEligibility.ts`](functions/src/billing/proTrialEligibility.ts): pure guards + Jest tests.
+- [`functions/src/billing/stripeWebhook.ts`](functions/src/billing/stripeWebhook.ts): `subscriptionCurrentPeriodEnd` from subscription resource; `invoice.payment_succeeded` → full `handleSubscriptionEvent`; `customer.subscription.trial_will_end` audit; `proTrialConsumed` when trialing Pro.
+- [`firestore.rules`](firestore.rules): deny client writes to `proTrialConsumed`.
+- UI: [`PlanSelector.tsx`](src/components/billing/PlanSelector.tsx), [`BillingStatus.tsx`](src/components/billing/BillingStatus.tsx), [`DashboardLayout.tsx`](src/components/layout/DashboardLayout.tsx) (trial banner uses clock state, not `Date.now()` in render).
+- Legal/marketing/docs: Terms §5 trial, Privacy Stripe note, [`marketingPricingCopy.ts`](src/pages/marketing/marketingPricingCopy.ts), README billing subsection, `functions/.env.example`, [`BUILD-SPECS/09-PLANS-PRICING_UPDATED.md`](BUILD-SPECS/09-PLANS-PRICING_UPDATED.md).
+
+**Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `functions` `npm run build`, `npx jest src/__tests__/proTrialEligibility.test.ts`.
+
+**Deploy:** Add Stripe webhook `customer.subscription.trial_will_end` in Dashboard if missing.
+
+**Review verdict:** ACCEPTED (billing is sensitive — webhook signature unchanged; eligibility server-only).
+
+## 2026-05-11 — Inventory lifecycle status correction
+
+**Task:** System-wide correction of extinguisher lifecycle status (wrong “replaced” blocking Replace), UI on detail, callable + AI deterministic phrases.
+
+**Outcome:**
+- New callable [`functions/src/lifecycle/updateExtinguisherStatus.ts`](functions/src/lifecycle/updateExtinguisherStatus.ts): owner/admin, `validateSubscriptionTx`, canonical statuses `active` | `spare` | `replaced` | `retired` | `out_of_service`, optional resolve by `assetId` when unique, duplicate-active guard when setting `active`, audit `extinguisher.status_updated`.
+- Client: [`src/lib/extinguisherLifecycleStatus.ts`](src/lib/extinguisherLifecycleStatus.ts), [`lifecycleService.ts`](src/services/lifecycleService.ts) wrapper, **Inventory status** card on [`ExtinguisherDetail.tsx`](src/pages/ExtinguisherDetail.tsx) (recalculate when set to `active`).
+- AI: [`parseAiExtinguisherStatusChangeIntent`](src/services/aiStatusChangeIntentService.ts) + [`askAssistant`](src/services/aiService.ts) path when `canMutateInventory` (owner/admin); [`AiAssistantPanel`](src/components/ai/AiAssistantPanel.tsx) passes flag; app knowledge in [`aiKnowledgeBase.ts`](src/lib/aiKnowledgeBase.ts); audit label [`AuditLogRow.tsx`](src/components/audit/AuditLogRow.tsx).
+- Tests: [`aiStatusChangeIntentService.test.ts`](src/services/aiStatusChangeIntentService.test.ts), extended [`aiService.test.ts`](src/services/aiService.test.ts).
+
+**Deferred:** No Firestore rules/index changes (extinguisher updates already owner/admin). Full “Retire” (removes active workspace inspection rows) remains the dedicated Retire flow on Edit; dropdown “Retired” is metadata/correction only — called out in UI copy.
+
+**Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build`, `npm --prefix functions test`.
+
+**Review verdict:** ACCEPTED WITH MINOR CONCERNS (two “retired” paths: metadata vs full retire — documented in UI).

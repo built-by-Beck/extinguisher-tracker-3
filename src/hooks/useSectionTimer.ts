@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
-const IDLE_CHECK_INTERVAL_MS = 60_000;  // check every minute
+const IDLE_CHECK_INTERVAL_MS = 60_000; // check every minute
 const MAX_ACTIVE_SEGMENT_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 export interface UseSectionTimerReturn {
@@ -39,7 +39,10 @@ function makeActiveKey(orgId: string, workspaceId: string): string {
   return `sectionTimerActive_${orgId}_${workspaceId}`;
 }
 
-function getSafeElapsed(startTime: number, maxElapsedMs = MAX_ACTIVE_SEGMENT_MS): number {
+function getSafeElapsed(
+  startTime: number,
+  maxElapsedMs = MAX_ACTIVE_SEGMENT_MS,
+): number {
   return Math.max(0, Math.min(Date.now() - startTime, maxElapsedMs));
 }
 
@@ -52,11 +55,16 @@ interface ActiveTimerState {
  * Custom hook for managing per-section timers with localStorage persistence.
  * Timer state survives page refreshes for field work reliability.
  */
-export function useSectionTimer(orgId: string, workspaceId: string): UseSectionTimerReturn {
+export function useSectionTimer(
+  orgId: string,
+  workspaceId: string,
+): UseSectionTimerReturn {
   const [sectionTimes, setSectionTimes] = useState<Record<string, number>>({});
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [currentElapsed, setCurrentElapsed] = useState(0);
-  const [idlePromptSection, setIdlePromptSection] = useState<string | null>(null);
+  const [idlePromptSection, setIdlePromptSection] = useState<string | null>(
+    null,
+  );
 
   // Refs to avoid stale closures in interval callback
   const timerStartTimeRef = useRef<number | null>(null);
@@ -77,14 +85,17 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
   const storageKey = makeStorageKey(orgId, workspaceId);
   const activeKey = makeActiveKey(orgId, workspaceId);
 
-  const addElapsedToSection = useCallback((section: string, elapsed: number) => {
-    if (elapsed <= 0) return;
-    setSectionTimes((prev) => {
-      const updated = { ...prev, [section]: (prev[section] ?? 0) + elapsed };
-      sectionTimesRef.current = updated;
-      return updated;
-    });
-  }, []);
+  const addElapsedToSection = useCallback(
+    (section: string, elapsed: number) => {
+      if (elapsed <= 0) return;
+      setSectionTimes((prev) => {
+        const updated = { ...prev, [section]: (prev[section] ?? 0) + elapsed };
+        sectionTimesRef.current = updated;
+        return updated;
+      });
+    },
+    [],
+  );
 
   const clearActiveTimer = useCallback(() => {
     timerStartTimeRef.current = null;
@@ -126,7 +137,10 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
         const parsed = JSON.parse(savedActive) as ActiveTimerState;
         const elapsedSinceStart = getSafeElapsed(parsed.startTime);
         if (Date.now() - parsed.startTime >= IDLE_TIMEOUT_MS) {
-          addElapsedToSection(parsed.section, Math.min(elapsedSinceStart, IDLE_TIMEOUT_MS));
+          addElapsedToSection(
+            parsed.section,
+            Math.min(elapsedSinceStart, IDLE_TIMEOUT_MS),
+          );
           clearActiveTimer();
           setIdlePromptSection(parsed.section);
           return;
@@ -151,7 +165,14 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
       timerStartTimeRef.current = null;
       lastConfirmedAtRef.current = null;
     }
-  }, [orgId, workspaceId, storageKey, activeKey, addElapsedToSection, clearActiveTimer]);
+  }, [
+    orgId,
+    workspaceId,
+    storageKey,
+    activeKey,
+    addElapsedToSection,
+    clearActiveTimer,
+  ]);
 
   // Save sectionTimes to localStorage whenever they change
   useEffect(() => {
@@ -192,10 +213,17 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
     const idleCheckId = setInterval(() => {
       const lastConfirmed = lastConfirmedAtRef.current;
       const section = activeSectionRef.current;
-      if (lastConfirmed !== null && section && Date.now() - lastConfirmed >= IDLE_TIMEOUT_MS) {
+      if (
+        lastConfirmed !== null &&
+        section &&
+        Date.now() - lastConfirmed >= IDLE_TIMEOUT_MS
+      ) {
         const start = timerStartTimeRef.current;
         if (start !== null) {
-          addElapsedToSection(section, Math.min(getSafeElapsed(start), IDLE_TIMEOUT_MS));
+          addElapsedToSection(
+            section,
+            Math.min(getSafeElapsed(start), IDLE_TIMEOUT_MS),
+          );
         }
         clearActiveTimer();
         setIdlePromptSection(section);
@@ -287,7 +315,10 @@ export function useSectionTimer(orgId: string, workspaceId: string): UseSectionT
   const getTotalTime = useCallback(
     (section: string): number => {
       const accumulated = sectionTimesRef.current[section] ?? 0;
-      if (activeSectionRef.current === section && timerStartTimeRef.current !== null) {
+      if (
+        activeSectionRef.current === section &&
+        timerStartTimeRef.current !== null
+      ) {
         return accumulated + currentElapsed;
       }
       return accumulated;
