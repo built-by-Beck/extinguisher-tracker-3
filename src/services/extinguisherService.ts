@@ -15,9 +15,196 @@ import {
   serverTimestamp,
   type DocumentSnapshot,
   type QueryConstraint,
+  type QueryDocumentSnapshot,
+  type QuerySnapshot,
   getCountFromServer,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
+
+/** Dev server, or set localStorage EX3_DEBUG_SEARCH=1 and reload for production traces. */
+function isExSearchDebugEnabled(): boolean {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) return true;
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem('EX3_DEBUG_SEARCH') === '1';
+  } catch {
+    return false;
+  }
+}
+
+const EXTINGUISHER_LOOKUP_FIELDS = [
+  'barcode',
+  'assetId',
+  'serial',
+  'qrCodeValue',
+] as const;
+
+function exSearchLog(
+  message: string,
+  detail?: Record<string, unknown>,
+): void {
+  if (!isExSearchDebugEnabled()) return;
+  if (detail) console.info(`[EX3 extinguisher search] ${message}`, detail);
+  else console.info(`[EX3 extinguisher search] ${message}`);
+}
+
+function exSearchWarn(message: string, detail?: Record<string, unknown>): void {
+  if (!isExSearchDebugEnabled()) return;
+  if (detail) console.warn(`[EX3 extinguisher search] ${message}`, detail);
+  else console.warn(`[EX3 extinguisher search] ${message}`);
+}
+
+function collectionPathExtinguishers(orgId: string): string {
+  return `org/${orgId}/extinguishers`;
+}
+
+/**
+ * True when the box should use exact Firestore identifier queries instead of
+ * scanning the full local snapshot (substring / location-name search stays client-side).
+ */
+export function isLikelyFirestoreIdentifierQuery(raw: string): boolean {
+  const q = raw.trim();
+  if (q.length < 5) return false;
+  if (/\s/.test(q)) return false;
+  return /^[A-Za-z0-9][A-Za-z0-9\-_.:/#]*$/.test(q);
+}
+
+async function runStrictLookupWave(
+  orgId: string,
+  code: string,
+  perFieldLimit: number,
+): Promise<QuerySnapshot[]> {
+  const colRef = collection(db, 'org', orgId, 'extinguishers');
+  const snaps = await Promise.all(
+    EXTINGUISHER_LOOKUP_FIELDS.map((field) =>
+      getDocs(
+        query(
+          colRef,
+          where('deletedAt', '==', null),
+          where('lifecycleStatus', '==', 'active'),
+          where(field, '==', code),
+          limit(perFieldLimit),
+        ),
+      ),
+    ),
+  );
+  EXTINGUISHER_LOOKUP_FIELDS.forEach((field, i) => {
+    const snap = snaps[i];
+    exSearchLog(`strict wave field=${field}`, {
+      queryType: 'strict-active',
+      collectionPath: collectionPathExtinguishers(orgId),
+      filters: ['deletedAt==null', 'lifecycleStatus==active', `${field}==…`],
+      limit: perFieldLimit,
+      docCount: snap.size,
+      docIds: snap.docs.map((d) => d.id),
+    });
+  });
+  return snaps;
+}
+
+async function runLegacyLookupWave(
+  orgId: string,
+  code: string,
+  perFieldLimit: number,
+): Promise<QuerySnapshot[]> {
+  const colRef = collection(db, 'org', orgId, 'extinguishers');
+  exSearchWarn(
+    'Running legacy identifier lookup (lifecycle not in query). Still only org/.../extinguishers — no inspections/workspaces loaded.',
+    { perFieldLimit },
+  );
+  const snaps = await Promise.all(
+    EXTINGUISHER_LOOKUP_FIELDS.map((field) =>
+      getDocs(
+        query(
+          colRef,
+          where('deletedAt', '==', null),
+          where(field, '==', code),
+          limit(perFieldLimit),
+        ),
+      ),
+    ),
+  );
+  EXTINGUISHER_LOOKUP_FIELDS.forEach((field, i) => {
+    const snap = snaps[i];
+    exSearchLog(`legacy wave field=${field}`, {
+      queryType: 'legacy-deletedAt-only',
+      collectionPath: collectionPathExtinguishers(orgId),
+      filters: ['deletedAt==null', `${field}==…`],
+      limit: perFieldLimit,
+      docCount: snap.size,
+      docIds: snap.docs.map((d) => d.id),
+    });
+  });
+  return snaps;
+}
+
+function firstActiveHitFromOrderedSnaps(
+  snaps: QuerySnapshot[],
+): QueryDocumentSnapshot | null {
+  for (let i = 0; i < EXTINGUISHER_LOOKUP_FIELDS.length; i++) {
+    const snap = snaps[i];
+    const hit = snap.docs.find((d) =>
+      isInventoryActiveRecord(d.data() as Record<string, unknown>),
+    );
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function collectActiveMatchesFromOrderedSnaps(
+  snaps: QuerySnapshot[],
+  maxResults: number,
+): Extinguisher[] {
+  const seen = new Set<string>();
+  const out: Extinguisher[] = [];
+  for (let i = 0; i < EXTINGUISHER_LOOKUP_FIELDS.length; i++) {
+    for (const d of snaps[i].docs) {
+      if (seen.has(d.id)) continue;
+      if (!isInventoryActiveRecord(d.data() as Record<string, unknown>))
+        continue;
+      seen.add(d.id);
+      out.push({ id: d.id, ...d.data() } as Extinguisher);
+      if (out.length >= maxResults) return out;
+    }
+  }
+  return out;
+}
+
+/**
+ * Exact-match active inventory by barcode, asset ID, serial, or QR (parallel queries, max ~20 docs read).
+ * Used by Inventory identifier search; does not query inspections or workspaces.
+ */
+export async function fetchActiveExtinguisherIdentifierMatches(
+  orgId: string,
+  rawQuery: string,
+  maxResults = 20,
+): Promise<Extinguisher[]> {
+  const code = rawQuery.trim();
+  if (!code) return [];
+  const timer = `[EX3 search] fetchActiveExtinguisherIdentifierMatches:${code.slice(0, 28)}`;
+  if (isExSearchDebugEnabled()) console.time(timer);
+  try {
+    exSearchLog('fetchActiveExtinguisherIdentifierMatches', {
+      searchInput: code,
+      orgId,
+      maxResults,
+      collectionPath: collectionPathExtinguishers(orgId),
+    });
+    const strictSnaps = await runStrictLookupWave(orgId, code, 8);
+    let out = collectActiveMatchesFromOrderedSnaps(strictSnaps, maxResults);
+    if (out.length === 0) {
+      const legacySnaps = await runLegacyLookupWave(orgId, code, 50);
+      out = collectActiveMatchesFromOrderedSnaps(legacySnaps, maxResults);
+    }
+    exSearchLog('fetchActiveExtinguisherIdentifierMatches result', {
+      count: out.length,
+      ids: out.map((e) => e.id),
+    });
+    return out.slice(0, maxResults);
+  } finally {
+    if (isExSearchDebugEnabled()) console.timeEnd(timer);
+  }
+}
 
 export interface Extinguisher {
   id?: string;
@@ -539,47 +726,70 @@ export async function getExtinguisher(
 /**
  * Look up an extinguisher by barcode, asset ID, serial, or QR value.
  * Only returns lifecycle-active inventory (replaced/retired units are ignored).
+ *
+ * Uses a few parallel Firestore rounds on `org/{orgId}/extinguishers` only (no
+ * inspections/workspaces). Legacy rows missing `lifecycleStatus` use a
+ * bounded second wave (limit per field).
  */
 export async function findExtinguisherByCode(
   orgId: string,
   code: string,
 ): Promise<Extinguisher | null> {
-  const colRef = collection(db, 'org', orgId, 'extinguishers');
-  const fields = ['barcode', 'assetId', 'serial', 'qrCodeValue'] as const;
+  const trimmed = code.trim();
+  if (!trimmed) return null;
 
-  for (const field of fields) {
-    const q = query(
-      colRef,
-      where('deletedAt', '==', null),
-      where('lifecycleStatus', '==', 'active'),
-      where(field, '==', code),
-      limit(12),
-    );
-    const snap = await getDocs(q);
-    const hit = snap.docs.find((d) =>
-      isInventoryActiveRecord(d.data() as Record<string, unknown>),
-    );
+  const timer = `[EX3 search] findExtinguisherByCode:${trimmed.slice(0, 40)}`;
+  if (isExSearchDebugEnabled()) console.time(timer);
+  try {
+    exSearchLog('findExtinguisherByCode start', {
+      searchInput: trimmed,
+      orgId,
+      collectionPath: collectionPathExtinguishers(orgId),
+      phases: ['strict limit 1 (parallel)', 'strict limit 8 (parallel)', 'legacy limit 50 (parallel)'],
+      note: 'No extra Firestore collections (inspections, workspaces, reports, photos, notes, history).',
+    });
+
+    const strict1 = await runStrictLookupWave(orgId, trimmed, 1);
+    let hit = firstActiveHitFromOrderedSnaps(strict1);
     if (hit) {
+      exSearchLog('findExtinguisherByCode hit', {
+        phase: 'strict-active-limit-1-parallel',
+        totalDocsAcrossFields: strict1.reduce((n, s) => n + s.size, 0),
+        pickedDocId: hit.id,
+      });
       return { id: hit.id, ...hit.data() } as Extinguisher;
     }
-  }
 
-  for (const field of fields) {
-    const q = query(
-      colRef,
-      where('deletedAt', '==', null),
-      where(field, '==', code),
-    );
-    const snap = await getDocs(q);
-    const hit = snap.docs.find((d) =>
-      isInventoryActiveRecord(d.data() as Record<string, unknown>),
-    );
+    const strict8 = await runStrictLookupWave(orgId, trimmed, 8);
+    hit = firstActiveHitFromOrderedSnaps(strict8);
     if (hit) {
+      exSearchLog('findExtinguisherByCode hit', {
+        phase: 'strict-active-limit-8-parallel',
+        totalDocsAcrossFields: strict8.reduce((n, s) => n + s.size, 0),
+        pickedDocId: hit.id,
+      });
       return { id: hit.id, ...hit.data() } as Extinguisher;
     }
-  }
 
-  return null;
+    const legacy = await runLegacyLookupWave(orgId, trimmed, 50);
+    hit = firstActiveHitFromOrderedSnaps(legacy);
+    if (hit) {
+      exSearchLog('findExtinguisherByCode hit', {
+        phase: 'legacy-deletedAt-limit-50-parallel',
+        totalDocsAcrossFields: legacy.reduce((n, s) => n + s.size, 0),
+        pickedDocId: hit.id,
+      });
+      return { id: hit.id, ...hit.data() } as Extinguisher;
+    }
+
+    exSearchLog('findExtinguisherByCode miss', {
+      searchInput: trimmed,
+      totalDocsLastWave: legacy.reduce((n, s) => n + s.size, 0),
+    });
+    return null;
+  } finally {
+    if (isExSearchDebugEnabled()) console.timeEnd(timer);
+  }
 }
 
 export interface ExtinguisherListOptions {

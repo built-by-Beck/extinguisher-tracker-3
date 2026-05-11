@@ -44,7 +44,9 @@ import {
   createExtinguisher,
   generateScannedAssetId,
   getAllActiveExtinguishers,
+  fetchActiveExtinguisherIdentifierMatches,
   isInventoryActiveRecord,
+  isLikelyFirestoreIdentifierQuery,
   isOfficiallyExpiredExtinguisher,
   isPossibleExpiredCandidate,
   type Extinguisher,
@@ -223,6 +225,11 @@ export default function Inventory() {
   const [scanAddLoading, setScanAddLoading] = useState(false);
   const [scanAddError, setScanAddError] = useState('');
   const [locations, setLocations] = useState<Location[]>([]);
+  /** Server-side exact identifier matches (barcode / serial / asset / QR); null = not using this path. */
+  const [serverIdMatches, setServerIdMatches] = useState<Extinguisher[] | null>(
+    null,
+  );
+  const [serverIdFetching, setServerIdFetching] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(
     null,
   );
@@ -235,6 +242,37 @@ export default function Inventory() {
   const canScan =
     hasFeature(flags, 'cameraBarcodeScan', org?.plan) ||
     hasFeature(flags, 'qrScanning', org?.plan);
+
+  const useServerIdentifierSearch = useMemo(() => {
+    if (!isLikelyFirestoreIdentifierQuery(searchQuery)) return false;
+    if (showDeleted) return false;
+    if (
+      categoryFilter === 'replaced' ||
+      categoryFilter === 'retired' ||
+      categoryFilter === 'out_of_service'
+    ) {
+      return false;
+    }
+    return true;
+  }, [searchQuery, showDeleted, categoryFilter]);
+
+  useEffect(() => {
+    if (!orgId || !useServerIdentifierSearch) {
+      setServerIdMatches(null);
+      setServerIdFetching(false);
+      return;
+    }
+    const term = searchQuery.trim();
+    setServerIdFetching(true);
+    setServerIdMatches(null);
+    const handle = window.setTimeout(() => {
+      fetchActiveExtinguisherIdentifierMatches(orgId, term, 20)
+        .then(setServerIdMatches)
+        .catch(() => setServerIdMatches([]))
+        .finally(() => setServerIdFetching(false));
+    }, 280);
+    return () => window.clearTimeout(handle);
+  }, [orgId, searchQuery, useServerIdentifierSearch]);
 
   // Persist preferences
   useEffect(() => {
@@ -408,25 +446,21 @@ export default function Inventory() {
     [locations],
   );
 
-  // Client-side filtering with enhanced location search
+  // Client-side filtering with enhanced location search; exact identifier strings use bounded Firestore reads.
   const filtered = useMemo(() => {
-    return items.filter((ext) => {
+    function applyTableFilters(ext: Extinguisher, includeTextSearch: boolean) {
       const isReplacedRecord =
         ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
       const isSupersededStale =
         ext.id != null && supersededExtinguisherIds.has(ext.id);
       const isRetiredInventoryRow = isReplacedRecord || isSupersededStale;
       if (categoryFilter) {
-        // Retired / replaced view:
-        // - canonical: lifecycleStatus === 'replaced' (and legacy category === 'replaced')
-        // - stale chain: active old unit still in DB while a successor has replacesExtId → old id
         if (categoryFilter === 'replaced') {
           if (!isRetiredInventoryRow) return false;
         } else if (ext.category !== categoryFilter) {
           return false;
         }
       } else {
-        // Default table: active inventory only (use Retired / replaced filter for history).
         if (!isInventoryActiveRecord(ext as unknown as Record<string, unknown>))
           return false;
         if (isReplacedRecord) return false;
@@ -457,7 +491,7 @@ export default function Inventory() {
         )
           return false;
       }
-      if (searchQuery) {
+      if (includeTextSearch && searchQuery) {
         const q = searchQuery.toLowerCase();
         const locationPath = getExtLocationPath(ext).toLowerCase();
         return (
@@ -472,7 +506,17 @@ export default function Inventory() {
         );
       }
       return true;
-    });
+    }
+
+    if (useServerIdentifierSearch) {
+      const base = serverIdMatches;
+      if (base === null) {
+        return [];
+      }
+      return base.filter((ext) => applyTableFilters(ext, false));
+    }
+
+    return items.filter((ext) => applyTableFilters(ext, true));
   }, [
     items,
     categoryFilter,
@@ -482,6 +526,8 @@ export default function Inventory() {
     searchQuery,
     getExtLocationPath,
     supersededExtinguisherIds,
+    useServerIdentifierSearch,
+    serverIdMatches,
   ]);
 
   // Sorted list
@@ -911,7 +957,11 @@ export default function Inventory() {
         </div>
         {searchQuery && (
           <p className="mt-1.5 text-xs text-gray-500">
-            Showing {sorted.length} of {items.length} extinguishers
+            {useServerIdentifierSearch && serverIdFetching
+              ? 'Looking up exact barcode, serial, or asset ID on the server…'
+              : useServerIdentifierSearch
+                ? `Showing ${sorted.length} match${sorted.length === 1 ? '' : 'es'} (server lookup, max 20)`
+                : `Showing ${sorted.length} of ${items.length} extinguishers`}
           </p>
         )}
       </div>

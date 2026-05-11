@@ -2267,3 +2267,13 @@ Added a lesson and resolved error-log entry: parent-provided data refactors must
 **Commit:** `626d191` — `merge: resolve conflicts built_by_Beck`.
 
 **Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build`, `npm --prefix functions test` (all pass).
+
+## 2026-05-11 — Extinguisher search performance (Firestore + Inventory)
+
+**Task:** Speed up barcode/serial/asset lookup and inventory identifier search; add debug logging; avoid unbounded legacy queries.
+
+**Changes:** `findExtinguisherByCode` now uses up to three **parallel** waves on `org/{orgId}/extinguishers` only (strict limit 1, strict limit 8, legacy limit 50 per field). Legacy path previously had **no limit**. Inventory: debounced server exact-match (max 20) when `isLikelyFirestoreIdentifierQuery` and not retired/deleted category views. Debug: `localStorage EX3_DEBUG_SEARCH=1` or Vite dev — `console.time` / field-level logs under `[EX3 extinguisher search]`.
+
+**Validation:** `pnpm build`, `pnpm lint`, `pnpm test`.
+
+**Review verdict:** ACCEPTED (scope: client query patterns + bounded reads; no rules/schema changes).

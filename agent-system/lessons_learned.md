@@ -327,3 +327,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Hold “current time” in React state initialized once, refresh with `setInterval` every 60s so comparisons stay deterministic within render.
 
 **Prevention rule:** For countdown UI driven off wall-clock time, use state/effects, `useSyncExternalStore`, or a ticking clock hook — not bare `Date.now()` in the component body.
+
+## 2026-05-11 - Firestore lookup fallbacks must stay bounded
+
+**What happened:** `findExtinguisherByCode` used a legacy fallback `query(deletedAt==null, field==code)` with **no** `limit()`, so a shared or hot identifier could force the client to download a very large result set and stall the UI.
+
+**Fix used:** Added `limit(50)` per field on the legacy wave, parallelized strict and legacy waves to cut round-trips, and kept inventory-wide listing separate from identifier search (bounded server path for likely IDs).
+
+**Prevention rule:** Any Firestore `getDocs` used for interactive search or scan lookup must include an explicit `limit()` on fallback queries, even when equality filters exist, unless the product explicitly needs a full collection scan.
