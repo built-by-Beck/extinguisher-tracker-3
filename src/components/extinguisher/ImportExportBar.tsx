@@ -8,7 +8,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { httpsCallable } from 'firebase/functions';
 import { Upload, Download, Loader2, FileJson, X, FileSpreadsheet, HelpCircle } from 'lucide-react';
-import readXlsxFile from 'read-excel-file';
+import readXlsxFile from 'read-excel-file/browser';
 import { functions } from '../../lib/firebase.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { ColumnMapperModal, TARGET_FIELDS } from './ColumnMapperModal.tsx';
