@@ -3,7 +3,10 @@ import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { validateSubscriptionTx } from '../utils/subscription.js';
-import { throwInvalidArgument, throwFailedPrecondition } from '../utils/errors.js';
+import {
+  throwInvalidArgument,
+  throwFailedPrecondition,
+} from '../utils/errors.js';
 import { writeAuditLogTx } from '../utils/auditLog.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { canUseCustomAssetInspections } from '../billing/planConfig.js';
@@ -14,8 +17,18 @@ import {
 } from '../inspections/extinguisherInspectionRows.js';
 
 const MONTH_LABELS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 interface AssetInspectionItemSnapshot {
@@ -35,7 +48,10 @@ function formatLabel(monthYear: string): string {
 
 export const createWorkspace = onCall(async (request) => {
   const { uid, email } = validateAuth(request);
-  const { orgId, monthYear } = request.data as { orgId: string; monthYear: string };
+  const { orgId, monthYear } = request.data as {
+    orgId: string;
+    monthYear: string;
+  };
 
   if (!orgId || typeof orgId !== 'string') {
     throwInvalidArgument('orgId is required.');
@@ -54,20 +70,24 @@ export const createWorkspace = onCall(async (request) => {
   );
 
   // 1. Check for active extinguishers outside transaction
-  const extSnap = await adminDb.collection(`org/${orgId}/extinguishers`)
+  const extSnap = await adminDb
+    .collection(`org/${orgId}/extinguishers`)
     .where('deletedAt', '==', null)
     .where('category', '==', 'standard')
     .get();
 
   const assetSnap = includeCustomAssets
-    ? await adminDb.collection(`org/${orgId}/assets`)
-      .where('active', '==', true)
-      .where('status', '==', 'active')
-      .where('recurrence', '==', 'monthly')
-      .get()
+    ? await adminDb
+        .collection(`org/${orgId}/assets`)
+        .where('active', '==', true)
+        .where('status', '==', 'active')
+        .where('recurrence', '==', 'monthly')
+        .get()
     : null;
 
-  const activeExtinguishers = extSnap.docs.filter((doc) => isMonthlyWorkspaceExtinguisher(doc.data()));
+  const activeExtinguishers = extSnap.docs.filter((doc) =>
+    isMonthlyWorkspaceExtinguisher(doc.data()),
+  );
   const totalExtinguishers = activeExtinguishers.length;
   const totalCustomAssets = assetSnap?.size ?? 0;
   const totalInspectionTargets = totalExtinguishers + totalCustomAssets;
@@ -111,7 +131,11 @@ export const createWorkspace = onCall(async (request) => {
       performedByEmail: email,
       entityType: 'workspace',
       entityId: monthYear,
-      details: { monthYear, extinguishersSeeded: totalExtinguishers, customAssetsSeeded: totalCustomAssets },
+      details: {
+        monthYear,
+        extinguishersSeeded: totalExtinguishers,
+        customAssetsSeeded: totalCustomAssets,
+      },
     });
   });
 
@@ -122,9 +146,14 @@ export const createWorkspace = onCall(async (request) => {
 
   for (const extDoc of activeExtinguishers) {
     const extData = extDoc.data();
-    const inspDocRef = inspRef.doc(deterministicExtinguisherInspectionId(extDoc.id, monthYear));
-    
-    batch.set(inspDocRef, buildPendingExtinguisherInspectionSeed(extDoc.id, monthYear, extData));
+    const inspDocRef = inspRef.doc(
+      deterministicExtinguisherInspectionId(extDoc.id, monthYear),
+    );
+
+    batch.set(
+      inspDocRef,
+      buildPendingExtinguisherInspectionSeed(extDoc.id, monthYear, extData),
+    );
 
     batchCount++;
     if (batchCount >= 499) {
@@ -137,7 +166,11 @@ export const createWorkspace = onCall(async (request) => {
   if (assetSnap) {
     for (const assetDoc of assetSnap.docs) {
       const assetData = assetDoc.data();
-      const checklistSnapshot: AssetInspectionItemSnapshot[] = ((assetData.inspectionItems as Array<Record<string, unknown>> | undefined) ?? [])
+      const checklistSnapshot: AssetInspectionItemSnapshot[] = (
+        (assetData.inspectionItems as
+          | Array<Record<string, unknown>>
+          | undefined) ?? []
+      )
         .filter((item) => item.active !== false)
         .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
         .map((item, index) => ({
@@ -165,7 +198,10 @@ export const createWorkspace = onCall(async (request) => {
         inspectedByEmail: null,
         checklistSnapshot,
         checklistAnswers: Object.fromEntries(
-          checklistSnapshot.map((item) => [String(item.id), { result: 'unchecked' }]),
+          checklistSnapshot.map((item) => [
+            String(item.id),
+            { result: 'unchecked' },
+          ]),
         ),
         notes: '',
         details: '',
@@ -191,7 +227,8 @@ export const createWorkspace = onCall(async (request) => {
   }
 
   // 4. Clear non-carry-forward section notes
-  const clearNotesSnap = await adminDb.collection(`org/${orgId}/sectionNotes`)
+  const clearNotesSnap = await adminDb
+    .collection(`org/${orgId}/sectionNotes`)
     .where('saveForNextMonth', '==', false)
     .get();
 
@@ -210,6 +247,10 @@ export const createWorkspace = onCall(async (request) => {
     if (notesCount > 0) await notesBatch.commit();
   }
 
-  return { monthYear, label: formatLabel(monthYear), totalExtinguishers, totalCustomAssets };
+  return {
+    monthYear,
+    label: formatLabel(monthYear),
+    totalExtinguishers,
+    totalCustomAssets,
+  };
 });
-

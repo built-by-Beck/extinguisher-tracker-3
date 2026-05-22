@@ -11,7 +11,11 @@ import {
 } from '../utils/errors.js';
 
 const LOGO_STORAGE_PATH_SUFFIX = '/branding/logo/current';
-const ALLOWED_LOGO_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+const ALLOWED_LOGO_CONTENT_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+] as const;
 
 interface OrganizationProfileInput {
   displayName?: unknown;
@@ -61,11 +65,21 @@ function hasUnsafeMultilineCharacters(value: string): boolean {
   return [...value].some((char) => {
     const code = char.charCodeAt(0);
     const allowedWhitespace = char === '\n' || char === '\r' || char === '\t';
-    return (!allowedWhitespace && code < 32) || code === 127 || char === '<' || char === '>';
+    return (
+      (!allowedWhitespace && code < 32) ||
+      code === 127 ||
+      char === '<' ||
+      char === '>'
+    );
   });
 }
 
-function cleanText(value: unknown, fieldName: string, maxLength: number, required = false): string {
+function cleanText(
+  value: unknown,
+  fieldName: string,
+  maxLength: number,
+  required = false,
+): string {
   if (value === undefined || value === null) {
     if (required) throwInvalidArgument(`${fieldName} is required.`);
     return '';
@@ -79,7 +93,9 @@ function cleanText(value: unknown, fieldName: string, maxLength: number, require
     throwInvalidArgument(`${fieldName} is required.`);
   }
   if (normalized.length > maxLength) {
-    throwInvalidArgument(`${fieldName} must be ${maxLength} characters or less.`);
+    throwInvalidArgument(
+      `${fieldName} must be ${maxLength} characters or less.`,
+    );
   }
   if (hasUnsafeSingleLineCharacters(normalized)) {
     throwInvalidArgument(`${fieldName} contains unsupported characters.`);
@@ -88,7 +104,11 @@ function cleanText(value: unknown, fieldName: string, maxLength: number, require
   return normalized;
 }
 
-function cleanMultilineText(value: unknown, fieldName: string, maxLength: number): string {
+function cleanMultilineText(
+  value: unknown,
+  fieldName: string,
+  maxLength: number,
+): string {
   if (value === undefined || value === null) return '';
   if (typeof value !== 'string') {
     throwInvalidArgument(`${fieldName} must be text.`);
@@ -96,7 +116,9 @@ function cleanMultilineText(value: unknown, fieldName: string, maxLength: number
 
   const normalized = value.trim().replace(/[ \t]+/g, ' ');
   if (normalized.length > maxLength) {
-    throwInvalidArgument(`${fieldName} must be ${maxLength} characters or less.`);
+    throwInvalidArgument(
+      `${fieldName} must be ${maxLength} characters or less.`,
+    );
   }
   if (hasUnsafeMultilineCharacters(normalized)) {
     throwInvalidArgument(`${fieldName} contains unsupported characters.`);
@@ -134,25 +156,36 @@ function cleanEmail(value: unknown): string {
 
 function hasBrandingAccess(org: OrganizationData): boolean {
   if (org.featureFlags?.organizationBranding === true) return true;
-  return org.plan === 'pro' || org.plan === 'elite' || org.plan === 'enterprise';
+  return (
+    org.plan === 'pro' || org.plan === 'elite' || org.plan === 'enterprise'
+  );
 }
 
 function hasWritableSubscription(org: OrganizationData): boolean {
   if (org.plan === 'enterprise') return true;
-  return org.subscriptionStatus === 'active' || org.subscriptionStatus === 'trialing';
+  return (
+    org.subscriptionStatus === 'active' || org.subscriptionStatus === 'trialing'
+  );
 }
 
 function validateLogoInput(
   orgId: string,
   branding: OrganizationBrandingInput | undefined,
   org: OrganizationData,
-): { logoPath?: string | null; logoContentType?: string | null; clearLogo: boolean } {
+): {
+  logoPath?: string | null;
+  logoContentType?: string | null;
+  clearLogo: boolean;
+} {
   if (!branding) {
     return { clearLogo: false };
   }
 
   const clearLogo = branding.clearLogo === true;
-  const hasLogoPath = branding.logoPath !== undefined && branding.logoPath !== null && branding.logoPath !== '';
+  const hasLogoPath =
+    branding.logoPath !== undefined &&
+    branding.logoPath !== null &&
+    branding.logoPath !== '';
   const hasLogoContentType =
     branding.logoContentType !== undefined &&
     branding.logoContentType !== null &&
@@ -167,19 +200,25 @@ function validateLogoInput(
   }
 
   if (!hasBrandingAccess(org) || !hasWritableSubscription(org)) {
-    throwFailedPrecondition('Organization branding is available on active Pro, Elite, and Enterprise plans.');
+    throwFailedPrecondition(
+      'Organization branding is available on active Pro, Elite, and Enterprise plans.',
+    );
   }
 
   if (typeof branding.logoPath !== 'string') {
     throwInvalidArgument('Logo path is invalid.');
   }
   if (branding.logoPath !== `org/${orgId}${LOGO_STORAGE_PATH_SUFFIX}`) {
-    throwInvalidArgument('Logo must use the approved organization branding storage path.');
+    throwInvalidArgument(
+      'Logo must use the approved organization branding storage path.',
+    );
   }
 
   if (
     typeof branding.logoContentType !== 'string' ||
-    !ALLOWED_LOGO_CONTENT_TYPES.includes(branding.logoContentType as typeof ALLOWED_LOGO_CONTENT_TYPES[number])
+    !ALLOWED_LOGO_CONTENT_TYPES.includes(
+      branding.logoContentType as (typeof ALLOWED_LOGO_CONTENT_TYPES)[number],
+    )
   ) {
     throwInvalidArgument('Logo must be a JPEG, PNG, or WebP image.');
   }
@@ -191,74 +230,93 @@ function validateLogoInput(
   };
 }
 
-export const updateOrganizationProfile = onCall<UpdateOrganizationProfileInput, Promise<UpdateOrganizationProfileOutput>>(
-  { enforceAppCheck: false },
-  async (request) => {
-    const { uid, email } = validateAuth(request);
-    const { orgId, profile, branding } = request.data;
+export const updateOrganizationProfile = onCall<
+  UpdateOrganizationProfileInput,
+  Promise<UpdateOrganizationProfileOutput>
+>({ enforceAppCheck: false }, async (request) => {
+  const { uid, email } = validateAuth(request);
+  const { orgId, profile, branding } = request.data;
 
-    if (!orgId || typeof orgId !== 'string') {
-      throwInvalidArgument('Organization ID is required.');
-    }
+  if (!orgId || typeof orgId !== 'string') {
+    throwInvalidArgument('Organization ID is required.');
+  }
 
-    await validateMembership(orgId, uid, ['owner', 'admin', 'inspector', 'viewer']);
+  await validateMembership(orgId, uid, [
+    'owner',
+    'admin',
+    'inspector',
+    'viewer',
+  ]);
 
-    const orgRef = adminDb.doc(`org/${orgId}`);
-    const orgSnap = await orgRef.get();
-    if (!orgSnap.exists) {
-      throwFailedPrecondition('Organization not found.');
-    }
+  const orgRef = adminDb.doc(`org/${orgId}`);
+  const orgSnap = await orgRef.get();
+  if (!orgSnap.exists) {
+    throwFailedPrecondition('Organization not found.');
+  }
 
-    const org = orgSnap.data() as OrganizationData;
-    if (org.createdBy !== uid) {
-      throwPermissionDenied('Only the user who created this organization can edit its profile.');
-    }
+  const org = orgSnap.data() as OrganizationData;
+  if (org.createdBy !== uid) {
+    throwPermissionDenied(
+      'Only the user who created this organization can edit its profile.',
+    );
+  }
 
-    const name = cleanText(request.data.name, 'Organization name', 100, true);
-    const profileInput = profile ?? {};
-    const cleanedProfile = {
-      displayName: cleanText(profileInput.displayName ?? name, 'Display name', 100) || name,
-      website: cleanWebsite(profileInput.website),
-      phone: cleanText(profileInput.phone, 'Phone', 40),
-      supportEmail: cleanEmail(profileInput.supportEmail),
-      addressLine1: cleanMultilineText(profileInput.addressLine1, 'Address line 1', 120),
-      addressLine2: cleanMultilineText(profileInput.addressLine2, 'Address line 2', 120),
-      city: cleanText(profileInput.city, 'City', 80),
-      region: cleanText(profileInput.region, 'State or region', 80),
-      postalCode: cleanText(profileInput.postalCode, 'Postal code', 20),
-      country: cleanText(profileInput.country, 'Country', 80),
+  const name = cleanText(request.data.name, 'Organization name', 100, true);
+  const profileInput = profile ?? {};
+  const cleanedProfile = {
+    displayName:
+      cleanText(profileInput.displayName ?? name, 'Display name', 100) || name,
+    website: cleanWebsite(profileInput.website),
+    phone: cleanText(profileInput.phone, 'Phone', 40),
+    supportEmail: cleanEmail(profileInput.supportEmail),
+    addressLine1: cleanMultilineText(
+      profileInput.addressLine1,
+      'Address line 1',
+      120,
+    ),
+    addressLine2: cleanMultilineText(
+      profileInput.addressLine2,
+      'Address line 2',
+      120,
+    ),
+    city: cleanText(profileInput.city, 'City', 80),
+    region: cleanText(profileInput.region, 'State or region', 80),
+    postalCode: cleanText(profileInput.postalCode, 'Postal code', 20),
+    country: cleanText(profileInput.country, 'Country', 80),
+  };
+  const logo = validateLogoInput(orgId, branding, org);
+  const now = FieldValue.serverTimestamp();
+  const updateData: Record<string, unknown> = {
+    name,
+    profile: cleanedProfile,
+    updatedAt: now,
+  };
+
+  if (logo.clearLogo || logo.logoPath) {
+    updateData.branding = {
+      logoPath: logo.logoPath ?? null,
+      logoContentType: logo.logoContentType ?? null,
+      logoUpdatedAt: now,
+      logoUpdatedBy: uid,
     };
-    const logo = validateLogoInput(orgId, branding, org);
-    const now = FieldValue.serverTimestamp();
-    const updateData: Record<string, unknown> = {
-      name,
-      profile: cleanedProfile,
-      updatedAt: now,
-    };
+  }
 
-    if (logo.clearLogo || logo.logoPath) {
-      updateData.branding = {
-        logoPath: logo.logoPath ?? null,
-        logoContentType: logo.logoContentType ?? null,
-        logoUpdatedAt: now,
-        logoUpdatedBy: uid,
-      };
-    }
+  await orgRef.update(updateData);
 
-    await orgRef.update(updateData);
+  await writeAuditLog(orgId, {
+    action:
+      logo.clearLogo || logo.logoPath
+        ? 'organization.profile_branding_updated'
+        : 'organization.profile_updated',
+    performedBy: uid,
+    performedByEmail: email,
+    entityType: 'organization',
+    entityId: orgId,
+    details: {
+      profileUpdated: true,
+      brandingUpdated: logo.clearLogo || Boolean(logo.logoPath),
+    },
+  });
 
-    await writeAuditLog(orgId, {
-      action: logo.clearLogo || logo.logoPath ? 'organization.profile_branding_updated' : 'organization.profile_updated',
-      performedBy: uid,
-      performedByEmail: email,
-      entityType: 'organization',
-      entityId: orgId,
-      details: {
-        profileUpdated: true,
-        brandingUpdated: logo.clearLogo || Boolean(logo.logoPath),
-      },
-    });
-
-    return { success: true };
-  },
-);
+  return { success: true };
+});

@@ -20,7 +20,11 @@ export type { OrgMember, OrgRole, MemberStatus } from './member.ts';
 export type { Invite, InviteStatus } from './invite.ts';
 
 // Notifications
-export type { Notification, NotificationType, NotificationSeverity } from './notification.ts';
+export type {
+  Notification,
+  NotificationType,
+  NotificationSeverity,
+} from './notification.ts';
 
 // Reports
 export type { Report, ReportResult, ReportFormat } from './report.ts';

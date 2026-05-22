@@ -1,5 +1,17 @@
 import { Link } from 'react-router-dom';
-import { Bell, ClipboardList, FileText, MapPinned, Package, Printer, Share2, Sparkles, Users, WifiOff, Wrench } from 'lucide-react';
+import {
+  Bell,
+  ClipboardList,
+  FileText,
+  MapPinned,
+  Package,
+  Printer,
+  Share2,
+  Sparkles,
+  Users,
+  WifiOff,
+  Wrench,
+} from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { marketingSeo } from './marketingSeo.ts';
@@ -57,20 +69,30 @@ export default function MarketingGettingStartedPage() {
 
   return (
     <>
-      <MarketingPageMeta title={seo.title} description={seo.description} path={seo.path} />
+      <MarketingPageMeta
+        title={seo.title}
+        description={seo.description}
+        path={seo.path}
+      />
       <PublicMarketingLayout>
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
           <div className="max-w-3xl">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900">Getting Started</h1>
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900">
+              Getting Started
+            </h1>
             <p className="mt-4 text-lg text-gray-600">
-              A straightforward path from first login to a stronger extinguisher program: inventory, inspections,
-              evidence, reminders, reports, sharing, and cleanup.
+              A straightforward path from first login to a stronger extinguisher
+              program: inventory, inspections, evidence, reminders, reports,
+              sharing, and cleanup.
             </p>
           </div>
 
           <ol className="mt-10 space-y-4">
             {steps.map(({ title, body, icon: Icon }, index) => (
-              <li key={title} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <li
+                key={title}
+                className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+              >
                 <div className="flex items-start gap-4">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">
                     {index + 1}
@@ -78,7 +100,9 @@ export default function MarketingGettingStartedPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <Icon className="h-5 w-5 text-red-600" />
-                      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        {title}
+                      </h2>
                     </div>
                     <p className="mt-2 text-sm text-gray-600">{body}</p>
                   </div>
@@ -89,9 +113,11 @@ export default function MarketingGettingStartedPage() {
 
           <div className="mt-8 rounded-xl border border-blue-200 bg-blue-50 p-5">
             <p className="text-sm text-blue-900">
-              AI guidance uses the NFPA reference configured in Settings, with NFPA 10 (2022) as the new-org fallback.
-              The placement calculator and AI assistant are planning and guidance tools; teams should align final
-              decisions with their locally adopted edition and AHJ direction.
+              AI guidance uses the NFPA reference configured in Settings, with
+              NFPA 10 (2022) as the new-org fallback. The placement calculator
+              and AI assistant are planning and guidance tools; teams should
+              align final decisions with their locally adopted edition and AHJ
+              direction.
             </p>
           </div>
 
@@ -113,18 +139,26 @@ export default function MarketingGettingStartedPage() {
                 icon: Users,
               },
             ].map(({ title, body, icon: Icon }) => (
-              <article key={title} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <article
+                key={title}
+                className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+              >
                 <Icon className="h-5 w-5 text-red-600" aria-hidden />
-                <h2 className="mt-3 text-sm font-semibold text-gray-900">{title}</h2>
+                <h2 className="mt-3 text-sm font-semibold text-gray-900">
+                  {title}
+                </h2>
                 <p className="mt-2 text-sm text-gray-600">{body}</p>
               </article>
             ))}
           </div>
 
           <div className="mt-10 rounded-2xl bg-gray-900 px-6 py-10 text-center">
-            <h2 className="text-2xl font-bold text-white">Ready to set up your program?</h2>
+            <h2 className="text-2xl font-bold text-white">
+              Ready to set up your program?
+            </h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-300">
-              Start your account, load inventory, and complete your first inspection run.
+              Start your account, load inventory, and complete your first
+              inspection run.
             </p>
             <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link

@@ -12,7 +12,11 @@ import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { validateSubscriptionTx } from '../utils/subscription.js';
-import { throwInvalidArgument, throwFailedPrecondition, throwNotFound } from '../utils/errors.js';
+import {
+  throwInvalidArgument,
+  throwFailedPrecondition,
+  throwNotFound,
+} from '../utils/errors.js';
 import { writeAuditLogTx } from '../utils/auditLog.js';
 
 interface ReplacementStatusInput {
@@ -56,23 +60,15 @@ function isInventoryActive(data: DocumentData): boolean {
   const status = data.status as string | null | undefined;
   const isActive = data.isActive as boolean | null | undefined;
   if (ls === 'replaced' || ls === 'retired' || ls === 'deleted') return false;
-  if (category === 'replaced' || category === 'retired' || category === 'out_of_service') return false;
+  if (
+    category === 'replaced' ||
+    category === 'retired' ||
+    category === 'out_of_service'
+  )
+    return false;
   if (status != null && status !== 'active') return false;
   if (isActive === false) return false;
   return ls === 'active' || ls == null || ls === '';
-}
-
-function replacementMillis(row: Record<string, unknown>): number {
-  const replacedAt = row.replacedAt;
-  if (
-    typeof replacedAt === 'object' &&
-    replacedAt !== null &&
-    'toMillis' in replacedAt &&
-    typeof replacedAt.toMillis === 'function'
-  ) {
-    return replacedAt.toMillis();
-  }
-  return 0;
 }
 
 async function assertNoActiveConflict(
@@ -83,20 +79,33 @@ async function assertNoActiveConflict(
 ): Promise<void> {
   if (!value) return;
   const snap = await tx.get(
-    adminDb.collection(`org/${orgId}/extinguishers`).where(field, '==', value).where('deletedAt', '==', null),
+    adminDb
+      .collection(`org/${orgId}/extinguishers`)
+      .where(field, '==', value)
+      .where('deletedAt', '==', null),
   );
   const conflict = snap.docs.find((doc) => isInventoryActive(doc.data()));
   if (!conflict) return;
 
-  const label = field === 'assetId' ? 'Asset number' : field === 'serial' ? 'Serial number' : 'Barcode';
-  throwFailedPrecondition(`${label} "${value}" is already in use by another active extinguisher.`);
+  const label =
+    field === 'assetId'
+      ? 'Asset number'
+      : field === 'serial'
+        ? 'Serial number'
+        : 'Barcode';
+  throwFailedPrecondition(
+    `${label} "${value}" is already in use by another active extinguisher.`,
+  );
 }
 
 export const updateReplacementHistoryStatus = onCall(async (request) => {
   const { uid, email } = validateAuth(request);
   const input = request.data as ReplacementStatusInput;
   const orgId = requireString(input.orgId, 'orgId is required.');
-  const extinguisherId = requireString(input.extinguisherId, 'extinguisherId is required.');
+  const extinguisherId = requireString(
+    input.extinguisherId,
+    'extinguisherId is required.',
+  );
   const historyId = requireString(input.historyId, 'historyId is required.');
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
@@ -105,29 +114,47 @@ export const updateReplacementHistoryStatus = onCall(async (request) => {
     await validateSubscriptionTx(tx, orgId);
 
     const extRef = adminDb.doc(`org/${orgId}/extinguishers/${extinguisherId}`);
-    const histRef = adminDb.doc(`org/${orgId}/extinguishers/${extinguisherId}/replacementHistory/${historyId}`);
-    const [extSnap, histSnap] = await Promise.all([tx.get(extRef), tx.get(histRef)]);
+    const histRef = adminDb.doc(
+      `org/${orgId}/extinguishers/${extinguisherId}/replacementHistory/${historyId}`,
+    );
+    const [extSnap, histSnap] = await Promise.all([
+      tx.get(extRef),
+      tx.get(histRef),
+    ]);
     if (!extSnap.exists) throwNotFound('Current extinguisher not found.');
     if (!histSnap.exists) throwNotFound('Replacement history row not found.');
 
     const histData = histSnap.data()!;
-    const priorSnapshot = (histData.priorSnapshot ?? {}) as Record<string, unknown>;
+    const priorSnapshot = (histData.priorSnapshot ?? {}) as Record<
+      string,
+      unknown
+    >;
     const waitingForService = input.waitingForService === true;
     const sentForService = input.sentForService === true;
     const discarded = input.discarded === true;
     const returned = input.returned === true;
 
     if (discarded && returned) {
-      throwFailedPrecondition('A replaced extinguisher cannot be both discarded and returned.');
+      throwFailedPrecondition(
+        'A replaced extinguisher cannot be both discarded and returned.',
+      );
     }
 
     const serverTimestamp = FieldValue.serverTimestamp();
-    let returnedSpareExtinguisherId = (histData.returnedSpareExtinguisherId as string | null | undefined) ?? null;
+    let returnedSpareExtinguisherId =
+      (histData.returnedSpareExtinguisherId as string | null | undefined) ??
+      null;
 
     if (returned && !returnedSpareExtinguisherId) {
-      const spareAssetId = requireString(input.returnToSpare?.assetId, 'Spare asset number is required.');
-      const priorSerial = optionalString(priorSnapshot.serial) ?? optionalString(histData.previousSerial);
-      const spareSerial = optionalString(input.returnToSpare?.serial) ?? priorSerial;
+      const spareAssetId = requireString(
+        input.returnToSpare?.assetId,
+        'Spare asset number is required.',
+      );
+      const priorSerial =
+        optionalString(priorSnapshot.serial) ??
+        optionalString(histData.previousSerial);
+      const spareSerial =
+        optionalString(input.returnToSpare?.serial) ?? priorSerial;
       if (!spareSerial) {
         throwInvalidArgument('Spare serial number is required.');
       }
@@ -143,7 +170,9 @@ export const updateReplacementHistoryStatus = onCall(async (request) => {
         assetId: spareAssetId,
         serial: spareSerial,
         barcode: spareBarcode,
-        barcodeFormat: spareBarcode ? (priorSnapshot.barcodeFormat ?? null) : null,
+        barcodeFormat: spareBarcode
+          ? (priorSnapshot.barcodeFormat ?? null)
+          : null,
         qrCodeValue: null,
         qrCodeUrl: null,
         manufacturer: priorSnapshot.manufacturer ?? null,
@@ -157,10 +186,22 @@ export const updateReplacementHistoryStatus = onCall(async (request) => {
         inServiceDate: serverTimestamp,
         expirationYear: priorSnapshot.expirationYear ?? null,
         isExpired: priorSnapshot.isExpired ?? false,
-        vicinity: optionalString(input.returnToSpare?.vicinity) ?? (priorSnapshot.vicinity ?? ''),
-        parentLocation: optionalString(input.returnToSpare?.parentLocation) ?? (priorSnapshot.parentLocation ?? ''),
-        section: optionalString(input.returnToSpare?.section) ?? (priorSnapshot.section ?? ''),
-        locationId: optionalString(input.returnToSpare?.locationId) ?? (priorSnapshot.locationId ?? null),
+        vicinity:
+          optionalString(input.returnToSpare?.vicinity) ??
+          priorSnapshot.vicinity ??
+          '',
+        parentLocation:
+          optionalString(input.returnToSpare?.parentLocation) ??
+          priorSnapshot.parentLocation ??
+          '',
+        section:
+          optionalString(input.returnToSpare?.section) ??
+          priorSnapshot.section ??
+          '',
+        locationId:
+          optionalString(input.returnToSpare?.locationId) ??
+          priorSnapshot.locationId ??
+          null,
         photos: Array.isArray(priorSnapshot.photos) ? priorSnapshot.photos : [],
         lastMonthlyInspection: priorSnapshot.lastMonthlyInspection ?? null,
         nextMonthlyInspection: priorSnapshot.nextMonthlyInspection ?? null,
@@ -171,13 +212,16 @@ export const updateReplacementHistoryStatus = onCall(async (request) => {
         annualInspectionNotes: priorSnapshot.annualInspectionNotes ?? null,
         lastSixYearMaintenance: priorSnapshot.lastSixYearMaintenance ?? null,
         nextSixYearMaintenance: priorSnapshot.nextSixYearMaintenance ?? null,
-        requiresSixYearMaintenance: priorSnapshot.requiresSixYearMaintenance ?? null,
+        requiresSixYearMaintenance:
+          priorSnapshot.requiresSixYearMaintenance ?? null,
         lastHydroTest: priorSnapshot.lastHydroTest ?? null,
         nextHydroTest: priorSnapshot.nextHydroTest ?? null,
         hydroTestIntervalYears: priorSnapshot.hydroTestIntervalYears ?? null,
         lifecycleStatus: 'active',
         complianceStatus: priorSnapshot.complianceStatus ?? 'missing_data',
-        overdueFlags: Array.isArray(priorSnapshot.overdueFlags) ? priorSnapshot.overdueFlags : [],
+        overdueFlags: Array.isArray(priorSnapshot.overdueFlags)
+          ? priorSnapshot.overdueFlags
+          : [],
         replacedByExtId: null,
         replacesExtId: null,
         replacementHistory: [],
@@ -212,7 +256,9 @@ export const updateReplacementHistoryStatus = onCall(async (request) => {
         },
       });
     } else if (!returned && returnedSpareExtinguisherId) {
-      throwFailedPrecondition('Returned status cannot be cleared after a spare record has been created.');
+      throwFailedPrecondition(
+        'Returned status cannot be cleared after a spare record has been created.',
+      );
     }
 
     tx.update(histRef, {
@@ -221,8 +267,14 @@ export const updateReplacementHistoryStatus = onCall(async (request) => {
       discarded,
       returned,
       returnedSpareExtinguisherId,
-      returnedAt: returned && returnedSpareExtinguisherId ? (histData.returnedAt ?? serverTimestamp) : null,
-      returnedBy: returned && returnedSpareExtinguisherId ? (histData.returnedBy ?? uid) : null,
+      returnedAt:
+        returned && returnedSpareExtinguisherId
+          ? (histData.returnedAt ?? serverTimestamp)
+          : null,
+      returnedBy:
+        returned && returnedSpareExtinguisherId
+          ? (histData.returnedBy ?? uid)
+          : null,
       serviceStatusUpdatedAt: serverTimestamp,
       serviceStatusUpdatedBy: uid,
     });
@@ -252,40 +304,26 @@ export const listReplacementHistory = onCall(async (request) => {
   const { orgId } = request.data as ListReplacementHistoryInput;
   const normalizedOrgId = requireString(orgId, 'orgId is required.');
 
-  await validateMembership(normalizedOrgId, uid, ['owner', 'admin', 'inspector', 'viewer']);
-
-  // Query replaced extinguishers by both the current and legacy field name
-  const extRef = adminDb.collection(`org/${normalizedOrgId}/extinguishers`);
-  const [byStatus, byCategory] = await Promise.all([
-    extRef.where('lifecycleStatus', '==', 'replaced').get(),
-    extRef.where('category', '==', 'replaced').get(),
+  await validateMembership(normalizedOrgId, uid, [
+    'owner',
+    'admin',
+    'inspector',
+    'viewer',
   ]);
 
-  // Deduplicate by document ID
-  const seen = new Set<string>();
-  const replacedExtIds: string[] = [];
-  for (const doc of [...byStatus.docs, ...byCategory.docs]) {
-    if (!seen.has(doc.id)) {
-      seen.add(doc.id);
-      replacedExtIds.push(doc.id);
-    }
-  }
+  const snap = await adminDb
+    .collectionGroup('replacementHistory')
+    .where('orgId', '==', normalizedOrgId)
+    .orderBy('replacedAt', 'desc')
+    .limit(500)
+    .get();
 
-  // Fetch each extinguisher's replacementHistory subcollection directly
-  const historySnaps = await Promise.all(
-    replacedExtIds.map((extId) =>
-      adminDb.collection(`org/${normalizedOrgId}/extinguishers/${extId}/replacementHistory`).get()
-    )
+  const rows: Array<Record<string, unknown> & { id: string }> = snap.docs.map(
+    (doc) => ({
+      id: doc.id,
+      ...(doc.data() as Record<string, unknown>),
+    }),
   );
-
-  const rows: Array<Record<string, unknown> & { id: string }> = historySnaps
-    .flatMap((snap) =>
-      snap.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as Record<string, unknown>),
-      }))
-    )
-    .sort((a, b) => replacementMillis(b) - replacementMillis(a));
 
   return { rows };
 });

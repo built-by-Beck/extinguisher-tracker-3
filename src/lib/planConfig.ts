@@ -23,6 +23,18 @@ export function yearlyTotalFromMonthly(monthly: number): number {
   return Math.round(monthly * 12 * (1 - YEARLY_DISCOUNT_FRACTION) * 100) / 100;
 }
 
+/**
+ * Monthly-equivalent display price for a yearly plan, snapped to .99 pricing.
+ * e.g. $89.10 → "$88.99", $26.99 → "$26.99"
+ */
+export function yearlyMonthlyEquivDisplay(monthly: number): string {
+  const equiv = monthly * (1 - YEARLY_DISCOUNT_FRACTION);
+  const natural = Math.round(equiv * 100) / 100;
+  const cents = Math.round((natural % 1) * 100);
+  const clean = cents === 99 ? natural : Math.floor(equiv) - 0.01;
+  return clean % 1 === 0 ? `$${clean}` : `$${clean.toFixed(2)}`;
+}
+
 export interface PlanInfo {
   name: PlanName;
   displayName: string;

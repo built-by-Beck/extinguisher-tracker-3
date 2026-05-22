@@ -18,7 +18,11 @@ const MONTH_NAMES = [
 function buildMonthWindow(year: number, month: number): MonthWindow {
   const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
   const end = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
-  const label = start.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const label = start.toLocaleString('en-US', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
   return {
     year,
     month,
@@ -47,7 +51,10 @@ function parseMonthWindow(text: string, now = new Date()): MonthWindow | null {
     return buildMonthWindow(d.getUTCFullYear(), d.getUTCMonth() + 1);
   }
 
-  const monthNameRegex = new RegExp(`\\b(${MONTH_NAMES.join('|')})\\b(?:\\s+(\\d{4}))?`, 'i');
+  const monthNameRegex = new RegExp(
+    `\\b(${MONTH_NAMES.join('|')})\\b(?:\\s+(\\d{4}))?`,
+    'i',
+  );
   const monthMatch = lower.match(monthNameRegex);
   if (monthMatch) {
     const monthName = monthMatch[1].toLowerCase();
@@ -61,7 +68,9 @@ function parseMonthWindow(text: string, now = new Date()): MonthWindow | null {
   return null;
 }
 
-function parseNoteStatus(text: string): 'open' | 'in_progress' | 'resolved' | undefined {
+function parseNoteStatus(
+  text: string,
+): 'open' | 'in_progress' | 'resolved' | undefined {
   const lower = text.toLowerCase();
   if (lower.includes('in progress')) return 'in_progress';
   if (lower.includes('resolved') || lower.includes('closed')) return 'resolved';
@@ -69,15 +78,23 @@ function parseNoteStatus(text: string): 'open' | 'in_progress' | 'resolved' | un
   return undefined;
 }
 
-export function parseAiMemoryIntent(message: string, now = new Date()): AiMemoryQueryIntent | null {
+export function parseAiMemoryIntent(
+  message: string,
+  now = new Date(),
+): AiMemoryQueryIntent | null {
   const normalized = message.toLowerCase();
 
   const asksForExtinguisherList =
-    /\b(extinguisher|extinguishers|asset|assets|unit|units)\b/.test(normalized) &&
+    /\b(extinguisher|extinguishers|asset|assets|unit|units)\b/.test(
+      normalized,
+    ) &&
     /\b(show|list|find|get|give|print|printable|which|all)\b/.test(normalized);
   const asksForCandidateExpired =
-    (asksForExtinguisherList || /\b(candidate|candidates)\b/.test(normalized)) &&
-    /\b(possible|candidate|candidates|forgot|missed|mfg|manufacture|manufactured|older than|6\+|six years|6 years)\b/.test(normalized) &&
+    (asksForExtinguisherList ||
+      /\b(candidate|candidates)\b/.test(normalized)) &&
+    /\b(possible|candidate|candidates|forgot|missed|mfg|manufacture|manufactured|older than|6\+|six years|6 years)\b/.test(
+      normalized,
+    ) &&
     /\b(expired|expire|replacement|replace|old|older|age)\b/.test(normalized);
   if (asksForCandidateExpired) {
     return {
@@ -96,7 +113,9 @@ export function parseAiMemoryIntent(message: string, now = new Date()): AiMemory
 
   const asksInspectionStatus =
     /\b(extinguisher|asset|unit)\b/.test(normalized) &&
-    /\b(checked|inspected|not yet inspected|pending|pass|passed|fail|failed|status)\b/.test(normalized);
+    /\b(checked|inspected|not yet inspected|pending|pass|passed|fail|failed|status)\b/.test(
+      normalized,
+    );
   if (asksInspectionStatus) {
     const assetMatch =
       message.match(/\basset(?:\s*id)?\s*[:#-]?\s*([a-z0-9_-]{2,})\b/i) ??

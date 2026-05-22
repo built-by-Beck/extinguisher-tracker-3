@@ -1,4 +1,13 @@
-import { writeBatch, doc, collection, getDocs, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
+import {
+  writeBatch,
+  doc,
+  collection,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
 
 /** Shape of a single extinguisher in a JSON backup file */
@@ -17,8 +26,8 @@ export interface BackupExtinguisher {
   manufactureYear?: number;
   expirationYear?: number;
   // Old app fields that need mapping
-  status?: string;          // old app field — maps to complianceStatus
-  checkedDate?: string;     // old app field — maps to lastMonthlyInspection
+  status?: string; // old app field — maps to complianceStatus
+  checkedDate?: string; // old app field — maps to lastMonthlyInspection
   inspectionHistory?: Array<Record<string, unknown>>;
   photos?: Array<Record<string, unknown>>;
   // Allow any other fields (we'll pick what we recognize)
@@ -73,10 +82,15 @@ export function parseAndValidateBackup(jsonText: string): ValidationResult {
       rawList = json;
     } else if (json.extinguishers && Array.isArray(json.extinguishers)) {
       rawList = json.extinguishers;
-    } else if (json.collections?.extinguishers && Array.isArray(json.collections.extinguishers)) {
+    } else if (
+      json.collections?.extinguishers &&
+      Array.isArray(json.collections.extinguishers)
+    ) {
       rawList = json.collections.extinguishers;
     } else {
-      result.errors.push('Could not find extinguishers array in JSON. Use standard backup format.');
+      result.errors.push(
+        'Could not find extinguishers array in JSON. Use standard backup format.',
+      );
       return result;
     }
 
@@ -108,10 +122,11 @@ export function mapToExtinguisher(
   uid: string,
 ): Record<string, unknown> {
   const now = serverTimestamp();
-  
+
   // Basic mapping
   return {
-    assetId: item.assetId || `IMPORTED-${Date.now().toString(36).toUpperCase()}`,
+    assetId:
+      item.assetId || `IMPORTED-${Date.now().toString(36).toUpperCase()}`,
     serial: item.serial || '',
     barcode: item.barcode || null,
     barcodeFormat: null,
@@ -132,7 +147,9 @@ export function mapToExtinguisher(
     section: item.section || '',
     locationId: null,
     photos: item.photos || [],
-    lastMonthlyInspection: item.checkedDate ? Timestamp.fromDate(new Date(item.checkedDate)) : null,
+    lastMonthlyInspection: item.checkedDate
+      ? Timestamp.fromDate(new Date(item.checkedDate))
+      : null,
     nextMonthlyInspection: null,
     lastAnnualInspection: null,
     nextAnnualInspection: null,
@@ -173,9 +190,13 @@ export async function importExtinguishers(
 
   // 1. Fetch existing assetIds to check for conflicts
   const extRef = collection(db, 'org', orgId, 'extinguishers');
-  const existingSnap = await getDocs(query(extRef, where('deletedAt', '==', null)));
+  const existingSnap = await getDocs(
+    query(extRef, where('deletedAt', '==', null)),
+  );
   const existingAssetIds = new Set(
-    existingSnap.docs.map((d) => (d.data().assetId as string).trim().toLowerCase())
+    existingSnap.docs.map((d) =>
+      (d.data().assetId as string).trim().toLowerCase(),
+    ),
   );
 
   const currentCount = existingSnap.size;
@@ -185,8 +206,10 @@ export async function importExtinguishers(
   if (assetLimit && currentCount + items.length > assetLimit) {
     const allowed = Math.max(0, assetLimit - currentCount);
     toImport = items.slice(0, allowed);
-    result.skipped += (items.length - allowed);
-    result.errors.push(`Some items skipped due to asset limit (${assetLimit}).`);
+    result.skipped += items.length - allowed;
+    result.errors.push(
+      `Some items skipped due to asset limit (${assetLimit}).`,
+    );
   }
 
   // 3. Batch create, skipping duplicates

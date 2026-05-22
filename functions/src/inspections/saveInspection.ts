@@ -3,7 +3,11 @@ import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { validateSubscriptionTx } from '../utils/subscription.js';
-import { throwInvalidArgument, throwNotFound, throwFailedPrecondition } from '../utils/errors.js';
+import {
+  throwInvalidArgument,
+  throwNotFound,
+  throwFailedPrecondition,
+} from '../utils/errors.js';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import {
   calculateNextMonthlyInspection,
@@ -37,17 +41,26 @@ interface SaveInspectionData {
   status: 'pass' | 'fail';
   isExpired?: boolean;
   checklistData?: ChecklistData;
-  checklistAnswers?: Record<string, {
-    result: 'pass' | 'fail' | 'na' | 'unchecked';
-    notes?: string;
-    answeredAt?: unknown;
-    answeredBy?: string;
-  }>;
+  checklistAnswers?: Record<
+    string,
+    {
+      result: 'pass' | 'fail' | 'na' | 'unchecked';
+      notes?: string;
+      answeredAt?: unknown;
+      answeredBy?: string;
+    }
+  >;
   notes?: string;
   details?: string;
   photoUrl?: string | null;
   photoPath?: string | null;
-  gps?: { lat: number; lng: number; accuracy: number; altitude: number | null; capturedAt: string } | null;
+  gps?: {
+    lat: number;
+    lng: number;
+    accuracy: number;
+    altitude: number | null;
+    capturedAt: string;
+  } | null;
   attestation?: {
     confirmed: boolean;
     text: string;
@@ -61,9 +74,12 @@ export const saveInspection = onCall(async (request) => {
   const data = request.data as SaveInspectionData;
   const { orgId, inspectionId, status } = data;
 
-  if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
-  if (!inspectionId || typeof inspectionId !== 'string') throwInvalidArgument('inspectionId is required.');
-  if (!['pass', 'fail'].includes(status)) throwInvalidArgument('status must be "pass" or "fail".');
+  if (!orgId || typeof orgId !== 'string')
+    throwInvalidArgument('orgId is required.');
+  if (!inspectionId || typeof inspectionId !== 'string')
+    throwInvalidArgument('inspectionId is required.');
+  if (!['pass', 'fail'].includes(status))
+    throwInvalidArgument('status must be "pass" or "fail".');
   if (data.isExpired !== undefined && typeof data.isExpired !== 'boolean') {
     throwInvalidArgument('isExpired must be a boolean when provided.');
   }
@@ -81,24 +97,34 @@ export const saveInspection = onCall(async (request) => {
 
     const inspData = inspSnap.data()!;
     const previousStatus = inspData.status as string;
-    const targetType = (inspData.targetType as string | undefined) ?? 'extinguisher';
+    const targetType =
+      (inspData.targetType as string | undefined) ?? 'extinguisher';
 
-    const wsRef = adminDb.doc(`org/${orgId}/workspaces/${inspData.workspaceId}`);
+    const wsRef = adminDb.doc(
+      `org/${orgId}/workspaces/${inspData.workspaceId}`,
+    );
     const wsSnap = await tx.get(wsRef);
 
-    const extRef = targetType === 'asset'
-      ? null
-      : adminDb.doc(`org/${orgId}/extinguishers/${inspData.extinguisherId}`);
+    const extRef =
+      targetType === 'asset'
+        ? null
+        : adminDb.doc(`org/${orgId}/extinguishers/${inspData.extinguisherId}`);
     const extSnap = extRef ? await tx.get(extRef) : null;
     const orgSnap = await tx.get(adminDb.doc(`org/${orgId}`));
     const orgData = orgSnap.data() ?? {};
-    const orgSettings = (orgData.settings as Record<string, unknown> | undefined) ?? {};
-    const monthlySchedule = normalizeMonthlyInspectionSchedule(orgSettings.monthlyInspectionSchedule);
-    const orgTimezone = typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
+    const orgSettings =
+      (orgData.settings as Record<string, unknown> | undefined) ?? {};
+    const monthlySchedule = normalizeMonthlyInspectionSchedule(
+      orgSettings.monthlyInspectionSchedule,
+    );
+    const orgTimezone =
+      typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
 
     // 3. Validation logic
     if (wsSnap.exists && wsSnap.data()?.status === 'archived') {
-      throwFailedPrecondition('Cannot modify inspections in an archived workspace.');
+      throwFailedPrecondition(
+        'Cannot modify inspections in an archived workspace.',
+      );
     }
     if (targetType === 'asset') {
       if (
@@ -107,7 +133,9 @@ export const saveInspection = onCall(async (request) => {
           (orgData.featureFlags as Record<string, boolean> | undefined) ?? null,
         )
       ) {
-        throwFailedPrecondition('Custom Asset Inspections require a Pro plan or higher.');
+        throwFailedPrecondition(
+          'Custom Asset Inspections require a Pro plan or higher.',
+        );
       }
     }
 
@@ -127,7 +155,8 @@ export const saveInspection = onCall(async (request) => {
     };
 
     if (data.checklistData) updateData.checklistData = data.checklistData;
-    if (data.checklistAnswers) updateData.checklistAnswers = data.checklistAnswers;
+    if (data.checklistAnswers)
+      updateData.checklistAnswers = data.checklistAnswers;
     if (data.photoUrl !== undefined) updateData.photoUrl = data.photoUrl;
     if (data.photoPath !== undefined) updateData.photoPath = data.photoPath;
     if (data.gps !== undefined) updateData.gps = data.gps;
@@ -179,13 +208,18 @@ export const saveInspection = onCall(async (request) => {
       };
 
       // Decrement previous status count
-      if (previousStatus === 'pending') statsUpdate['stats.pending'] = FieldValue.increment(-1);
-      else if (previousStatus === 'pass') statsUpdate['stats.passed'] = FieldValue.increment(-1);
-      else if (previousStatus === 'fail') statsUpdate['stats.failed'] = FieldValue.increment(-1);
+      if (previousStatus === 'pending')
+        statsUpdate['stats.pending'] = FieldValue.increment(-1);
+      else if (previousStatus === 'pass')
+        statsUpdate['stats.passed'] = FieldValue.increment(-1);
+      else if (previousStatus === 'fail')
+        statsUpdate['stats.failed'] = FieldValue.increment(-1);
 
       // Increment new status count
-      if (status === 'pass') statsUpdate['stats.passed'] = FieldValue.increment(1);
-      else if (status === 'fail') statsUpdate['stats.failed'] = FieldValue.increment(1);
+      if (status === 'pass')
+        statsUpdate['stats.passed'] = FieldValue.increment(1);
+      else if (status === 'fail')
+        statsUpdate['stats.failed'] = FieldValue.increment(1);
 
       tx.update(wsRef, statsUpdate);
     }
@@ -194,12 +228,20 @@ export const saveInspection = onCall(async (request) => {
     if (targetType !== 'asset' && extRef && extSnap?.exists) {
       const extData = extSnap.data()!;
 
-      const nextMonthlyInspection = calculateNextMonthlyInspection(now, monthlySchedule, orgTimezone);
+      const nextMonthlyInspection = calculateNextMonthlyInspection(
+        now,
+        monthlySchedule,
+        orgTimezone,
+      );
 
       // Build calc input with the freshly updated monthly date
       const extType = (extData.extinguisherType as string | null) ?? '';
-      const hydroInterval = (extData.hydroTestIntervalYears as number | null) ?? getHydroIntervalByType(extType);
-      const needsSixYear = (extData.requiresSixYearMaintenance as boolean | null) ?? requiresSixYear(extType);
+      const hydroInterval =
+        (extData.hydroTestIntervalYears as number | null) ??
+        getHydroIntervalByType(extType);
+      const needsSixYear =
+        (extData.requiresSixYearMaintenance as boolean | null) ??
+        requiresSixYear(extType);
 
       const calcInput: ExtinguisherForCalc = {
         lifecycleStatus: extData.lifecycleStatus as string | null,
@@ -207,16 +249,19 @@ export const saveInspection = onCall(async (request) => {
         requiresSixYearMaintenance: needsSixYear,
         lastMonthlyInspection: now,
         lastAnnualInspection: extData.lastAnnualInspection as Timestamp | null,
-        lastSixYearMaintenance: extData.lastSixYearMaintenance as Timestamp | null,
+        lastSixYearMaintenance:
+          extData.lastSixYearMaintenance as Timestamp | null,
         lastHydroTest: extData.lastHydroTest as Timestamp | null,
         hydroTestIntervalYears: hydroInterval,
         nextMonthlyInspection,
         nextAnnualInspection: extData.nextAnnualInspection as Timestamp | null,
-        nextSixYearMaintenance: extData.nextSixYearMaintenance as Timestamp | null,
+        nextSixYearMaintenance:
+          extData.nextSixYearMaintenance as Timestamp | null,
         nextHydroTest: extData.nextHydroTest as Timestamp | null,
       };
 
-      const { complianceStatus, overdueFlags } = calculateComplianceStatus(calcInput);
+      const { complianceStatus, overdueFlags } =
+        calculateComplianceStatus(calcInput);
 
       tx.update(extRef, {
         isExpired: data.isExpired ?? false,
@@ -231,4 +276,3 @@ export const saveInspection = onCall(async (request) => {
     return { inspectionId, status, previousStatus };
   });
 });
-

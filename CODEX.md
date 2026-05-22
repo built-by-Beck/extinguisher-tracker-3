@@ -6,10 +6,10 @@ This file guides Codex CLI agents working in this repository. It mirrors the Cla
 
 Four personas live in `agents/.codex/agents/` and must be used in order:
 
-1) plan-agent — plans the round, writes `agent-system/plan.md`
-2) build-agent — implements tasks, updates `agent-system/agents-info.md`
-3) review-agent — reviews and improves, updates notes and lessons
-4) document-agent — updates README, TODO/roadmap, docs, website copy, FAQ, and agent memory after accepted review
+1. plan-agent — plans the round, writes `agent-system/plan.md`
+2. build-agent — implements tasks, updates `agent-system/agents-info.md`
+3. review-agent — reviews and improves, updates notes and lessons
+4. document-agent — updates README, TODO/roadmap, docs, website copy, FAQ, and agent memory after accepted review
 
 Shared state: `agent-system/plan.md`, `agent-system/agents-info.md`, `agent-system/agent-info.md`, `agent-system/lessons-learned.md`, and related handoff logs.
 

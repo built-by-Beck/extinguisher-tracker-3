@@ -46,7 +46,10 @@ export async function getAuditLogPage(
   // Fetch limit+1 to determine whether there are more pages
   const fetchLimit = options.limit + 1;
 
-  const constraints: QueryConstraint[] = [orderBy('performedAt', 'desc'), limit(fetchLimit)];
+  const constraints: QueryConstraint[] = [
+    orderBy('performedAt', 'desc'),
+    limit(fetchLimit),
+  ];
 
   if (options.entityType && options.entityType !== 'all') {
     constraints.unshift(where('entityType', '==', options.entityType));

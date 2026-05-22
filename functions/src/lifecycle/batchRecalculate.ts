@@ -33,16 +33,21 @@ export const batchRecalculateLifecycle = onCall(async (request) => {
   const { uid } = validateAuth(request);
   const { orgId } = request.data as BatchRecalculateInput;
 
-  if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
+  if (!orgId || typeof orgId !== 'string')
+    throwInvalidArgument('orgId is required.');
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
   await validateSubscription(orgId);
 
   const orgSnap = await adminDb.doc(`org/${orgId}`).get();
   const orgData = orgSnap.data() ?? {};
-  const orgSettings = (orgData.settings as Record<string, unknown> | undefined) ?? {};
-  const monthlySchedule = normalizeMonthlyInspectionSchedule(orgSettings.monthlyInspectionSchedule);
-  const orgTimezone = typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
+  const orgSettings =
+    (orgData.settings as Record<string, unknown> | undefined) ?? {};
+  const monthlySchedule = normalizeMonthlyInspectionSchedule(
+    orgSettings.monthlyInspectionSchedule,
+  );
+  const orgTimezone =
+    typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
 
   const extRef = adminDb.collection(`org/${orgId}/extinguishers`);
   const extSnap = await extRef
@@ -60,21 +65,35 @@ export const batchRecalculateLifecycle = onCall(async (request) => {
     const ext: ExtinguisherForCalc = {
       lifecycleStatus: extData.lifecycleStatus as string,
       extinguisherType: extData.extinguisherType as string | null,
-      requiresSixYearMaintenance: extData.requiresSixYearMaintenance as boolean | null,
+      requiresSixYearMaintenance: extData.requiresSixYearMaintenance as
+        | boolean
+        | null,
       lastMonthlyInspection: extData.lastMonthlyInspection as Timestamp | null,
       lastAnnualInspection: extData.lastAnnualInspection as Timestamp | null,
-      lastSixYearMaintenance: extData.lastSixYearMaintenance as Timestamp | null,
+      lastSixYearMaintenance:
+        extData.lastSixYearMaintenance as Timestamp | null,
       lastHydroTest: extData.lastHydroTest as Timestamp | null,
       hydroTestIntervalYears: extData.hydroTestIntervalYears as number | null,
     };
 
     const extType = ext.extinguisherType ?? '';
-    const hydroInterval = ext.hydroTestIntervalYears ?? getHydroIntervalByType(extType);
-    const needsSixYear = ext.requiresSixYearMaintenance ?? requiresSixYear(extType);
+    const hydroInterval =
+      ext.hydroTestIntervalYears ?? getHydroIntervalByType(extType);
+    const needsSixYear =
+      ext.requiresSixYearMaintenance ?? requiresSixYear(extType);
 
-    const nextMonthlyInspection = calculateNextMonthlyInspection(ext.lastMonthlyInspection, monthlySchedule, orgTimezone);
-    const nextAnnualInspection = calculateNextAnnualInspection(ext.lastAnnualInspection);
-    const nextHydroTest = calculateNextHydroTest(ext.lastHydroTest, hydroInterval);
+    const nextMonthlyInspection = calculateNextMonthlyInspection(
+      ext.lastMonthlyInspection,
+      monthlySchedule,
+      orgTimezone,
+    );
+    const nextAnnualInspection = calculateNextAnnualInspection(
+      ext.lastAnnualInspection,
+    );
+    const nextHydroTest = calculateNextHydroTest(
+      ext.lastHydroTest,
+      hydroInterval,
+    );
     const nextSixYearMaintenance = needsSixYear
       ? calculateNextSixYearMaintenance(ext.lastSixYearMaintenance)
       : null;
@@ -87,7 +106,8 @@ export const batchRecalculateLifecycle = onCall(async (request) => {
       nextHydroTest,
     };
 
-    const { complianceStatus, overdueFlags } = calculateComplianceStatus(calcInput);
+    const { complianceStatus, overdueFlags } =
+      calculateComplianceStatus(calcInput);
 
     batch.update(docSnap.ref, {
       nextMonthlyInspection,

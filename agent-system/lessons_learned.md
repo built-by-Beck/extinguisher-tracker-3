@@ -1,5 +1,11 @@
 ## Lessons Learned
 
+## 2026-05-22 — QRLanding strips workspace context
+
+`QRLanding` always redirects to `/dashboard/inventory/:extId`, losing workspaceId. Any component that computes `returnTo` from URL params will fall back to `/dashboard/inventory` for QR-scanned extinguishers.
+
+**How to apply:** Whenever `ExtinguisherDetail` (or similar) needs post-save navigation, use a `useMemo` that checks `activeWorkspaceId` as a fallback AFTER `workspaceId` from URL params, so QR-scan users stay in the inspection flow and land on their building's pending list.
+
 ## 2026-04-24 - Replacement Must Preserve Asset Slot
 
 Error: Initial implementation still allowed `assetId` edits in the replacement modal and wrote the submitted asset ID during replacement.
@@ -263,3 +269,83 @@ Split AI photo controls into two buttons: a camera button that requests `getUser
 
 **Prevention rule:**
 When a UI promises a camera button with live permission/preview, implement `getUserMedia`; reserve file inputs for explicit upload/folder picker flows.
+
+## 2026-05-07 - One Source Of Truth Per Domain Count
+
+**What happened:**
+Multiple screens in `extinguisher-tracker-3` were showing different "monthly checked / pending / replaced" numbers for the same active workspace because Dashboard, Workspaces cards, Inventory, the workspace summary cards, and WorkspaceDetail each derived counts from a different source: stored `workspace.stats`, active inventory, lifecycle `replacementHistory`, and live inspection rows. WorkspaceDetail also counted lifecycle replacement rows in its monthly "Replaced" card, which mixed two different domains.
+
+**Root cause:**
+Per-screen calculation grew organically without a shared monthly snapshot helper, and `workspace.stats` was treated as UI truth even though replace/retire/soft-delete paths could leave it stale relative to real inspection rows. Replacement-history was also leaking into a monthly checklist bucket.
+
+**Why it was avoidable:**
+The plan-of-record contract for monthly checklist UI is "real `org/{orgId}/inspections` rows for one workspace" and inventory and replacement history are separate domain lists. Re-deriving stats per screen invites drift each time a feature is added.
+
+**Fix used:**
+Added `src/utils/monthlyWorkspaceInspectionSnapshot.ts` and routed Dashboard, Workspaces, Inventory monthly status, the workspace summary cards, and WorkspaceDetail through it. Removed lifecycle replacement-history rendering from WorkspaceDetail's monthly Replaced view and stopped counting `status: 'replaced'` inspections inside the "checked" filter. Patched `retireExtinguisher` and `onExtinguisherSoftDeleted` to keep stored stats consistent (including a guarded `stats.replaced` decrement) when inspection rows are removed from active workspaces.
+
+**Prevention rule:**
+Each domain count must have one shared helper as source of truth: monthly checklist UI = real inspection rows, inventory UI = inventory records, replacement UI = `replacementHistory`. Do not display `workspace.stats` directly for active workspaces, and never mix replacement-history rows into monthly inspection status buckets unless an actual inspection row has `status: 'replaced'`.
+
+## 2026-05-07 - Validate The Exact Commit Before Push Deploy
+
+**What happened:**
+A release commit for the Unify List Sources work initially excluded `src/components/workspace/SectionTimer.tsx` as unrelated timer work, but the committed `WorkspaceDetail.tsx` already passed reset props to `SectionTimer`. The isolated clean worktree build failed because the committed component interface did not match the committed call site.
+
+**Root cause:**
+The staging pass grouped files by task intent, but did not verify whether a staged file had a compile-time dependency on an unstaged file from a concurrent timer change.
+
+**Fix used:**
+Validated the exact commit in an isolated worktree before push/deploy, caught the TypeScript failure, and included the minimal `SectionTimer.tsx` prop/UI alignment needed for the committed revision to build independently. The other in-progress timer/query files remained uncommitted.
+
+**Prevention rule:**
+Before pushing or deploying from a dirty workspace with concurrent agent work, validate the exact committed revision in a clean worktree. If validation fails because a staged file depends on an unstaged file, either include the minimal dependency or remove the staged call site before pushing.
+
+## 2026-05-07 - Do Not Derive Global Summary Cards From Filtered Lists
+
+**What happened:**
+Review found the Workspaces active summary card became tied to the search-filtered workspace list after duplicate listeners were removed by passing parent data into `WorkspaceInspectionSummaryCards`.
+
+**Root cause:**
+The parent-data refactor reused `activeWorkspaces` from the visible filtered list for summary selection and inspection subscriptions, even though the summary card promises "active workspace only" for the latest active workspace across the organization.
+
+**Why it was avoidable:**
+The original standalone card selected from the unfiltered org-wide active workspace query, so replacing its listener with parent-provided data needed an explicit unfiltered source for the summary.
+
+**Fix used:**
+Split `Workspaces.tsx` into `allActiveWorkspaces` for summary/subscription data and filtered `activeWorkspaces` / `archivedWorkspaces` for visible list rendering. Reran lint, build, and tests successfully, then Review accepted the revision.
+
+**Prevention rule:**
+When lifting data into parent components to remove duplicate listeners, preserve the child component's original data scope separately from any UI search/filter scope.
+
+## 2026-05-08 - `eslint-disable-next-line` Must Target the Next Line the Rule Reports
+
+**What happened:** `GuestContext` had `// eslint-disable-next-line react-hooks/exhaustive-deps` inside the async callback body (before the closing `}` of the function passed to `useCallback`). ESLint still reported missing `subscribeToGuestData` in the dependency array and flagged the disable comments as unused.
+
+**Fix used:** Move the disable comment to the line immediately above the dependency array (`[]`), or fix dependencies properly. For `resumeSession`, use a multi-line `useCallback(` form so the comment sits between the callback and `[],`.
+
+**Prevention rule:** For `react-hooks/exhaustive-deps`, place `eslint-disable-next-line` directly above the hook's dependency array (or use `eslint-disable-line` on the same line as `[]`), not inside the callback body.
+
+## 2026-05-14 - Org root `featureFlags` must be server-only in Firestore rules
+
+**What happened:** `org/{orgId}` `allow update` blocked many billing fields but **not** `featureFlags`, `status`, or `slug`. A signed-in owner could use the Firebase client SDK to set `featureFlags` (for example `customAssetInspections: true`) without a paid plan, bypassing UI and weakening tenant billing enforcement at the rules layer.
+
+**Fix used:** Add `featureFlags`, `status`, and `slug` to the `affectedKeys().hasAny([...])` deny list on `org/{orgId}` updates so only Admin SDK / Cloud Functions can change them.
+
+**Prevention rule:** Any field on `org/{orgId}` that mirrors Stripe, plan tier, or derived entitlements must be in the explicit deny list (or replaced with a positive allow-list diff) — treat unknown org fields as unsafe until reviewed.
+
+## 2026-05-08 - Avoid Date.now in React Render for Trial Countdown
+
+**What happened:** ESLint React purity (`react-hooks/purity`) flagged `Date.now()` used during `DashboardLayout` render to decide whether to show the “trial ends in 3 days” banner.
+
+**Fix used:** Hold “current time” in React state initialized once, refresh with `setInterval` every 60s so comparisons stay deterministic within render.
+
+**Prevention rule:** For countdown UI driven off wall-clock time, use state/effects, `useSyncExternalStore`, or a ticking clock hook — not bare `Date.now()` in the component body.
+
+## 2026-05-11 - Firestore lookup fallbacks must stay bounded
+
+**What happened:** `findExtinguisherByCode` used a legacy fallback `query(deletedAt==null, field==code)` with **no** `limit()`, so a shared or hot identifier could force the client to download a very large result set and stall the UI.
+
+**Fix used:** Added `limit(50)` per field on the legacy wave, parallelized strict and legacy waves to cut round-trips, and kept inventory-wide listing separate from identifier search (bounded server path for likely IDs).
+
+**Prevention rule:** Any Firestore `getDocs` used for interactive search or scan lookup must include an explicit `limit()` on fallback queries, even when equality filters exist, unless the product explicitly needs a full collection scan.

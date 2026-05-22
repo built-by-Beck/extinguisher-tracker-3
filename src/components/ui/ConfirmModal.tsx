@@ -22,7 +22,10 @@ interface ConfirmModalProps {
   loading?: boolean;
 }
 
-const variantStyles: Record<ConfirmVariant, { btn: string; iconBg: string; iconColor: string }> = {
+const variantStyles: Record<
+  ConfirmVariant,
+  { btn: string; iconBg: string; iconColor: string }
+> = {
   danger: {
     btn: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
     iconBg: 'bg-red-100',

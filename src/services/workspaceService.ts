@@ -74,7 +74,9 @@ export function subscribeToWorkspaces(
  * Get the active workspace for the current month (if one exists).
  * Workspace IDs are monthYear strings like "2026-03".
  */
-export async function getActiveWorkspaceForCurrentMonth(orgId: string): Promise<Workspace | null> {
+export async function getActiveWorkspaceForCurrentMonth(
+  orgId: string,
+): Promise<Workspace | null> {
   const now = new Date();
   const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const wsRef = doc(db, 'org', orgId, 'workspaces', monthYear);
@@ -85,7 +87,10 @@ export async function getActiveWorkspaceForCurrentMonth(orgId: string): Promise<
   return ws;
 }
 
-export async function getWorkspace(orgId: string, workspaceId: string): Promise<Workspace | null> {
+export async function getWorkspace(
+  orgId: string,
+  workspaceId: string,
+): Promise<Workspace | null> {
   const wsRef = doc(db, 'org', orgId, 'workspaces', workspaceId);
   const snap = await getDoc(wsRef);
   if (!snap.exists()) return null;
@@ -98,10 +103,20 @@ export async function getWorkspace(orgId: string, workspaceId: string): Promise<
 export async function createWorkspaceCall(
   orgId: string,
   monthYear: string,
-): Promise<{ monthYear: string; label: string; totalExtinguishers: number; totalCustomAssets?: number }> {
+): Promise<{
+  monthYear: string;
+  label: string;
+  totalExtinguishers: number;
+  totalCustomAssets?: number;
+}> {
   const fn = httpsCallable<
     { orgId: string; monthYear: string },
-    { monthYear: string; label: string; totalExtinguishers: number; totalCustomAssets?: number }
+    {
+      monthYear: string;
+      label: string;
+      totalExtinguishers: number;
+      totalCustomAssets?: number;
+    }
   >(functions, 'createWorkspace');
   const result = await fn({ orgId, monthYear });
   return result.data;
@@ -116,10 +131,18 @@ export async function archiveWorkspaceCall(
   sectionTimes?: Record<string, number> | null,
 ): Promise<{ passed: number; failed: number; pending: number }> {
   const fn = httpsCallable<
-    { orgId: string; workspaceId: string; sectionTimes?: Record<string, number> | null },
+    {
+      orgId: string;
+      workspaceId: string;
+      sectionTimes?: Record<string, number> | null;
+    },
     { workspaceId: string; passed: number; failed: number; pending: number }
   >(functions, 'archiveWorkspace');
-  const result = await fn({ orgId, workspaceId, sectionTimes: sectionTimes ?? null });
+  const result = await fn({
+    orgId,
+    workspaceId,
+    sectionTimes: sectionTimes ?? null,
+  });
   return result.data;
 }
 
@@ -147,13 +170,25 @@ export async function recalculateWorkspaceInspectionStatsCall(
   workspaceId: string,
 ): Promise<{
   workspaceId: string;
-  stats: { total: number; passed: number; failed: number; pending: number; percentage: number };
+  stats: {
+    total: number;
+    passed: number;
+    failed: number;
+    pending: number;
+    percentage: number;
+  };
 }> {
   const fn = httpsCallable<
     { orgId: string; workspaceId: string },
     {
       workspaceId: string;
-      stats: { total: number; passed: number; failed: number; pending: number; percentage: number };
+      stats: {
+        total: number;
+        passed: number;
+        failed: number;
+        pending: number;
+        percentage: number;
+      };
     }
   >(functions, 'recalculateWorkspaceInspectionStats');
   const result = await fn({ orgId, workspaceId });
@@ -167,7 +202,13 @@ export async function repairWorkspaceChecklistCall(
   workspaceId: string;
   rowsCreated: number;
   duplicatesDeleted: number;
-  stats: { total: number; passed: number; failed: number; pending: number; percentage: number };
+  stats: {
+    total: number;
+    passed: number;
+    failed: number;
+    pending: number;
+    percentage: number;
+  };
 }> {
   const fn = httpsCallable<
     { orgId: string; workspaceId: string },
@@ -175,7 +216,13 @@ export async function repairWorkspaceChecklistCall(
       workspaceId: string;
       rowsCreated: number;
       duplicatesDeleted: number;
-      stats: { total: number; passed: number; failed: number; pending: number; percentage: number };
+      stats: {
+        total: number;
+        passed: number;
+        failed: number;
+        pending: number;
+        percentage: number;
+      };
     }
   >(functions, 'repairWorkspaceChecklist');
   const result = await fn({ orgId, workspaceId });

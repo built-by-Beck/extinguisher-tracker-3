@@ -53,10 +53,15 @@ export function ReportDownloadButton({
     setLoading(true);
     setError(null);
     try {
-      const { downloadUrl } = await generateReportDownload(orgId, workspaceId, format);
+      const { downloadUrl } = await generateReportDownload(
+        orgId,
+        workspaceId,
+        format,
+      );
       window.open(downloadUrl, '_blank');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to generate report.';
+      const message =
+        err instanceof Error ? err.message : 'Failed to generate report.';
       setError(message);
     } finally {
       setLoading(false);
@@ -84,9 +89,7 @@ export function ReportDownloadButton({
         </span>
         <span>{displayLabel}</span>
       </button>
-      {error && (
-        <p className="text-xs text-red-600">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
 }

@@ -90,6 +90,8 @@ export interface Organization {
 
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  /** Set when Pro trial starts (trialing); prevents another no-card Pro trial checkout. Server/webhook only. */
+  proTrialConsumed?: boolean;
   subscriptionStatus: string | null; // active, trialing, past_due, canceled, unpaid
   subscriptionPriceId: string | null;
   subscriptionCurrentPeriodEnd: Timestamp | null;

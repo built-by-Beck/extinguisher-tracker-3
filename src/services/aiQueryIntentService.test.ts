@@ -24,14 +24,18 @@ describe('parseAiMemoryIntent', () => {
   });
 
   it('parses marked expired list intent', () => {
-    const intent = parseAiMemoryIntent('give me a printable list of all expired extinguishers');
+    const intent = parseAiMemoryIntent(
+      'give me a printable list of all expired extinguishers',
+    );
     expect(intent).toEqual({
       type: 'list_marked_expired',
     });
   });
 
   it('parses possible expired candidate intent separately', () => {
-    const intent = parseAiMemoryIntent('show possible expired candidates with mfg dates older than 6 years');
+    const intent = parseAiMemoryIntent(
+      'show possible expired candidates with mfg dates older than 6 years',
+    );
     expect(intent).toEqual({
       type: 'list_expired_candidates',
     });

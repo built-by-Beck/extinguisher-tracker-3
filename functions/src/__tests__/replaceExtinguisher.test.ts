@@ -26,7 +26,9 @@ type TestQuery = {
   path: string;
   _conditions: Array<{ field: string; value: unknown }>;
   _limit?: number;
-  where: ReturnType<typeof jest.fn<(field: string, op: string, value: unknown) => TestQuery>>;
+  where: ReturnType<
+    typeof jest.fn<(field: string, op: string, value: unknown) => TestQuery>
+  >;
   limit: ReturnType<typeof jest.fn<(count: number) => TestQuery>>;
 };
 
@@ -35,7 +37,13 @@ type TestCollection = TestQuery & {
 };
 
 type TestTx = {
-  get: ReturnType<typeof jest.fn<(refOrQuery: TestDocRef | TestQuery) => Promise<TestSnap | { docs: TestDoc[] }>>>;
+  get: ReturnType<
+    typeof jest.fn<
+      (
+        refOrQuery: TestDocRef | TestQuery,
+      ) => Promise<TestSnap | { docs: TestDoc[] }>
+    >
+  >;
   set: ReturnType<typeof jest.fn>;
   update: ReturnType<typeof jest.fn>;
 };
@@ -60,7 +68,8 @@ type BaseRequest = {
 
 const mockDoc = jest.fn<(path: string) => TestDocRef>();
 const mockCollection = jest.fn<(path: string) => TestCollection | TestQuery>();
-const mockRunTransaction = jest.fn<(cb: (tx: TestTx) => Promise<unknown>) => Promise<unknown>>();
+const mockRunTransaction =
+  jest.fn<(cb: (tx: TestTx) => Promise<unknown>) => Promise<unknown>>();
 
 const mockAdminDb = adminDb as unknown as {
   doc: typeof mockDoc;
@@ -73,7 +82,9 @@ mockAdminDb.collection = mockCollection;
 mockAdminDb.runTransaction = mockRunTransaction;
 
 describe('replaceExtinguisher', () => {
-  const wrapped = testEnv.wrap(replaceExtinguisher) as (request: typeof baseRequest) => Promise<unknown>;
+  const wrapped = testEnv.wrap(replaceExtinguisher) as (
+    request: typeof baseRequest,
+  ) => Promise<unknown>;
   const baseRequest: BaseRequest = {
     auth: { uid: 'owner-1', token: { email: 'owner@test.com' } },
     data: {
@@ -117,15 +128,28 @@ describe('replaceExtinguisher', () => {
     oldData: Record<string, unknown>;
     activeConflicts?: TestDoc[];
   }) {
-    const memberSnap: TestSnap = { exists: true, data: () => ({ role: 'owner', status: 'active' }) };
-    const orgSnap: TestSnap = { exists: true, data: () => ({ subscriptionStatus: 'active' }) };
+    const memberSnap: TestSnap = {
+      exists: true,
+      data: () => ({ role: 'owner', status: 'active' }),
+    };
+    const orgSnap: TestSnap = {
+      exists: true,
+      data: () => ({ subscriptionStatus: 'active' }),
+    };
     const oldExtSnap: TestSnap = { exists: true, data: () => oldData };
     const extRef: TestDocRef = { path: 'org/org-1/extinguishers/ext-1' };
-    const histRef: TestDocRef = { path: 'org/org-1/extinguishers/ext-1/replacementHistory/hist-1' };
+    const histRef: TestDocRef = {
+      path: 'org/org-1/extinguishers/ext-1/replacementHistory/hist-1',
+    };
 
     mockAdminDb.doc.mockImplementation((path: string) => {
       if (path === 'org/org-1/members/owner-1') {
-        return { path, get: jest.fn<() => Promise<TestSnap>>(() => Promise.resolve(memberSnap)) };
+        return {
+          path,
+          get: jest.fn<() => Promise<TestSnap>>(() =>
+            Promise.resolve(memberSnap),
+          ),
+        };
       }
       if (path === 'org/org-1') return { path };
       if (path === 'org/org-1/extinguishers/ext-1') return extRef;
@@ -137,7 +161,10 @@ describe('replaceExtinguisher', () => {
         return { ...makeQuery(path), doc: jest.fn(() => histRef) };
       }
       if (path === 'org/org-1/auditLogs') {
-        return { ...makeQuery(path), doc: jest.fn(() => ({ path: 'org/org-1/auditLogs/audit-1' })) };
+        return {
+          ...makeQuery(path),
+          doc: jest.fn(() => ({ path: 'org/org-1/auditLogs/audit-1' })),
+        };
       }
       return makeQuery(path);
     });
@@ -145,12 +172,15 @@ describe('replaceExtinguisher', () => {
     const tx: TestTx = {
       get: jest.fn((refOrQuery: TestDocRef | TestQuery) => {
         if (refOrQuery.path === 'org/org-1') return Promise.resolve(orgSnap);
-        if (refOrQuery.path === 'org/org-1/extinguishers/ext-1') return Promise.resolve(oldExtSnap);
+        if (refOrQuery.path === 'org/org-1/extinguishers/ext-1')
+          return Promise.resolve(oldExtSnap);
 
         const conditions: Array<{ field: string; value: unknown }> =
           '_conditions' in refOrQuery ? refOrQuery._conditions : [];
         const conflictDocs = activeConflicts.filter((doc) =>
-          conditions.every((condition) => doc.data()[condition.field] === condition.value),
+          conditions.every(
+            (condition) => doc.data()[condition.field] === condition.value,
+          ),
         );
         if (conflictDocs.length > 0) {
           if ('_limit' in refOrQuery && refOrQuery._limit != null) {
@@ -159,10 +189,20 @@ describe('replaceExtinguisher', () => {
           return Promise.resolve({ docs: conflictDocs });
         }
 
-        const assetMatch = conditions.some((condition) => condition.field === 'assetId' && condition.value === oldData.assetId);
+        const assetMatch = conditions.some(
+          (condition) =>
+            condition.field === 'assetId' &&
+            condition.value === oldData.assetId,
+        );
         if (assetMatch) {
           return Promise.resolve({
-            docs: [{ id: 'ext-1', path: 'org/org-1/extinguishers/ext-1', data: () => oldData }],
+            docs: [
+              {
+                id: 'ext-1',
+                path: 'org/org-1/extinguishers/ext-1',
+                data: () => oldData,
+              },
+            ],
           });
         }
         return Promise.resolve({ docs: [] });
@@ -375,8 +415,12 @@ describe('replaceExtinguisher', () => {
     expect(tx.update).toHaveBeenCalledWith(
       expect.objectContaining({ path: 'org/org-1/extinguishers/ext-1' }),
       expect.objectContaining({
-        lastSixYearMaintenance: expect.objectContaining({ seconds: expect.any(Number) }),
-        nextSixYearMaintenance: expect.objectContaining({ seconds: expect.any(Number) }),
+        lastSixYearMaintenance: expect.objectContaining({
+          seconds: expect.any(Number),
+        }),
+        nextSixYearMaintenance: expect.objectContaining({
+          seconds: expect.any(Number),
+        }),
         lastHydroTest: expect.objectContaining({ seconds: expect.any(Number) }),
         nextHydroTest: expect.objectContaining({ seconds: expect.any(Number) }),
       }),
@@ -446,7 +490,9 @@ describe('replaceExtinguisher', () => {
       },
     });
 
-    await expect(wrapped(baseRequest)).rejects.toThrow(/asset number is missing/i);
+    await expect(wrapped(baseRequest)).rejects.toThrow(
+      /asset number is missing/i,
+    );
     expect(tx.set).not.toHaveBeenCalled();
     expect(tx.update).not.toHaveBeenCalled();
   });

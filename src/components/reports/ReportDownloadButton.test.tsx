@@ -27,7 +27,13 @@ describe('ReportDownloadButton', () => {
     );
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
-    render(<ReportDownloadButton orgId="org-1" workspaceId="april-workspace" format="pdf" />);
+    render(
+      <ReportDownloadButton
+        orgId="org-1"
+        workspaceId="april-workspace"
+        format="pdf"
+      />,
+    );
 
     const button = screen.getByRole('button', { name: 'PDF' });
     const iconCount = button.querySelectorAll('svg').length;
@@ -37,12 +43,19 @@ describe('ReportDownloadButton', () => {
 
     expect(button).toBeDisabled();
     expect(button.querySelectorAll('svg')).toHaveLength(iconCount);
-    expect(mockGenerateReportDownload).toHaveBeenCalledWith('org-1', 'april-workspace', 'pdf');
+    expect(mockGenerateReportDownload).toHaveBeenCalledWith(
+      'org-1',
+      'april-workspace',
+      'pdf',
+    );
 
     resolveDownload({ downloadUrl: 'https://example.test/report.pdf' });
 
     await waitFor(() => {
-      expect(openSpy).toHaveBeenCalledWith('https://example.test/report.pdf', '_blank');
+      expect(openSpy).toHaveBeenCalledWith(
+        'https://example.test/report.pdf',
+        '_blank',
+      );
     });
     expect(button).not.toBeDisabled();
     expect(button.querySelectorAll('svg')).toHaveLength(iconCount);

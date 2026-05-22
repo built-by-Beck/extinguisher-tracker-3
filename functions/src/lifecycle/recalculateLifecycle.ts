@@ -11,7 +11,11 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
-import { throwInvalidArgument, throwNotFound, throwFailedPrecondition } from '../utils/errors.js';
+import {
+  throwInvalidArgument,
+  throwNotFound,
+  throwFailedPrecondition,
+} from '../utils/errors.js';
 import {
   calculateNextMonthlyInspection,
   calculateNextAnnualInspection,
@@ -33,8 +37,10 @@ export const recalculateExtinguisherLifecycle = onCall(async (request) => {
   const { uid } = validateAuth(request);
   const { orgId, extinguisherId } = request.data as RecalculateInput;
 
-  if (!orgId || typeof orgId !== 'string') throwInvalidArgument('orgId is required.');
-  if (!extinguisherId || typeof extinguisherId !== 'string') throwInvalidArgument('extinguisherId is required.');
+  if (!orgId || typeof orgId !== 'string')
+    throwInvalidArgument('orgId is required.');
+  if (!extinguisherId || typeof extinguisherId !== 'string')
+    throwInvalidArgument('extinguisherId is required.');
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
 
@@ -43,20 +49,28 @@ export const recalculateExtinguisherLifecycle = onCall(async (request) => {
   if (!extSnap.exists) throwNotFound('Extinguisher not found.');
   const orgSnap = await adminDb.doc(`org/${orgId}`).get();
   const orgData = orgSnap.data() ?? {};
-  const orgSettings = (orgData.settings as Record<string, unknown> | undefined) ?? {};
-  const monthlySchedule = normalizeMonthlyInspectionSchedule(orgSettings.monthlyInspectionSchedule);
-  const orgTimezone = typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
+  const orgSettings =
+    (orgData.settings as Record<string, unknown> | undefined) ?? {};
+  const monthlySchedule = normalizeMonthlyInspectionSchedule(
+    orgSettings.monthlyInspectionSchedule,
+  );
+  const orgTimezone =
+    typeof orgSettings.timezone === 'string' ? orgSettings.timezone : 'UTC';
 
   const extData = extSnap.data()!;
 
   if (extData.lifecycleStatus !== 'active') {
-    throwFailedPrecondition('Lifecycle recalculation only applies to active extinguishers.');
+    throwFailedPrecondition(
+      'Lifecycle recalculation only applies to active extinguishers.',
+    );
   }
 
   const ext: ExtinguisherForCalc = {
     lifecycleStatus: extData.lifecycleStatus as string,
     extinguisherType: extData.extinguisherType as string | null,
-    requiresSixYearMaintenance: extData.requiresSixYearMaintenance as boolean | null,
+    requiresSixYearMaintenance: extData.requiresSixYearMaintenance as
+      | boolean
+      | null,
     lastMonthlyInspection: extData.lastMonthlyInspection as Timestamp | null,
     lastAnnualInspection: extData.lastAnnualInspection as Timestamp | null,
     lastSixYearMaintenance: extData.lastSixYearMaintenance as Timestamp | null,
@@ -65,12 +79,23 @@ export const recalculateExtinguisherLifecycle = onCall(async (request) => {
   };
 
   const extType = ext.extinguisherType ?? '';
-  const hydroInterval = ext.hydroTestIntervalYears ?? getHydroIntervalByType(extType);
-  const needsSixYear = ext.requiresSixYearMaintenance ?? requiresSixYear(extType);
+  const hydroInterval =
+    ext.hydroTestIntervalYears ?? getHydroIntervalByType(extType);
+  const needsSixYear =
+    ext.requiresSixYearMaintenance ?? requiresSixYear(extType);
 
-  const nextMonthlyInspection = calculateNextMonthlyInspection(ext.lastMonthlyInspection, monthlySchedule, orgTimezone);
-  const nextAnnualInspection = calculateNextAnnualInspection(ext.lastAnnualInspection);
-  const nextHydroTest = calculateNextHydroTest(ext.lastHydroTest, hydroInterval);
+  const nextMonthlyInspection = calculateNextMonthlyInspection(
+    ext.lastMonthlyInspection,
+    monthlySchedule,
+    orgTimezone,
+  );
+  const nextAnnualInspection = calculateNextAnnualInspection(
+    ext.lastAnnualInspection,
+  );
+  const nextHydroTest = calculateNextHydroTest(
+    ext.lastHydroTest,
+    hydroInterval,
+  );
   const nextSixYearMaintenance = needsSixYear
     ? calculateNextSixYearMaintenance(ext.lastSixYearMaintenance)
     : null;
@@ -83,7 +108,8 @@ export const recalculateExtinguisherLifecycle = onCall(async (request) => {
     nextHydroTest,
   };
 
-  const { complianceStatus, overdueFlags } = calculateComplianceStatus(calcInput);
+  const { complianceStatus, overdueFlags } =
+    calculateComplianceStatus(calcInput);
 
   await extRef.update({
     nextMonthlyInspection,

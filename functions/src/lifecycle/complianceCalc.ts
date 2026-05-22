@@ -40,11 +40,10 @@ export type OverdueFlag =
   | 'six_year_overdue'
   | 'hydro_overdue';
 
-export type MonthlyInspectionSchedule =
-  | 'rolling_30_days'
-  | 'calendar_month';
+export type MonthlyInspectionSchedule = 'rolling_30_days' | 'calendar_month';
 
-export const DEFAULT_MONTHLY_INSPECTION_SCHEDULE: MonthlyInspectionSchedule = 'rolling_30_days';
+export const DEFAULT_MONTHLY_INSPECTION_SCHEDULE: MonthlyInspectionSchedule =
+  'rolling_30_days';
 
 /** Minimal extinguisher shape needed for compliance calculation */
 export interface ExtinguisherForCalc {
@@ -99,7 +98,10 @@ function addYearsToTimestamp(base: Date, years: number): Timestamp {
   return Timestamp.fromDate(result);
 }
 
-function getZonedDateParts(date: Date, timeZone: string): { year: number; month: number; day: number } {
+function getZonedDateParts(
+  date: Date,
+  timeZone: string,
+): { year: number; month: number; day: number } {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone,
@@ -149,15 +151,28 @@ function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
   }
 }
 
-function zonedMidnightToUtc(year: number, month: number, day: number, timeZone: string): Date {
+function zonedMidnightToUtc(
+  year: number,
+  month: number,
+  day: number,
+  timeZone: string,
+): Date {
   const utcGuess = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-  const firstPass = new Date(utcGuess.getTime() - getTimeZoneOffsetMs(utcGuess, timeZone));
-  const secondPass = new Date(utcGuess.getTime() - getTimeZoneOffsetMs(firstPass, timeZone));
+  const firstPass = new Date(
+    utcGuess.getTime() - getTimeZoneOffsetMs(utcGuess, timeZone),
+  );
+  const secondPass = new Date(
+    utcGuess.getTime() - getTimeZoneOffsetMs(firstPass, timeZone),
+  );
   return secondPass;
 }
 
-export function normalizeMonthlyInspectionSchedule(value: unknown): MonthlyInspectionSchedule {
-  return value === 'calendar_month' ? 'calendar_month' : DEFAULT_MONTHLY_INSPECTION_SCHEDULE;
+export function normalizeMonthlyInspectionSchedule(
+  value: unknown,
+): MonthlyInspectionSchedule {
+  return value === 'calendar_month'
+    ? 'calendar_month'
+    : DEFAULT_MONTHLY_INSPECTION_SCHEDULE;
 }
 
 // ---------------------------------------------------------------------------
@@ -180,7 +195,9 @@ export function calculateNextMonthlyInspection(
     const parts = getZonedDateParts(base, timeZone);
     const nextMonth = parts.month === 12 ? 1 : parts.month + 1;
     const nextYear = parts.month === 12 ? parts.year + 1 : parts.year;
-    return Timestamp.fromDate(zonedMidnightToUtc(nextYear, nextMonth, 1, timeZone));
+    return Timestamp.fromDate(
+      zonedMidnightToUtc(nextYear, nextMonth, 1, timeZone),
+    );
   }
   return addDaysToTimestamp(base, 30);
 }
@@ -189,7 +206,9 @@ export function calculateNextMonthlyInspection(
  * Returns the next annual inspection due date (lastAnnual + 12 months).
  * If lastAnnual is null, returns a Timestamp for 12 months from now.
  */
-export function calculateNextAnnualInspection(lastAnnual: Timestamp | null): Timestamp {
+export function calculateNextAnnualInspection(
+  lastAnnual: Timestamp | null,
+): Timestamp {
   const base = lastAnnual ? lastAnnual.toDate() : new Date();
   return addMonthsToTimestamp(base, 12);
 }
@@ -198,7 +217,9 @@ export function calculateNextAnnualInspection(lastAnnual: Timestamp | null): Tim
  * Returns the next six-year maintenance due date (lastSixYear + 6 years).
  * If lastSixYear is null, returns a Timestamp for 6 years from now.
  */
-export function calculateNextSixYearMaintenance(lastSixYear: Timestamp | null): Timestamp {
+export function calculateNextSixYearMaintenance(
+  lastSixYear: Timestamp | null,
+): Timestamp {
   const base = lastSixYear ? lastSixYear.toDate() : new Date();
   return addYearsToTimestamp(base, 6);
 }
@@ -207,7 +228,10 @@ export function calculateNextSixYearMaintenance(lastSixYear: Timestamp | null): 
  * Returns the next hydrostatic test due date (lastHydro + intervalYears).
  * If lastHydro is null, returns a Timestamp for intervalYears from now.
  */
-export function calculateNextHydroTest(lastHydro: Timestamp | null, intervalYears: number): Timestamp {
+export function calculateNextHydroTest(
+  lastHydro: Timestamp | null,
+  intervalYears: number,
+): Timestamp {
   const base = lastHydro ? lastHydro.toDate() : new Date();
   return addYearsToTimestamp(base, intervalYears);
 }
@@ -247,7 +271,9 @@ export function requiresSixYear(extinguisherType: string | null): boolean {
  *   6. compliant   — nothing due
  *   7. missing_data — lifecycle fields are null (newly created, no history)
  */
-export function calculateComplianceStatus(ext: ExtinguisherForCalc): ComplianceResult {
+export function calculateComplianceStatus(
+  ext: ExtinguisherForCalc,
+): ComplianceResult {
   // Short-circuit for non-active units
   if (ext.lifecycleStatus === 'replaced') {
     return { complianceStatus: 'replaced', overdueFlags: [] };
@@ -261,28 +287,33 @@ export function calculateComplianceStatus(ext: ExtinguisherForCalc): ComplianceR
 
   // Resolve next dates — use stored values or calculate from last dates
   const nextMonthly: Timestamp | null =
-    ext.nextMonthlyInspection ?? (ext.lastMonthlyInspection
+    ext.nextMonthlyInspection ??
+    (ext.lastMonthlyInspection
       ? calculateNextMonthlyInspection(ext.lastMonthlyInspection)
       : null);
 
   const nextAnnual: Timestamp | null =
-    ext.nextAnnualInspection ?? (ext.lastAnnualInspection
+    ext.nextAnnualInspection ??
+    (ext.lastAnnualInspection
       ? calculateNextAnnualInspection(ext.lastAnnualInspection)
       : null);
 
   const extType = ext.extinguisherType ?? '';
-  const needsSixYear = ext.requiresSixYearMaintenance ?? requiresSixYear(extType);
+  const needsSixYear =
+    ext.requiresSixYearMaintenance ?? requiresSixYear(extType);
 
-  const nextSixYear: Timestamp | null =
-    needsSixYear
-      ? (ext.nextSixYearMaintenance ?? (ext.lastSixYearMaintenance
-          ? calculateNextSixYearMaintenance(ext.lastSixYearMaintenance)
-          : null))
-      : null;
+  const nextSixYear: Timestamp | null = needsSixYear
+    ? (ext.nextSixYearMaintenance ??
+      (ext.lastSixYearMaintenance
+        ? calculateNextSixYearMaintenance(ext.lastSixYearMaintenance)
+        : null))
+    : null;
 
-  const hydroInterval = ext.hydroTestIntervalYears ?? getHydroIntervalByType(extType);
+  const hydroInterval =
+    ext.hydroTestIntervalYears ?? getHydroIntervalByType(extType);
   const nextHydro: Timestamp | null =
-    ext.nextHydroTest ?? (ext.lastHydroTest
+    ext.nextHydroTest ??
+    (ext.lastHydroTest
       ? calculateNextHydroTest(ext.lastHydroTest, hydroInterval)
       : null);
 
@@ -309,16 +340,28 @@ export function calculateComplianceStatus(ext: ExtinguisherForCalc): ComplianceR
   const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
   const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
 
-  if (nextMonthly && nextMonthly.toDate().getTime() - now.getTime() <= sevenDaysMs) {
+  if (
+    nextMonthly &&
+    nextMonthly.toDate().getTime() - now.getTime() <= sevenDaysMs
+  ) {
     return { complianceStatus: 'monthly_due', overdueFlags: [] };
   }
-  if (nextAnnual && nextAnnual.toDate().getTime() - now.getTime() <= thirtyDaysMs) {
+  if (
+    nextAnnual &&
+    nextAnnual.toDate().getTime() - now.getTime() <= thirtyDaysMs
+  ) {
     return { complianceStatus: 'annual_due', overdueFlags: [] };
   }
-  if (nextSixYear && nextSixYear.toDate().getTime() - now.getTime() <= sixtyDaysMs) {
+  if (
+    nextSixYear &&
+    nextSixYear.toDate().getTime() - now.getTime() <= sixtyDaysMs
+  ) {
     return { complianceStatus: 'six_year_due', overdueFlags: [] };
   }
-  if (nextHydro && nextHydro.toDate().getTime() - now.getTime() <= sixtyDaysMs) {
+  if (
+    nextHydro &&
+    nextHydro.toDate().getTime() - now.getTime() <= sixtyDaysMs
+  ) {
     return { complianceStatus: 'hydro_due', overdueFlags: [] };
   }
 

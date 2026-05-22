@@ -1,19 +1,35 @@
 import { onCall } from 'firebase-functions/v2/https';
+import type Stripe from 'stripe';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
-import { throwInvalidArgument, throwFailedPrecondition } from '../utils/errors.js';
+import {
+  throwInvalidArgument,
+  throwFailedPrecondition,
+} from '../utils/errors.js';
 import { stripeSecretKey, getStripePriceIds } from '../config/params.js';
-import { priceIdForPlan, type BillingInterval, type PlanName } from './planConfig.js';
+import {
+  priceIdForPlan,
+  type BillingInterval,
+  type PlanName,
+} from './planConfig.js';
 import { getStripe } from './stripeClient.js';
 import { ensureOrgStripeCustomer } from './stripeOrgCustomer.js';
 import { writeAuditLog } from '../utils/auditLog.js';
+import {
+  proTrialDaysFromEnv,
+  shouldUseProMonthlyTrial,
+} from './proTrialEligibility.js';
 
 export const createCheckoutSession = onCall(
   { secrets: [stripeSecretKey] },
   async (request) => {
     const { uid, email } = validateAuth(request);
-    const { orgId, plan, billingInterval: rawInterval } = request.data as {
+    const {
+      orgId,
+      plan,
+      billingInterval: rawInterval,
+    } = request.data as {
       orgId: string;
       plan: string;
       billingInterval?: string;
@@ -51,6 +67,11 @@ export const createCheckoutSession = onCall(
     }
     const orgData = orgSnap.data()!;
 
+    const useProMonthlyTrial = shouldUseProMonthlyTrial(planName, billingInterval, {
+      stripeSubscriptionId: orgData.stripeSubscriptionId as string | null,
+      proTrialConsumed: orgData.proTrialConsumed === true,
+    });
+
     const customerId = await ensureOrgStripeCustomer(
       orgRef,
       orgData.stripeCustomerId as string | null,
@@ -62,24 +83,53 @@ export const createCheckoutSession = onCall(
       },
     );
 
-    // Create checkout session
-    const session = await getStripe().checkout.sessions.create({
+    const origin =
+      request.rawRequest?.headers?.origin ?? 'http://localhost:5173';
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
       allow_promotion_codes: true,
       metadata: { orgId },
-      success_url: `${request.rawRequest?.headers?.origin ?? 'http://localhost:5173'}/dashboard/settings?billing=success`,
-      cancel_url: `${request.rawRequest?.headers?.origin ?? 'http://localhost:5173'}/dashboard/settings?billing=canceled`,
-    });
+      success_url: `${origin}/dashboard/settings?billing=success`,
+      cancel_url: `${origin}/dashboard/settings?billing=canceled`,
+    };
+
+    const trialDaysForAudit = useProMonthlyTrial ? proTrialDaysFromEnv() : null;
+    if (useProMonthlyTrial && trialDaysForAudit !== null) {
+      sessionParams.payment_method_collection = 'if_required';
+      sessionParams.subscription_data = {
+        trial_period_days: trialDaysForAudit,
+        metadata: { orgId },
+        trial_settings: {
+          end_behavior: {
+            missing_payment_method: 'cancel',
+          },
+        },
+      };
+    }
+
+    const session = await getStripe().checkout.sessions.create(sessionParams);
 
     await writeAuditLog(orgId, {
-      action: 'billing.checkout_started',
+      action: useProMonthlyTrial
+        ? 'billing.pro_trial_checkout_started'
+        : 'billing.checkout_started',
       performedBy: uid,
       performedByEmail: email,
       entityType: 'billing',
       entityId: orgId,
-      details: { plan: planName, billingInterval, sessionId: session.id },
+      details: {
+        plan: planName,
+        billingInterval,
+        sessionId: session.id,
+        ...(useProMonthlyTrial && trialDaysForAudit !== null
+          ? {
+              proTrialDays: trialDaysForAudit,
+              paymentMethodCollection: 'if_required',
+            }
+          : {}),
+      },
     });
 
     return { url: session.url };

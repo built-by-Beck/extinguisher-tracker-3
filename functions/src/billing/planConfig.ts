@@ -142,7 +142,10 @@ export type BillingInterval = 'month' | 'year';
 /**
  * Resolve a Stripe price ID to a plan name (compare against deployed price IDs).
  */
-export function planFromPriceId(priceId: string, prices: StripePriceIds): PlanName | null {
+export function planFromPriceId(
+  priceId: string,
+  prices: StripePriceIds,
+): PlanName | null {
   if (priceId && priceId === prices.basic) return 'basic';
   if (priceId && priceId === prices.pro) return 'pro';
   if (priceId && priceId === prices.elite) return 'elite';
@@ -188,7 +191,10 @@ export function priceIdForPlan(
   }
 }
 
-export function canUseCustomAssetInspections(plan?: string | null, featureFlags?: Record<string, boolean> | null): boolean {
+export function canUseCustomAssetInspections(
+  plan?: string | null,
+  featureFlags?: Record<string, boolean> | null,
+): boolean {
   if (featureFlags?.customAssetInspections === true) return true;
   return plan === 'pro' || plan === 'elite' || plan === 'enterprise';
 }

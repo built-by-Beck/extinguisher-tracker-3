@@ -146,18 +146,29 @@ export default function FaqPage() {
           <h1 className="text-2xl font-bold text-gray-900">FAQ</h1>
         </div>
         <p className="mt-2 text-sm text-gray-600">
-          Quick answers for setup, imports, inspections, AI assistance, and day-to-day operations.
+          Quick answers for setup, imports, inspections, AI assistance, and
+          day-to-day operations.
         </p>
       </div>
 
       <div className="mt-6 space-y-6">
         {faqSections.map((section) => (
-          <section key={section.title} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">{section.title}</h2>
+          <section
+            key={section.title}
+            className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+          >
+            <h2 className="text-lg font-semibold text-gray-900">
+              {section.title}
+            </h2>
             <dl className="mt-4 space-y-4">
               {section.items.map((item) => (
-                <div key={item.q} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-                  <dt className="text-sm font-semibold text-gray-900">{item.q}</dt>
+                <div
+                  key={item.q}
+                  className="rounded-lg border border-gray-100 bg-gray-50 p-4"
+                >
+                  <dt className="text-sm font-semibold text-gray-900">
+                    {item.q}
+                  </dt>
                   <dd className="mt-2 text-sm text-gray-600">{item.a}</dd>
                 </div>
               ))}
@@ -167,9 +178,12 @@ export default function FaqPage() {
       </div>
 
       <div className="mt-6 rounded-xl bg-gray-900 px-6 py-8 text-center">
-        <h2 className="text-xl font-bold text-white">Need a step-by-step walkthrough?</h2>
+        <h2 className="text-xl font-bold text-white">
+          Need a step-by-step walkthrough?
+        </h2>
         <p className="mt-2 text-sm text-gray-300">
-          Use Getting Started for the full flow from account setup to completed inspections.
+          Use Getting Started for the full flow from account setup to completed
+          inspections.
         </p>
         <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link

@@ -6,37 +6,88 @@ import { PublicAdSlot } from '../ads/PublicAdSlot.tsx';
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-base font-semibold ${isActive ? 'text-red-600' : 'text-gray-700 hover:text-red-600'}`;
 
-const MARKETING_PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  '/': { title: 'Field-Built Fire Extinguisher Tracking', subtitle: 'Inspections. AI guidance. Offline-aware workflow.' },
-  '/features': { title: 'Features', subtitle: 'The major workflows your extinguisher program needs in one place' },
-  '/pricing': { title: 'Pricing', subtitle: 'Plans that scale with your AI-assisted program' },
-  '/how-it-works': { title: 'How It Works', subtitle: 'From setup to field evidence, reports, sharing, and audit history' },
-  '/about': { title: 'About', subtitle: 'Independently built from field-level life safety experience' },
-  '/getting-started': { title: 'Getting Started', subtitle: 'From signup to a stronger inspection program' },
-  '/faq': { title: 'FAQ', subtitle: 'Answers for setup, AI, field work, reports, sharing, and pricing' },
-  '/terms': { title: 'Terms of Service', subtitle: 'Usage terms and legal guidelines' },
-  '/privacy': { title: 'Privacy Policy', subtitle: 'How we collect, use, and protect your data' },
+const MARKETING_PAGE_TITLES: Record<
+  string,
+  { title: string; subtitle: string }
+> = {
+  '/': {
+    title: 'Field-Built Fire Extinguisher Tracking',
+    subtitle: 'Inspections. AI guidance. Offline-aware workflow.',
+  },
+  '/features': {
+    title: 'Features',
+    subtitle:
+      'The major workflows your extinguisher program needs in one place',
+  },
+  '/pricing': {
+    title: 'Pricing',
+    subtitle: 'Plans that scale with your AI-assisted program',
+  },
+  '/how-it-works': {
+    title: 'How It Works',
+    subtitle:
+      'From setup to field evidence, reports, sharing, and audit history',
+  },
+  '/about': {
+    title: 'About',
+    subtitle: 'Independently built from field-level life safety experience',
+  },
+  '/getting-started': {
+    title: 'Getting Started',
+    subtitle: 'From signup to a stronger inspection program',
+  },
+  '/faq': {
+    title: 'FAQ',
+    subtitle:
+      'Answers for setup, AI, field work, reports, sharing, and pricing',
+  },
+  '/terms': {
+    title: 'Terms of Service',
+    subtitle: 'Usage terms and legal guidelines',
+  },
+  '/privacy': {
+    title: 'Privacy Policy',
+    subtitle: 'How we collect, use, and protect your data',
+  },
 };
 
 type PublicMarketingLayoutProps = {
   children: ReactNode;
 };
 
-export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) {
+export function PublicMarketingLayout({
+  children,
+}: PublicMarketingLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? { title: 'ExtinguisherTracker', subtitle: '' };
+  const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? {
+    title: 'ExtinguisherTracker',
+    subtitle: '',
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-6 sm:px-6">
-          <Link to="/" className="flex items-center gap-3.5" onClick={() => setMobileOpen(false)}>
-            <img src="/logo.png" alt="ExtinguisherTracker" className="h-24 w-24 rounded-xl object-contain sm:h-28 sm:w-28" />
-            <span className="text-3xl font-bold tracking-tight text-gray-900">Extinguisher<span className="text-red-600">Tracker</span></span>
+          <Link
+            to="/"
+            className="flex items-center gap-3.5"
+            onClick={() => setMobileOpen(false)}
+          >
+            <img
+              src="/logo.png"
+              alt="ExtinguisherTracker"
+              className="h-24 w-24 rounded-xl object-contain sm:h-28 sm:w-28"
+            />
+            <span className="text-3xl font-bold tracking-tight text-gray-900">
+              Extinguisher<span className="text-red-600">Tracker</span>
+            </span>
           </Link>
 
-          <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
+          <nav
+            className="hidden items-center gap-8 md:flex"
+            aria-label="Primary"
+          >
             <NavLink to="/" end className={navLinkClass}>
               Home
             </NavLink>
@@ -46,7 +97,10 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
             <NavLink to="/pricing" className={navLinkClass}>
               Pricing
             </NavLink>
-            <NavLink to="/how-it-works" className={(props) => `${navLinkClass(props)} whitespace-nowrap`}>
+            <NavLink
+              to="/how-it-works"
+              className={(props) => `${navLinkClass(props)} whitespace-nowrap`}
+            >
               How it works
             </NavLink>
             <NavLink to="/getting-started" className={navLinkClass}>
@@ -100,22 +154,47 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
             className="border-t border-gray-200 bg-white px-4 py-4 md:hidden"
           >
             <div className="flex flex-col gap-3">
-              <NavLink to="/" end className={navLinkClass} onClick={() => setMobileOpen(false)}>
+              <NavLink
+                to="/"
+                end
+                className={navLinkClass}
+                onClick={() => setMobileOpen(false)}
+              >
                 Home
               </NavLink>
-              <NavLink to="/features" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+              <NavLink
+                to="/features"
+                className={navLinkClass}
+                onClick={() => setMobileOpen(false)}
+              >
                 Features
               </NavLink>
-              <NavLink to="/pricing" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+              <NavLink
+                to="/pricing"
+                className={navLinkClass}
+                onClick={() => setMobileOpen(false)}
+              >
                 Pricing
               </NavLink>
-              <NavLink to="/how-it-works" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+              <NavLink
+                to="/how-it-works"
+                className={navLinkClass}
+                onClick={() => setMobileOpen(false)}
+              >
                 How it works
               </NavLink>
-              <NavLink to="/getting-started" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+              <NavLink
+                to="/getting-started"
+                className={navLinkClass}
+                onClick={() => setMobileOpen(false)}
+              >
                 Getting started
               </NavLink>
-              <NavLink to="/faq" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+              <NavLink
+                to="/faq"
+                className={navLinkClass}
+                onClick={() => setMobileOpen(false)}
+              >
                 FAQ
               </NavLink>
               <Link
@@ -159,38 +238,63 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
       </div>
 
       {/* Top ad banner — below header */}
-      <PublicAdSlot format="banner" className="border-b border-gray-200 bg-white px-4 py-2" />
+      <PublicAdSlot
+        format="banner"
+        className="border-b border-gray-200 bg-white px-4 py-2"
+      />
 
       <main className="flex-1">{children}</main>
 
       {/* Bottom ad banner — above footer */}
-      <PublicAdSlot format="banner" className="border-t border-gray-200 bg-white px-4 py-2" />
+      <PublicAdSlot
+        format="banner"
+        className="border-t border-gray-200 bg-white px-4 py-2"
+      />
 
       <footer className="border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
           <div className="flex flex-col gap-8 sm:flex-row sm:justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <img src="/logo.png" alt="ExtinguisherTracker" className="h-8 w-8 rounded-lg object-contain" />
-                <p className="text-sm font-semibold text-red-600">ExtinguisherTracker</p>
+                <img
+                  src="/logo.png"
+                  alt="ExtinguisherTracker"
+                  className="h-8 w-8 rounded-lg object-contain"
+                />
+                <p className="text-sm font-semibold text-red-600">
+                  ExtinguisherTracker
+                </p>
               </div>
               <p className="mt-2 max-w-sm text-sm text-gray-600">
-                Field-built inspection and compliance workflow software for teams responsible for fire extinguisher programs.
+                Field-built inspection and compliance workflow software for
+                teams responsible for fire extinguisher programs.
               </p>
             </div>
             <div className="flex flex-wrap gap-8 text-sm">
               <div className="flex flex-col gap-2">
                 <span className="font-medium text-gray-900">Product</span>
-                <Link to="/features" className="text-gray-600 hover:text-red-600">
+                <Link
+                  to="/features"
+                  className="text-gray-600 hover:text-red-600"
+                >
                   Features
                 </Link>
-                <Link to="/pricing" className="text-gray-600 hover:text-red-600">
+                <Link
+                  to="/pricing"
+                  className="text-gray-600 hover:text-red-600"
+                >
                   Pricing
                 </Link>
-                <Link to="/how-it-works" className="text-gray-600 hover:text-red-600">
+                <Link
+                  to="/how-it-works"
+                  className="text-gray-600 hover:text-red-600"
+                >
                   How it works
                 </Link>
-                <Link to="/getting-started" className="text-gray-600 hover:text-red-600">
+                <Link
+                  to="/getting-started"
+                  className="text-gray-600 hover:text-red-600"
+                >
                   Getting started
                 </Link>
                 <Link to="/faq" className="text-gray-600 hover:text-red-600">
@@ -214,26 +318,39 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
                 <Link to="/terms" className="text-gray-600 hover:text-red-600">
                   Terms of Service
                 </Link>
-                <Link to="/privacy" className="text-gray-600 hover:text-red-600">
+                <Link
+                  to="/privacy"
+                  className="text-gray-600 hover:text-red-600"
+                >
                   Privacy Policy
                 </Link>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="font-medium text-gray-900">Contact</span>
-                <a href="mailto:help@extinguishertracker.com" className="text-gray-600 hover:text-red-600">
+                <a
+                  href="mailto:help@extinguishertracker.com"
+                  className="text-gray-600 hover:text-red-600"
+                >
                   Support
                 </a>
-                <a href="mailto:info@extinguishertracker.com" className="text-gray-600 hover:text-red-600">
+                <a
+                  href="mailto:info@extinguishertracker.com"
+                  className="text-gray-600 hover:text-red-600"
+                >
                   General Inquiries
                 </a>
-                <a href="mailto:billing@extinguishertracker.com" className="text-gray-600 hover:text-red-600">
+                <a
+                  href="mailto:billing@extinguishertracker.com"
+                  className="text-gray-600 hover:text-red-600"
+                >
                   Billing
                 </a>
               </div>
             </div>
           </div>
           <p className="mt-8 text-xs text-gray-500">
-            © {new Date().getFullYear()} ExtinguisherTracker. All rights reserved.
+            © {new Date().getFullYear()} ExtinguisherTracker. All rights
+            reserved.
           </p>
         </div>
       </footer>

@@ -15,9 +15,196 @@ import {
   serverTimestamp,
   type DocumentSnapshot,
   type QueryConstraint,
+  type QueryDocumentSnapshot,
+  type QuerySnapshot,
   getCountFromServer,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
+
+/** Dev server, or set localStorage EX3_DEBUG_SEARCH=1 and reload for production traces. */
+function isExSearchDebugEnabled(): boolean {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) return true;
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem('EX3_DEBUG_SEARCH') === '1';
+  } catch {
+    return false;
+  }
+}
+
+const EXTINGUISHER_LOOKUP_FIELDS = [
+  'barcode',
+  'assetId',
+  'serial',
+  'qrCodeValue',
+] as const;
+
+function exSearchLog(
+  message: string,
+  detail?: Record<string, unknown>,
+): void {
+  if (!isExSearchDebugEnabled()) return;
+  if (detail) console.info(`[EX3 extinguisher search] ${message}`, detail);
+  else console.info(`[EX3 extinguisher search] ${message}`);
+}
+
+function exSearchWarn(message: string, detail?: Record<string, unknown>): void {
+  if (!isExSearchDebugEnabled()) return;
+  if (detail) console.warn(`[EX3 extinguisher search] ${message}`, detail);
+  else console.warn(`[EX3 extinguisher search] ${message}`);
+}
+
+function collectionPathExtinguishers(orgId: string): string {
+  return `org/${orgId}/extinguishers`;
+}
+
+/**
+ * True when the box should use exact Firestore identifier queries instead of
+ * scanning the full local snapshot (substring / location-name search stays client-side).
+ */
+export function isLikelyFirestoreIdentifierQuery(raw: string): boolean {
+  const q = raw.trim();
+  if (q.length < 5) return false;
+  if (/\s/.test(q)) return false;
+  return /^[A-Za-z0-9][A-Za-z0-9\-_.:/#]*$/.test(q);
+}
+
+async function runStrictLookupWave(
+  orgId: string,
+  code: string,
+  perFieldLimit: number,
+): Promise<QuerySnapshot[]> {
+  const colRef = collection(db, 'org', orgId, 'extinguishers');
+  const snaps = await Promise.all(
+    EXTINGUISHER_LOOKUP_FIELDS.map((field) =>
+      getDocs(
+        query(
+          colRef,
+          where('deletedAt', '==', null),
+          where('lifecycleStatus', '==', 'active'),
+          where(field, '==', code),
+          limit(perFieldLimit),
+        ),
+      ),
+    ),
+  );
+  EXTINGUISHER_LOOKUP_FIELDS.forEach((field, i) => {
+    const snap = snaps[i];
+    exSearchLog(`strict wave field=${field}`, {
+      queryType: 'strict-active',
+      collectionPath: collectionPathExtinguishers(orgId),
+      filters: ['deletedAt==null', 'lifecycleStatus==active', `${field}==…`],
+      limit: perFieldLimit,
+      docCount: snap.size,
+      docIds: snap.docs.map((d) => d.id),
+    });
+  });
+  return snaps;
+}
+
+async function runLegacyLookupWave(
+  orgId: string,
+  code: string,
+  perFieldLimit: number,
+): Promise<QuerySnapshot[]> {
+  const colRef = collection(db, 'org', orgId, 'extinguishers');
+  exSearchWarn(
+    'Running legacy identifier lookup (lifecycle not in query). Still only org/.../extinguishers — no inspections/workspaces loaded.',
+    { perFieldLimit },
+  );
+  const snaps = await Promise.all(
+    EXTINGUISHER_LOOKUP_FIELDS.map((field) =>
+      getDocs(
+        query(
+          colRef,
+          where('deletedAt', '==', null),
+          where(field, '==', code),
+          limit(perFieldLimit),
+        ),
+      ),
+    ),
+  );
+  EXTINGUISHER_LOOKUP_FIELDS.forEach((field, i) => {
+    const snap = snaps[i];
+    exSearchLog(`legacy wave field=${field}`, {
+      queryType: 'legacy-deletedAt-only',
+      collectionPath: collectionPathExtinguishers(orgId),
+      filters: ['deletedAt==null', `${field}==…`],
+      limit: perFieldLimit,
+      docCount: snap.size,
+      docIds: snap.docs.map((d) => d.id),
+    });
+  });
+  return snaps;
+}
+
+function firstActiveHitFromOrderedSnaps(
+  snaps: QuerySnapshot[],
+): QueryDocumentSnapshot | null {
+  for (let i = 0; i < EXTINGUISHER_LOOKUP_FIELDS.length; i++) {
+    const snap = snaps[i];
+    const hit = snap.docs.find((d) =>
+      isInventoryActiveRecord(d.data() as Record<string, unknown>),
+    );
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function collectActiveMatchesFromOrderedSnaps(
+  snaps: QuerySnapshot[],
+  maxResults: number,
+): Extinguisher[] {
+  const seen = new Set<string>();
+  const out: Extinguisher[] = [];
+  for (let i = 0; i < EXTINGUISHER_LOOKUP_FIELDS.length; i++) {
+    for (const d of snaps[i].docs) {
+      if (seen.has(d.id)) continue;
+      if (!isInventoryActiveRecord(d.data() as Record<string, unknown>))
+        continue;
+      seen.add(d.id);
+      out.push({ id: d.id, ...d.data() } as Extinguisher);
+      if (out.length >= maxResults) return out;
+    }
+  }
+  return out;
+}
+
+/**
+ * Exact-match active inventory by barcode, asset ID, serial, or QR (parallel queries, max ~20 docs read).
+ * Used by Inventory identifier search; does not query inspections or workspaces.
+ */
+export async function fetchActiveExtinguisherIdentifierMatches(
+  orgId: string,
+  rawQuery: string,
+  maxResults = 20,
+): Promise<Extinguisher[]> {
+  const code = rawQuery.trim();
+  if (!code) return [];
+  const timer = `[EX3 search] fetchActiveExtinguisherIdentifierMatches:${code.slice(0, 28)}`;
+  if (isExSearchDebugEnabled()) console.time(timer);
+  try {
+    exSearchLog('fetchActiveExtinguisherIdentifierMatches', {
+      searchInput: code,
+      orgId,
+      maxResults,
+      collectionPath: collectionPathExtinguishers(orgId),
+    });
+    const strictSnaps = await runStrictLookupWave(orgId, code, 8);
+    let out = collectActiveMatchesFromOrderedSnaps(strictSnaps, maxResults);
+    if (out.length === 0) {
+      const legacySnaps = await runLegacyLookupWave(orgId, code, 50);
+      out = collectActiveMatchesFromOrderedSnaps(legacySnaps, maxResults);
+    }
+    exSearchLog('fetchActiveExtinguisherIdentifierMatches result', {
+      count: out.length,
+      ids: out.map((e) => e.id),
+    });
+    return out.slice(0, maxResults);
+  } finally {
+    if (isExSearchDebugEnabled()) console.timeEnd(timer);
+  }
+}
 
 export interface Extinguisher {
   id?: string;
@@ -95,29 +282,43 @@ export interface Extinguisher {
 }
 
 /** Active inventory row: not deleted and lifecycle is active (or unset legacy). */
-export function isInventoryActiveRecord(data: Record<string, unknown>): boolean {
+export function isInventoryActiveRecord(
+  data: Record<string, unknown>,
+): boolean {
   const ls = data.lifecycleStatus as string | null | undefined;
   const category = data.category as string | null | undefined;
   const status = data.status as string | null | undefined;
   const isActive = data.isActive as boolean | null | undefined;
   if (ls === 'replaced' || ls === 'retired' || ls === 'deleted') return false;
-  if (category === 'replaced' || category === 'retired' || category === 'out_of_service') return false;
+  if (
+    category === 'replaced' ||
+    category === 'retired' ||
+    category === 'out_of_service'
+  )
+    return false;
   if (status != null && status !== 'active') return false;
   if (isActive === false) return false;
   return ls === 'active' || ls == null || ls === '';
 }
 
-export function isOfficiallyExpiredExtinguisher(data: Pick<Extinguisher, 'isExpired'>): boolean {
+export function isOfficiallyExpiredExtinguisher(
+  data: Pick<Extinguisher, 'isExpired'>,
+): boolean {
   return data.isExpired === true;
 }
 
 export function isPossibleExpiredCandidate(
-  data: Pick<Extinguisher, 'isExpired' | 'manufactureYear'> & Partial<Extinguisher>,
+  data: Pick<Extinguisher, 'isExpired' | 'manufactureYear'> &
+    Partial<Extinguisher>,
   currentYear = new Date().getFullYear(),
 ): boolean {
   if (isOfficiallyExpiredExtinguisher(data)) return false;
-  if (!isInventoryActiveRecord(data as unknown as Record<string, unknown>)) return false;
-  return typeof data.manufactureYear === 'number' && data.manufactureYear <= currentYear - 6;
+  if (!isInventoryActiveRecord(data as unknown as Record<string, unknown>))
+    return false;
+  return (
+    typeof data.manufactureYear === 'number' &&
+    data.manufactureYear <= currentYear - 6
+  );
 }
 
 function extinguishersRef(orgId: string) {
@@ -141,7 +342,9 @@ function sanitizeScannedCodeForAssetId(code: string): string {
 /**
  * Count of lifecycle-active extinguishers (non-deleted).
  */
-export async function getActiveExtinguisherCount(orgId: string): Promise<number> {
+export async function getActiveExtinguisherCount(
+  orgId: string,
+): Promise<number> {
   const q = query(
     extinguishersRef(orgId),
     where('deletedAt', '==', null),
@@ -154,7 +357,11 @@ export async function getActiveExtinguisherCount(orgId: string): Promise<number>
 /**
  * Check if an assetId already exists in the org.
  */
-export async function isAssetIdTaken(orgId: string, assetId: string, excludeId?: string): Promise<boolean> {
+export async function isAssetIdTaken(
+  orgId: string,
+  assetId: string,
+  excludeId?: string,
+): Promise<boolean> {
   const col = extinguishersRef(orgId);
   const q1 = query(
     col,
@@ -164,10 +371,16 @@ export async function isAssetIdTaken(orgId: string, assetId: string, excludeId?:
     limit(8),
   );
   let snap = await getDocs(q1);
-  const strictHit = excludeId ? snap.docs.some((d) => d.id !== excludeId) : !snap.empty;
+  const strictHit = excludeId
+    ? snap.docs.some((d) => d.id !== excludeId)
+    : !snap.empty;
   if (strictHit) return true;
 
-  const q2 = query(col, where('assetId', '==', assetId), where('deletedAt', '==', null));
+  const q2 = query(
+    col,
+    where('assetId', '==', assetId),
+    where('deletedAt', '==', null),
+  );
   snap = await getDocs(q2);
   return snap.docs.some((d) => {
     if (excludeId && d.id === excludeId) return false;
@@ -178,7 +391,11 @@ export async function isAssetIdTaken(orgId: string, assetId: string, excludeId?:
 /**
  * Check if a serial number is already in use by an active extinguisher.
  */
-export async function isSerialTaken(orgId: string, serial: string, excludeId?: string): Promise<boolean> {
+export async function isSerialTaken(
+  orgId: string,
+  serial: string,
+  excludeId?: string,
+): Promise<boolean> {
   const col = extinguishersRef(orgId);
   const q1 = query(
     col,
@@ -188,10 +405,16 @@ export async function isSerialTaken(orgId: string, serial: string, excludeId?: s
     limit(8),
   );
   let snap = await getDocs(q1);
-  const strictHit = excludeId ? snap.docs.some((d) => d.id !== excludeId) : !snap.empty;
+  const strictHit = excludeId
+    ? snap.docs.some((d) => d.id !== excludeId)
+    : !snap.empty;
   if (strictHit) return true;
 
-  const q2 = query(col, where('serial', '==', serial), where('deletedAt', '==', null));
+  const q2 = query(
+    col,
+    where('serial', '==', serial),
+    where('deletedAt', '==', null),
+  );
   snap = await getDocs(q2);
   return snap.docs.some((d) => {
     if (excludeId && d.id === excludeId) return false;
@@ -202,7 +425,11 @@ export async function isSerialTaken(orgId: string, serial: string, excludeId?: s
 /**
  * True if another active inventory extinguisher uses this barcode.
  */
-export async function isBarcodeTaken(orgId: string, barcode: string, excludeId?: string): Promise<boolean> {
+export async function isBarcodeTaken(
+  orgId: string,
+  barcode: string,
+  excludeId?: string,
+): Promise<boolean> {
   const trimmed = barcode.trim();
   if (!trimmed) return false;
   const col = extinguishersRef(orgId);
@@ -214,10 +441,16 @@ export async function isBarcodeTaken(orgId: string, barcode: string, excludeId?:
     limit(8),
   );
   let snap = await getDocs(q1);
-  const strictHit = excludeId ? snap.docs.some((d) => d.id !== excludeId) : !snap.empty;
+  const strictHit = excludeId
+    ? snap.docs.some((d) => d.id !== excludeId)
+    : !snap.empty;
   if (strictHit) return true;
 
-  const q2 = query(col, where('barcode', '==', trimmed), where('deletedAt', '==', null));
+  const q2 = query(
+    col,
+    where('barcode', '==', trimmed),
+    where('deletedAt', '==', null),
+  );
   snap = await getDocs(q2);
   return snap.docs.some((d) => {
     if (excludeId && d.id === excludeId) return false;
@@ -228,7 +461,10 @@ export async function isBarcodeTaken(orgId: string, barcode: string, excludeId?:
 /**
  * Generate a unique asset ID for extinguisher records created directly from a scan.
  */
-export async function generateScannedAssetId(orgId: string, code: string): Promise<string> {
+export async function generateScannedAssetId(
+  orgId: string,
+  code: string,
+): Promise<string> {
   const base = `SCAN-${sanitizeScannedCodeForAssetId(code)}`;
   let candidate = base;
   let suffix = 2;
@@ -323,7 +559,10 @@ export async function updateExtinguisher(
  * Remove all pending inspection records for given extinguisher IDs.
  * Completed (pass/fail) inspections are preserved for audit history.
  */
-async function removePendingInspections(orgId: string, extIds: string[]): Promise<void> {
+async function removePendingInspections(
+  orgId: string,
+  extIds: string[],
+): Promise<void> {
   // Firestore 'in' queries support max 30 values per clause
   const chunkSize = 30;
   for (let i = 0; i < extIds.length; i += chunkSize) {
@@ -378,7 +617,9 @@ export async function softDeleteExtinguisher(
  * Use this to fix existing data where extinguishers were deleted
  * before the inspection cleanup was added.
  */
-export async function cleanupOrphanedPendingInspections(orgId: string): Promise<number> {
+export async function cleanupOrphanedPendingInspections(
+  orgId: string,
+): Promise<number> {
   // Get all deleted extinguisher IDs using lifecycleStatus (avoids != query)
   const deletedQuery = query(
     collection(db, 'org', orgId, 'extinguishers'),
@@ -472,7 +713,10 @@ export async function batchSoftDeleteExtinguishers(
 /**
  * Get a single extinguisher by ID.
  */
-export async function getExtinguisher(orgId: string, extId: string): Promise<Extinguisher | null> {
+export async function getExtinguisher(
+  orgId: string,
+  extId: string,
+): Promise<Extinguisher | null> {
   const ref = doc(db, 'org', orgId, 'extinguishers', extId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
@@ -482,39 +726,70 @@ export async function getExtinguisher(orgId: string, extId: string): Promise<Ext
 /**
  * Look up an extinguisher by barcode, asset ID, serial, or QR value.
  * Only returns lifecycle-active inventory (replaced/retired units are ignored).
+ *
+ * Uses a few parallel Firestore rounds on `org/{orgId}/extinguishers` only (no
+ * inspections/workspaces). Legacy rows missing `lifecycleStatus` use a
+ * bounded second wave (limit per field).
  */
 export async function findExtinguisherByCode(
   orgId: string,
   code: string,
 ): Promise<Extinguisher | null> {
-  const colRef = collection(db, 'org', orgId, 'extinguishers');
-  const fields = ['barcode', 'assetId', 'serial', 'qrCodeValue'] as const;
+  const trimmed = code.trim();
+  if (!trimmed) return null;
 
-  for (const field of fields) {
-    const q = query(
-      colRef,
-      where('deletedAt', '==', null),
-      where('lifecycleStatus', '==', 'active'),
-      where(field, '==', code),
-      limit(12),
-    );
-    const snap = await getDocs(q);
-    const hit = snap.docs.find((d) => isInventoryActiveRecord(d.data() as Record<string, unknown>));
+  const timer = `[EX3 search] findExtinguisherByCode:${trimmed.slice(0, 40)}`;
+  if (isExSearchDebugEnabled()) console.time(timer);
+  try {
+    exSearchLog('findExtinguisherByCode start', {
+      searchInput: trimmed,
+      orgId,
+      collectionPath: collectionPathExtinguishers(orgId),
+      phases: ['strict limit 1 (parallel)', 'strict limit 8 (parallel)', 'legacy limit 50 (parallel)'],
+      note: 'No extra Firestore collections (inspections, workspaces, reports, photos, notes, history).',
+    });
+
+    const strict1 = await runStrictLookupWave(orgId, trimmed, 1);
+    let hit = firstActiveHitFromOrderedSnaps(strict1);
     if (hit) {
+      exSearchLog('findExtinguisherByCode hit', {
+        phase: 'strict-active-limit-1-parallel',
+        totalDocsAcrossFields: strict1.reduce((n, s) => n + s.size, 0),
+        pickedDocId: hit.id,
+      });
       return { id: hit.id, ...hit.data() } as Extinguisher;
     }
-  }
 
-  for (const field of fields) {
-    const q = query(colRef, where('deletedAt', '==', null), where(field, '==', code), limit(12));
-    const snap = await getDocs(q);
-    const hit = snap.docs.find((d) => isInventoryActiveRecord(d.data() as Record<string, unknown>));
+    const strict8 = await runStrictLookupWave(orgId, trimmed, 8);
+    hit = firstActiveHitFromOrderedSnaps(strict8);
     if (hit) {
+      exSearchLog('findExtinguisherByCode hit', {
+        phase: 'strict-active-limit-8-parallel',
+        totalDocsAcrossFields: strict8.reduce((n, s) => n + s.size, 0),
+        pickedDocId: hit.id,
+      });
       return { id: hit.id, ...hit.data() } as Extinguisher;
     }
-  }
 
-  return null;
+    const legacy = await runLegacyLookupWave(orgId, trimmed, 50);
+    hit = firstActiveHitFromOrderedSnaps(legacy);
+    if (hit) {
+      exSearchLog('findExtinguisherByCode hit', {
+        phase: 'legacy-deletedAt-limit-50-parallel',
+        totalDocsAcrossFields: legacy.reduce((n, s) => n + s.size, 0),
+        pickedDocId: hit.id,
+      });
+      return { id: hit.id, ...hit.data() } as Extinguisher;
+    }
+
+    exSearchLog('findExtinguisherByCode miss', {
+      searchInput: trimmed,
+      totalDocsLastWave: legacy.reduce((n, s) => n + s.size, 0),
+    });
+    return null;
+  } finally {
+    if (isExSearchDebugEnabled()) console.timeEnd(timer);
+  }
 }
 
 export interface ExtinguisherListOptions {
@@ -584,7 +859,9 @@ export async function listExtinguishers(
  * Used for duplicate detection and data quality scans.
  * WARNING: may be large for orgs with many extinguishers.
  */
-export async function getAllActiveExtinguishers(orgId: string): Promise<Extinguisher[]> {
+export async function getAllActiveExtinguishers(
+  orgId: string,
+): Promise<Extinguisher[]> {
   const q = query(
     extinguishersRef(orgId),
     where('deletedAt', '==', null),
@@ -624,7 +901,14 @@ export function subscribeToReplacementHistory(
   extinguisherId: string,
   callback: (rows: ReplacementHistoryRow[]) => void,
 ): () => void {
-  const colRef = collection(db, 'org', orgId, 'extinguishers', extinguisherId, 'replacementHistory');
+  const colRef = collection(
+    db,
+    'org',
+    orgId,
+    'extinguishers',
+    extinguisherId,
+    'replacementHistory',
+  );
   const q = query(colRef, orderBy('replacedAt', 'desc'));
   return onSnapshot(q, (snap) => {
     const rows: ReplacementHistoryRow[] = snap.docs.map((d) => {
@@ -632,7 +916,8 @@ export function subscribeToReplacementHistory(
       return {
         id: d.id,
         orgId: (data.orgId as string | undefined) ?? undefined,
-        currentExtinguisherId: (data.currentExtinguisherId as string | undefined) ?? undefined,
+        currentExtinguisherId:
+          (data.currentExtinguisherId as string | undefined) ?? undefined,
         replacedAt: data.replacedAt,
         reason: (data.reason as string | null) ?? null,
         notes: (data.notes as string | null) ?? null,
@@ -646,8 +931,11 @@ export function subscribeToReplacementHistory(
         sentForService: data.sentForService === true,
         discarded: data.discarded === true,
         returned: data.returned === true,
-        returnedSpareExtinguisherId: (data.returnedSpareExtinguisherId as string | null) ?? null,
-        priorSnapshot: data.priorSnapshot as Record<string, unknown> | undefined,
+        returnedSpareExtinguisherId:
+          (data.returnedSpareExtinguisherId as string | null) ?? null,
+        priorSnapshot: data.priorSnapshot as
+          | Record<string, unknown>
+          | undefined,
       };
     });
     callback(rows);

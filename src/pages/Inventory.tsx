@@ -7,12 +7,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-} from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import {
   Plus,
   Search,
@@ -49,7 +44,9 @@ import {
   createExtinguisher,
   generateScannedAssetId,
   getAllActiveExtinguishers,
+  fetchActiveExtinguisherIdentifierMatches,
   isInventoryActiveRecord,
+  isLikelyFirestoreIdentifierQuery,
   isOfficiallyExpiredExtinguisher,
   isPossibleExpiredCandidate,
   type Extinguisher,
@@ -70,13 +67,27 @@ import {
   type Location,
 } from '../services/locationService.ts';
 import { db } from '../lib/firebase.ts';
-import { subscribeToInspections, type Inspection } from '../services/inspectionService.ts';
 import {
-  dedupeInspectionsByExtinguisherLatest,
+  subscribeToInspections,
+  type Inspection,
+} from '../services/inspectionService.ts';
+import type { Workspace } from '../services/workspaceService.ts';
+import {
+  collectInspectionRowsForScope,
   getSupersededExtinguisherIds,
 } from '../utils/workspaceInspectionStats.ts';
+import {
+  buildMonthlyWorkspaceInspectionSnapshot,
+  countMonthlyInspectionRows,
+  getMonthlyCheckedCount,
+} from '../utils/monthlyWorkspaceInspectionSnapshot.ts';
 
-type SortKey = 'assetId' | 'serial' | 'location' | 'compliance' | 'nextInspection';
+type SortKey =
+  | 'assetId'
+  | 'serial'
+  | 'location'
+  | 'compliance'
+  | 'nextInspection';
 type ViewMode = 'table' | 'cards';
 
 const COMPLIANCE_SORT_ORDER: Record<string, number> = {
@@ -102,6 +113,7 @@ const INVENTORY_COMPLIANCE_FILTER_OPTIONS = [
 const STORAGE_KEY_PREFIX = 'ex3_inventory_';
 
 function loadPref<T>(orgId: string, key: string, fallback: T): T {
+  if (!orgId) return fallback;
   try {
     const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${orgId}_${key}`);
     return raw ? (JSON.parse(raw) as T) : fallback;
@@ -111,8 +123,12 @@ function loadPref<T>(orgId: string, key: string, fallback: T): T {
 }
 
 function savePref(orgId: string, key: string, value: unknown) {
+  if (!orgId) return;
   try {
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}${orgId}_${key}`, JSON.stringify(value));
+    localStorage.setItem(
+      `${STORAGE_KEY_PREFIX}${orgId}_${key}`,
+      JSON.stringify(value),
+    );
   } catch {
     // localStorage unavailable
   }
@@ -124,31 +140,42 @@ export default function Inventory() {
   const { user, userProfile } = useAuth();
   const { org, hasRole } = useOrg();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const loadedPrefsOrgIdRef = useRef('');
 
   const orgId = userProfile?.activeOrgId ?? '';
   const canEdit = hasRole(['owner', 'admin']);
   const canMerge = hasFeature(
     org?.featureFlags as Record<string, boolean> | null | undefined,
     'tagPrinting',
-    org?.plan
+    org?.plan,
   );
 
   const [items, setItems] = useState<Extinguisher[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [showDeleted, setShowDeleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
-  const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') ?? '');
+  const [categoryFilter, setCategoryFilter] = useState(
+    searchParams.get('category') ?? '',
+  );
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
   const [complianceFilter, setComplianceFilter] = useState(
     searchParams.get('compliance') ?? '',
   );
-  const [expiringFilter, setExpiringFilter] = useState(searchParams.get('expiring') ?? '');
+  const [expiringFilter, setExpiringFilter] = useState(
+    searchParams.get('expiring') ?? '',
+  );
   const [deleteTarget, setDeleteTarget] = useState<Extinguisher | null>(null);
 
   // View mode & sorting — persisted per org
-  const [viewMode, setViewMode] = useState<ViewMode>(() => loadPref(orgId, 'viewMode', 'table'));
-  const [sortKey, setSortKey] = useState<SortKey>(() => loadPref(orgId, 'sortKey', 'assetId'));
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(() => loadPref(orgId, 'sortDir', 'asc'));
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    loadPref(orgId, 'viewMode', 'table'),
+  );
+  const [sortKey, setSortKey] = useState<SortKey>(() =>
+    loadPref(orgId, 'sortKey', 'assetId'),
+  );
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(() =>
+    loadPref(orgId, 'sortDir', 'asc'),
+  );
 
   // Dynamic columns
   const [visibleColumns, setVisibleColumns] = useState({
@@ -166,9 +193,20 @@ export default function Inventory() {
 
   // Pagination and selection
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(() => loadPref(orgId, 'pageSize', 25));
+  const [pageSize, setPageSize] = useState(() =>
+    loadPref(orgId, 'pageSize', 25),
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  useEffect(() => {
+    if (!orgId || loadedPrefsOrgIdRef.current === orgId) return;
+    setViewMode(loadPref(orgId, 'viewMode', 'table'));
+    setSortKey(loadPref(orgId, 'sortKey', 'assetId'));
+    setSortDir(loadPref(orgId, 'sortDir', 'asc'));
+    setPageSize(loadPref(orgId, 'pageSize', 25));
+    loadedPrefsOrgIdRef.current = orgId;
+  }, [orgId]);
 
   // Duplicate detection state
   const [showDupModal, setShowDupModal] = useState(false);
@@ -180,21 +218,79 @@ export default function Inventory() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
 
-  const [scanAddTarget, setScanAddTarget] = useState<{ code: string; format: string | null } | null>(null);
+  const [scanAddTarget, setScanAddTarget] = useState<{
+    code: string;
+    format: string | null;
+  } | null>(null);
   const [scanAddLoading, setScanAddLoading] = useState(false);
   const [scanAddError, setScanAddError] = useState('');
   const [locations, setLocations] = useState<Location[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
-  const [activeWorkspaceInspections, setActiveWorkspaceInspections] = useState<Inspection[]>([]);
+  /** Server-side exact identifier matches (barcode / serial / asset / QR); null = not using this path. */
+  const [serverIdMatches, setServerIdMatches] = useState<Extinguisher[] | null>(
+    null,
+  );
+  const [serverIdFetching, setServerIdFetching] = useState(false);
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(
+    null,
+  );
+  const [activeWorkspaceInspections, setActiveWorkspaceInspections] = useState<
+    Inspection[]
+  >([]);
+  const activeWorkspaceId = activeWorkspace?.id ?? null;
 
   const flags = org?.featureFlags as Record<string, boolean> | null | undefined;
-  const canScan = hasFeature(flags, 'cameraBarcodeScan', org?.plan) || hasFeature(flags, 'qrScanning', org?.plan);
+  const canScan =
+    hasFeature(flags, 'cameraBarcodeScan', org?.plan) ||
+    hasFeature(flags, 'qrScanning', org?.plan);
+
+  const useServerIdentifierSearch = useMemo(() => {
+    if (!isLikelyFirestoreIdentifierQuery(searchQuery)) return false;
+    if (showDeleted) return false;
+    if (
+      categoryFilter === 'replaced' ||
+      categoryFilter === 'retired' ||
+      categoryFilter === 'out_of_service'
+    ) {
+      return false;
+    }
+    return true;
+  }, [searchQuery, showDeleted, categoryFilter]);
+
+  useEffect(() => {
+    if (!orgId || !useServerIdentifierSearch) {
+      setServerIdMatches(null);
+      setServerIdFetching(false);
+      return;
+    }
+    const term = searchQuery.trim();
+    setServerIdFetching(true);
+    setServerIdMatches(null);
+    const handle = window.setTimeout(() => {
+      fetchActiveExtinguisherIdentifierMatches(orgId, term, 20)
+        .then(setServerIdMatches)
+        .catch(() => setServerIdMatches([]))
+        .finally(() => setServerIdFetching(false));
+    }, 280);
+    return () => window.clearTimeout(handle);
+  }, [orgId, searchQuery, useServerIdentifierSearch]);
 
   // Persist preferences
-  useEffect(() => { savePref(orgId, 'viewMode', viewMode); }, [orgId, viewMode]);
-  useEffect(() => { savePref(orgId, 'sortKey', sortKey); }, [orgId, sortKey]);
-  useEffect(() => { savePref(orgId, 'sortDir', sortDir); }, [orgId, sortDir]);
-  useEffect(() => { savePref(orgId, 'pageSize', pageSize); }, [orgId, pageSize]);
+  useEffect(() => {
+    if (loadedPrefsOrgIdRef.current === orgId)
+      savePref(orgId, 'viewMode', viewMode);
+  }, [orgId, viewMode]);
+  useEffect(() => {
+    if (loadedPrefsOrgIdRef.current === orgId)
+      savePref(orgId, 'sortKey', sortKey);
+  }, [orgId, sortKey]);
+  useEffect(() => {
+    if (loadedPrefsOrgIdRef.current === orgId)
+      savePref(orgId, 'sortDir', sortDir);
+  }, [orgId, sortDir]);
+  useEffect(() => {
+    if (loadedPrefsOrgIdRef.current === orgId)
+      savePref(orgId, 'pageSize', pageSize);
+  }, [orgId, pageSize]);
 
   // Keyboard shortcut: / to focus search
   useEffect(() => {
@@ -247,7 +343,7 @@ export default function Inventory() {
   // Subscribe to latest active workspace (for check status context on filtered inventory lists)
   useEffect(() => {
     if (!orgId) {
-      setActiveWorkspaceId(null);
+      setActiveWorkspace(null);
       return;
     }
     const q = query(
@@ -258,15 +354,17 @@ export default function Inventory() {
       q,
       (snap) => {
         if (snap.empty) {
-          setActiveWorkspaceId(null);
+          setActiveWorkspace(null);
           return;
         }
         const latest = snap.docs
-          .map((d) => ({ id: d.id, ...(d.data() as { monthYear?: string }) }))
-          .sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0];
-        setActiveWorkspaceId(latest?.id ?? null);
+          .map((d) => ({ id: d.id, ...d.data() }) as Workspace)
+          .sort((a, b) =>
+            (b.monthYear ?? '').localeCompare(a.monthYear ?? ''),
+          )[0];
+        setActiveWorkspace(latest ?? null);
       },
-      () => setActiveWorkspaceId(null),
+      () => setActiveWorkspace(null),
     );
   }, [orgId]);
 
@@ -276,48 +374,51 @@ export default function Inventory() {
       setActiveWorkspaceInspections([]);
       return;
     }
-    return subscribeToInspections(orgId, activeWorkspaceId, setActiveWorkspaceInspections);
+    return subscribeToInspections(
+      orgId,
+      activeWorkspaceId,
+      setActiveWorkspaceInspections,
+    );
   }, [orgId, activeWorkspaceId]);
 
   // Subscribe to extinguishers — cache on read
   useEffect(() => {
     if (!orgId) return;
 
-    const unsub = subscribeToExtinguishers(orgId, (extinguishers) => {
-      setItems(extinguishers);
-      cacheExtinguishersForWorkspace(
-        orgId,
-        extinguishers as unknown as Array<Record<string, unknown>>,
-      ).catch(() => undefined);
-    }, { showDeleted });
+    const unsub = subscribeToExtinguishers(
+      orgId,
+      (extinguishers) => {
+        setItems(extinguishers);
+        cacheExtinguishersForWorkspace(
+          orgId,
+          extinguishers as unknown as Array<Record<string, unknown>>,
+        ).catch(() => undefined);
+      },
+      { showDeleted },
+    );
     return () => unsub();
   }, [orgId, showDeleted]);
 
-  const supersededExtinguisherIds = useMemo(() => getSupersededExtinguisherIds(items), [items]);
+  const supersededExtinguisherIds = useMemo(
+    () => getSupersededExtinguisherIds(items),
+    [items],
+  );
 
   /** Active inventory rows only (excludes retired / replaced / superseded); not narrowed by table filters. */
   const activeInventoryExcludingRetired = useMemo(
     () =>
       items.filter((ext) => {
-        const isActiveRecord = isInventoryActiveRecord(ext as unknown as Record<string, unknown>);
-        const isReplacedRecord = ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
-        const isSupersededStale = ext.id != null && supersededExtinguisherIds.has(ext.id);
+        const isActiveRecord = isInventoryActiveRecord(
+          ext as unknown as Record<string, unknown>,
+        );
+        const isReplacedRecord =
+          ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
+        const isSupersededStale =
+          ext.id != null && supersededExtinguisherIds.has(ext.id);
         return isActiveRecord && !isReplacedRecord && !isSupersededStale;
       }),
     [items, supersededExtinguisherIds],
   );
-
-  /**
-   * Basis for the Checked / Passed / Failed / Not yet inspected cards below the table.
-   * Counts follow the selected location (or the whole active inventory), not the compliance /
-   * expiry / category / search slice shown in the table.
-   */
-  const inspectionStatsBaseList = useMemo(() => {
-    if (locationFilter) {
-      return activeInventoryExcludingRetired.filter((e) => e.locationId === locationFilter);
-    }
-    return activeInventoryExcludingRetired;
-  }, [locationFilter, activeInventoryExcludingRetired]);
 
   // Get total count for asset limit bar — count non-deleted items from snapshot
   useEffect(() => {
@@ -325,8 +426,10 @@ export default function Inventory() {
     const activeCount = showDeleted
       ? items.filter((e) => !e.deletedAt).length
       : items.filter((e) => {
-          if (!isInventoryActiveRecord(e as unknown as Record<string, unknown>)) return false;
-          const isReplaced = e.lifecycleStatus === 'replaced' || e.category === 'replaced';
+          if (!isInventoryActiveRecord(e as unknown as Record<string, unknown>))
+            return false;
+          const isReplaced =
+            e.lifecycleStatus === 'replaced' || e.category === 'replaced';
           if (isReplaced) return false;
           if (e.id && supersededExtinguisherIds.has(e.id)) return false;
           return true;
@@ -343,44 +446,57 @@ export default function Inventory() {
     [locations],
   );
 
-  // Client-side filtering with enhanced location search
+  // Client-side filtering with enhanced location search; exact identifier strings use bounded Firestore reads.
   const filtered = useMemo(() => {
-    return items.filter((ext) => {
-      const isReplacedRecord = ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
-      const isSupersededStale = ext.id != null && supersededExtinguisherIds.has(ext.id);
+    function applyTableFilters(ext: Extinguisher, includeTextSearch: boolean) {
+      const isReplacedRecord =
+        ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
+      const isSupersededStale =
+        ext.id != null && supersededExtinguisherIds.has(ext.id);
       const isRetiredInventoryRow = isReplacedRecord || isSupersededStale;
       if (categoryFilter) {
-        // Retired / replaced view:
-        // - canonical: lifecycleStatus === 'replaced' (and legacy category === 'replaced')
-        // - stale chain: active old unit still in DB while a successor has replacesExtId → old id
         if (categoryFilter === 'replaced') {
           if (!isRetiredInventoryRow) return false;
         } else if (ext.category !== categoryFilter) {
           return false;
         }
       } else {
-        // Default table: active inventory only (use Retired / replaced filter for history).
-        if (!isInventoryActiveRecord(ext as unknown as Record<string, unknown>)) return false;
+        if (!isInventoryActiveRecord(ext as unknown as Record<string, unknown>))
+          return false;
         if (isReplacedRecord) return false;
         if (isSupersededStale && !isReplacedRecord) return false;
       }
       if (locationFilter) {
         if (ext.locationId !== locationFilter) return false;
       }
-      if (complianceFilter && ext.complianceStatus !== complianceFilter) return false;
+      if (complianceFilter && ext.complianceStatus !== complianceFilter)
+        return false;
       if (expiringFilter) {
         const thisYear = new Date().getFullYear();
-        if (expiringFilter === 'expired' && !isOfficiallyExpiredExtinguisher(ext)) return false;
-        if (expiringFilter === 'candidates' && !isPossibleExpiredCandidate(ext, thisYear)) return false;
-        if (expiringFilter === 'thisYear' && ext.expirationYear !== thisYear) return false;
-        if (expiringFilter === 'nextYear' && ext.expirationYear !== thisYear + 1) return false;
+        if (
+          expiringFilter === 'expired' &&
+          !isOfficiallyExpiredExtinguisher(ext)
+        )
+          return false;
+        if (
+          expiringFilter === 'candidates' &&
+          !isPossibleExpiredCandidate(ext, thisYear)
+        )
+          return false;
+        if (expiringFilter === 'thisYear' && ext.expirationYear !== thisYear)
+          return false;
+        if (
+          expiringFilter === 'nextYear' &&
+          ext.expirationYear !== thisYear + 1
+        )
+          return false;
       }
-      if (searchQuery) {
+      if (includeTextSearch && searchQuery) {
         const q = searchQuery.toLowerCase();
         const locationPath = getExtLocationPath(ext).toLowerCase();
         return (
-          ext.assetId.toLowerCase().includes(q) ||
-          ext.serial.toLowerCase().includes(q) ||
+          (ext.assetId ?? '').toLowerCase().includes(q) ||
+          (ext.serial ?? '').toLowerCase().includes(q) ||
           (ext.barcode?.toLowerCase().includes(q) ?? false) ||
           locationPath.includes(q) ||
           (ext.section || '').toLowerCase().includes(q) ||
@@ -390,7 +506,17 @@ export default function Inventory() {
         );
       }
       return true;
-    });
+    }
+
+    if (useServerIdentifierSearch) {
+      const base = serverIdMatches;
+      if (base === null) {
+        return [];
+      }
+      return base.filter((ext) => applyTableFilters(ext, false));
+    }
+
+    return items.filter((ext) => applyTableFilters(ext, true));
   }, [
     items,
     categoryFilter,
@@ -400,6 +526,8 @@ export default function Inventory() {
     searchQuery,
     getExtLocationPath,
     supersededExtinguisherIds,
+    useServerIdentifierSearch,
+    serverIdMatches,
   ]);
 
   // Sorted list
@@ -409,16 +537,18 @@ export default function Inventory() {
       let cmp = 0;
       switch (sortKey) {
         case 'assetId':
-          cmp = a.assetId.localeCompare(b.assetId);
+          cmp = (a.assetId ?? '').localeCompare(b.assetId ?? '');
           break;
         case 'serial':
-          cmp = a.serial.localeCompare(b.serial);
+          cmp = (a.serial ?? '').localeCompare(b.serial ?? '');
           break;
         case 'location':
           cmp = getExtLocationPath(a).localeCompare(getExtLocationPath(b));
           break;
         case 'compliance':
-          cmp = (COMPLIANCE_SORT_ORDER[a.complianceStatus ?? ''] ?? 99) - (COMPLIANCE_SORT_ORDER[b.complianceStatus ?? ''] ?? 99);
+          cmp =
+            (COMPLIANCE_SORT_ORDER[a.complianceStatus ?? ''] ?? 99) -
+            (COMPLIANCE_SORT_ORDER[b.complianceStatus ?? ''] ?? 99);
           break;
         case 'nextInspection': {
           const dateA = a.nextMonthlyInspection ?? '';
@@ -436,7 +566,14 @@ export default function Inventory() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
-  }, [categoryFilter, locationFilter, complianceFilter, expiringFilter, searchQuery, showDeleted]);
+  }, [
+    categoryFilter,
+    locationFilter,
+    complianceFilter,
+    expiringFilter,
+    searchQuery,
+    showDeleted,
+  ]);
 
   // Pagination slice
   const paginatedItems = useMemo(() => {
@@ -446,54 +583,81 @@ export default function Inventory() {
 
   const totalPages = Math.ceil(sorted.length / pageSize);
 
+  const activeWorkspaceSnapshot = useMemo(
+    () =>
+      buildMonthlyWorkspaceInspectionSnapshot({
+        workspaceId: activeWorkspaceId,
+        inspections: activeWorkspaceInspections,
+        extinguishers: items,
+        locations,
+      }),
+    [activeWorkspaceId, activeWorkspaceInspections, items, locations],
+  );
+
   const activeStatusByExtinguisherId = useMemo(() => {
     const map = new Map<string, Inspection['status']>();
-    for (const insp of dedupeInspectionsByExtinguisherLatest(activeWorkspaceInspections)) {
-      map.set(insp.extinguisherId, insp.status);
+    for (const insp of activeWorkspaceSnapshot.rows) {
+      if (insp.targetType !== 'asset' && insp.extinguisherId) {
+        map.set(insp.extinguisherId, insp.status);
+      }
     }
     return map;
-  }, [activeWorkspaceInspections]);
+  }, [activeWorkspaceSnapshot.rows]);
 
   const notInActiveChecklistCount = useMemo(() => {
     if (!activeWorkspaceId) return 0;
-    return activeInventoryExcludingRetired.filter((ext) => ext.id && !activeStatusByExtinguisherId.has(ext.id)).length;
-  }, [activeInventoryExcludingRetired, activeStatusByExtinguisherId, activeWorkspaceId]);
+    return activeInventoryExcludingRetired.filter(
+      (ext) => ext.id && !activeStatusByExtinguisherId.has(ext.id),
+    ).length;
+  }, [
+    activeInventoryExcludingRetired,
+    activeStatusByExtinguisherId,
+    activeWorkspaceId,
+  ]);
+
+  const monthlyInspectionScopeRows = useMemo(() => {
+    if (!locationFilter) return activeWorkspaceSnapshot.rows;
+    if (!activeWorkspaceId) return [];
+    if (!activeWorkspaceSnapshot.hasLocationIdData) {
+      return collectInspectionRowsForScope({
+        extinguishers: items,
+        inspections: activeWorkspaceInspections,
+        workspaceId: activeWorkspaceId,
+        isArchived: false,
+        hasLocationIdData: false,
+        locations,
+        anchorLocationId: locationFilter,
+      });
+    }
+    return activeWorkspaceSnapshot.rows.filter(
+      (row) => (row.locationId ?? '__unassigned__') === locationFilter,
+    );
+  }, [
+    activeWorkspaceSnapshot.rows,
+    activeWorkspaceSnapshot.hasLocationIdData,
+    activeWorkspaceId,
+    activeWorkspaceInspections,
+    items,
+    locations,
+    locationFilter,
+  ]);
 
   const scopeCheckStats = useMemo(() => {
-    let passed = 0;
-    let failed = 0;
-    let unchecked = 0;
-    for (const ext of inspectionStatsBaseList) {
-      // Monthly inspection stats apply to in-service inventory only — never pass/fail retired or chain duplicates.
-      if (ext.lifecycleStatus === 'replaced' || ext.category === 'replaced') {
-        continue;
-      }
-      if (ext.id && supersededExtinguisherIds.has(ext.id)) {
-        continue;
-      }
-      if (ext.category === 'retired' || ext.category === 'out_of_service') {
-        continue;
-      }
-      if (!ext.id) {
-        unchecked += 1;
-        continue;
-      }
-      const status = activeStatusByExtinguisherId.get(ext.id) ?? 'pending';
-      if (status === 'pass') passed += 1;
-      else if (status === 'fail') failed += 1;
-      else unchecked += 1;
-    }
+    const stats = countMonthlyInspectionRows(monthlyInspectionScopeRows);
     return {
-      passed,
-      failed,
-      unchecked,
-      checked: passed + failed,
-      total: inspectionStatsBaseList.length,
+      passed: stats.passed,
+      failed: stats.failed,
+      unchecked: stats.pending,
+      checked: getMonthlyCheckedCount(stats),
+      total: stats.total,
     };
-  }, [inspectionStatsBaseList, activeStatusByExtinguisherId, supersededExtinguisherIds]);
+  }, [monthlyInspectionScopeRows]);
 
   function toggleSelectAll() {
-    if (selectedIds.size === paginatedItems.length && paginatedItems.length > 0) {
+    if (
+      selectedIds.size === paginatedItems.length &&
+      paginatedItems.length > 0
+    ) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(paginatedItems.map((item) => item.id!)));
@@ -517,7 +681,12 @@ export default function Inventory() {
 
   async function handleBulkDelete(reason: string) {
     if (selectedIds.size === 0 || !orgId || !user) return;
-    await batchSoftDeleteExtinguishers(orgId, Array.from(selectedIds), user.uid, reason);
+    await batchSoftDeleteExtinguishers(
+      orgId,
+      Array.from(selectedIds),
+      user.uid,
+      reason,
+    );
     setShowBulkDelete(false);
     setSelectedIds(new Set());
   }
@@ -558,7 +727,9 @@ export default function Inventory() {
       if (org?.assetLimit) {
         const count = await getActiveExtinguisherCount(orgId);
         if (count >= org.assetLimit) {
-          throw new Error(`Asset limit reached (${org.assetLimit}). Upgrade your plan to add more extinguishers.`);
+          throw new Error(
+            `Asset limit reached (${org.assetLimit}). Upgrade your plan to add more extinguishers.`,
+          );
         }
       }
 
@@ -575,9 +746,15 @@ export default function Inventory() {
       });
 
       setScanAddTarget(null);
-      navigate(`/dashboard/inventory/${extId}`, { state: { returnTo: '/dashboard/inventory' } });
+      navigate(`/dashboard/inventory/${extId}`, {
+        state: { returnTo: '/dashboard/inventory' },
+      });
     } catch (err) {
-      setScanAddError(err instanceof Error ? err.message : 'Failed to add scanned extinguisher.');
+      setScanAddError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to add scanned extinguisher.',
+      );
     } finally {
       setScanAddLoading(false);
     }
@@ -592,7 +769,13 @@ export default function Inventory() {
     setShowDeleted(false);
   }
 
-  const hasActiveFilters = searchQuery || categoryFilter || locationFilter || complianceFilter || expiringFilter || showDeleted;
+  const hasActiveFilters =
+    searchQuery ||
+    categoryFilter ||
+    locationFilter ||
+    complianceFilter ||
+    expiringFilter ||
+    showDeleted;
 
   return (
     <div className="p-6">
@@ -601,7 +784,8 @@ export default function Inventory() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
           <p className="mt-1 text-sm text-gray-500">
-            {totalCount} extinguisher{totalCount !== 1 ? 's' : ''} in your organization
+            {totalCount} extinguisher{totalCount !== 1 ? 's' : ''} in your
+            organization
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -617,9 +801,10 @@ export default function Inventory() {
           )}
           <button
             onClick={() => {
-              const mode = expiringFilter === 'expired' || expiringFilter === 'candidates'
-                ? `?mode=${expiringFilter}`
-                : '';
+              const mode =
+                expiringFilter === 'expired' || expiringFilter === 'candidates'
+                  ? `?mode=${expiringFilter}`
+                  : '';
               navigate(`/dashboard/inventory/print${mode}`);
             }}
             className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -642,18 +827,31 @@ export default function Inventory() {
       {/* Active workspace inspection progress (same stats as Inspections / Dashboard) */}
       {orgId && (
         <div className="mb-6">
-          <WorkspaceInspectionSummaryCards orgId={orgId} />
+          <WorkspaceInspectionSummaryCards
+            orgId={orgId}
+            workspace={activeWorkspace}
+            extinguishers={items}
+            inspections={activeWorkspaceInspections}
+            locations={locations}
+          />
         </div>
       )}
 
       {canEdit && activeWorkspaceId && notInActiveChecklistCount > 0 && (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="text-sm font-semibold text-amber-900">
-            {notInActiveChecklistCount} active extinguisher{notInActiveChecklistCount !== 1 ? 's are' : ' is'} not on this month&apos;s checklist.
+            {notInActiveChecklistCount} active extinguisher
+            {notInActiveChecklistCount !== 1 ? 's are' : ' is'} not on this
+            month&apos;s checklist.
           </p>
           <p className="mt-1 text-sm text-amber-800">
-            New and imported inventory stays out of the active month until you open the extinguisher and choose
-            <span className="font-semibold"> Add to Current Month Checklist</span>.
+            New and imported inventory stays out of the active month until you
+            open the extinguisher and choose
+            <span className="font-semibold">
+              {' '}
+              Add to Current Month Checklist
+            </span>
+            .
           </p>
         </div>
       )}
@@ -661,14 +859,20 @@ export default function Inventory() {
       {/* Page description */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
         <p>
-          This is your full extinguisher inventory. You can add extinguishers one at a time, or
-          import them in bulk from a spreadsheet using the import bar below. After importing, use
-          the{' '}
-          <Link to="/dashboard/data-organizer" className="font-medium text-red-600 hover:text-red-500">
+          This is your full extinguisher inventory. You can add extinguishers
+          one at a time, or import them in bulk from a spreadsheet using the
+          import bar below. After importing, use the{' '}
+          <Link
+            to="/dashboard/data-organizer"
+            className="font-medium text-red-600 hover:text-red-500"
+          >
             Data Organizer
           </Link>{' '}
           to fix any missing fields. Need help formatting your spreadsheet?{' '}
-          <Link to="/dashboard/data-organizer-guide" className="font-medium text-red-600 hover:text-red-500">
+          <Link
+            to="/dashboard/data-organizer-guide"
+            className="font-medium text-red-600 hover:text-red-500"
+          >
             See the Data Organizer Guide
           </Link>{' '}
           for column names and a downloadable example file.
@@ -720,7 +924,10 @@ export default function Inventory() {
           </button>
           {showImportExport && (
             <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-              <ImportExportBar onImportJSON={() => setShowImportModal(true)} plan={org?.plan} />
+              <ImportExportBar
+                onImportJSON={() => setShowImportModal(true)}
+                plan={org?.plan}
+              />
             </div>
           )}
         </div>
@@ -750,7 +957,11 @@ export default function Inventory() {
         </div>
         {searchQuery && (
           <p className="mt-1.5 text-xs text-gray-500">
-            Showing {sorted.length} of {items.length} extinguishers
+            {useServerIdentifierSearch && serverIdFetching
+              ? 'Looking up exact barcode, serial, or asset ID on the server…'
+              : useServerIdentifierSearch
+                ? `Showing ${sorted.length} match${sorted.length === 1 ? '' : 'es'} (server lookup, max 20)`
+                : `Showing ${sorted.length} of ${items.length} extinguishers`}
           </p>
         )}
       </div>
@@ -803,7 +1014,9 @@ export default function Inventory() {
 
         {(expiringFilter === 'expired' || expiringFilter === 'candidates') && (
           <button
-            onClick={() => navigate(`/dashboard/inventory/print?mode=${expiringFilter}`)}
+            onClick={() =>
+              navigate(`/dashboard/inventory/print?mode=${expiringFilter}`)
+            }
             className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             <Printer className="h-4 w-4" />
@@ -813,7 +1026,9 @@ export default function Inventory() {
 
         {/* Overdue quick-filter */}
         <button
-          onClick={() => setComplianceFilter(complianceFilter === 'overdue' ? '' : 'overdue')}
+          onClick={() =>
+            setComplianceFilter(complianceFilter === 'overdue' ? '' : 'overdue')
+          }
           className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium ${
             complianceFilter === 'overdue'
               ? 'border-red-300 bg-red-50 text-red-700'
@@ -872,11 +1087,19 @@ export default function Inventory() {
                 compliance: 'Maintenance',
                 nextInspection: 'Next Inspection',
               }).map(([key, label]) => (
-                <label key={key} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50">
+                <label
+                  key={key}
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50"
+                >
                   <input
                     type="checkbox"
                     checked={visibleColumns[key as keyof typeof visibleColumns]}
-                    onChange={() => setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key as keyof typeof visibleColumns] }))}
+                    onChange={() =>
+                      setVisibleColumns((prev) => ({
+                        ...prev,
+                        [key]: !prev[key as keyof typeof visibleColumns],
+                      }))
+                    }
                     className="rounded border-gray-300 text-red-600 focus:ring-red-500"
                   />
                   <span className="text-sm text-gray-700">{label}</span>
@@ -921,7 +1144,11 @@ export default function Inventory() {
           </span>
           {hasFeature(flags, 'bulkTagPrinting', org?.plan) && (
             <button
-              onClick={() => navigate(`/dashboard/inventory/print-tags?ids=${Array.from(selectedIds).join(',')}`)}
+              onClick={() =>
+                navigate(
+                  `/dashboard/inventory/print-tags?ids=${Array.from(selectedIds).join(',')}`,
+                )
+              }
               className="flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
             >
               <Printer className="h-4 w-4" />
@@ -943,14 +1170,18 @@ export default function Inventory() {
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <Flame className="mx-auto h-12 w-12 text-gray-300" />
           <h3 className="mt-4 text-sm font-semibold text-gray-900">
-            {showDeleted ? 'No deleted extinguishers' : hasActiveFilters ? 'No matching extinguishers' : 'No extinguishers yet'}
+            {showDeleted
+              ? 'No deleted extinguishers'
+              : hasActiveFilters
+                ? 'No matching extinguishers'
+                : 'No extinguishers yet'}
           </h3>
           <p className="mt-1 text-sm text-gray-500">
             {showDeleted
               ? 'Deleted extinguishers will appear here.'
               : hasActiveFilters
-              ? 'Try adjusting your search or filters.'
-              : 'Get started by adding your first extinguisher.'}
+                ? 'Try adjusting your search or filters.'
+                : 'Get started by adding your first extinguisher.'}
           </p>
           {hasActiveFilters && (
             <button
@@ -983,7 +1214,10 @@ export default function Inventory() {
                     <input
                       type="checkbox"
                       aria-label="Select all extinguishers on this page"
-                      checked={selectedIds.size === paginatedItems.length && paginatedItems.length > 0}
+                      checked={
+                        selectedIds.size === paginatedItems.length &&
+                        paginatedItems.length > 0
+                      }
                       onChange={toggleSelectAll}
                       className="rounded border-gray-300 text-red-600 focus:ring-red-500"
                     />
@@ -1017,16 +1251,24 @@ export default function Inventory() {
                   />
                 )}
                 {visibleColumns.vicinity && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Vicinity</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Vicinity
+                  </th>
                 )}
                 {visibleColumns.building && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Building</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Building
+                  </th>
                 )}
                 {visibleColumns.type && (
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">Type</th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">
+                    Type
+                  </th>
                 )}
                 {visibleColumns.category && (
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">Category</th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-cell">
+                    Category
+                  </th>
                 )}
                 {visibleColumns.compliance && (
                   <SortableTableHeader
@@ -1058,13 +1300,18 @@ export default function Inventory() {
               {paginatedItems.map((ext) => (
                 <tr
                   key={ext.id}
-                  onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}`)}
+                  onClick={() =>
+                    ext.id && navigate(`/dashboard/inventory/${ext.id}`)
+                  }
                   className={`cursor-pointer transition-colors hover:bg-red-50/40 ${
                     selectedIds.has(ext.id!) ? 'bg-red-50/60' : ''
                   }`}
                 >
                   {canEdit && !showDeleted && (
-                    <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td
+                      className="w-10 px-3 py-3"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <input
                         type="checkbox"
                         aria-label={`Select extinguisher ${ext.assetId}`}
@@ -1109,12 +1356,17 @@ export default function Inventory() {
                   )}
                   {visibleColumns.category && (
                     <td className="hidden whitespace-nowrap px-4 py-3 text-sm text-gray-600 md:table-cell">
-                      {(ext.category ?? 'standard').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                      {(ext.category ?? 'standard')
+                        .replace(/_/g, ' ')
+                        .replace(/\b\w/g, (l: string) => l.toUpperCase())}
                     </td>
                   )}
                   {visibleColumns.compliance && (
                     <td className="whitespace-nowrap px-4 py-3">
-                      <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />
+                      <ComplianceStatusBadge
+                        status={ext.complianceStatus}
+                        size="sm"
+                      />
                     </td>
                   )}
                   {visibleColumns.nextInspection && (
@@ -1123,10 +1375,16 @@ export default function Inventory() {
                     </td>
                   )}
                   {canEdit && (
-                    <td className="whitespace-nowrap px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td
+                      className="whitespace-nowrap px-4 py-3 text-right"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}/edit`)}
+                          onClick={() =>
+                            ext.id &&
+                            navigate(`/dashboard/inventory/${ext.id}/edit`)
+                          }
                           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                           title="Edit"
                         >
@@ -1158,7 +1416,10 @@ export default function Inventory() {
               <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
                 <input
                   type="checkbox"
-                  checked={selectedIds.size === paginatedItems.length && paginatedItems.length > 0}
+                  checked={
+                    selectedIds.size === paginatedItems.length &&
+                    paginatedItems.length > 0
+                  }
                   onChange={toggleSelectAll}
                   className="rounded border-gray-300 text-red-600 focus:ring-red-500"
                 />
@@ -1170,14 +1431,21 @@ export default function Inventory() {
             {paginatedItems.map((ext: Extinguisher) => (
               <div
                 key={ext.id}
-                onClick={() => ext.id && navigate(`/dashboard/inventory/${ext.id}`)}
+                onClick={() =>
+                  ext.id && navigate(`/dashboard/inventory/${ext.id}`)
+                }
                 className={`group relative cursor-pointer rounded-lg border bg-white p-4 shadow-sm transition-all hover:border-red-300 hover:shadow-md ${
-                  selectedIds.has(ext.id!) ? 'border-red-300 bg-red-50/50' : 'border-gray-200'
+                  selectedIds.has(ext.id!)
+                    ? 'border-red-300 bg-red-50/50'
+                    : 'border-gray-200'
                 }`}
               >
                 {/* Selection checkbox */}
                 {canEdit && !showDeleted && (
-                  <div className="absolute left-3 top-3" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="absolute left-3 top-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <input
                       type="checkbox"
                       aria-label={`Select extinguisher ${ext.assetId}`}
@@ -1195,7 +1463,9 @@ export default function Inventory() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/dashboard/inventory/print-tags?ids=${ext.id}`);
+                          navigate(
+                            `/dashboard/inventory/print-tags?ids=${ext.id}`,
+                          );
                         }}
                         className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                         title="Print Tag"
@@ -1206,7 +1476,8 @@ export default function Inventory() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (ext.id) navigate(`/dashboard/inventory/${ext.id}/edit`);
+                        if (ext.id)
+                          navigate(`/dashboard/inventory/${ext.id}/edit`);
                       }}
                       className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                       title="Edit"
@@ -1229,27 +1500,43 @@ export default function Inventory() {
                 )}
 
                 {/* Card header */}
-                <div className={`mb-3 flex items-start justify-between ${canEdit && !showDeleted ? 'pl-6' : ''}`}>
+                <div
+                  className={`mb-3 flex items-start justify-between ${canEdit && !showDeleted ? 'pl-6' : ''}`}
+                >
                   {visibleColumns.assetId && (
                     <span className="text-lg font-bold text-gray-900 group-hover:text-red-600">
                       {ext.assetId}
                     </span>
                   )}
                   {visibleColumns.compliance && (
-                    <ComplianceStatusBadge status={ext.complianceStatus} size="sm" />
+                    <ComplianceStatusBadge
+                      status={ext.complianceStatus}
+                      size="sm"
+                    />
                   )}
                 </div>
 
                 {/* Card body */}
                 <div className="space-y-1.5 text-xs text-gray-500">
                   {visibleColumns.serial && ext.serial && (
-                    <p><span className="font-medium text-gray-600">Serial:</span> {ext.serial}</p>
+                    <p>
+                      <span className="font-medium text-gray-600">Serial:</span>{' '}
+                      {ext.serial}
+                    </p>
                   )}
                   {visibleColumns.vicinity && (
-                    <p><span className="font-medium text-gray-600">Vicinity:</span> {ext.vicinity || '--'}</p>
+                    <p>
+                      <span className="font-medium text-gray-600">
+                        Vicinity:
+                      </span>{' '}
+                      {ext.vicinity || '--'}
+                    </p>
                   )}
                   {visibleColumns.type && (
-                    <p><span className="font-medium text-gray-600">Type:</span> {ext.extinguisherType ?? '--'}</p>
+                    <p>
+                      <span className="font-medium text-gray-600">Type:</span>{' '}
+                      {ext.extinguisherType ?? '--'}
+                    </p>
                   )}
                   {visibleColumns.section && (
                     <p className="flex items-center gap-1">
@@ -1258,13 +1545,30 @@ export default function Inventory() {
                     </p>
                   )}
                   {visibleColumns.building && ext.parentLocation && (
-                    <p><span className="font-medium text-gray-600">Building:</span> {ext.parentLocation}</p>
+                    <p>
+                      <span className="font-medium text-gray-600">
+                        Building:
+                      </span>{' '}
+                      {ext.parentLocation}
+                    </p>
                   )}
                   {visibleColumns.category && (
-                    <p><span className="font-medium text-gray-600">Category:</span> {(ext.category ?? 'standard').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
+                    <p>
+                      <span className="font-medium text-gray-600">
+                        Category:
+                      </span>{' '}
+                      {(ext.category ?? 'standard')
+                        .replace(/_/g, ' ')
+                        .replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                    </p>
                   )}
                   {visibleColumns.nextInspection && (
-                    <p><span className="font-medium text-gray-600">Next Inspection:</span> {formatDueDate(ext.nextMonthlyInspection)}</p>
+                    <p>
+                      <span className="font-medium text-gray-600">
+                        Next Inspection:
+                      </span>{' '}
+                      {formatDueDate(ext.nextMonthlyInspection)}
+                    </p>
                   )}
                 </div>
               </div>
@@ -1326,42 +1630,61 @@ export default function Inventory() {
         </div>
       )}
 
-      {!showDeleted && categoryFilter !== 'replaced' && inspectionStatsBaseList.length > 0 && (
-        <div className="mt-6">
-          <p className="mb-2 text-xs font-medium text-gray-500">
-            Inspection counts below are for{' '}
-            <span className="font-semibold text-gray-700">
-              {locationFilter
-                ? 'every active extinguisher at the selected location (other table filters do not change these numbers)'
-                : 'every active extinguisher in the organization (table filters do not change these numbers)'}
-            </span>{' '}
-            ({scopeCheckStats.total} unit{scopeCheckStats.total !== 1 ? 's' : ''}). Org-wide monthly progress is in the workspace strip above.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Checked</p>
-            <p className="mt-1 text-2xl font-bold text-blue-950">{scopeCheckStats.checked}</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="rounded-md bg-green-100/90 px-3 py-2">
-                <p className="text-xs font-medium text-green-700">Passed</p>
-                <p className="text-lg font-semibold text-green-900">{scopeCheckStats.passed}</p>
+      {!showDeleted &&
+        categoryFilter !== 'replaced' &&
+        monthlyInspectionScopeRows.length > 0 && (
+          <div className="mt-6">
+            <p className="mb-2 text-xs font-medium text-gray-500">
+              Inspection counts below are for{' '}
+              <span className="font-semibold text-gray-700">
+                {locationFilter
+                  ? 'monthly checklist rows at the selected location (other table filters do not change these numbers)'
+                  : 'the active monthly checklist (table filters do not change these numbers)'}
+              </span>{' '}
+              ({scopeCheckStats.total} unit
+              {scopeCheckStats.total !== 1 ? 's' : ''}). Org-wide monthly
+              progress is in the workspace strip above.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                  Checked
+                </p>
+                <p className="mt-1 text-2xl font-bold text-blue-950">
+                  {scopeCheckStats.checked}
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-md bg-green-100/90 px-3 py-2">
+                    <p className="text-xs font-medium text-green-700">Passed</p>
+                    <p className="text-lg font-semibold text-green-900">
+                      {scopeCheckStats.passed}
+                    </p>
+                  </div>
+                  <div className="rounded-md bg-red-100/90 px-3 py-2">
+                    <p className="text-xs font-medium text-red-700">Failed</p>
+                    <p className="text-lg font-semibold text-red-900">
+                      {scopeCheckStats.failed}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="rounded-md bg-red-100/90 px-3 py-2">
-                <p className="text-xs font-medium text-red-700">Failed</p>
-                <p className="text-lg font-semibold text-red-900">{scopeCheckStats.failed}</p>
+              <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                  Not yet inspected
+                </p>
+                <p className="mt-1 text-2xl font-bold text-amber-950">
+                  {scopeCheckStats.unchecked}
+                </p>
+                <p className="mt-2 text-xs text-amber-800/90">
+                  Counts include only units in the monthly inspection scope
+                  (replaced, retired, out-of-service, and superseded duplicates
+                  are excluded), not the expiry or compliance filters on the
+                  table.
+                </p>
               </div>
             </div>
           </div>
-          <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Not yet inspected</p>
-            <p className="mt-1 text-2xl font-bold text-amber-950">{scopeCheckStats.unchecked}</p>
-            <p className="mt-2 text-xs text-amber-800/90">
-              Counts include only units in the monthly inspection scope (replaced, retired, out-of-service, and superseded duplicates are excluded), not the expiry or compliance filters on the table.
-            </p>
-          </div>
-          </div>
-        </div>
-      )}
+        )}
 
       {/* Delete modal */}
       {deleteTarget && (
@@ -1386,7 +1709,10 @@ export default function Inventory() {
         groups={dupGroups}
         scanning={dupScanning}
         onMerge={handleDuplicateMerge}
-        onCancel={() => { setShowDupModal(false); setDupGroups([]); }}
+        onCancel={() => {
+          setShowDupModal(false);
+          setDupGroups([]);
+        }}
         merging={dupMerging}
       />
 
@@ -1405,7 +1731,9 @@ export default function Inventory() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
             <div className="border-b border-gray-200 px-5 py-4">
-              <h2 className="text-lg font-semibold text-gray-900">Add scanned extinguisher?</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Add scanned extinguisher?
+              </h2>
               <p className="mt-1 text-sm text-gray-500">
                 No extinguisher was found for this scanned barcode.
               </p>
@@ -1413,16 +1741,24 @@ export default function Inventory() {
 
             <div className="space-y-4 px-5 py-4">
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Scanned code</p>
-                <p className="mt-1 break-all font-mono text-sm text-gray-900">{scanAddTarget.code}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Scanned code
+                </p>
+                <p className="mt-1 break-all font-mono text-sm text-gray-900">
+                  {scanAddTarget.code}
+                </p>
               </div>
 
               <p className="text-sm text-gray-600">
-                If this barcode is attached to a fire extinguisher, add it to inventory now. It will be created as unassigned so you can finish the details after.
+                If this barcode is attached to a fire extinguisher, add it to
+                inventory now. It will be created as unassigned so you can
+                finish the details after.
               </p>
 
               {scanAddError && (
-                <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{scanAddError}</p>
+                <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {scanAddError}
+                </p>
               )}
             </div>
 

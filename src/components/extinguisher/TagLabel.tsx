@@ -8,19 +8,49 @@ interface TagLabelProps {
 }
 
 const SIZE_CONFIG = {
-  small: { width: 192, height: 96, qr: 72, titleText: '10px', bodyText: '7px', orgText: '6px' },
-  medium: { width: 384, height: 192, qr: 144, titleText: '18px', bodyText: '12px', orgText: '10px' },
-  large: { width: 576, height: 384, qr: 240, titleText: '28px', bodyText: '16px', orgText: '12px' },
+  small: {
+    width: 192,
+    height: 96,
+    qr: 72,
+    titleText: '10px',
+    bodyText: '7px',
+    orgText: '6px',
+  },
+  medium: {
+    width: 384,
+    height: 192,
+    qr: 144,
+    titleText: '18px',
+    bodyText: '12px',
+    orgText: '10px',
+  },
+  large: {
+    width: 576,
+    height: 384,
+    qr: 240,
+    titleText: '28px',
+    bodyText: '16px',
+    orgText: '12px',
+  },
 } as const;
 
-export function TagLabel({ extinguisher, orgName, qrDataUrl, labelSize }: TagLabelProps) {
+export function TagLabel({
+  extinguisher,
+  orgName,
+  qrDataUrl,
+  labelSize,
+}: TagLabelProps) {
   const cfg = SIZE_CONFIG[labelSize];
   const location = extinguisher.parentLocation || extinguisher.section || '';
 
   return (
     <div
       className="flex border border-dashed border-gray-400 bg-white text-black overflow-hidden"
-      style={{ width: `${cfg.width}px`, height: `${cfg.height}px`, pageBreakInside: 'avoid' }}
+      style={{
+        width: `${cfg.width}px`,
+        height: `${cfg.height}px`,
+        pageBreakInside: 'avoid',
+      }}
     >
       {qrDataUrl && (
         <div className="flex shrink-0 items-center justify-center p-1">
@@ -39,32 +69,50 @@ export function TagLabel({ extinguisher, orgName, qrDataUrl, labelSize }: TagLab
           {extinguisher.assetId}
         </div>
         {extinguisher.serial && (
-          <div className="truncate leading-tight" style={{ fontSize: cfg.bodyText }}>
+          <div
+            className="truncate leading-tight"
+            style={{ fontSize: cfg.bodyText }}
+          >
             SN: {extinguisher.serial}
           </div>
         )}
         {extinguisher.extinguisherType && (
-          <div className="truncate leading-tight" style={{ fontSize: cfg.bodyText }}>
+          <div
+            className="truncate leading-tight"
+            style={{ fontSize: cfg.bodyText }}
+          >
             {extinguisher.extinguisherType}
           </div>
         )}
         {extinguisher.extinguisherSize && (
-          <div className="truncate leading-tight" style={{ fontSize: cfg.bodyText }}>
+          <div
+            className="truncate leading-tight"
+            style={{ fontSize: cfg.bodyText }}
+          >
             {extinguisher.extinguisherSize}
           </div>
         )}
         {location && (
-          <div className="truncate leading-tight" style={{ fontSize: cfg.bodyText }}>
+          <div
+            className="truncate leading-tight"
+            style={{ fontSize: cfg.bodyText }}
+          >
             {location}
           </div>
         )}
         {extinguisher.vicinity && (
-          <div className="truncate leading-tight" style={{ fontSize: cfg.bodyText }}>
+          <div
+            className="truncate leading-tight"
+            style={{ fontSize: cfg.bodyText }}
+          >
             {extinguisher.vicinity}
           </div>
         )}
         {orgName && (
-          <div className="truncate leading-tight text-gray-500" style={{ fontSize: cfg.orgText }}>
+          <div
+            className="truncate leading-tight text-gray-500"
+            style={{ fontSize: cfg.orgText }}
+          >
             {orgName}
           </div>
         )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
@@ -22,8 +22,24 @@ import {
   deleteWorkspaceCall,
   type Workspace,
 } from '../services/workspaceService.ts';
+import {
+  subscribeToExtinguishers,
+  type Extinguisher,
+} from '../services/extinguisherService.ts';
+import {
+  subscribeToInspections,
+  type Inspection,
+} from '../services/inspectionService.ts';
+import {
+  subscribeToLocations,
+  type Location,
+} from '../services/locationService.ts';
 import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
 import { WorkspaceInspectionSummaryCards } from '../components/workspace/WorkspaceInspectionSummaryCards.tsx';
+import {
+  buildMonthlyWorkspaceInspectionSnapshot,
+  EMPTY_MONTHLY_WORKSPACE_STATS,
+} from '../utils/monthlyWorkspaceInspectionSnapshot.ts';
 
 function getNextMonthYear(): string {
   const now = new Date();
@@ -50,6 +66,11 @@ export default function Workspaces() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newMonthYear, setNewMonthYear] = useState(getNextMonthYear());
   const [wsSearch, setWsSearch] = useState('');
+  const [extinguishers, setExtinguishers] = useState<Extinguisher[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [inspectionsByWorkspace, setInspectionsByWorkspace] = useState<
+    Record<string, Inspection[]>
+  >({});
 
   useEffect(() => {
     if (!orgId) return;
@@ -65,7 +86,9 @@ export default function Workspaces() {
       await createWorkspaceCall(orgId, newMonthYear);
       setShowCreateModal(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create workspace.');
+      setError(
+        err instanceof Error ? err.message : 'Failed to create workspace.',
+      );
     } finally {
       setCreating(false);
     }
@@ -91,7 +114,9 @@ export default function Workspaces() {
     try {
       await deleteWorkspaceCall(orgId, targetId);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete workspace.');
+      setError(
+        err instanceof Error ? err.message : 'Failed to delete workspace.',
+      );
     } finally {
       setDeleting(null);
     }
@@ -127,20 +152,91 @@ export default function Workspaces() {
         // Silently fail
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to archive workspace.');
+      setError(
+        err instanceof Error ? err.message : 'Failed to archive workspace.',
+      );
     } finally {
       setArchiving(null);
     }
   }, [orgId, archiveTargetId]);
 
   const filteredWorkspaces = wsSearch
-    ? workspaces.filter((w) =>
-        w.label.toLowerCase().includes(wsSearch.toLowerCase()) ||
-        w.monthYear.includes(wsSearch)
+    ? workspaces.filter(
+        (w) =>
+          w.label.toLowerCase().includes(wsSearch.toLowerCase()) ||
+          w.monthYear.includes(wsSearch),
       )
     : workspaces;
-  const activeWorkspaces = filteredWorkspaces.filter((w) => w.status === 'active');
-  const archivedWorkspaces = filteredWorkspaces.filter((w) => w.status === 'archived');
+  const allActiveWorkspaces = workspaces.filter((w) => w.status === 'active');
+  const activeWorkspaces = filteredWorkspaces.filter(
+    (w) => w.status === 'active',
+  );
+  const archivedWorkspaces = filteredWorkspaces.filter(
+    (w) => w.status === 'archived',
+  );
+  const activeWorkspaceIdsKey = allActiveWorkspaces
+    .map((w) => w.id)
+    .sort()
+    .join('|');
+  const activeSummaryWorkspace = useMemo(
+    () =>
+      [...allActiveWorkspaces].sort((a, b) =>
+        (b.monthYear ?? '').localeCompare(a.monthYear ?? ''),
+      )[0] ?? null,
+    [allActiveWorkspaces],
+  );
+
+  useEffect(() => {
+    if (!orgId) {
+      setExtinguishers([]);
+      setLocations([]);
+      return;
+    }
+    const unsubExtinguishers = subscribeToExtinguishers(
+      orgId,
+      setExtinguishers,
+    );
+    const unsubLocations = subscribeToLocations(orgId, setLocations);
+    return () => {
+      unsubExtinguishers();
+      unsubLocations();
+    };
+  }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId || activeWorkspaceIdsKey === '') {
+      setInspectionsByWorkspace({});
+      return;
+    }
+    const activeIds = activeWorkspaceIdsKey.split('|').filter(Boolean);
+    const unsubscribers = activeIds.map((workspaceId) =>
+      subscribeToInspections(orgId, workspaceId, (rows) => {
+        setInspectionsByWorkspace((prev) => ({ ...prev, [workspaceId]: rows }));
+      }),
+    );
+    setInspectionsByWorkspace((prev) => {
+      const next: Record<string, Inspection[]> = {};
+      for (const id of activeIds) next[id] = prev[id] ?? [];
+      return next;
+    });
+    return () => unsubscribers.forEach((unsub) => unsub());
+  }, [orgId, activeWorkspaceIdsKey]);
+
+  const activeWorkspaceStatsById = useMemo(() => {
+    const map = new Map<string, typeof EMPTY_MONTHLY_WORKSPACE_STATS>();
+    for (const ws of activeWorkspaces) {
+      map.set(
+        ws.id,
+        buildMonthlyWorkspaceInspectionSnapshot({
+          workspaceId: ws.id,
+          inspections: inspectionsByWorkspace[ws.id] ?? [],
+          extinguishers,
+          locations,
+        }).stats,
+      );
+    }
+    return map;
+  }, [activeWorkspaces, inspectionsByWorkspace, extinguishers, locations]);
 
   return (
     <div className="p-6">
@@ -165,21 +261,34 @@ export default function Workspaces() {
 
       {orgId && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <WorkspaceInspectionSummaryCards orgId={orgId} />
+          <WorkspaceInspectionSummaryCards
+            orgId={orgId}
+            workspace={activeSummaryWorkspace}
+            extinguishers={extinguishers}
+            inspections={
+              activeSummaryWorkspace
+                ? (inspectionsByWorkspace[activeSummaryWorkspace.id] ?? [])
+                : []
+            }
+            locations={locations}
+          />
         </div>
       )}
 
       {/* Page description */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
         <p>
-          A workspace represents one month of inspections. Create a new workspace each month, then
-          open it to walk through your extinguishers location by location. When the month is done,
-          archive the workspace to lock in the results and generate a compliance report.
+          A workspace represents one month of inspections. Create a new
+          workspace each month, then open it to walk through your extinguishers
+          location by location. When the month is done, archive the workspace to
+          lock in the results and generate a compliance report.
         </p>
       </div>
 
       {error && (
-        <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
       )}
 
       {/* Search workspaces */}
@@ -195,6 +304,8 @@ export default function Workspaces() {
           />
           {wsSearch && (
             <button
+              type="button"
+              aria-label="Clear workspace search"
               onClick={() => setWsSearch('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
             >
@@ -207,98 +318,130 @@ export default function Workspaces() {
       {/* Active workspaces */}
       {activeWorkspaces.length > 0 && (
         <div className="mb-8">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Active</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+            Active
+          </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {activeWorkspaces.map((ws) => (
-              <div
-                key={ws.id}
-                className="cursor-pointer rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
-                onClick={() => navigate(`/dashboard/workspaces/${ws.id}`)}
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-red-500" />
-                    <h3 className="text-lg font-bold text-gray-900">{ws.label}</h3>
+            {activeWorkspaces.map((ws) => {
+              const stats =
+                activeWorkspaceStatsById.get(ws.id) ??
+                EMPTY_MONTHLY_WORKSPACE_STATS;
+              return (
+                <div
+                  key={ws.id}
+                  className="cursor-pointer rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                  onClick={() => navigate(`/dashboard/workspaces/${ws.id}`)}
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-red-500" />
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {ws.label}
+                      </h3>
+                    </div>
+                    <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                      Active
+                    </span>
                   </div>
-                  <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                    Active
-                  </span>
-                </div>
 
-                {/* Stats */}
-                <div className="mb-4 grid grid-cols-3 gap-3">
-                  <div className="text-center">
-                    <p className="text-xl font-bold text-green-600">{ws.stats.passed}</p>
-                    <p className="text-xs text-gray-500">Passed</p>
+                  {/* Stats */}
+                  <div className="mb-4 grid grid-cols-3 gap-3">
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-green-600">
+                        {stats.passed}
+                      </p>
+                      <p className="text-xs text-gray-500">Passed</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-red-600">
+                        {stats.failed}
+                      </p>
+                      <p className="text-xs text-gray-500">Failed</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-gray-600">
+                        {stats.pending}
+                      </p>
+                      <p className="text-xs text-gray-500">Pending</p>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <p className="text-xl font-bold text-red-600">{ws.stats.failed}</p>
-                    <p className="text-xs text-gray-500">Failed</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xl font-bold text-gray-600">{ws.stats.pending}</p>
-                    <p className="text-xs text-gray-500">Pending</p>
-                  </div>
-                </div>
 
-                {/* Progress bar */}
-                <div className="mb-3 h-2 rounded-full bg-gray-200">
-                  {ws.stats.total > 0 && (
-                    <div className="flex h-2 overflow-hidden rounded-full">
-                      <div
-                        className="bg-green-500"
-                        style={{ width: `${(ws.stats.passed / ws.stats.total) * 100}%` }}
-                      />
-                      <div
-                        className="bg-red-500"
-                        style={{ width: `${(ws.stats.failed / ws.stats.total) * 100}%` }}
-                      />
+                  {/* Progress bar */}
+                  <div className="mb-3 h-2 rounded-full bg-gray-200">
+                    {stats.total > 0 && (
+                      <svg
+                        className="h-2 w-full overflow-hidden rounded-full"
+                        viewBox="0 0 100 8"
+                        preserveAspectRatio="none"
+                        aria-hidden="true"
+                      >
+                        <rect
+                          className="fill-green-500"
+                          x="0"
+                          y="0"
+                          width={(stats.passed / stats.total) * 100}
+                          height="8"
+                        />
+                        <rect
+                          className="fill-red-500"
+                          x={(stats.passed / stats.total) * 100}
+                          y="0"
+                          width={(stats.failed / stats.total) * 100}
+                          height="8"
+                        />
+                      </svg>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-gray-400">
+                      {stats.total} total extinguishers
+                    </p>
+                    {stats.total > 0 && (
+                      <p className="text-xs font-medium text-gray-500">
+                        {stats.percentage}% complete
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  {canManage && (
+                    <div className="mt-3 flex items-center justify-between">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          requestArchive(ws.id);
+                        }}
+                        disabled={archiving === ws.id || deleting === ws.id}
+                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                      >
+                        {archiving === ws.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Archive className="h-3.5 w-3.5" />
+                        )}
+                        Archive
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          requestDelete(ws.id);
+                        }}
+                        disabled={archiving === ws.id || deleting === ws.id}
+                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-600 disabled:opacity-50"
+                      >
+                        {deleting === ws.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-red-600" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                        Delete
+                      </button>
                     </div>
                   )}
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-400">
-                    {ws.stats.total} total extinguishers
-                  </p>
-                  {ws.stats.total > 0 && (
-                    <p className="text-xs font-medium text-gray-500">
-                      {Math.round(((ws.stats.passed + ws.stats.failed) / ws.stats.total) * 100)}% complete
-                    </p>
-                  )}
-                </div>
-
-                {/* Actions */}
-                {canManage && (
-                  <div className="mt-3 flex items-center justify-between">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); requestArchive(ws.id); }}
-                      disabled={archiving === ws.id || deleting === ws.id}
-                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
-                    >
-                      {archiving === ws.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Archive className="h-3.5 w-3.5" />
-                      )}
-                      Archive
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); requestDelete(ws.id); }}
-                      disabled={archiving === ws.id || deleting === ws.id}
-                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-600 disabled:opacity-50"
-                    >
-                      {deleting === ws.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-red-600" />
-                      ) : (
-                        <Trash2 className="h-3.5 w-3.5" />
-                      )}
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -339,7 +482,9 @@ export default function Workspaces() {
       {/* Archived workspaces */}
       {archivedWorkspaces.length > 0 && (
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Archived</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+            Archived
+          </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {archivedWorkspaces.map((ws) => (
               <div
@@ -350,7 +495,9 @@ export default function Workspaces() {
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Lock className="h-4 w-4 text-gray-400" />
-                    <h3 className="text-lg font-bold text-gray-700">{ws.label}</h3>
+                    <h3 className="text-lg font-bold text-gray-700">
+                      {ws.label}
+                    </h3>
                   </div>
                   <span className="rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-600">
                     Archived
@@ -360,26 +507,35 @@ export default function Workspaces() {
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-1">
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                      <span className="text-sm font-semibold text-gray-700">{ws.stats.passed}</span>
+                      <span className="text-sm font-semibold text-gray-700">
+                        {ws.stats.passed}
+                      </span>
                     </div>
                   </div>
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-1">
                       <XCircle className="h-3.5 w-3.5 text-red-500" />
-                      <span className="text-sm font-semibold text-gray-700">{ws.stats.failed}</span>
+                      <span className="text-sm font-semibold text-gray-700">
+                        {ws.stats.failed}
+                      </span>
                     </div>
                   </div>
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Clock className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="text-sm font-semibold text-gray-700">{ws.stats.pending}</span>
+                      <span className="text-sm font-semibold text-gray-700">
+                        {ws.stats.pending}
+                      </span>
                     </div>
                   </div>
                 </div>
                 {canManage && (
                   <div className="mt-3 flex justify-end">
                     <button
-                      onClick={(e) => { e.stopPropagation(); requestDelete(ws.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        requestDelete(ws.id);
+                      }}
                       disabled={deleting === ws.id}
                       className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-600 disabled:opacity-50"
                     >
@@ -400,17 +556,33 @@ export default function Workspaces() {
 
       {/* Create modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCreateModal(false)}>
-          <div className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-4 text-lg font-semibold text-gray-900">Create Workspace</h3>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div
+            className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-4 text-lg font-semibold text-gray-900">
+              Create Workspace
+            </h3>
             <p className="mb-4 text-sm text-gray-500">
-              This will create a monthly inspection workspace and seed one inspection per active extinguisher.
+              This will create a monthly inspection workspace and seed one
+              inspection per active extinguisher.
             </p>
 
             <div className="mb-4">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Month</label>
+              <label
+                htmlFor="workspace-create-month"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
+                Month
+              </label>
               <input
+                id="workspace-create-month"
                 type="month"
+                title="Workspace month"
                 value={newMonthYear}
                 onChange={(e) => setNewMonthYear(e.target.value)}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"

@@ -2047,3 +2047,257 @@ Separated AI photo controls into a real camera button and a folder upload button
 
 **Review Notes:**
 No persistence paths were added. Captured and uploaded images remain temporary React state/base64 chat attachments for Gemini vision only.
+
+## 2026-05-07 - Fix Replaced Count + Monthly Stats
+
+**Root cause fixed:** Dashboard 'Replaced' card counted extinguishers with lifecycleStatus==='replaced' (legacy records). The current replaceExtinguisher Cloud Function keeps the ext active and writes to replacementHistory subcollection, so new replacements were invisible to the counter.
+
+**Files changed:** src/pages/Dashboard.tsx, src/pages/ReplacedExtinguishers.tsx
+
+**Dashboard.tsx:** Added real-time onSnapshot listeners on collectionGroup('replacementHistory') filtered by orgId — one for current-month count, one for all-time total. Card shows 'Replaced This Month' + 'X all time' subtext. Navigates to /dashboard/replaced-extinguishers.
+
+**ReplacedExtinguishers.tsx:** Added stats bar (This Month / Last Month / All Time / Awaiting Disposition), monthly grouping via toMonthKey/monthGroups, collapsed by default with current month auto-expanded. Build + lint pass.
+
+## 2026-05-07 - WorkspaceDetail Debugger Diagnostics Verification
+
+**PBR Stage / Gate Status:**
+Build executed from the approved attached `Fix Errors In extinguisher-tracker-3` plan. Gate A satisfied before edits. Review verdict: ACCEPTED. Document pass completed for the narrow debugger-diagnostics cleanup.
+
+**Summary:**
+Verified the planned Microsoft Edge Tools accessibility/style diagnostics in `src/pages/WorkspaceDetail.tsx` are fixed. The file now has accessible names for the affected selects, an accessible clear-search icon button, and progress bar rendering without inline width styles.
+
+**Files Inspected:**
+- `src/pages/WorkspaceDetail.tsx`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Changed:**
+- `agent-system/agent-info.md`
+
+**Plan Compliance:**
+- Confirmed `ReadLints` is clean for `src/pages/WorkspaceDetail.tsx`.
+- Confirmed the planned accessibility/style changes are present.
+- Did not edit the attached plan file.
+- No functions code or business logic was touched.
+
+**Validation Results:**
+- `ReadLints` for `src/pages/WorkspaceDetail.tsx`: pass, no diagnostics.
+- `pnpm lint`: pass.
+- `pnpm build`: pass.
+- `pnpm test`: pass, 86 tests.
+- Formatter: no repo formatter script exists, so no formatter command was run.
+
+**Review Verdict:**
+ACCEPTED
+
+**Documentation Notes:**
+No README, FAQ, marketing, or roadmap update was needed because this was an internal debugger/accessibility cleanup with no user-facing workflow change.
+
+## 2026-05-07 - Unify List Sources Build/Review/Document
+
+**PBR Stage / Gate Status:**
+Build executed from the approved `Unify List Sources` plan (`unify_list_sources_ea46dba6.plan.md`). Gate A satisfied before edits. Review verdict: ACCEPTED WITH MINOR CONCERNS. Document pass completed.
+
+**Summary:**
+Made monthly checklist lists/counts derive from real `org/{orgId}/inspections` rows everywhere a workspace is shown as active, while keeping inventory and replacement history as separate domain lists. Added a shared monthly snapshot helper, removed `workspace.stats` as the UI truth source for active workspaces, separated replacement-history counts from monthly checked counts, and patched two backend lifecycle paths so stored stats stay consistent when extinguishers are retired or soft-deleted.
+
+**Files Changed:**
+- `src/utils/monthlyWorkspaceInspectionSnapshot.ts` (new)
+- `src/utils/workspaceInspectionStats.ts`
+- `src/utils/workspaceInspectionStats.test.ts`
+- `src/components/workspace/WorkspaceInspectionSummaryCards.tsx`
+- `src/components/workspace/WorkspaceInspectionScopeCards.tsx`
+- `src/components/workspace/SectionTimer.tsx`
+- `src/components/layout/WorkspaceSwitcher.tsx`
+- `src/pages/Dashboard.tsx`
+- `src/pages/Workspaces.tsx`
+- `src/pages/Inventory.tsx`
+- `src/pages/WorkspaceDetail.tsx`
+- `functions/src/lifecycle/retireExtinguisher.ts`
+- `functions/src/lifecycle/onExtinguisherSoftDeleted.ts`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Plan Compliance:**
+- Source-of-truth contract enforced: monthly checklist UI (Dashboard, Workspaces active cards, Workspace summary cards, Inventory monthly status cards, WorkspaceDetail) reads the shared `buildMonthlyWorkspaceInspectionSnapshot` view over real inspection rows.
+- Inventory lists/counts still come from active inventory; replacement-history counts still come from `replacementHistory`.
+- WorkspaceDetail "Replaced" now means inspection rows with `status === 'replaced'`. Lifecycle replacement history remains on Dashboard "Replaced" and the ReplacedExtinguishers page.
+- `filterRowsByStatusList` no longer rolls inspection `status: 'replaced'` into the "checked" bucket.
+- Backend `retireExtinguisher` and `onExtinguisherSoftDeleted` decrement `stats.passed/failed/pending/replaced` correctly when removing inspection rows from active workspaces, guarded by stored field presence.
+- `WorkspaceDetail` timer reset props are matched by `SectionTimer` so the committed release revision builds independently.
+- Plan file was not edited.
+
+**Validation Results:**
+- `ReadLints` on changed files: pass except an intentional Microsoft Edge Tools support warning for `input[type="month"]` after restoring the native month picker on `Workspaces.tsx`.
+- `pnpm lint`: pass.
+- `pnpm build`: pass.
+- `pnpm test`: pass, 10 test files, 89 tests (includes new monthly source-of-truth assertions in `workspaceInspectionStats.test.ts`).
+- `functions` `npm run lint`: pass.
+- `functions` `npm run build`: pass.
+- `functions` `npm run test`: pass, 11 suites, 45 tests.
+
+**Review Verdict:**
+ACCEPTED WITH MINOR CONCERNS.
+
+**Documentation Notes:**
+No README, FAQ, marketing, or Getting Started copy claimed Workspace "Replaced" meant lifecycle replacement history, so no public copy update was required. FAQ and Getting Started already describe Replace Extinguisher and the Replaced Extinguishers page accurately. No `TODO.md` exists in this project, so no roadmap file change was needed. Lessons and error log were updated for the source-of-truth drift fix.
+
+## 2026-05-07 - Timer Controls, Query Speed, And Review Findings
+
+**PBR Stage / Gate Status:**
+Build executed from the approved attached `Fix Timer, Query Speed, and Review Findings` plan. Gate A satisfied before edits. Review verdict: ACCEPTED after one required revision. Document pass completed with README feature copy updated.
+
+**Summary:**
+Fixed the section timer so stale restored timers are stopped immediately, elapsed time is capped, reset controls are visible in the workspace timer UI, and timer keys stay aligned with location-based auto-start behavior. Reduced duplicate workspace summary listeners on Inventory and Workspaces by allowing parent-provided data. Hardened Inventory preferences/search and scanner lookup completeness. Hardened active organization consistency when memberships change.
+
+**Files Inspected:**
+- `src/hooks/useSectionTimer.ts`
+- `src/components/workspace/SectionTimer.tsx`
+- `src/components/workspace/WorkspaceInspectionSummaryCards.tsx`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/pages/Inventory.tsx`
+- `src/pages/Workspaces.tsx`
+- `src/services/extinguisherService.ts`
+- `src/contexts/OrgContext.tsx`
+- `src/components/guards/ProtectedRoute.tsx`
+- `src/components/guards/RootRedirect.tsx`
+- `README.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Files Changed:**
+- `src/hooks/useSectionTimer.ts`
+- `src/hooks/useSectionTimer.test.ts` (new)
+- `src/components/workspace/SectionTimer.tsx`
+- `src/components/workspace/WorkspaceInspectionSummaryCards.tsx`
+- `src/pages/WorkspaceDetail.tsx`
+- `src/pages/Inventory.tsx`
+- `src/pages/Workspaces.tsx`
+- `src/services/extinguisherService.ts`
+- `src/contexts/OrgContext.tsx`
+- `src/components/guards/ProtectedRoute.tsx`
+- `src/components/guards/RootRedirect.tsx`
+- `README.md`
+- `agent-system/agent-info.md`
+- `agent-system/lessons_learned.md`
+- `agent-system/error_log.jsonl`
+
+**Validation Results:**
+- `ReadLints` on edited source files: pass, except known Microsoft Edge Tools warning for native `input[type="month"]` in `Workspaces.tsx`.
+- `pnpm test -- src/hooks/useSectionTimer.test.ts`: pass, 4 tests.
+- `pnpm lint`: pass.
+- `pnpm build`: pass, with existing large chunk warning.
+- `pnpm test`: pass, 11 test files / 93 tests.
+- Formatter: no repo formatter script exists, so no formatter command was run.
+
+**Review Verdict:**
+ACCEPTED. Initial review was REVISION REQUIRED because the Workspaces summary card used search-filtered active workspaces after listener deduplication; fixed by separating unfiltered summary scope from filtered list scope, reran validation, and follow-up review accepted.
+
+**Documentation Notes:**
+Updated `README.md` Key Features copy from "Section Auto Timer" to "Section Timer Controls" to reflect manual start, stop, reset, and forgotten-timer safeguards. No TODO/roadmap file exists.
+
+**Lessons / Error Log:**
+Added a lesson and resolved error-log entry: parent-provided data refactors must preserve the child component's original data scope separately from UI search/filter scope.
+
+## 2026-05-07 - Bundle split + Prettier tooling
+
+**Task:** Route-based code splitting to address Vite chunk size warning; add optional Prettier scripts and ignore file (no full-repo format pass).
+
+**Outcome:**
+- `React.lazy` + `Suspense` for page routes in `src/routes/index.tsx`; shared `src/components/routes/RouteFallback.tsx`.
+- `read-excel-file` v9: use `readSheet` from `read-excel-file/browser` in `ImportExportBar.tsx` (build fix).
+- Dev dependency `prettier`; scripts `format` / `format:check`; `.prettierrc` (semi + singleQuote aligned with app); `.prettierignore` (build outputs, lockfiles, BUILD-SPECS, agents, `.cursor`, `agent-system`, `pbrd-kit`).
+
+**Validation:** `pnpm build` (large chunk warning resolved), `pnpm lint`, `pnpm test` (93 tests) — all pass. `pnpm format:check` may still report diffs until a baseline format run on remaining included paths.
+
+## 2026-05-08 — Follow-up: peer/build/lint/format
+
+**Task:** Address issues called out after bundle work: Tailwind+Vite peer mismatch, pnpm ignored postinstall scripts, stale `AGENTS.md` lint note, Prettier drift, `GuestContext` exhaustive-deps warnings.
+
+**Outcome:**
+- Bumped `@tailwindcss/vite` and `tailwindcss` to **4.2.4** (declares Vite 8 in peer range).
+- `package.json` → `pnpm.onlyBuiltDependencies`: `esbuild`, `@firebase/util` so installs run postinstall without interactive `approve-builds`.
+- Ran Prettier baseline on all non-ignored paths; `pnpm format:check` clean.
+- `GuestContext.tsx`: moved `eslint-disable-next-line react-hooks/exhaustive-deps` to sit above each `[]` deps array (and resumed `resumeSession` `useCallback` formatting).
+
+**Validation:** `pnpm install`, `pnpm format:check`, `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build` — pass.
+
+## 2026-05-08 — Pro 7-day trial (monthly, no card at Checkout)
+
+**Task:** Stripe-backed Pro-only monthly trial; webhook/eligibility; UI + Terms/Privacy/README/BUILD-SPEC 09.
+
+**Outcome:**
+- [`functions/src/billing/createCheckoutSession.ts`](functions/src/billing/createCheckoutSession.ts): `payment_method_collection: if_required`, `subscription_data` trial + `trial_settings.end_behavior.missing_payment_method: cancel`, audit `billing.pro_trial_checkout_started`.
+- [`functions/src/billing/proTrialEligibility.ts`](functions/src/billing/proTrialEligibility.ts): pure guards + Jest tests.
+- [`functions/src/billing/stripeWebhook.ts`](functions/src/billing/stripeWebhook.ts): `subscriptionCurrentPeriodEnd` from subscription resource; `invoice.payment_succeeded` → full `handleSubscriptionEvent`; `customer.subscription.trial_will_end` audit; `proTrialConsumed` when trialing Pro.
+- [`firestore.rules`](firestore.rules): deny client writes to `proTrialConsumed`.
+- UI: [`PlanSelector.tsx`](src/components/billing/PlanSelector.tsx), [`BillingStatus.tsx`](src/components/billing/BillingStatus.tsx), [`DashboardLayout.tsx`](src/components/layout/DashboardLayout.tsx) (trial banner uses clock state, not `Date.now()` in render).
+- Legal/marketing/docs: Terms §5 trial, Privacy Stripe note, [`marketingPricingCopy.ts`](src/pages/marketing/marketingPricingCopy.ts), README billing subsection, `functions/.env.example`, [`BUILD-SPECS/09-PLANS-PRICING_UPDATED.md`](BUILD-SPECS/09-PLANS-PRICING_UPDATED.md).
+
+**Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `functions` `npm run build`, `npx jest src/__tests__/proTrialEligibility.test.ts`.
+
+**Deploy:** Add Stripe webhook `customer.subscription.trial_will_end` in Dashboard if missing.
+
+**Review verdict:** ACCEPTED (billing is sensitive — webhook signature unchanged; eligibility server-only).
+
+## 2026-05-11 — Inventory lifecycle status correction
+
+**Task:** System-wide correction of extinguisher lifecycle status (wrong “replaced” blocking Replace), UI on detail, callable + AI deterministic phrases.
+
+**Outcome:**
+- New callable [`functions/src/lifecycle/updateExtinguisherStatus.ts`](functions/src/lifecycle/updateExtinguisherStatus.ts): owner/admin, `validateSubscriptionTx`, canonical statuses `active` | `spare` | `replaced` | `retired` | `out_of_service`, optional resolve by `assetId` when unique, duplicate-active guard when setting `active`, audit `extinguisher.status_updated`.
+- Client: [`src/lib/extinguisherLifecycleStatus.ts`](src/lib/extinguisherLifecycleStatus.ts), [`lifecycleService.ts`](src/services/lifecycleService.ts) wrapper, **Inventory status** card on [`ExtinguisherDetail.tsx`](src/pages/ExtinguisherDetail.tsx) (recalculate when set to `active`).
+- AI: [`parseAiExtinguisherStatusChangeIntent`](src/services/aiStatusChangeIntentService.ts) + [`askAssistant`](src/services/aiService.ts) path when `canMutateInventory` (owner/admin); [`AiAssistantPanel`](src/components/ai/AiAssistantPanel.tsx) passes flag; app knowledge in [`aiKnowledgeBase.ts`](src/lib/aiKnowledgeBase.ts); audit label [`AuditLogRow.tsx`](src/components/audit/AuditLogRow.tsx).
+- Tests: [`aiStatusChangeIntentService.test.ts`](src/services/aiStatusChangeIntentService.test.ts), extended [`aiService.test.ts`](src/services/aiService.test.ts).
+
+**Deferred:** No Firestore rules/index changes (extinguisher updates already owner/admin). Full “Retire” (removes active workspace inspection rows) remains the dedicated Retire flow on Edit; dropdown “Retired” is metadata/correction only — called out in UI copy.
+
+**Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build`, `npm --prefix functions test`.
+
+**Review verdict:** ACCEPTED WITH MINOR CONCERNS (two “retired” paths: metadata vs full retire — documented in UI).
+
+## 2026-05-11 — Merge conflict resolution (main ↔ incoming)
+
+**Task:** Resolve six `both modified` paths after merge; no `<<<<<<<` markers remained in the working tree (index still unmerged until `git add`).
+
+**Resolution choices:** Kept **local/ours** product behavior for `useSectionTimer` (12h segment cap, idle flush, `clearActiveTimer` / `skipNextSectionTimesPersistRef`) and `ReplacedExtinguishers` (monthly grouping, stats, `_seconds` CF timestamps). Kept **collectionGroup** `listReplacementHistory` in `updateReplacementHistoryStatus.ts` (matches `replaceExtinguisher` writing `orgId` on rows + existing index). README bullet stayed “Section Timer Controls” (not shorter “Section Auto Timer”). `error_log.jsonl` kept May 7 unify-list-sources entries; removed stray blank line between JSONL records. `lessons_learned.md` kept merged end state.
+
+**Commit:** `626d191` — `merge: resolve conflicts built_by_Beck`.
+
+**Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build`, `npm --prefix functions test` (all pass).
+
+## 2026-05-11 — Extinguisher search performance (Firestore + Inventory)
+
+**Task:** Speed up barcode/serial/asset lookup and inventory identifier search; add debug logging; avoid unbounded legacy queries.
+
+**Changes:** `findExtinguisherByCode` now uses up to three **parallel** waves on `org/{orgId}/extinguishers` only (strict limit 1, strict limit 8, legacy limit 50 per field). Legacy path previously had **no limit**. Inventory: debounced server exact-match (max 20) when `isLikelyFirestoreIdentifierQuery` and not retired/deleted category views. Debug: `localStorage EX3_DEBUG_SEARCH=1` or Vite dev — `console.time` / field-level logs under `[EX3 extinguisher search]`.
+
+**Validation:** `pnpm build`, `pnpm lint`, `pnpm test`.
+
+**Review verdict:** ACCEPTED (scope: client query patterns + bounded reads; no rules/schema changes).
+
+## 2026-05-14 — Pre-launch security/billing review + trial visibility
+
+**Task:** Full review focus payments/security; surface 7-day Pro trial on homepage, signup, pricing, create-org; fix high-signal issues.
+
+**Findings addressed:**
+- **Firestore:** `org/{orgId}` client updates could change `featureFlags` (plan entitlements), `status`, or `slug` — not in the prior deny list. Added those keys to the blocked `affectedKeys()` set so only backend/webhooks control entitlements and lifecycle fields.
+- **Stripe webhook:** Handler errors were swallowed and still returned **200**, so Stripe would not retry and Firestore could drift from Stripe. On processing failure the handler now returns **500** so Stripe retries after transient errors.
+
+**Marketing / funnel:** Hero callout + SEO description (`marketingSeo.home`), `Signup.tsx`, `MarketingPricingPage.tsx` intro banner, `CreateOrg.tsx` pre-submit note — all mention the **7-day Pro trial (monthly, no card at checkout)** with links or Billing path where relevant.
+
+**Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build`, `npm --prefix functions test` — all pass (2026-05-14).
+
+## 2026-05-22 — Fix inspection flow: QR scan sends user to inventory instead of workspace
+
+**Task (SMALL):** After pressing Pass/Fail on an extinguisher, the user was always redirected to `/dashboard/inventory` instead of staying in the workspace inspection flow.
+
+**Root cause:** `QRLanding.tsx` always redirects authenticated users to `/dashboard/inventory/:extId`. This strips the workspace context — no `workspaceId` in URL params, no `returnTo` in navigation state. `ExtinguisherDetail` fell back to `returnTo = '/dashboard/inventory'`.
+
+**Fix:** `src/pages/ExtinguisherDetail.tsx` — changed `returnTo` from a static string to a `useMemo` that, when `workspaceId` is absent from the URL but `activeWorkspaceId` is loaded, returns `/dashboard/workspaces/${activeWorkspaceId}?loc=${ext.locationId}&leaf=pending` so the user lands on their building's pending extinguisher list. Updated the Back button label to say "Back to Workspace" whenever any workspace context is known.
+
+**Validation:** `npx tsc --noEmit` — passes.
+
+**Review verdict:** ACCEPTED WITH MINOR CONCERNS — remaining launch checklist: confirm Stripe webhook endpoint receives all documented event types; watch for brief post-checkout race before `trialing`/`active` is written; consider App Check on billing callables later.

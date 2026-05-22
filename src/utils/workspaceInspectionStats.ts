@@ -36,8 +36,12 @@ function firestoreLikeToMillis(v: unknown): number {
 /**
  * One row per extinguisher: the chronologically latest inspection wins (handles duplicate docs / re-saves).
  */
-export function dedupeInspectionsByExtinguisherLatest(inspections: Inspection[]): Inspection[] {
-  const sorted = [...inspections].sort((a, b) => inspectionActivityMs(b) - inspectionActivityMs(a));
+export function dedupeInspectionsByExtinguisherLatest(
+  inspections: Inspection[],
+): Inspection[] {
+  const sorted = [...inspections].sort(
+    (a, b) => inspectionActivityMs(b) - inspectionActivityMs(a),
+  );
   const seen = new Set<string>();
   const out: Inspection[] = [];
   for (const insp of sorted) {
@@ -50,7 +54,8 @@ export function dedupeInspectionsByExtinguisherLatest(inspections: Inspection[])
 }
 
 function inspectionIdentity(insp: Inspection): string {
-  if (insp.targetType === 'asset') return `asset:${insp.assetRefId || insp.id || insp.assetId}`;
+  if (insp.targetType === 'asset')
+    return `asset:${insp.assetRefId || insp.id || insp.assetId}`;
   return `ext:${insp.extinguisherId || insp.id || insp.assetId}`;
 }
 
@@ -72,7 +77,9 @@ function isReplacedExtinguisher(ext: Extinguisher): boolean {
  * (replacement successor). If the old unit is still `active` in Firestore, it would
  * otherwise duplicate pending inspection work with the successor row.
  */
-export function getSupersededExtinguisherIds(extinguishers: Extinguisher[]): Set<string> {
+export function getSupersededExtinguisherIds(
+  extinguishers: Extinguisher[],
+): Set<string> {
   const superseded = new Set<string>();
   for (const e of extinguishers) {
     if (e.deletedAt != null) continue;
@@ -88,7 +95,10 @@ export function detectHasLocationIdData(
   inspections: Inspection[],
   extinguishers: Extinguisher[],
 ): boolean {
-  return inspections.some((insp) => insp.locationId) || extinguishers.some((ext) => ext.locationId);
+  return (
+    inspections.some((insp) => insp.locationId) ||
+    extinguishers.some((ext) => ext.locationId)
+  );
 }
 
 export function buildLocationStatsMap(params: {
@@ -98,13 +108,26 @@ export function buildLocationStatsMap(params: {
   isArchived: boolean;
   hasLocationIdData: boolean;
 }): Map<string, WorkspaceInspectionBucketStats> {
-  const { inspections, extinguishers, locations, isArchived, hasLocationIdData } = params;
+  const {
+    inspections,
+    extinguishers,
+    locations,
+    isArchived,
+    hasLocationIdData,
+  } = params;
   const supersededIds = getSupersededExtinguisherIds(extinguishers);
   const map = new Map<string, WorkspaceInspectionBucketStats>();
 
   function getStats(id: string): WorkspaceInspectionBucketStats {
     if (!map.has(id)) {
-      map.set(id, { total: 0, passed: 0, failed: 0, pending: 0, replaced: 0, percentage: 0 });
+      map.set(id, {
+        total: 0,
+        passed: 0,
+        failed: 0,
+        pending: 0,
+        replaced: 0,
+        percentage: 0,
+      });
     }
     return map.get(id)!;
   }
@@ -114,7 +137,11 @@ export function buildLocationStatsMap(params: {
       // De-dupe by extinguisher so duplicate pass/fail docs (re-saves, sync, imports) do not
       // each subtract from pending — that was collapsing "left to check" toward zero.
       for (const insp of dedupeInspectionsByExtinguisherLatest(inspections)) {
-        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
+        if (
+          insp.targetType !== 'asset' &&
+          supersededIds.has(insp.extinguisherId)
+        )
+          continue;
         const locId = insp.locationId || '__unassigned__';
         const stats = getStats(locId);
         stats.total += 1;
@@ -142,7 +169,11 @@ export function buildLocationStatsMap(params: {
 
     if (!isArchived) {
       for (const insp of dedupeInspectionsByExtinguisherLatest(inspections)) {
-        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
+        if (
+          insp.targetType !== 'asset' &&
+          supersededIds.has(insp.extinguisherId)
+        )
+          continue;
         const locId = nameToId.get(insp.section) ?? '__unassigned__';
         const stats = getStats(locId);
         stats.total += 1;
@@ -167,14 +198,25 @@ export function buildLocationStatsMap(params: {
   for (const stats of map.values()) {
     // Completion is inspection outcomes only; replaced legacy units are tracked separately.
     stats.percentage =
-      stats.total > 0 ? Math.round(((stats.passed + stats.failed) / stats.total) * 100) : 0;
+      stats.total > 0
+        ? Math.round(((stats.passed + stats.failed) / stats.total) * 100)
+        : 0;
   }
 
   return map;
 }
 
-export function sumAllBucketStats(map: Map<string, WorkspaceInspectionBucketStats>): WorkspaceInspectionBucketStats {
-  const agg: WorkspaceInspectionBucketStats = { total: 0, passed: 0, failed: 0, pending: 0, replaced: 0, percentage: 0 };
+export function sumAllBucketStats(
+  map: Map<string, WorkspaceInspectionBucketStats>,
+): WorkspaceInspectionBucketStats {
+  const agg: WorkspaceInspectionBucketStats = {
+    total: 0,
+    passed: 0,
+    failed: 0,
+    pending: 0,
+    replaced: 0,
+    percentage: 0,
+  };
   for (const stats of map.values()) {
     agg.total += stats.total;
     agg.passed += stats.passed;
@@ -182,7 +224,10 @@ export function sumAllBucketStats(map: Map<string, WorkspaceInspectionBucketStat
     agg.pending += stats.pending;
     agg.replaced += stats.replaced;
   }
-  agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed) / agg.total) * 100) : 0;
+  agg.percentage =
+    agg.total > 0
+      ? Math.round(((agg.passed + agg.failed) / agg.total) * 100)
+      : 0;
   return agg;
 }
 
@@ -193,7 +238,14 @@ export function aggregateStatsForLocationSubtree(
 ): WorkspaceInspectionBucketStats {
   const descendants = getAllDescendantIds(locations, locationId);
   const allIds = [locationId, ...descendants];
-  const agg: WorkspaceInspectionBucketStats = { total: 0, passed: 0, failed: 0, pending: 0, replaced: 0, percentage: 0 };
+  const agg: WorkspaceInspectionBucketStats = {
+    total: 0,
+    passed: 0,
+    failed: 0,
+    pending: 0,
+    replaced: 0,
+    percentage: 0,
+  };
   for (const id of allIds) {
     const stats = map.get(id);
     if (stats) {
@@ -204,11 +256,17 @@ export function aggregateStatsForLocationSubtree(
       agg.replaced += stats.replaced;
     }
   }
-  agg.percentage = agg.total > 0 ? Math.round(((agg.passed + agg.failed) / agg.total) * 100) : 0;
+  agg.percentage =
+    agg.total > 0
+      ? Math.round(((agg.passed + agg.failed) / agg.total) * 100)
+      : 0;
   return agg;
 }
 
-function inspectionBelongsToWorkspace(insp: Inspection, workspaceId: string): boolean {
+function inspectionBelongsToWorkspace(
+  insp: Inspection,
+  workspaceId: string,
+): boolean {
   return !insp.workspaceId || insp.workspaceId === workspaceId;
 }
 
@@ -254,7 +312,9 @@ export function collectInspectionRowsForScope(params: {
       if (hasLocationIdData) {
         locId = insp.locationId || '__unassigned__';
       } else {
-        const nameToId = new Map(locations.map((l) => [l.name, l.id!] as const));
+        const nameToId = new Map(
+          locations.map((l) => [l.name, l.id!] as const),
+        );
         locId = nameToId.get(insp.section) ?? '__unassigned__';
       }
       if (relevant && !relevant.has(locId)) continue;
@@ -263,13 +323,20 @@ export function collectInspectionRowsForScope(params: {
     return combined;
   }
 
-  const inWs = (insp: Inspection) => inspectionBelongsToWorkspace(insp, workspaceId);
+  const inWs = (insp: Inspection) =>
+    inspectionBelongsToWorkspace(insp, workspaceId);
 
   if (hasLocationIdData) {
     if (anchorLocationId === null) {
-      const deduped = dedupeInspectionsByExtinguisherLatest(inspections.filter(inWs));
+      const deduped = dedupeInspectionsByExtinguisherLatest(
+        inspections.filter(inWs),
+      );
       for (const insp of deduped) {
-        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
+        if (
+          insp.targetType !== 'asset' &&
+          supersededIds.has(insp.extinguisherId)
+        )
+          continue;
         combined.push(insp);
       }
     } else {
@@ -277,13 +344,21 @@ export function collectInspectionRowsForScope(params: {
       relevantLocIds.add(anchorLocationId);
       const filtered = inspections.filter((insp) => {
         if (!inWs(insp)) return false;
-        if (insp.targetType !== 'asset' && !trackedExtIds.has(insp.extinguisherId)) return false;
+        if (
+          insp.targetType !== 'asset' &&
+          !trackedExtIds.has(insp.extinguisherId)
+        )
+          return false;
         const inspLocId = insp.locationId || '__unassigned__';
         return relevantLocIds.has(inspLocId);
       });
       const deduped = dedupeInspectionsByExtinguisherLatest(filtered);
       for (const insp of deduped) {
-        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
+        if (
+          insp.targetType !== 'asset' &&
+          supersededIds.has(insp.extinguisherId)
+        )
+          continue;
         combined.push(insp);
       }
     }
@@ -313,22 +388,34 @@ export function collectInspectionRowsForScope(params: {
     }
 
     if (anchorLocationId === null) {
-      const deduped = dedupeInspectionsByExtinguisherLatest(inspections.filter(inWs));
+      const deduped = dedupeInspectionsByExtinguisherLatest(
+        inspections.filter(inWs),
+      );
       for (const insp of deduped) {
-        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
+        if (
+          insp.targetType !== 'asset' &&
+          supersededIds.has(insp.extinguisherId)
+        )
+          continue;
         combined.push(insp);
       }
     } else {
       const filtered = inspections.filter((insp) => {
         if (!inWs(insp)) return false;
-        const isOrphaned = insp.targetType !== 'asset' && !trackedLegacy.has(insp.extinguisherId);
+        const isOrphaned =
+          insp.targetType !== 'asset' &&
+          !trackedLegacy.has(insp.extinguisherId);
         if (isOrphaned) return false;
         const inspLocId = nameToId.get(insp.section) ?? '__unassigned__';
         return relevantLocIds.has(inspLocId);
       });
       const deduped = dedupeInspectionsByExtinguisherLatest(filtered);
       for (const insp of deduped) {
-        if (insp.targetType !== 'asset' && supersededIds.has(insp.extinguisherId)) continue;
+        if (
+          insp.targetType !== 'asset' &&
+          supersededIds.has(insp.extinguisherId)
+        )
+          continue;
         combined.push(insp);
       }
     }
@@ -342,7 +429,7 @@ export function filterRowsByStatusList(
   filter: 'pending' | 'pass' | 'fail' | 'replaced' | 'checked',
 ): Inspection[] {
   if (filter === 'checked') {
-    return rows.filter((r) => r.status === 'pass' || r.status === 'fail' || r.status === 'replaced');
+    return rows.filter((r) => r.status === 'pass' || r.status === 'fail');
   }
   return rows.filter((r) => r.status === filter);
 }

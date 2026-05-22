@@ -1,4 +1,10 @@
-import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
+import {
+  collection,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+} from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../lib/firebase.ts';
 import type { AiNote, AiNoteStatus } from '../types/aiNote.ts';
@@ -44,8 +50,13 @@ export function subscribeToAiNotes(
   });
 }
 
-export async function createAiNoteCall(input: CreateAiNoteInput): Promise<CreateAiNoteResult> {
-  const fn = httpsCallable<CreateAiNoteInput, CreateAiNoteResult>(functions, 'createAiNote');
+export async function createAiNoteCall(
+  input: CreateAiNoteInput,
+): Promise<CreateAiNoteResult> {
+  const fn = httpsCallable<CreateAiNoteInput, CreateAiNoteResult>(
+    functions,
+    'createAiNote',
+  );
   const result = await fn(input);
   return result.data;
 }

@@ -1,9 +1,10 @@
 /** SEO strings for public marketing pages (edit freely). */
 export const marketingSeo = {
   home: {
-    title: 'ExtinguisherTracker — AI fire extinguisher inspections & compliance',
+    title:
+      'ExtinguisherTracker — AI fire extinguisher inspections & compliance',
     description:
-      'Field-built software for extinguisher inventory, inspections, AI guidance, offline sync, reports, reminders, audit logs, and lifecycle tracking.',
+      'Field-built software for extinguisher inventory, inspections, AI guidance, offline sync, reports, reminders, audit logs, and lifecycle tracking. 7-day Pro trial on monthly billing — no card at signup.',
     path: '/',
   },
   features: {

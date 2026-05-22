@@ -30,7 +30,7 @@ The system is **organization-centric** — all operational data belongs to the o
 - **NFPA 10 Compliance Engine** — Monthly, annual, 6-year maintenance, and hydrostatic testing intervals tracked automatically
 - **Inspection Workspaces** — Organize monthly inspections by workspace with section progress tracking
 - **AI Maintenance Helper** — Pro+ assistant for on-the-fly compliance questions, temporary photo questions, and extinguisher lists with asset, serial, location, section, and vicinity details
-- **Section Auto Timer** — Automatically tracks section timing to keep inspection routes on pace
+- **Section Timer Controls** — Automatically tracks section timing with manual start, stop, and reset controls plus safeguards for forgotten timers
 - **Placement Calculator** — Determine required extinguisher quantities and types based on hazard class and floor area
 - **Offline Support** — Perform inspections in areas with no connectivity; data syncs automatically when back online
 - **Compliance Dashboard** — Real-time visibility into passed, failed, and overdue inspections across your organization
@@ -58,18 +58,18 @@ The system is **organization-centric** — all operational data belongs to the o
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 19, TypeScript, Tailwind CSS 4, Vite 8 |
-| **Backend** | Firebase (Cloud Functions v2, Firestore, Auth, Hosting, Storage) |
-| **Runtime** | Node.js 22 |
-| **Payments** | Stripe (webhook-driven subscription management) |
-| **Icons** | Lucide React |
-| **Barcode** | @undecaf/barcode-detector-polyfill |
-| **Spreadsheets** | SheetJS (xlsx) |
-| **QR Generation** | qrcode |
-| **Testing** | Vitest, Testing Library, jsdom |
-| **Package Manager** | pnpm |
+| Layer               | Technology                                                       |
+| ------------------- | ---------------------------------------------------------------- |
+| **Frontend**        | React 19, TypeScript, Tailwind CSS 4, Vite 8                     |
+| **Backend**         | Firebase (Cloud Functions v2, Firestore, Auth, Hosting, Storage) |
+| **Runtime**         | Node.js 22                                                       |
+| **Payments**        | Stripe (webhook-driven subscription management)                  |
+| **Icons**           | Lucide React                                                     |
+| **Barcode**         | @undecaf/barcode-detector-polyfill                               |
+| **Spreadsheets**    | SheetJS (xlsx)                                                   |
+| **QR Generation**   | qrcode                                                           |
+| **Testing**         | Vitest, Testing Library, jsdom                                   |
+| **Package Manager** | pnpm                                                             |
 
 ## Project Structure
 
@@ -117,12 +117,12 @@ extinguisher-tracker-3/
 
 ## Plans & Pricing
 
-| Plan | Price | Extinguishers | Target Audience |
-|------|-------|---------------|-----------------|
-| **Basic** | $29.99/mo | 50 included (+$10/50 additional) | Small businesses, restaurants, retail stores |
-| **Pro** | $99/mo | 250 included (+$10/100 additional) | Schools, small hospitals, property managers |
-| **Elite** | $199/mo | 500 included (+$10/200 additional) | Large facilities, universities, industrial campuses |
-| **Enterprise** | Custom | Unlimited | Custom compliance workflows, SLA support |
+| Plan           | Price     | Extinguishers                      | Target Audience                                     |
+| -------------- | --------- | ---------------------------------- | --------------------------------------------------- |
+| **Basic**      | $29.99/mo | 50 included (+$10/50 additional)   | Small businesses, restaurants, retail stores        |
+| **Pro**        | $99/mo    | 250 included (+$10/100 additional) | Schools, small hospitals, property managers         |
+| **Elite**      | $199/mo   | 500 included (+$10/200 additional) | Large facilities, universities, industrial campuses |
+| **Enterprise** | Custom    | Unlimited                          | Custom compliance workflows, SLA support            |
 
 All plans include core inventory, inspection features, and preset user avatars. Higher tiers unlock barcode scanning, GPS capture, inspection photos, AI assistant, organization logo branding, route optimization, advanced analytics, lifecycle compliance tracking, and priority support.
 
@@ -175,6 +175,13 @@ firebase functions:secrets:set STRIPE_PRICE_ID_BASIC
 firebase functions:secrets:set STRIPE_PRICE_ID_PRO
 firebase functions:secrets:set STRIPE_PRICE_ID_ELITE
 ```
+
+### Billing (Stripe) and Pro trial
+
+- **Source of truth:** Stripe subscriptions and webhooks update cached fields on `org/{orgId}` (`subscriptionStatus`, `trialEnd`, `proTrialConsumed`, etc.). Clients never write billing fields; see [`firestore.rules`](firestore.rules).
+- **Pro 7-day trial (monthly only):** New organizations with **no existing Stripe subscription** can start Checkout with a **7-day** Pro trial and **`payment_method_collection: if_required`** (no card until needed). Configurable via **`PRO_TRIAL_DAYS`** in Functions runtime env (`functions/.env` / deploy env); default **7**.
+- **One trial per org:** `proTrialConsumed` is set when the subscription enters **`trialing`** for Pro (webhook). Orgs that already have **`stripeSubscriptionId`** (e.g. Basic) upgrade via paid Checkout without this trial path.
+- **Stripe webhook events:** Ensure your Stripe Dashboard endpoint receives at least: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `invoice.payment_failed`, and optionally **`customer.subscription.trial_will_end`** (audit log only today).
 
 ### Development
 
@@ -272,44 +279,44 @@ This project uses a branch-based workflow:
 
 The `BUILD-SPECS/` directory contains 25 comprehensive specification documents that serve as the source of truth for all implementation:
 
-| # | Document | Topic |
-|---|----------|-------|
-| 00 | AI Build Instructions | Master rules for AI-assisted implementation |
-| 01 | Project Overview | Product vision, architecture, design philosophy |
-| 02 | Auth, Orgs & Billing | Authentication, organizations, roles, Stripe |
-| 03 | Database Schema | Complete Firestore schema and structural rules |
-| 04 | Features Specification | Detailed product features and acceptance criteria |
-| 05 | UI Components | Screens, layouts, and user-facing flows |
-| 06 | Business Logic | Core business rules and compliance logic |
-| 07 | API / Cloud Functions | Backend function specifications |
-| 08 | Reports & Exports | Report generation and export formats |
-| 09 | Plans & Pricing | Subscription tiers and feature gating |
-| 10 | Multi-Tenant Isolation | Tenant separation rules |
-| 11 | NFPA Compliance System | NFPA 10 compliance tracking rules |
-| 12 | Extinguisher Lifecycle Engine | Lifecycle state machine and transitions |
-| 13 | Asset Tagging | Barcode and QR code workflows |
-| 14 | Audit Logging | Immutable audit trail specification |
-| 15 | Location Hierarchy | Building/floor/section organization |
-| 16 | Inspection Routes | Route planning and optimization |
-| 17 | Offline Sync | Offline-first architecture and sync logic |
-| 18 | Legal Attestation | Digital inspection sign-off |
-| 19 | Placement Calculator | Extinguisher quantity/type calculations |
-| 20 | Notifications System | Alerts, reminders, and notification delivery |
-| 21 | Security Rules Architecture | Firestore and Storage security rules |
-| 22 | Deployment & Environments | Deployment pipeline and environment config |
-| 23 | Monitoring & Observability | Logging, metrics, and alerting |
-| 24 | Data Retention & Backups | Backup strategy and data retention policies |
+| #   | Document                      | Topic                                             |
+| --- | ----------------------------- | ------------------------------------------------- |
+| 00  | AI Build Instructions         | Master rules for AI-assisted implementation       |
+| 01  | Project Overview              | Product vision, architecture, design philosophy   |
+| 02  | Auth, Orgs & Billing          | Authentication, organizations, roles, Stripe      |
+| 03  | Database Schema               | Complete Firestore schema and structural rules    |
+| 04  | Features Specification        | Detailed product features and acceptance criteria |
+| 05  | UI Components                 | Screens, layouts, and user-facing flows           |
+| 06  | Business Logic                | Core business rules and compliance logic          |
+| 07  | API / Cloud Functions         | Backend function specifications                   |
+| 08  | Reports & Exports             | Report generation and export formats              |
+| 09  | Plans & Pricing               | Subscription tiers and feature gating             |
+| 10  | Multi-Tenant Isolation        | Tenant separation rules                           |
+| 11  | NFPA Compliance System        | NFPA 10 compliance tracking rules                 |
+| 12  | Extinguisher Lifecycle Engine | Lifecycle state machine and transitions           |
+| 13  | Asset Tagging                 | Barcode and QR code workflows                     |
+| 14  | Audit Logging                 | Immutable audit trail specification               |
+| 15  | Location Hierarchy            | Building/floor/section organization               |
+| 16  | Inspection Routes             | Route planning and optimization                   |
+| 17  | Offline Sync                  | Offline-first architecture and sync logic         |
+| 18  | Legal Attestation             | Digital inspection sign-off                       |
+| 19  | Placement Calculator          | Extinguisher quantity/type calculations           |
+| 20  | Notifications System          | Alerts, reminders, and notification delivery      |
+| 21  | Security Rules Architecture   | Firestore and Storage security rules              |
+| 22  | Deployment & Environments     | Deployment pipeline and environment config        |
+| 23  | Monitoring & Observability    | Logging, metrics, and alerting                    |
+| 24  | Data Retention & Backups      | Backup strategy and data retention policies       |
 
 ## Firebase Emulators
 
 The project includes emulator configuration for local development:
 
-| Service | Port |
-|---------|------|
-| Auth | 9099 |
-| Firestore | 8080 |
-| Functions | 5001 |
-| Storage | 9199 |
+| Service     | Port |
+| ----------- | ---- |
+| Auth        | 9099 |
+| Firestore   | 8080 |
+| Functions   | 5001 |
+| Storage     | 9199 |
 | Emulator UI | 4000 |
 
 ## License

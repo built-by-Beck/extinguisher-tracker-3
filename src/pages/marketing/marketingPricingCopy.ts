@@ -5,12 +5,18 @@
  * Change .env → rebuild → marketing page updates automatically.
  */
 
-import { PLANS, yearlyTotalFromMonthly, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
+import {
+  PLANS,
+  YEARLY_DISCOUNT_FRACTION,
+  yearlyMonthlyEquivDisplay,
+} from '../../lib/planConfig.ts';
 
 function formatPrice(price: number | null): string {
   if (price === null) return 'Custom';
-  return price % 1 === 0 ? `$${price}` : `$${price}`;
+  return price % 1 === 0 ? `$${price}` : `$${price.toFixed(2)}`;
 }
+
+const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
 
 const basicPlan = PLANS.find((p) => p.name === 'basic')!;
 const proPlan = PLANS.find((p) => p.name === 'pro')!;
@@ -43,8 +49,9 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Basic',
     priceLabel: formatPrice(basicPlan.monthlyPrice),
     priceDetail: 'per month',
-    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(basicPlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
-    blurb: 'Small sites that want to ditch paper, speed up checks, and build a reliable workflow baseline.',
+    annualBillingNote: `Or ${yearlyMonthlyEquivDisplay(basicPlan.monthlyPrice!)}/mo billed yearly — save ${discountPct}%.`,
+    blurb:
+      'Small sites that want to ditch paper, speed up checks, and build a reliable workflow baseline.',
     bullets: [
       'Fast search by barcode',
       'Section auto timer for route pace',
@@ -60,9 +67,11 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Pro',
     priceLabel: formatPrice(proPlan.monthlyPrice),
     priceDetail: 'per month',
-    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(proPlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
-    blurb: 'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
+    annualBillingNote: `Or ${yearlyMonthlyEquivDisplay(proPlan.monthlyPrice!)}/mo billed yearly — save ${discountPct}%.`,
+    blurb:
+      'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
     bullets: [
+      '7-day free trial on monthly billing — no credit card at signup (then paid monthly)',
       'Everything in Basic',
       'Fast phone camera scanning',
       'AI Maintenance helper with configurable NFPA reference',
@@ -79,8 +88,9 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Elite',
     priceLabel: formatPrice(elitePlan.monthlyPrice),
     priceDetail: 'per month',
-    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(elitePlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
-    blurb: 'Large programs that need advanced data tools, AI-supported operations, and priority help.',
+    annualBillingNote: `Or ${yearlyMonthlyEquivDisplay(elitePlan.monthlyPrice!)}/mo billed yearly — save ${discountPct}%.`,
+    blurb:
+      'Large programs that need advanced data tools, AI-supported operations, and priority help.',
     bullets: [
       'Everything in Pro',
       'Team member invites and role management',
@@ -97,7 +107,8 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Enterprise',
     priceLabel: 'Custom',
     priceDetail: 'volume, security, and procurement',
-    blurb: 'For the biggest portfolios with full support, custom setup, and edition-aware compliance operations.',
+    blurb:
+      'For the biggest portfolios with full support, custom setup, and edition-aware compliance operations.',
     bullets: [
       'Everything in Elite',
       'Full AI, timer insights, audit history, and data recovery',
@@ -141,8 +152,8 @@ export const marketingFaq: MarketingFaqItem[] = [
     a: 'Safety managers, maintenance leads, facility directors, and property operators who are responsible for inspection evidence and recurring compliance work.',
   },
   {
-    q: 'Can we try it before committing?',
-    a: 'You can create an account and explore the product flow. Subscription and trial behavior follow what you configure in billing; this page is display-only.',
+    q: 'Can we try Pro before paying?',
+    a: 'New organizations can start a 7-day Pro trial on monthly billing without entering a card at checkout. You must add a valid payment method before the trial ends to continue Pro access. Terms apply; abuse may be limited.',
   },
   {
     q: 'What about Enterprise pricing?',

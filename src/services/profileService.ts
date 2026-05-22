@@ -29,7 +29,9 @@ export interface UpdateOrganizationProfileInput {
   };
 }
 
-export async function updateUserProfileCall(input: UpdateUserProfileInput): Promise<void> {
+export async function updateUserProfileCall(
+  input: UpdateUserProfileInput,
+): Promise<void> {
   const callable = httpsCallable<UpdateUserProfileInput, { success: boolean }>(
     functions,
     'updateUserProfile',
@@ -37,10 +39,12 @@ export async function updateUserProfileCall(input: UpdateUserProfileInput): Prom
   await callable(input);
 }
 
-export async function updateOrganizationProfileCall(input: UpdateOrganizationProfileInput): Promise<void> {
-  const callable = httpsCallable<UpdateOrganizationProfileInput, { success: boolean }>(
-    functions,
-    'updateOrganizationProfile',
-  );
+export async function updateOrganizationProfileCall(
+  input: UpdateOrganizationProfileInput,
+): Promise<void> {
+  const callable = httpsCallable<
+    UpdateOrganizationProfileInput,
+    { success: boolean }
+  >(functions, 'updateOrganizationProfile');
   await callable(input);
 }

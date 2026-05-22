@@ -137,7 +137,10 @@ export function PromptModal({
 
         <div className="mb-4">
           {inputLabel && (
-            <label htmlFor={inputId} className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor={inputId}
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               {inputLabel}
             </label>
           )}
@@ -154,9 +157,7 @@ export function PromptModal({
             placeholder={placeholder}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
           />
-          {error && (
-            <p className="mt-1 text-sm text-red-600">{error}</p>
-          )}
+          {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
         </div>
 
         <div className="flex justify-end gap-3">

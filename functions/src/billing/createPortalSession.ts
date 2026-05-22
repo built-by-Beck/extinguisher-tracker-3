@@ -2,7 +2,10 @@ import { onCall } from 'firebase-functions/v2/https';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
-import { throwInvalidArgument, throwFailedPrecondition } from '../utils/errors.js';
+import {
+  throwInvalidArgument,
+  throwFailedPrecondition,
+} from '../utils/errors.js';
 import { stripeSecretKey } from '../config/params.js';
 import { getStripe } from './stripeClient.js';
 import { verifyOrgStripeCustomerOrClear } from './stripeOrgCustomer.js';

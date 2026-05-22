@@ -3,7 +3,11 @@ import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { validateSubscriptionTx } from '../utils/subscription.js';
-import { throwInvalidArgument, throwNotFound, throwFailedPrecondition } from '../utils/errors.js';
+import {
+  throwInvalidArgument,
+  throwNotFound,
+  throwFailedPrecondition,
+} from '../utils/errors.js';
 import { writeAuditLogTx } from '../utils/auditLog.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { enrichFinderFields } from '../reports/finderFields.js';
@@ -47,7 +51,8 @@ export const archiveWorkspace = onCall(async (request) => {
   await validateMembership(orgId, uid, ['owner', 'admin']);
 
   // 1. Fetch inspections outside transaction (queries not allowed in tx)
-  const inspSnap = await adminDb.collection(`org/${orgId}/inspections`)
+  const inspSnap = await adminDb
+    .collection(`org/${orgId}/inspections`)
     .where('workspaceId', '==', workspaceId)
     .get();
 
@@ -71,11 +76,17 @@ export const archiveWorkspace = onCall(async (request) => {
       locationName: data.locationName ?? '',
       section: data.section ?? '',
       vicinity: data.vicinity ?? '',
-      manufactureYear: typeof data.manufactureYear === 'number' ? data.manufactureYear : null,
-      expirationYear: typeof data.expirationYear === 'number' ? data.expirationYear : null,
+      manufactureYear:
+        typeof data.manufactureYear === 'number' ? data.manufactureYear : null,
+      expirationYear:
+        typeof data.expirationYear === 'number' ? data.expirationYear : null,
       isExpired: data.isExpired === true,
-      lifecycleStatus: typeof data.lifecycleStatus === 'string' ? data.lifecycleStatus : null,
-      complianceStatus: typeof data.complianceStatus === 'string' ? data.complianceStatus : null,
+      lifecycleStatus:
+        typeof data.lifecycleStatus === 'string' ? data.lifecycleStatus : null,
+      complianceStatus:
+        typeof data.complianceStatus === 'string'
+          ? data.complianceStatus
+          : null,
       status: data.status ?? 'pending',
       inspectedAt: data.inspectedAt ?? null,
       inspectedBy: data.inspectedBy ?? null,
@@ -156,4 +167,3 @@ export const archiveWorkspace = onCall(async (request) => {
     return { workspaceId, passed, failed, pending };
   });
 });
-

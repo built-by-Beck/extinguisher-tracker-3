@@ -6,7 +6,17 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, AlertTriangle, Save, CheckSquare, Wrench, Download, FileSpreadsheet, HelpCircle, RefreshCw } from 'lucide-react';
+import {
+  Loader2,
+  AlertTriangle,
+  Save,
+  CheckSquare,
+  Wrench,
+  Download,
+  FileSpreadsheet,
+  HelpCircle,
+  RefreshCw,
+} from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -17,7 +27,10 @@ import {
   batchUpdateExtinguishers,
   type Extinguisher,
 } from '../services/extinguisherService.ts';
-import { subscribeToLocations, type Location } from '../services/locationService.ts';
+import {
+  subscribeToLocations,
+  type Location,
+} from '../services/locationService.ts';
 
 const EXTINGUISHER_TYPES = [
   'ABC Dry Chemical',
@@ -74,9 +87,13 @@ export default function DataOrganizer() {
   const [bulkLocId, setBulkLocId] = useState('');
   const [bulkSection, setBulkSection] = useState('');
   const [repairingReplacements, setRepairingReplacements] = useState(false);
-  const [repairReplacementResult, setRepairReplacementResult] = useState<string | null>(null);
+  const [repairReplacementResult, setRepairReplacementResult] = useState<
+    string | null
+  >(null);
   const [dedupingAssets, setDedupingAssets] = useState(false);
-  const [dedupeAssetResult, setDedupeAssetResult] = useState<string | null>(null);
+  const [dedupeAssetResult, setDedupeAssetResult] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!orgId) return;
@@ -117,7 +134,7 @@ export default function DataOrganizer() {
   const handleSaveRow = async (ext: Extinguisher) => {
     const extEdits = edits[ext.id!];
     if (!extEdits || !orgId || !ext.id) return;
-    
+
     setSaving((prev) => {
       const next = new Set(prev);
       next.add(ext.id!);
@@ -135,7 +152,7 @@ export default function DataOrganizer() {
       }
 
       await updateExtinguisher(orgId, ext.id, updateData);
-      
+
       // Clear edits for this row
       setEdits((prev) => {
         const next = { ...prev };
@@ -164,7 +181,7 @@ export default function DataOrganizer() {
     setBulkSaving(true);
     try {
       const updates: Array<{ extId: string; data: Partial<Extinguisher> }> = [];
-      const parentLoc = locations.find(l => l.id === bulkLocId)?.name;
+      const parentLoc = locations.find((l) => l.id === bulkLocId)?.name;
 
       for (const extId of selected) {
         const data: Partial<Extinguisher> = {};
@@ -179,7 +196,7 @@ export default function DataOrganizer() {
       }
 
       await batchUpdateExtinguishers(orgId, updates);
-      
+
       setSelected(new Set());
       setBulkLocId('');
       setBulkSection('');
@@ -257,7 +274,9 @@ export default function DataOrganizer() {
     return (
       <div className="p-6 text-center">
         <h2 className="text-lg font-semibold">Access Denied</h2>
-        <p className="text-gray-500">You need owner or admin privileges to use the Data Organizer.</p>
+        <p className="text-gray-500">
+          You need owner or admin privileges to use the Data Organizer.
+        </p>
       </div>
     );
   }
@@ -279,7 +298,8 @@ export default function DataOrganizer() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Data Organizer</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Fix missing data from imports. Currently {incomplete.length} extinguisher{incomplete.length !== 1 ? 's' : ''} need attention.
+            Fix missing data from imports. Currently {incomplete.length}{' '}
+            extinguisher{incomplete.length !== 1 ? 's' : ''} need attention.
           </p>
         </div>
       </div>
@@ -290,9 +310,12 @@ export default function DataOrganizer() {
           <div className="flex items-start gap-3">
             <FileSpreadsheet className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
             <div>
-              <p className="text-sm font-semibold text-gray-900">Importing extinguishers?</p>
+              <p className="text-sm font-semibold text-gray-900">
+                Importing extinguishers?
+              </p>
               <p className="mt-0.5 text-sm text-gray-600">
-                Use our template to get your columns right before you import. After import, come back here to fill in any missing fields.
+                Use our template to get your columns right before you import.
+                After import, come back here to fill in any missing fields.
               </p>
             </div>
           </div>
@@ -322,13 +345,19 @@ export default function DataOrganizer() {
           <div className="flex items-start gap-3">
             <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-violet-700" />
             <div>
-              <p className="text-sm font-semibold text-gray-900">Duplicate active rows (same asset number)</p>
+              <p className="text-sm font-semibold text-gray-900">
+                Duplicate active rows (same asset number)
+              </p>
               <p className="mt-0.5 text-sm text-gray-700">
-                Only one lifecycle-active extinguisher should exist per asset ID. This tool keeps the newest document
-                (by <span className="font-mono text-xs">createdAt</span>) and retires the others.
+                Only one lifecycle-active extinguisher should exist per asset
+                ID. This tool keeps the newest document (by{' '}
+                <span className="font-mono text-xs">createdAt</span>) and
+                retires the others.
               </p>
               {dedupeAssetResult && (
-                <p className="mt-2 text-sm font-medium text-violet-900">{dedupeAssetResult}</p>
+                <p className="mt-2 text-sm font-medium text-violet-900">
+                  {dedupeAssetResult}
+                </p>
               )}
             </div>
           </div>
@@ -338,7 +367,11 @@ export default function DataOrganizer() {
             disabled={dedupingAssets || !orgId}
             className="flex shrink-0 items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
           >
-            {dedupingAssets ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />}
+            {dedupingAssets ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Wrench className="h-4 w-4" />
+            )}
             Dedupe by asset number
           </button>
         </div>
@@ -350,15 +383,21 @@ export default function DataOrganizer() {
           <div className="flex items-start gap-3">
             <RefreshCw className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
             <div>
-              <p className="text-sm font-semibold text-gray-900">Retired / duplicate old units after replacement</p>
+              <p className="text-sm font-semibold text-gray-900">
+                Retired / duplicate old units after replacement
+              </p>
               <p className="mt-0.5 text-sm text-gray-700">
-                If a new extinguisher points at an old id via <span className="font-mono text-xs">replacesExtId</span> but
-                the old record is still active, it can show up as extra work in inspections. This one-time repair marks
-                those old documents as replaced (same as the in-app replacement flow). View results under{' '}
-                <strong>Retired extinguishers</strong> in the sidebar.
+                If a new extinguisher points at an old id via{' '}
+                <span className="font-mono text-xs">replacesExtId</span> but the
+                old record is still active, it can show up as extra work in
+                inspections. This one-time repair marks those old documents as
+                replaced (same as the in-app replacement flow). View results
+                under <strong>Retired extinguishers</strong> in the sidebar.
               </p>
               {repairReplacementResult && (
-                <p className="mt-2 text-sm font-medium text-green-800">{repairReplacementResult}</p>
+                <p className="mt-2 text-sm font-medium text-green-800">
+                  {repairReplacementResult}
+                </p>
               )}
             </div>
           </div>
@@ -368,7 +407,11 @@ export default function DataOrganizer() {
             disabled={repairingReplacements || !orgId}
             className="flex shrink-0 items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
           >
-            {repairingReplacements ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            {repairingReplacements ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
             Fix replacement links
           </button>
         </div>
@@ -376,7 +419,9 @@ export default function DataOrganizer() {
 
       {/* Filter Bar */}
       <div className="mb-4 flex flex-wrap items-center gap-4">
-        <label className="text-sm font-medium text-gray-700">Filter by Issue:</label>
+        <label className="text-sm font-medium text-gray-700">
+          Filter by Issue:
+        </label>
         <select
           value={issueFilter}
           onChange={(e) => {
@@ -401,7 +446,7 @@ export default function DataOrganizer() {
             {selected.size} selected
           </span>
           <div className="h-6 w-px bg-orange-300"></div>
-          
+
           <select
             value={bulkLocId}
             onChange={(e) => setBulkLocId(e.target.value)}
@@ -428,7 +473,11 @@ export default function DataOrganizer() {
             disabled={bulkSaving || (!bulkLocId && !bulkSection)}
             className="flex items-center gap-2 rounded-md bg-orange-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
           >
-            {bulkSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckSquare className="h-4 w-4" />}
+            {bulkSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckSquare className="h-4 w-4" />
+            )}
             Apply to Selected
           </button>
         </div>
@@ -448,19 +497,38 @@ export default function DataOrganizer() {
                 <th className="px-4 py-3 text-left">
                   <input
                     type="checkbox"
-                    checked={selected.size === incomplete.length && incomplete.length > 0}
+                    checked={
+                      selected.size === incomplete.length &&
+                      incomplete.length > 0
+                    }
                     onChange={toggleSelectAll}
                     className="rounded border-gray-300 text-red-600 focus:ring-red-500"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Asset ID</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-48">Location</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Section</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Serial</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Size</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Issues</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Action</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Asset ID
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-48">
+                  Location
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Section
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Serial
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Type
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Size
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Issues
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
@@ -472,7 +540,10 @@ export default function DataOrganizer() {
                 const issues = getIssues(ext);
 
                 return (
-                  <tr key={ext.id} className={isSelected ? 'bg-orange-50' : 'hover:bg-gray-50'}>
+                  <tr
+                    key={ext.id}
+                    className={isSelected ? 'bg-orange-50' : 'hover:bg-gray-50'}
+                  >
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
@@ -482,17 +553,28 @@ export default function DataOrganizer() {
                       />
                     </td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                      <Link to={`/dashboard/inventory/${ext.id}`} className="text-red-600 hover:underline">
+                      <Link
+                        to={`/dashboard/inventory/${ext.id}`}
+                        className="text-red-600 hover:underline"
+                      >
                         {ext.assetId}
                       </Link>
                     </td>
                     <td className="px-4 py-3">
                       <select
-                        value={(rowEdits.locationId !== undefined ? rowEdits.locationId : ext.locationId) ?? ''}
-                        onChange={(e) => handleEdit(ext.id!, 'locationId', e.target.value)}
+                        value={
+                          (rowEdits.locationId !== undefined
+                            ? rowEdits.locationId
+                            : ext.locationId) ?? ''
+                        }
+                        onChange={(e) =>
+                          handleEdit(ext.id!, 'locationId', e.target.value)
+                        }
                         className="block w-full min-w-[120px] rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
                       >
-                        <option value="">{ext.parentLocation || 'Select Location'}</option>
+                        <option value="">
+                          {ext.parentLocation || 'Select Location'}
+                        </option>
                         {locations.map((loc) => (
                           <option key={loc.id} value={loc.id}>
                             {loc.name}
@@ -503,8 +585,14 @@ export default function DataOrganizer() {
                     <td className="px-4 py-3">
                       <input
                         type="text"
-                        value={(rowEdits.section !== undefined ? rowEdits.section : ext.section) ?? ''}
-                        onChange={(e) => handleEdit(ext.id!, 'section', e.target.value)}
+                        value={
+                          (rowEdits.section !== undefined
+                            ? rowEdits.section
+                            : ext.section) ?? ''
+                        }
+                        onChange={(e) =>
+                          handleEdit(ext.id!, 'section', e.target.value)
+                        }
                         className="block w-24 rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
                         placeholder="Section"
                       />
@@ -512,40 +600,73 @@ export default function DataOrganizer() {
                     <td className="px-4 py-3">
                       <input
                         type="text"
-                        value={(rowEdits.serial !== undefined ? rowEdits.serial : ext.serial) ?? ''}
-                        onChange={(e) => handleEdit(ext.id!, 'serial', e.target.value)}
+                        value={
+                          (rowEdits.serial !== undefined
+                            ? rowEdits.serial
+                            : ext.serial) ?? ''
+                        }
+                        onChange={(e) =>
+                          handleEdit(ext.id!, 'serial', e.target.value)
+                        }
                         className="block w-28 rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
                         placeholder="Serial"
                       />
                     </td>
                     <td className="px-4 py-3">
                       <select
-                        value={(rowEdits.extinguisherType !== undefined ? rowEdits.extinguisherType : ext.extinguisherType) ?? ''}
-                        onChange={(e) => handleEdit(ext.id!, 'extinguisherType', e.target.value)}
+                        value={
+                          (rowEdits.extinguisherType !== undefined
+                            ? rowEdits.extinguisherType
+                            : ext.extinguisherType) ?? ''
+                        }
+                        onChange={(e) =>
+                          handleEdit(
+                            ext.id!,
+                            'extinguisherType',
+                            e.target.value,
+                          )
+                        }
                         className="block w-32 rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
                       >
                         <option value="">Select Type</option>
                         {EXTINGUISHER_TYPES.map((t) => (
-                          <option key={t} value={t}>{t}</option>
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
                         ))}
                       </select>
                     </td>
                     <td className="px-4 py-3">
                       <select
-                        value={(rowEdits.extinguisherSize !== undefined ? rowEdits.extinguisherSize : ext.extinguisherSize) ?? ''}
-                        onChange={(e) => handleEdit(ext.id!, 'extinguisherSize', e.target.value)}
+                        value={
+                          (rowEdits.extinguisherSize !== undefined
+                            ? rowEdits.extinguisherSize
+                            : ext.extinguisherSize) ?? ''
+                        }
+                        onChange={(e) =>
+                          handleEdit(
+                            ext.id!,
+                            'extinguisherSize',
+                            e.target.value,
+                          )
+                        }
                         className="block w-24 rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
                       >
                         <option value="">Select Size</option>
                         {EXTINGUISHER_SIZES.map((s) => (
-                          <option key={s} value={s}>{s}</option>
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
                         ))}
                       </select>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
-                        {issues.map(issue => (
-                          <span key={issue} className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                        {issues.map((issue) => (
+                          <span
+                            key={issue}
+                            className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800"
+                          >
                             <AlertTriangle className="h-3 w-3" />
                             {issue}
                           </span>
@@ -558,7 +679,11 @@ export default function DataOrganizer() {
                         disabled={!isDirty || isSaving}
                         className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
                       >
-                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        {isSaving ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
                         Save
                       </button>
                     </td>

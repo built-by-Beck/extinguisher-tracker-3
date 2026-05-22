@@ -56,7 +56,7 @@ const nfpaEditionOptions: Array<{ value: NfpaEdition; label: string }> = [
 
 function normalizeNfpaEdition(value: unknown): NfpaEdition {
   return nfpaEditionOptions.some((option) => option.value === value)
-    ? value as NfpaEdition
+    ? (value as NfpaEdition)
     : '2022';
 }
 
@@ -90,7 +90,9 @@ function DataMaintenanceSection({ orgId }: { orgId: string }) {
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-2 text-lg font-semibold text-gray-900">Data Maintenance</h2>
+      <h2 className="mb-2 text-lg font-semibold text-gray-900">
+        Data Maintenance
+      </h2>
       <p className="mb-4 text-sm text-gray-500">
         Clean up pending inspections that belong to deleted extinguishers.
         Completed inspections (pass/fail) are preserved for audit history.
@@ -100,12 +102,14 @@ function DataMaintenanceSection({ orgId }: { orgId: string }) {
         disabled={cleaning}
         className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
       >
-        {cleaning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+        {cleaning ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Trash2 className="h-4 w-4" />
+        )}
         {cleaning ? 'Cleaning up...' : 'Clean Up Deleted Inspections'}
       </button>
-      {result && (
-        <p className="mt-2 text-sm text-green-700">{result}</p>
-      )}
+      {result && <p className="mt-2 text-sm text-green-700">{result}</p>}
     </div>
   );
 }
@@ -161,7 +165,9 @@ export default function OrgSettings() {
         setGuestToken(org.guestAccess.token ?? null);
         setGuestShareCode(org.guestAccess.shareCode ?? null);
         // Format expiresAt as YYYY-MM-DD for the date input
-        const expDate = (org.guestAccess.expiresAt as unknown as { toDate: () => Date }).toDate();
+        const expDate = (
+          org.guestAccess.expiresAt as unknown as { toDate: () => Date }
+        ).toDate();
         setGuestExpiresAt(expDate.toISOString().split('T')[0]);
       } else {
         setGuestEnabled(false);
@@ -182,12 +188,18 @@ export default function OrgSettings() {
     setGuestError('');
 
     try {
-      const result = await toggleGuestAccessCall(orgId, true, new Date(guestExpiresAt).toISOString());
+      const result = await toggleGuestAccessCall(
+        orgId,
+        true,
+        new Date(guestExpiresAt).toISOString(),
+      );
       if (result.token) setGuestToken(result.token);
       if (result.shareCode) setGuestShareCode(result.shareCode);
       setGuestEnabled(true);
     } catch (err: unknown) {
-      setGuestError(err instanceof Error ? err.message : 'Failed to enable guest access.');
+      setGuestError(
+        err instanceof Error ? err.message : 'Failed to enable guest access.',
+      );
     } finally {
       setGuestToggling(false);
     }
@@ -210,17 +222,22 @@ export default function OrgSettings() {
       setGuestToken(null);
       setGuestShareCode(null);
     } catch (err: unknown) {
-      setGuestError(err instanceof Error ? err.message : 'Failed to disable guest access.');
+      setGuestError(
+        err instanceof Error ? err.message : 'Failed to disable guest access.',
+      );
     } finally {
       setGuestToggling(false);
     }
   }, [orgId, canEdit]);
 
   function copyToClipboard(text: string, setCopied: (v: boolean) => void) {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => undefined);
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => undefined);
   }
 
   async function handleSave() {
@@ -235,14 +252,16 @@ export default function OrgSettings() {
         'settings.timezone': timezone,
         'settings.monthlyInspectionSchedule': monthlyInspectionSchedule,
         'settings.nfpaEdition': nfpaEdition,
-        'settings.nfpaEditionLabel': nfpaEdition === 'other' ? nfpaEditionLabel.trim() : '',
+        'settings.nfpaEditionLabel':
+          nfpaEdition === 'other' ? nfpaEditionLabel.trim() : '',
         'settings.localComplianceNotes': localComplianceNotes.trim(),
         updatedAt: serverTimestamp(),
       });
       setSaveMessage('Settings saved successfully.');
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to save settings.';
+      const message =
+        err instanceof Error ? err.message : 'Failed to save settings.';
       setSaveError(message);
     } finally {
       setSaving(false);
@@ -263,8 +282,12 @@ export default function OrgSettings() {
       <div className="mb-6 flex items-center gap-3">
         <Settings className="h-6 w-6 text-gray-400" />
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Organization Settings</h1>
-          <p className="text-sm text-gray-500">Manage your organization configuration</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Organization Settings
+          </h1>
+          <p className="text-sm text-gray-500">
+            Manage your organization configuration
+          </p>
         </div>
       </div>
 
@@ -273,7 +296,10 @@ export default function OrgSettings() {
         <h2 className="mb-4 text-lg font-semibold text-gray-900">General</h2>
 
         <div className="mb-4">
-          <label htmlFor="org-name" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="org-name"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
             Organization Name
           </label>
           <input
@@ -285,7 +311,8 @@ export default function OrgSettings() {
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500"
           />
           <p className="mt-1 text-xs text-gray-500">
-            Organization name and profile branding are managed from the Profile page by the organization creator.
+            Organization name and profile branding are managed from the Profile
+            page by the organization creator.
           </p>
           <button
             type="button"
@@ -304,7 +331,10 @@ export default function OrgSettings() {
         </div>
 
         <div className="mb-4">
-          <label htmlFor="org-timezone" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="org-timezone"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
             Timezone
           </label>
           <select
@@ -315,43 +345,63 @@ export default function OrgSettings() {
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500"
           >
             {commonTimezones.map((tz) => (
-              <option key={tz} value={tz}>{tz}</option>
+              <option key={tz} value={tz}>
+                {tz}
+              </option>
             ))}
           </select>
         </div>
 
         <div className="mb-4">
-          <label htmlFor="monthly-inspection-schedule" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="monthly-inspection-schedule"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
             Monthly Inspection Due Dates
           </label>
           <select
             id="monthly-inspection-schedule"
             value={monthlyInspectionSchedule}
-            onChange={(e) => setMonthlyInspectionSchedule(e.target.value as MonthlyInspectionSchedule)}
+            onChange={(e) =>
+              setMonthlyInspectionSchedule(
+                e.target.value as MonthlyInspectionSchedule,
+              )
+            }
             disabled={!canEdit}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500"
           >
-            <option value="rolling_30_days">Rolling 30 days after the last inspection</option>
-            <option value="calendar_month">Reset to the 1st of each month</option>
+            <option value="rolling_30_days">
+              Rolling 30 days after the last inspection
+            </option>
+            <option value="calendar_month">
+              Reset to the 1st of each month
+            </option>
           </select>
           <p className="mt-1 text-xs text-gray-500">
-            This controls the extinguisher Next Monthly Inspection date and reminder timing.
-            Monthly workspaces still use their own inspection rows for progress.
+            This controls the extinguisher Next Monthly Inspection date and
+            reminder timing. Monthly workspaces still use their own inspection
+            rows for progress.
           </p>
         </div>
       </div>
 
       {/* Compliance preferences */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-2 text-lg font-semibold text-gray-900">Compliance Preferences</h2>
+        <h2 className="mb-2 text-lg font-semibold text-gray-900">
+          Compliance Preferences
+        </h2>
         <p className="mb-4 text-sm text-gray-500">
-          Choose the NFPA 10 edition your organization references. This guides AI responses,
-          reminders, and internal notes, but final compliance decisions should still be checked
-          against your adopted local code, qualified judgment, and AHJ direction.
+          Choose the NFPA 10 edition your organization references. This guides
+          AI responses, reminders, and internal notes, but final compliance
+          decisions should still be checked against your adopted local code,
+          qualified judgment, and AHJ direction.
         </p>
 
         <div className="mb-4">
-          <label htmlFor="nfpa-edition" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="nfpa-edition"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
             NFPA Documentation Reference
           </label>
           <select
@@ -362,14 +412,19 @@ export default function OrgSettings() {
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500"
           >
             {nfpaEditionOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </div>
 
         {nfpaEdition === 'other' && (
           <div className="mb-4">
-            <label htmlFor="nfpa-edition-label" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="nfpa-edition-label"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Custom Reference Label
             </label>
             <input
@@ -385,7 +440,10 @@ export default function OrgSettings() {
         )}
 
         <div>
-          <label htmlFor="local-compliance-notes" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="local-compliance-notes"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
             AHJ / Local Policy Notes
           </label>
           <textarea
@@ -398,8 +456,9 @@ export default function OrgSettings() {
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500"
           />
           <p className="mt-1 text-xs text-gray-500">
-            These notes are advisory context for your organization and AI assistant. They do not
-            replace review by a qualified person or the authority having jurisdiction.
+            These notes are advisory context for your organization and AI
+            assistant. They do not replace review by a qualified person or the
+            authority having jurisdiction.
           </p>
         </div>
       </div>
@@ -411,9 +470,10 @@ export default function OrgSettings() {
           <h2 className="text-lg font-semibold text-gray-900">Locations</h2>
         </div>
         <p className="mb-4 text-sm text-gray-500">
-          Manage your buildings, floors, zones, and other areas on the Locations page.
-          Location names are used as section identifiers throughout the app — on workspace
-          inspection cards, extinguisher assignment, and compliance reports.
+          Manage your buildings, floors, zones, and other areas on the Locations
+          page. Location names are used as section identifiers throughout the
+          app — on workspace inspection cards, extinguisher assignment, and
+          compliance reports.
         </p>
         <button
           onClick={() => navigate('/dashboard/locations')}
@@ -426,15 +486,17 @@ export default function OrgSettings() {
 
       {/* Plan info */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Subscription</h2>
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          Subscription
+        </h2>
         <p className="mb-4 text-sm text-gray-500">
-          Basic is a simple fit for small businesses that want to replace paper logs, reduce
-          paperwork, and stay on schedule. AI assistant access is included with Pro, Elite, and
-          Enterprise plans.
+          Basic is a simple fit for small businesses that want to replace paper
+          logs, reduce paperwork, and stay on schedule. AI assistant access is
+          included with Pro, Elite, and Enterprise plans.
         </p>
         <p className="mb-4 text-sm text-gray-500">
-          How to use AI: open the dashboard assistant and ask about overdue inspections,
-          maintenance dates, or a compliance summary.
+          How to use AI: open the dashboard assistant and ask about overdue
+          inspections, maintenance dates, or a compliance summary.
         </p>
         <div className="flex items-center justify-between">
           <div>
@@ -442,7 +504,9 @@ export default function OrgSettings() {
               <p className="text-sm font-medium text-gray-700">
                 Current Plan:{' '}
                 <span className="font-semibold">
-                  {org.plan ? org.plan.charAt(0).toUpperCase() + org.plan.slice(1) : 'No Plan'}
+                  {org.plan
+                    ? org.plan.charAt(0).toUpperCase() + org.plan.slice(1)
+                    : 'No Plan'}
                 </span>
               </p>
               <BillingStatus />
@@ -454,7 +518,8 @@ export default function OrgSettings() {
             )}
             {org.plan === 'basic' && (
               <p className="mt-2 text-sm text-amber-700">
-                Upgrade to Pro for barcode scanning, GPS capture, inspection photos, and AI.
+                Upgrade to Pro for barcode scanning, GPS capture, inspection
+                photos, and AI.
               </p>
             )}
           </div>
@@ -483,18 +548,23 @@ export default function OrgSettings() {
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="mb-1 flex items-center gap-2">
             <Eye className="h-5 w-5 text-gray-400" />
-            <h2 className="text-lg font-semibold text-gray-900">Guest Access (Read-Only)</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Guest Access (Read-Only)
+            </h2>
           </div>
           <p className="mb-4 text-sm text-gray-500">
-            Allow external users to view your organization&#39;s data without creating an account.
+            Allow external users to view your organization&#39;s data without
+            creating an account.
           </p>
 
           {/* Plan gate */}
-          {!(org.featureFlags?.guestAccess) ? (
+          {!org.featureFlags?.guestAccess ? (
             <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
               <Lock className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
               <div>
-                <p className="text-sm font-medium text-gray-700">Upgrade Required</p>
+                <p className="text-sm font-medium text-gray-700">
+                  Upgrade Required
+                </p>
                 <p className="text-sm text-gray-500">
                   Guest Access is available on Elite and Enterprise plans.
                 </p>
@@ -503,14 +573,19 @@ export default function OrgSettings() {
           ) : (
             <>
               {guestError && (
-                <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{guestError}</p>
+                <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {guestError}
+                </p>
               )}
 
               {/* If not yet enabled: show date picker + enable button */}
               {!guestEnabled && (
                 <div className="flex flex-wrap items-end gap-3">
                   <div>
-                    <label htmlFor="guest-access-expiration" className="mb-1 block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="guest-access-expiration"
+                      className="mb-1 block text-sm font-medium text-gray-700"
+                    >
                       Access Expiration Date
                     </label>
                     <input
@@ -523,7 +598,9 @@ export default function OrgSettings() {
                     />
                   </div>
                   <button
-                    onClick={() => { void handleEnableGuestAccess(); }}
+                    onClick={() => {
+                      void handleEnableGuestAccess();
+                    }}
                     disabled={guestToggling || !guestExpiresAt}
                     className="flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50"
                   >
@@ -543,7 +620,10 @@ export default function OrgSettings() {
                   {/* Expiration info */}
                   {guestExpiresAt && (
                     <p className="text-sm text-gray-500">
-                      Expires: <strong>{new Date(guestExpiresAt).toLocaleDateString()}</strong>
+                      Expires:{' '}
+                      <strong>
+                        {new Date(guestExpiresAt).toLocaleDateString()}
+                      </strong>
                     </p>
                   )}
 
@@ -559,15 +639,19 @@ export default function OrgSettings() {
                         </p>
                       </div>
                       <button
-                        onClick={() => copyToClipboard(
-                          `${window.location.origin}/guest/${orgId}/${guestToken}`,
-                          setGuestCopiedLink,
-                        )}
+                        onClick={() =>
+                          copyToClipboard(
+                            `${window.location.origin}/guest/${orgId}/${guestToken}`,
+                            setGuestCopiedLink,
+                          )
+                        }
                         title="Copy share link"
                         className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
                       >
                         {guestCopiedLink ? (
-                          <span className="text-green-600 text-xs">Copied!</span>
+                          <span className="text-green-600 text-xs">
+                            Copied!
+                          </span>
                         ) : (
                           <>
                             <Copy className="h-4 w-4" />
@@ -590,19 +674,24 @@ export default function OrgSettings() {
                         </p>
                       </div>
                       <button
-                        onClick={() => copyToClipboard(guestShareCode, setGuestCopiedCode)}
+                        onClick={() =>
+                          copyToClipboard(guestShareCode, setGuestCopiedCode)
+                        }
                         title="Copy share code"
                         className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
                       >
                         {guestCopiedCode ? (
-                          <span className="text-green-600 text-xs">Copied!</span>
+                          <span className="text-green-600 text-xs">
+                            Copied!
+                          </span>
                         ) : (
                           <Copy className="h-4 w-4" />
                         )}
                       </button>
                     </div>
                     <p className="mt-1 text-xs text-gray-400">
-                      Guests can enter this code at {window.location.origin}/guest/code
+                      Guests can enter this code at {window.location.origin}
+                      /guest/code
                     </p>
                   </div>
 
@@ -630,13 +719,19 @@ export default function OrgSettings() {
       {canEdit && (
         <div className="mb-6">
           {saveMessage && (
-            <p className="mb-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">{saveMessage}</p>
+            <p className="mb-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+              {saveMessage}
+            </p>
           )}
           {saveError && (
-            <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{saveError}</p>
+            <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              {saveError}
+            </p>
           )}
           <button
-            onClick={() => { void handleSave(); }}
+            onClick={() => {
+              void handleSave();
+            }}
             disabled={saving}
             className="flex items-center gap-2 rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
           >
@@ -647,9 +742,7 @@ export default function OrgSettings() {
       )}
 
       {/* Data Maintenance — owner only */}
-      {isOwner && (
-        <DataMaintenanceSection orgId={orgId} />
-      )}
+      {isOwner && <DataMaintenanceSection orgId={orgId} />}
 
       {/* Danger zone - owner only */}
       {isOwner && (
@@ -668,7 +761,9 @@ export default function OrgSettings() {
             <Trash2 className="h-4 w-4" />
             Delete Organization
           </button>
-          <p className="mt-1 text-xs text-red-400">Organization deletion coming in a future release.</p>
+          <p className="mt-1 text-xs text-red-400">
+            Organization deletion coming in a future release.
+          </p>
         </div>
       )}
 

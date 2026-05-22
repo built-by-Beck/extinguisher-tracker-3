@@ -14,6 +14,7 @@ The AI Assistant should use this information to answer user questions about how 
 - **How to delete an extinguisher:** Go to the "Inventory" page. Click the "Edit" (pencil) icon next to the extinguisher you want to delete. Alternatively, from the "Extinguisher Detail" page, click "Edit Extinguisher". Scroll to the bottom of the edit form and click "Delete Extinguisher". This will soft-delete the asset.
 - **How to import extinguishers:** Go to the "Inventory" page. For Elite/Enterprise plans, there is an "Import" button that allows you to upload a CSV, Excel, or JSON file. You can then map your columns to the system fields.
 - **How to fix incomplete data:** Use the "Data Organizer" in the sidebar (Admin/Owner only). It shows all active extinguishers missing critical info (location, serial, etc.) and allows bulk assigning.
+- **How to fix wrong lifecycle status (e.g. marked Replaced but still the live unit):** On the extinguisher **Detail** page, owners/admins can set **Inventory status** (Active, Spare, Replaced, Retired, Out of service) and apply — or ask the AI assistant with a phrase like "Set asset FE-001 to active" (owner/admin only).
 
 **2. Managing Workspaces (Inspections)**
 - **What is a Workspace?** A workspace represents a monthly snapshot of your inventory used to conduct inspections.

@@ -28,7 +28,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[ErrorBoundary] Uncaught render error:', error, info.componentStack);
+    console.error(
+      '[ErrorBoundary] Uncaught render error:',
+      error,
+      info.componentStack,
+    );
   }
 
   handleReset = () => {
@@ -48,9 +52,12 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
               <AlertTriangle className="h-6 w-6 text-red-600" />
             </div>
-            <h2 className="mb-2 text-lg font-semibold text-gray-900">Something went wrong</h2>
+            <h2 className="mb-2 text-lg font-semibold text-gray-900">
+              Something went wrong
+            </h2>
             <p className="mb-6 text-sm text-gray-500">
-              An unexpected error occurred. You can try again or return to the dashboard.
+              An unexpected error occurred. You can try again or return to the
+              dashboard.
             </p>
             {this.state.error && (
               <pre className="mb-6 max-h-24 overflow-auto rounded bg-gray-100 p-3 text-left text-xs text-gray-600">

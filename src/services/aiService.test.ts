@@ -5,10 +5,15 @@ const mocks = vi.hoisted(() => ({
   queryAiMemoryCall: vi.fn(),
   sendMessage: vi.fn(),
   startChat: vi.fn(),
+  updateExtinguisherStatus: vi.fn(),
 }));
 
 vi.mock('./aiQueryService.ts', () => ({
   queryAiMemoryCall: mocks.queryAiMemoryCall,
+}));
+
+vi.mock('./lifecycleService.ts', () => ({
+  updateExtinguisherStatus: mocks.updateExtinguisherStatus,
 }));
 
 vi.mock('../lib/firebase.ts', () => ({
@@ -21,6 +26,7 @@ vi.mock('../lib/firebase.ts', () => ({
 describe('askAssistant deterministic memory formatting', () => {
   beforeEach(() => {
     mocks.queryAiMemoryCall.mockReset();
+    mocks.updateExtinguisherStatus.mockReset();
     mocks.sendMessage.mockReset();
     mocks.startChat.mockReset();
     mocks.sendMessage.mockResolvedValue({
@@ -59,7 +65,12 @@ describe('askAssistant deterministic memory formatting', () => {
     });
 
     const response = await askAssistant(
-      [{ role: 'user', content: 'give me a printable list of all expired extinguishers' }],
+      [
+        {
+          role: 'user',
+          content: 'give me a printable list of all expired extinguishers',
+        },
+      ],
       { orgId: 'org-1' },
     );
 
@@ -74,7 +85,8 @@ describe('askAssistant deterministic memory formatting', () => {
       [
         {
           role: 'user',
-          content: 'give me a printable list of all expired extinguishers in this photo',
+          content:
+            'give me a printable list of all expired extinguishers in this photo',
           imageAttachments: [
             {
               mimeType: 'image/jpeg',
@@ -102,5 +114,29 @@ describe('askAssistant deterministic memory formatting', () => {
         },
       },
     ]);
+  });
+
+  it('updates extinguisher status deterministically when owner/admin intent matches', async () => {
+    mocks.updateExtinguisherStatus.mockResolvedValue({
+      extinguisherId: 'ext-99',
+      assetId: 'FE-001',
+      newStatus: 'active',
+      unchanged: false,
+    });
+
+    const response = await askAssistant(
+      [{ role: 'user', content: 'Set asset FE-001 to active' }],
+      { orgId: 'org-1', canMutateInventory: true },
+    );
+
+    expect(mocks.updateExtinguisherStatus).toHaveBeenCalledWith('org-1', {
+      extinguisherId: undefined,
+      assetId: 'FE-001',
+      newStatus: 'active',
+      reason: 'AI assistant user request',
+    });
+    expect(mocks.queryAiMemoryCall).not.toHaveBeenCalled();
+    expect(response).toContain('Updated extinguisher');
+    expect(response).toContain('FE-001');
   });
 });

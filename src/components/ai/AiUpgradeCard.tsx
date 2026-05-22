@@ -6,13 +6,22 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, MessageSquare, ArrowRight, ShieldCheck, BarChart3, Clock, Zap } from 'lucide-react';
+import {
+  Sparkles,
+  MessageSquare,
+  ArrowRight,
+  ShieldCheck,
+  BarChart3,
+  Clock,
+  Zap,
+} from 'lucide-react';
 
 const AI_EXAMPLES = [
   {
     icon: ShieldCheck,
     question: '"Which extinguishers are overdue for inspection?"',
-    description: 'AI scans your entire inventory and flags every overdue item instantly.',
+    description:
+      'AI scans your entire inventory and flags every overdue item instantly.',
   },
   {
     icon: Clock,
@@ -22,12 +31,14 @@ const AI_EXAMPLES = [
   {
     icon: BarChart3,
     question: '"Summarize my compliance status"',
-    description: 'AI analyzes your data and gives you an actionable compliance report.',
+    description:
+      'AI analyzes your data and gives you an actionable compliance report.',
   },
   {
     icon: MessageSquare,
     question: '"What does NFPA 10 require for monthly inspections?"',
-    description: 'Ask any compliance question and get expert-level answers on the spot.',
+    description:
+      'Ask any compliance question and get expert-level answers on the spot.',
   },
 ];
 
@@ -43,8 +54,13 @@ export function AiUpgradeCard() {
             <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900">AI Compliance Assistant</h2>
-            <p className="text-sm text-gray-500">Built for faster inspections, fewer paper logs, and easier compliance</p>
+            <h2 className="text-lg font-bold text-gray-900">
+              AI Compliance Assistant
+            </h2>
+            <p className="text-sm text-gray-500">
+              Built for faster inspections, fewer paper logs, and easier
+              compliance
+            </p>
           </div>
         </div>
         <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -54,8 +70,9 @@ export function AiUpgradeCard() {
 
       {/* Pitch */}
       <p className="mb-5 text-sm text-gray-600">
-        Move off paper logs and get instant answers from your dashboard. The AI assistant helps
-        your team stay on schedule, cut paperwork, and keep compliance visible in real time.
+        Move off paper logs and get instant answers from your dashboard. The AI
+        assistant helps your team stay on schedule, cut paperwork, and keep
+        compliance visible in real time.
       </p>
 
       {/* Example questions grid */}
@@ -88,11 +105,13 @@ export function AiUpgradeCard() {
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
-            Real-time inventory analysis that flags issues before inspectors arrive
+            Real-time inventory analysis that flags issues before inspectors
+            arrive
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
-            Maintenance schedule guidance for monthly, annual, 6-year, and hydrostatic testing
+            Maintenance schedule guidance for monthly, annual, 6-year, and
+            hydrostatic testing
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
@@ -102,8 +121,8 @@ export function AiUpgradeCard() {
       </div>
 
       <p className="mb-4 text-xs text-gray-500">
-        How to use AI: open the assistant from any dashboard page, then ask about overdue
-        inspections, maintenance dates, or a compliance summary.
+        How to use AI: open the assistant from any dashboard page, then ask
+        about overdue inspections, maintenance dates, or a compliance summary.
       </p>
 
       {/* CTA */}

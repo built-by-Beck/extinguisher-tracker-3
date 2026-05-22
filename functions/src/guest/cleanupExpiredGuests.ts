@@ -57,7 +57,9 @@ export const cleanupExpiredGuestsJob = onSchedule(
         await orgBatch.commit();
       }
 
-      logger.info(`Auto-disabled guest access on ${expiredOrgsSnap.size} expired orgs`);
+      logger.info(
+        `Auto-disabled guest access on ${expiredOrgsSnap.size} expired orgs`,
+      );
     }
   },
 );

@@ -42,14 +42,25 @@ export default function GuestCodeEntry() {
       navigate(`/guest/${result.orgId}/code-session`, { replace: true });
     } catch (err: unknown) {
       if (err instanceof Error) {
-        if (err.message.includes('not-found') || err.message.includes('Invalid share code')) {
+        if (
+          err.message.includes('not-found') ||
+          err.message.includes('Invalid share code')
+        ) {
           setError('Invalid share code. Please check the code and try again.');
         } else if (err.message.includes('expired')) {
-          setError('This share code has expired. Please contact the organization admin.');
-        } else if (err.message.includes('resource-exhausted') || err.message.includes('Maximum guest limit')) {
+          setError(
+            'This share code has expired. Please contact the organization admin.',
+          );
+        } else if (
+          err.message.includes('resource-exhausted') ||
+          err.message.includes('Maximum guest limit')
+        ) {
           setError('This organization has reached its maximum guest limit.');
         } else {
-          setError(err.message || 'Failed to activate guest session. Please try again.');
+          setError(
+            err.message ||
+              'Failed to activate guest session. Please try again.',
+          );
         }
       } else {
         setError('Failed to activate guest session. Please try again.');
@@ -64,8 +75,14 @@ export default function GuestCodeEntry() {
       <div className="w-full max-w-md">
         {/* Brand header */}
         <div className="mb-8 text-center">
-          <img src="/logo.png" alt="ExtinguisherTracker" className="mx-auto mb-4 h-44 w-44 rounded-3xl object-contain drop-shadow-xl sm:h-52 sm:w-52" />
-          <h1 className="text-3xl font-bold text-gray-900">ExtinguisherTracker</h1>
+          <img
+            src="/logo.png"
+            alt="ExtinguisherTracker"
+            className="mx-auto mb-4 h-44 w-44 rounded-3xl object-contain drop-shadow-xl sm:h-52 sm:w-52"
+          />
+          <h1 className="text-3xl font-bold text-gray-900">
+            ExtinguisherTracker
+          </h1>
           <p className="text-sm text-gray-500">Created by Beck-Publishing</p>
         </div>
 
@@ -76,21 +93,36 @@ export default function GuestCodeEntry() {
               <Eye className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Enter Guest Access Code</h2>
-              <p className="text-sm text-gray-500">View organization data read-only</p>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Enter Guest Access Code
+              </h2>
+              <p className="text-sm text-gray-500">
+                View organization data read-only
+              </p>
             </div>
           </div>
 
-          <form onSubmit={(e) => { void handleSubmit(e); }}>
+          <form
+            onSubmit={(e) => {
+              void handleSubmit(e);
+            }}
+          >
             <div className="mb-4">
-              <label htmlFor="share-code" className="mb-2 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="share-code"
+                className="mb-2 block text-sm font-medium text-gray-700"
+              >
                 Share Code
               </label>
               <input
                 id="share-code"
                 type="text"
                 value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                onChange={(e) =>
+                  setCode(
+                    e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''),
+                  )
+                }
                 maxLength={6}
                 placeholder="XXXXXX"
                 autoComplete="off"

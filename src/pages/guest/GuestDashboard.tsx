@@ -59,11 +59,17 @@ export default function GuestDashboard() {
       collection(db, 'org', orgId, 'extinguishers'),
       where('deletedAt', '==', null),
     );
-    return onSnapshot(q, (snap) => {
-      setExtCount(snap.size);
-      const exts = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Extinguisher));
-      setAllExtinguishers(exts);
-    }, () => undefined);
+    return onSnapshot(
+      q,
+      (snap) => {
+        setExtCount(snap.size);
+        const exts = snap.docs.map(
+          (d) => ({ id: d.id, ...d.data() }) as Extinguisher,
+        );
+        setAllExtinguishers(exts);
+      },
+      () => undefined,
+    );
   }, [orgId]);
 
   // Real-time location count
@@ -73,18 +79,28 @@ export default function GuestDashboard() {
       collection(db, 'org', orgId, 'locations'),
       where('deletedAt', '==', null),
     );
-    return onSnapshot(q, (snap) => setLocationCount(snap.size), () => undefined);
+    return onSnapshot(
+      q,
+      (snap) => setLocationCount(snap.size),
+      () => undefined,
+    );
   }, [orgId]);
 
   // Real-time workspace count
   useEffect(() => {
     if (!orgId) return;
     const q = query(collection(db, 'org', orgId, 'workspaces'));
-    return onSnapshot(q, (snap) => setWorkspaceCount(snap.size), () => undefined);
+    return onSnapshot(
+      q,
+      (snap) => setWorkspaceCount(snap.size),
+      () => undefined,
+    );
   }, [orgId]);
 
   // Compliance counts
-  const activeExts = allExtinguishers.filter((e) => e.lifecycleStatus === 'active');
+  const activeExts = allExtinguishers.filter(
+    (e) => e.lifecycleStatus === 'active',
+  );
   const complianceCounts = {
     total: activeExts.length,
     compliant: 0,
@@ -95,7 +111,9 @@ export default function GuestDashboard() {
     const s = ext.complianceStatus ?? 'missing_data';
     if (s === 'compliant') complianceCounts.compliant++;
     else if (s === 'overdue') complianceCounts.overdue++;
-    else if (['monthly_due', 'annual_due', 'six_year_due', 'hydro_due'].includes(s)) {
+    else if (
+      ['monthly_due', 'annual_due', 'six_year_due', 'hydro_due'].includes(s)
+    ) {
       complianceCounts.due_soon++;
     }
   }
@@ -107,7 +125,9 @@ export default function GuestDashboard() {
         <h1 className="text-2xl font-bold text-gray-900">
           {guestOrg?.name ?? 'Organization'} — Guest View
         </h1>
-        <p className="mt-1 text-sm text-gray-500">Read-only overview of organization data</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Read-only overview of organization data
+        </p>
       </div>
 
       {/* Stat cards */}
@@ -141,26 +161,34 @@ export default function GuestDashboard() {
       {/* Compliance overview */}
       {activeExts.length > 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Maintenance schedule overview</h2>
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            Maintenance schedule overview
+          </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="flex items-center gap-3 rounded-lg bg-green-50 p-4">
               <ShieldCheck className="h-8 w-8 text-green-600" />
               <div>
-                <p className="text-2xl font-bold text-green-700">{complianceCounts.compliant}</p>
+                <p className="text-2xl font-bold text-green-700">
+                  {complianceCounts.compliant}
+                </p>
                 <p className="text-sm text-green-600">On schedule</p>
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-lg bg-amber-50 p-4">
               <Clock className="h-8 w-8 text-amber-600" />
               <div>
-                <p className="text-2xl font-bold text-amber-700">{complianceCounts.due_soon}</p>
+                <p className="text-2xl font-bold text-amber-700">
+                  {complianceCounts.due_soon}
+                </p>
                 <p className="text-sm text-amber-600">Due Soon</p>
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-lg bg-red-50 p-4">
               <AlertTriangle className="h-8 w-8 text-red-600" />
               <div>
-                <p className="text-2xl font-bold text-red-700">{complianceCounts.overdue}</p>
+                <p className="text-2xl font-bold text-red-700">
+                  {complianceCounts.overdue}
+                </p>
                 <p className="text-sm text-red-600">Overdue</p>
               </div>
             </div>

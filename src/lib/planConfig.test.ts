@@ -4,7 +4,12 @@ import { PLANS, hasFeature, yearlyTotalFromMonthly } from './planConfig.ts';
 describe('PLANS configuration', () => {
   it('has 4 plans: basic, pro, elite, enterprise', () => {
     expect(PLANS).toHaveLength(4);
-    expect(PLANS.map((p) => p.name)).toEqual(['basic', 'pro', 'elite', 'enterprise']);
+    expect(PLANS.map((p) => p.name)).toEqual([
+      'basic',
+      'pro',
+      'elite',
+      'enterprise',
+    ]);
   });
 
   it('basic has a price and asset limit', () => {
@@ -113,9 +118,19 @@ describe('hasFeature', () => {
   // Enterprise has everything
   it('enterprise has all features enabled', () => {
     const features = [
-      'manualBarcodeEntry', 'cameraBarcodeScan', 'qrScanning', 'gpsCapture',
-      'photoUpload', 'complianceReports', 'inspectionReminders', 'sectionTimeTracking',
-      'tagPrinting', 'bulkTagPrinting', 'inspectionRoutes', 'aiAssistant', 'guestAccess',
+      'manualBarcodeEntry',
+      'cameraBarcodeScan',
+      'qrScanning',
+      'gpsCapture',
+      'photoUpload',
+      'complianceReports',
+      'inspectionReminders',
+      'sectionTimeTracking',
+      'tagPrinting',
+      'bulkTagPrinting',
+      'inspectionRoutes',
+      'aiAssistant',
+      'guestAccess',
       'teamMembers',
     ];
     for (const feature of features) {

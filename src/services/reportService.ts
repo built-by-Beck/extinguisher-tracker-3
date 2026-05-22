@@ -16,7 +16,11 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../lib/firebase.ts';
-import type { Report, ReportFormat, ReportGenerationOptions } from '../types/report.ts';
+import type {
+  Report,
+  ReportFormat,
+  ReportGenerationOptions,
+} from '../types/report.ts';
 
 function reportsRef(orgId: string) {
   return collection(db, 'org', orgId, 'reports');
@@ -26,7 +30,10 @@ function reportsRef(orgId: string) {
  * Fetches a single report document by workspaceId (report doc ID = workspaceId).
  * Returns null if the document does not exist.
  */
-export async function getReport(orgId: string, workspaceId: string): Promise<Report | null> {
+export async function getReport(
+  orgId: string,
+  workspaceId: string,
+): Promise<Report | null> {
   const docRef = doc(db, 'org', orgId, 'reports', workspaceId);
   const snap = await getDoc(docRef);
   if (!snap.exists()) return null;
@@ -62,7 +69,12 @@ export async function generateReportDownload(
   options?: ReportGenerationOptions,
 ): Promise<{ downloadUrl: string }> {
   const fn = httpsCallable<
-    { orgId: string; workspaceId: string; format: ReportFormat; options?: ReportGenerationOptions },
+    {
+      orgId: string;
+      workspaceId: string;
+      format: ReportFormat;
+      options?: ReportGenerationOptions;
+    },
     { downloadUrl: string; reportId: string }
   >(functions, 'generateReport');
 

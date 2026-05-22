@@ -26,7 +26,14 @@ interface GpsCaptureProps {
   onError?: (msg: string) => void;
 }
 
-export function GpsCapture({ gps, onGpsChange, disabled, isCompleted, canInspect, onError }: GpsCaptureProps) {
+export function GpsCapture({
+  gps,
+  onGpsChange,
+  disabled,
+  isCompleted,
+  canInspect,
+  onError,
+}: GpsCaptureProps) {
   const [gpsLoading, setGpsLoading] = useState(false);
 
   function captureGps() {
@@ -37,7 +44,8 @@ export function GpsCapture({ gps, onGpsChange, disabled, isCompleted, canInspect
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude, accuracy, altitude, altitudeAccuracy } = pos.coords;
+        const { latitude, longitude, accuracy, altitude, altitudeAccuracy } =
+          pos.coords;
         onGpsChange({
           lat: latitude,
           lng: longitude,
@@ -49,7 +57,9 @@ export function GpsCapture({ gps, onGpsChange, disabled, isCompleted, canInspect
         setGpsLoading(false);
       },
       () => {
-        onError?.('Unable to get GPS location. Please ensure location services are enabled.');
+        onError?.(
+          'Unable to get GPS location. Please ensure location services are enabled.',
+        );
         setGpsLoading(false);
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
@@ -80,7 +90,9 @@ export function GpsCapture({ gps, onGpsChange, disabled, isCompleted, canInspect
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-3">
             <div className="text-sm text-gray-700">
-              <span className="font-medium">{gps.lat.toFixed(6)}, {gps.lng.toFixed(6)}</span>
+              <span className="font-medium">
+                {gps.lat.toFixed(6)}, {gps.lng.toFixed(6)}
+              </span>
               <span className="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                 ±{Math.round(gps.accuracy)}m
               </span>
@@ -114,7 +126,9 @@ export function GpsCapture({ gps, onGpsChange, disabled, isCompleted, canInspect
             <p className="text-xs text-gray-500">
               Floor elevation: {gps.altitude.toFixed(1)}m
               {gps.altitudeAccuracy !== null && (
-                <span className="ml-1">(±{Math.round(gps.altitudeAccuracy)}m)</span>
+                <span className="ml-1">
+                  (±{Math.round(gps.altitudeAccuracy)}m)
+                </span>
               )}
             </p>
           )}

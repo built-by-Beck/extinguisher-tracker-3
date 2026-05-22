@@ -4,7 +4,10 @@ import type { Location } from '../services/locationService.ts';
 
 export type InspectionSortMode = 'table' | 'numeric' | 'floor' | 'spatial';
 
-const NATURAL_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const NATURAL_COLLATOR = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: 'base',
+});
 
 function cmpNatural(a: string, b: string): number {
   return NATURAL_COLLATOR.compare(a, b);
@@ -46,12 +49,17 @@ function buildLookup(extinguishers: Extinguisher[], locations: Location[]) {
   return { extById, locById };
 }
 
-function locationPathSortOrder(locationId: string | null | undefined, locById: ReadonlyMap<string, Location>): string {
+function locationPathSortOrder(
+  locationId: string | null | undefined,
+  locById: ReadonlyMap<string, Location>,
+): string {
   if (!locationId) return 'zzz-unassigned';
   const parts: string[] = [];
   let current = locById.get(locationId);
   while (current) {
-    const order = Number.isFinite(current.sortOrder) ? String(current.sortOrder).padStart(6, '0') : '999999';
+    const order = Number.isFinite(current.sortOrder)
+      ? String(current.sortOrder).padStart(6, '0')
+      : '999999';
     parts.unshift(`${order}:${current.name.toLowerCase()}`);
     if (!current.parentLocationId) break;
     current = locById.get(current.parentLocationId);
@@ -59,8 +67,13 @@ function locationPathSortOrder(locationId: string | null | undefined, locById: R
   return parts.join('>');
 }
 
-function getVicinity(insp: Inspection, extById: ReadonlyMap<string, Extinguisher>): string {
-  return norm(extById.get(insp.extinguisherId)?.vicinity || insp.section).toLowerCase();
+function getVicinity(
+  insp: Inspection,
+  extById: ReadonlyMap<string, Extinguisher>,
+): string {
+  return norm(
+    extById.get(insp.extinguisherId)?.vicinity || insp.section,
+  ).toLowerCase();
 }
 
 function tableSortValue(
@@ -86,7 +99,12 @@ export function sortInspectionsByMode(params: {
 
   const sorted = [...list].sort((a, b) => {
     if (mode === 'table') {
-      return cmpNatural(tableSortValue(a, sortKey, extById), tableSortValue(b, sortKey, extById)) * dir;
+      return (
+        cmpNatural(
+          tableSortValue(a, sortKey, extById),
+          tableSortValue(b, sortKey, extById),
+        ) * dir
+      );
     }
 
     if (mode === 'numeric') {
@@ -109,7 +127,10 @@ export function sortInspectionsByMode(params: {
     const pathB = locationPathSortOrder(b.locationId, locById);
     const byPath = cmpNatural(pathA, pathB);
     if (byPath !== 0) return byPath * dir;
-    const byVicinity = cmpNatural(getVicinity(a, extById), getVicinity(b, extById));
+    const byVicinity = cmpNatural(
+      getVicinity(a, extById),
+      getVicinity(b, extById),
+    );
     if (byVicinity !== 0) return byVicinity * dir;
     return cmpNatural(norm(a.assetId), norm(b.assetId)) * dir;
   });

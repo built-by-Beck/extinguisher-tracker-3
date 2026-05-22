@@ -26,16 +26,27 @@ function formatDate(d: unknown): string {
   if (!d) return '';
   try {
     // Firestore Timestamp
-    if (d && typeof d === 'object' && 'toDate' in d && typeof (d as { toDate: () => Date }).toDate === 'function') {
-      return (d as { toDate: () => Date }).toDate().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
+    if (
+      d &&
+      typeof d === 'object' &&
+      'toDate' in d &&
+      typeof (d as { toDate: () => Date }).toDate === 'function'
+    ) {
+      return (d as { toDate: () => Date })
+        .toDate()
+        .toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
     }
     const date = new Date(d as string | number);
     if (isNaN(date.getTime())) return String(d);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   } catch {
     return String(d);
   }
@@ -64,7 +75,9 @@ function getModeTitle(mode: PrintMode): string {
 }
 
 function toPrintRow(ext: Extinguisher, currentYear: number): PrintRow {
-  const locationParts = [ext.parentLocation, ext.section, ext.vicinity].filter(Boolean);
+  const locationParts = [ext.parentLocation, ext.section, ext.vicinity].filter(
+    Boolean,
+  );
   const isExpired = isOfficiallyExpiredExtinguisher(ext);
   const isCandidate = isPossibleExpiredCandidate(ext, currentYear);
   return {
@@ -72,8 +85,15 @@ function toPrintRow(ext: Extinguisher, currentYear: number): PrintRow {
     serial: ext.serial || '',
     location: locationParts.join(' > ') || '',
     category: ext.category || '',
-    status: (ext.complianceStatus ? getComplianceLabel(ext.complianceStatus) : ext.category || '').toUpperCase(),
-    expiryStatus: isExpired ? 'MARKED EXPIRED' : isCandidate ? 'POSSIBLE CANDIDATE' : '',
+    status: (ext.complianceStatus
+      ? getComplianceLabel(ext.complianceStatus)
+      : ext.category || ''
+    ).toUpperCase(),
+    expiryStatus: isExpired
+      ? 'MARKED EXPIRED'
+      : isCandidate
+        ? 'POSSIBLE CANDIDATE'
+        : '',
     mfgYear: ext.manufactureYear != null ? String(ext.manufactureYear) : '',
     expYear: ext.expirationYear != null ? String(ext.expirationYear) : '',
     lastInspection: formatDate(ext.lastMonthlyInspection),
@@ -92,7 +112,7 @@ export default function PrintableList() {
   const canPrint = hasFeature(
     org?.featureFlags as Record<string, boolean> | null | undefined,
     'tagPrinting',
-    org?.plan
+    org?.plan,
   );
 
   const [items, setItems] = useState<Extinguisher[]>([]);
@@ -122,7 +142,8 @@ export default function PrintableList() {
     const currentYear = new Date().getFullYear();
     const filtered = items.filter((ext) => {
       if (mode === 'all') return true;
-      if (!isInventoryActiveRecord(ext as unknown as Record<string, unknown>)) return false;
+      if (!isInventoryActiveRecord(ext as unknown as Record<string, unknown>))
+        return false;
       if (mode === 'expired') return isOfficiallyExpiredExtinguisher(ext);
       return isPossibleExpiredCandidate(ext, currentYear);
     });
@@ -197,8 +218,8 @@ export default function PrintableList() {
             {mode === 'expired'
               ? 'No extinguishers are marked expired.'
               : mode === 'candidates'
-              ? 'No possible expired candidates found.'
-              : 'No extinguishers found.'}
+                ? 'No possible expired candidates found.'
+                : 'No extinguishers found.'}
           </p>
         ) : (
           <>
@@ -211,7 +232,8 @@ export default function PrintableList() {
               )}
               {mode === 'candidates' && (
                 <span className="ml-2 text-gray-500">
-                  Candidate list: manufacture year is 6+ years old and the unit is not marked expired.
+                  Candidate list: manufacture year is 6+ years old and the unit
+                  is not marked expired.
                 </span>
               )}
             </div>
@@ -219,29 +241,68 @@ export default function PrintableList() {
               <table className="w-full table-fixed border border-gray-300 text-xs">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="w-[110px] border border-gray-300 px-2 py-1 text-left">Asset ID</th>
-                    <th className="w-[130px] border border-gray-300 px-2 py-1 text-left">Serial</th>
-                    <th className="w-[250px] border border-gray-300 px-2 py-1 text-left">Location</th>
-                    <th className="w-[110px] border border-gray-300 px-2 py-1 text-left">Category</th>
-                    <th className="w-[100px] border border-gray-300 px-2 py-1 text-left">Status</th>
-                    <th className="w-[120px] border border-gray-300 px-2 py-1 text-left">Expiry Flag</th>
-                    <th className="w-[80px] border border-gray-300 px-2 py-1 text-left">Mfg Year</th>
-                    <th className="w-[80px] border border-gray-300 px-2 py-1 text-left">Exp Year</th>
-                    <th className="w-[120px] border border-gray-300 px-2 py-1 text-left">Last Inspection</th>
+                    <th className="w-[110px] border border-gray-300 px-2 py-1 text-left">
+                      Asset ID
+                    </th>
+                    <th className="w-[130px] border border-gray-300 px-2 py-1 text-left">
+                      Serial
+                    </th>
+                    <th className="w-[250px] border border-gray-300 px-2 py-1 text-left">
+                      Location
+                    </th>
+                    <th className="w-[110px] border border-gray-300 px-2 py-1 text-left">
+                      Category
+                    </th>
+                    <th className="w-[100px] border border-gray-300 px-2 py-1 text-left">
+                      Status
+                    </th>
+                    <th className="w-[120px] border border-gray-300 px-2 py-1 text-left">
+                      Expiry Flag
+                    </th>
+                    <th className="w-[80px] border border-gray-300 px-2 py-1 text-left">
+                      Mfg Year
+                    </th>
+                    <th className="w-[80px] border border-gray-300 px-2 py-1 text-left">
+                      Exp Year
+                    </th>
+                    <th className="w-[120px] border border-gray-300 px-2 py-1 text-left">
+                      Last Inspection
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r, idx) => (
-                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="break-words border border-gray-300 px-2 py-1">{r.assetId}</td>
-                      <td className="break-words border border-gray-300 px-2 py-1">{r.serial}</td>
-                      <td className="break-words border border-gray-300 px-2 py-1">{r.location}</td>
-                      <td className="break-words border border-gray-300 px-2 py-1">{r.category}</td>
-                      <td className="break-words border border-gray-300 px-2 py-1">{r.status}</td>
-                      <td className="break-words border border-gray-300 px-2 py-1">{r.expiryStatus}</td>
-                      <td className="break-words border border-gray-300 px-2 py-1">{r.mfgYear}</td>
-                      <td className="break-words border border-gray-300 px-2 py-1">{r.expYear}</td>
-                      <td className="break-words border border-gray-300 px-2 py-1">{r.lastInspection}</td>
+                    <tr
+                      key={idx}
+                      className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    >
+                      <td className="break-words border border-gray-300 px-2 py-1">
+                        {r.assetId}
+                      </td>
+                      <td className="break-words border border-gray-300 px-2 py-1">
+                        {r.serial}
+                      </td>
+                      <td className="break-words border border-gray-300 px-2 py-1">
+                        {r.location}
+                      </td>
+                      <td className="break-words border border-gray-300 px-2 py-1">
+                        {r.category}
+                      </td>
+                      <td className="break-words border border-gray-300 px-2 py-1">
+                        {r.status}
+                      </td>
+                      <td className="break-words border border-gray-300 px-2 py-1">
+                        {r.expiryStatus}
+                      </td>
+                      <td className="break-words border border-gray-300 px-2 py-1">
+                        {r.mfgYear}
+                      </td>
+                      <td className="break-words border border-gray-300 px-2 py-1">
+                        {r.expYear}
+                      </td>
+                      <td className="break-words border border-gray-300 px-2 py-1">
+                        {r.lastInspection}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

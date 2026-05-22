@@ -26,7 +26,9 @@ type TestQuery = {
   path: string;
   _conditions: Array<{ field: string; value: unknown }>;
   _limit?: number;
-  where: ReturnType<typeof jest.fn<(field: string, op: string, value: unknown) => TestQuery>>;
+  where: ReturnType<
+    typeof jest.fn<(field: string, op: string, value: unknown) => TestQuery>
+  >;
   limit: ReturnType<typeof jest.fn<(count: number) => TestQuery>>;
 };
 
@@ -35,14 +37,21 @@ type TestCollection = TestQuery & {
 };
 
 type TestTx = {
-  get: ReturnType<typeof jest.fn<(refOrQuery: TestDocRef | TestQuery) => Promise<TestSnap | { docs: TestDoc[] }>>>;
+  get: ReturnType<
+    typeof jest.fn<
+      (
+        refOrQuery: TestDocRef | TestQuery,
+      ) => Promise<TestSnap | { docs: TestDoc[] }>
+    >
+  >;
   set: ReturnType<typeof jest.fn>;
   update: ReturnType<typeof jest.fn>;
 };
 
 const mockDoc = jest.fn<(path: string) => TestDocRef>();
 const mockCollection = jest.fn<(path: string) => TestCollection | TestQuery>();
-const mockRunTransaction = jest.fn<(cb: (tx: TestTx) => Promise<unknown>) => Promise<unknown>>();
+const mockRunTransaction =
+  jest.fn<(cb: (tx: TestTx) => Promise<unknown>) => Promise<unknown>>();
 
 const mockAdminDb = adminDb as unknown as {
   doc: typeof mockDoc;
@@ -71,12 +80,10 @@ function makeQuery(
 }
 
 describe('updateReplacementHistoryStatus', () => {
-  const wrapped = testEnv.wrap(updateReplacementHistoryStatus) as (
-    request: {
-      auth: { uid: string; token: { email: string } };
-      data: Record<string, unknown>;
-    },
-  ) => Promise<unknown>;
+  const wrapped = testEnv.wrap(updateReplacementHistoryStatus) as (request: {
+    auth: { uid: string; token: { email: string } };
+    data: Record<string, unknown>;
+  }) => Promise<unknown>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -89,9 +96,18 @@ describe('updateReplacementHistoryStatus', () => {
     historyData?: Record<string, unknown>;
     activeConflicts?: TestDoc[];
   } = {}) {
-    const memberSnap: TestSnap = { exists: true, data: () => ({ role: 'owner', status: 'active' }) };
-    const orgSnap: TestSnap = { exists: true, data: () => ({ subscriptionStatus: 'active' }) };
-    const extSnap: TestSnap = { exists: true, data: () => ({ assetId: 'FE-001' }) };
+    const memberSnap: TestSnap = {
+      exists: true,
+      data: () => ({ role: 'owner', status: 'active' }),
+    };
+    const orgSnap: TestSnap = {
+      exists: true,
+      data: () => ({ subscriptionStatus: 'active' }),
+    };
+    const extSnap: TestSnap = {
+      exists: true,
+      data: () => ({ assetId: 'FE-001' }),
+    };
     const histSnap: TestSnap = {
       exists: true,
       data: () => ({
@@ -119,10 +135,16 @@ describe('updateReplacementHistoryStatus', () => {
       return { path };
     });
 
-    const spareRef: TestDocRef = { id: 'spare-1', path: 'org/org-1/extinguishers/spare-1' };
+    const spareRef: TestDocRef = {
+      id: 'spare-1',
+      path: 'org/org-1/extinguishers/spare-1',
+    };
     mockAdminDb.collection.mockImplementation((path) => {
       if (path === 'org/org-1/auditLogs') {
-        return { ...makeQuery(path), doc: jest.fn(() => ({ path: 'org/org-1/auditLogs/audit-1' })) };
+        return {
+          ...makeQuery(path),
+          doc: jest.fn(() => ({ path: 'org/org-1/auditLogs/audit-1' })),
+        };
       }
       if (path === 'org/org-1/extinguishers') {
         return { ...makeQuery(path), doc: jest.fn(() => spareRef) };
@@ -133,14 +155,20 @@ describe('updateReplacementHistoryStatus', () => {
     const tx: TestTx = {
       get: jest.fn((refOrQuery: TestDocRef | TestQuery) => {
         if (refOrQuery.path === 'org/org-1') return Promise.resolve(orgSnap);
-        if (refOrQuery.path === 'org/org-1/extinguishers/ext-1') return Promise.resolve(extSnap);
-        if (refOrQuery.path === 'org/org-1/extinguishers/ext-1/replacementHistory/hist-1') {
+        if (refOrQuery.path === 'org/org-1/extinguishers/ext-1')
+          return Promise.resolve(extSnap);
+        if (
+          refOrQuery.path ===
+          'org/org-1/extinguishers/ext-1/replacementHistory/hist-1'
+        ) {
           return Promise.resolve(histSnap);
         }
         const conditions: Array<{ field: string; value: unknown }> =
           '_conditions' in refOrQuery ? refOrQuery._conditions : [];
         const conflictDocs = activeConflicts.filter((doc) =>
-          conditions.every((condition) => doc.data()[condition.field] === condition.value),
+          conditions.every(
+            (condition) => doc.data()[condition.field] === condition.value,
+          ),
         );
         if (conflictDocs.length > 0) {
           if ('_limit' in refOrQuery && refOrQuery._limit != null) {
@@ -173,9 +201,14 @@ describe('updateReplacementHistoryStatus', () => {
       },
     });
 
-    expect(result).toEqual({ historyId: 'hist-1', returnedSpareExtinguisherId: null });
+    expect(result).toEqual({
+      historyId: 'hist-1',
+      returnedSpareExtinguisherId: null,
+    });
     expect(tx.update).toHaveBeenCalledWith(
-      expect.objectContaining({ path: 'org/org-1/extinguishers/ext-1/replacementHistory/hist-1' }),
+      expect.objectContaining({
+        path: 'org/org-1/extinguishers/ext-1/replacementHistory/hist-1',
+      }),
       expect.objectContaining({
         waitingForService: true,
         sentForService: true,
@@ -207,7 +240,10 @@ describe('updateReplacementHistoryStatus', () => {
       },
     });
 
-    expect(result).toEqual({ historyId: 'hist-1', returnedSpareExtinguisherId: 'spare-1' });
+    expect(result).toEqual({
+      historyId: 'hist-1',
+      returnedSpareExtinguisherId: 'spare-1',
+    });
     expect(tx.set).toHaveBeenCalledWith(
       spareRef,
       expect.objectContaining({
@@ -221,7 +257,9 @@ describe('updateReplacementHistoryStatus', () => {
       }),
     );
     expect(tx.update).toHaveBeenCalledWith(
-      expect.objectContaining({ path: 'org/org-1/extinguishers/ext-1/replacementHistory/hist-1' }),
+      expect.objectContaining({
+        path: 'org/org-1/extinguishers/ext-1/replacementHistory/hist-1',
+      }),
       expect.objectContaining({
         returned: true,
         returnedSpareExtinguisherId: 'spare-1',

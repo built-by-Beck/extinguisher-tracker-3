@@ -1,0 +1,20 @@
+dist/
+functions/lib/
+node_modules/
+coverage/
+emulator-data/
+.firebase/
+
+pnpm-lock.yaml
+package-lock.json
+functions/package-lock.json
+
+*.min.js
+*.min.css
+
+# Large or hand-maintained trees — format incrementally or in a dedicated pass
+BUILD-SPECS/
+agents/
+.cursor/
+agent-system/
+pbrd-kit/

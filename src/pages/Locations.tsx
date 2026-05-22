@@ -49,8 +49,15 @@ function TreeNode({
         style={{ paddingLeft: `${depth * 24 + 12}px` }}
       >
         {hasChildren ? (
-          <button onClick={() => setExpanded(!expanded)} className="text-gray-400 hover:text-gray-600">
-            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            {expanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
           </button>
         ) : (
           <span className="w-4" />
@@ -63,7 +70,9 @@ function TreeNode({
             Level {depth + 1}
           </span>
         </div>
-        <span className="text-xs text-gray-400">{getLocationTypeLabel(node.locationType)}</span>
+        <span className="text-xs text-gray-400">
+          {getLocationTypeLabel(node.locationType)}
+        </span>
 
         {canEdit && (
           <div className="flex items-center gap-1">
@@ -124,9 +133,10 @@ export default function Locations() {
     return subscribeToLocations(orgId, (locs) => {
       setLocations(locs);
       // Cache on read (fire-and-forget)
-      cacheLocations(orgId, locs as unknown as Array<Record<string, unknown>>).catch(
-        () => undefined,
-      );
+      cacheLocations(
+        orgId,
+        locs as unknown as Array<Record<string, unknown>>,
+      ).catch(() => undefined);
     });
   }, [orgId]);
 
@@ -172,7 +182,9 @@ export default function Locations() {
         editingLoc?.id,
       );
       if (taken) {
-        setFormError('A location with this name already exists under the same parent. Use a unique name.');
+        setFormError(
+          'A location with this name already exists under the same parent. Use a unique name.',
+        );
         setFormSaving(false);
         return;
       }
@@ -208,7 +220,9 @@ export default function Locations() {
     try {
       await softDeleteLocation(orgId, deleteTarget.id);
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : 'Failed to delete location.');
+      setFormError(
+        err instanceof Error ? err.message : 'Failed to delete location.',
+      );
     } finally {
       setDeleteTarget(null);
     }
@@ -238,10 +252,11 @@ export default function Locations() {
       {/* Page description */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
         <p>
-          Locations define where your extinguishers live. Build a hierarchy — for example,
-          a building at the top, then floors or wings, then individual rooms. When you assign
-          extinguishers to locations, they automatically group by location during inspections
-          so your inspectors can work floor by floor.
+          Locations define where your extinguishers live. Build a hierarchy —
+          for example, a building at the top, then floors or wings, then
+          individual rooms. When you assign extinguishers to locations, they
+          automatically group by location during inspections so your inspectors
+          can work floor by floor.
         </p>
       </div>
 
@@ -249,9 +264,12 @@ export default function Locations() {
       {locations.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <MapPin className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-sm font-semibold text-gray-900">No locations yet</h3>
+          <h3 className="mt-4 text-sm font-semibold text-gray-900">
+            No locations yet
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
-            Add buildings, floors, rooms, and other areas to organize your extinguishers.
+            Add buildings, floors, rooms, and other areas to organize your
+            extinguishers.
           </p>
           {canEdit && (
             <button
@@ -280,24 +298,37 @@ export default function Locations() {
 
       {/* Create/Edit form modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowForm(false)}>
-          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowForm(false)}
+        >
+          <div
+            className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">
                 {editingLoc ? 'Edit Location' : 'Add Location'}
               </h3>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+              <button
+                onClick={() => setShowForm(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {formError && (
-              <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>
+              <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                {formError}
+              </p>
             )}
 
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Name *</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Name *
+                </label>
                 <input
                   type="text"
                   value={formName}
@@ -308,14 +339,19 @@ export default function Locations() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Type</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Type
+                </label>
                 <select
                   value={formType}
                   onChange={(e) => setFormType(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
                 >
-                  {!LOCATION_TYPE_ENTRIES.some(([v]) => v === formType) && formType ? (
-                    <option value={formType}>{getLocationTypeLabel(formType)}</option>
+                  {!LOCATION_TYPE_ENTRIES.some(([v]) => v === formType) &&
+                  formType ? (
+                    <option value={formType}>
+                      {getLocationTypeLabel(formType)}
+                    </option>
                   ) : null}
                   {LOCATION_TYPE_ENTRIES.map(([value, label]) => (
                     <option key={value} value={value}>
@@ -326,7 +362,9 @@ export default function Locations() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Parent Location</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Parent Location
+                </label>
                 <select
                   value={formParent}
                   onChange={(e) => setFormParent(e.target.value)}
@@ -344,7 +382,9 @@ export default function Locations() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Description
+                </label>
                 <textarea
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}

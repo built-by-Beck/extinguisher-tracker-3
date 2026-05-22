@@ -32,17 +32,26 @@ export default function GuestInventory() {
 
   useEffect(() => {
     if (!orgId) return;
-    return subscribeToExtinguishers(orgId, (extinguishers) => {
-      setItems(extinguishers);
-    }, { showDeleted: false });
+    return subscribeToExtinguishers(
+      orgId,
+      (extinguishers) => {
+        setItems(extinguishers);
+      },
+      { showDeleted: false },
+    );
   }, [orgId]);
 
-  const supersededExtinguisherIds = useMemo(() => getSupersededExtinguisherIds(items), [items]);
+  const supersededExtinguisherIds = useMemo(
+    () => getSupersededExtinguisherIds(items),
+    [items],
+  );
 
   // Client-side filtering
   const filtered = items.filter((ext) => {
-    const isReplacedRecord = ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
-    const isSupersededStale = ext.id != null && supersededExtinguisherIds.has(ext.id);
+    const isReplacedRecord =
+      ext.lifecycleStatus === 'replaced' || ext.category === 'replaced';
+    const isSupersededStale =
+      ext.id != null && supersededExtinguisherIds.has(ext.id);
     const isRetiredInventoryRow = isReplacedRecord || isSupersededStale;
     if (categoryFilter) {
       if (categoryFilter === 'replaced') {
@@ -51,12 +60,14 @@ export default function GuestInventory() {
         return false;
       }
     } else {
-      if (!isInventoryActiveRecord(ext as unknown as Record<string, unknown>)) return false;
+      if (!isInventoryActiveRecord(ext as unknown as Record<string, unknown>))
+        return false;
       if (isReplacedRecord) return false;
       if (isSupersededStale && !isReplacedRecord) return false;
     }
     if (sectionFilter && ext.section !== sectionFilter) return false;
-    if (complianceFilter && ext.complianceStatus !== complianceFilter) return false;
+    if (complianceFilter && ext.complianceStatus !== complianceFilter)
+      return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const matchAsset = ext.assetId?.toLowerCase().includes(q);
@@ -71,10 +82,20 @@ export default function GuestInventory() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Unique values for filter dropdowns
-  const categories = Array.from(new Set(items.map((e) => e.category).filter(Boolean)));
-  const sections = Array.from(new Set(items.map((e) => e.section).filter(Boolean)));
+  const categories = Array.from(
+    new Set(items.map((e) => e.category).filter(Boolean)),
+  );
+  const sections = Array.from(
+    new Set(items.map((e) => e.section).filter(Boolean)),
+  );
   const complianceStatuses = [
-    'compliant', 'monthly_due', 'annual_due', 'six_year_due', 'hydro_due', 'overdue', 'missing_data',
+    'compliant',
+    'monthly_due',
+    'annual_due',
+    'six_year_due',
+    'hydro_due',
+    'overdue',
+    'missing_data',
   ];
 
   function handleFilterChange() {
@@ -102,42 +123,62 @@ export default function GuestInventory() {
             type="text"
             placeholder="Search asset ID, serial..."
             value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); handleFilterChange(); }}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              handleFilterChange();
+            }}
             className="rounded-lg border border-gray-300 py-2 pl-9 pr-4 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
           />
         </div>
 
         <select
           value={categoryFilter}
-          onChange={(e) => { setCategoryFilter(e.target.value); handleFilterChange(); }}
+          onChange={(e) => {
+            setCategoryFilter(e.target.value);
+            handleFilterChange();
+          }}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
         >
           <option value="">All Categories</option>
           <option value="replaced">Retired / replaced</option>
-          {categories.filter((c) => c && c !== 'replaced').map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
+          {categories
+            .filter((c) => c && c !== 'replaced')
+            .map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
         </select>
 
         <select
           value={sectionFilter}
-          onChange={(e) => { setSectionFilter(e.target.value); handleFilterChange(); }}
+          onChange={(e) => {
+            setSectionFilter(e.target.value);
+            handleFilterChange();
+          }}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
         >
           <option value="">All Sections</option>
           {sections.map((sec) => (
-            <option key={sec} value={sec}>{sec}</option>
+            <option key={sec} value={sec}>
+              {sec}
+            </option>
           ))}
         </select>
 
         <select
           value={complianceFilter}
-          onChange={(e) => { setComplianceFilter(e.target.value); handleFilterChange(); }}
+          onChange={(e) => {
+            setComplianceFilter(e.target.value);
+            handleFilterChange();
+          }}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
         >
           <option value="">All maintenance</option>
           {complianceStatuses.map((s) => (
-            <option key={s} value={s}>{getComplianceLabel(s)}</option>
+            <option key={s} value={s}>
+              {getComplianceLabel(s)}
+            </option>
           ))}
         </select>
       </div>
@@ -148,31 +189,58 @@ export default function GuestInventory() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Asset ID</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Serial</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Category</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Location</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Section</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Maintenance</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Asset ID
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Serial
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Category
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Location
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Section
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Maintenance
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-8 text-center text-sm text-gray-400"
+                  >
                     No extinguishers found.
                   </td>
                 </tr>
               ) : (
                 paginated.map((ext) => (
                   <tr key={ext.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{ext.assetId ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{ext.serial ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{ext.category ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{ext.vicinity ?? ext.parentLocation ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{ext.section ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                      {ext.assetId ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {ext.serial ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {ext.category ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {ext.vicinity ?? ext.parentLocation ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {ext.section ?? '—'}
+                    </td>
                     <td className="px-4 py-3">
-                      <ComplianceStatusBadge status={ext.complianceStatus ?? null} />
+                      <ComplianceStatusBadge
+                        status={ext.complianceStatus ?? null}
+                      />
                     </td>
                   </tr>
                 ))

@@ -7,6 +7,7 @@
 
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../lib/firebase.ts';
+import type { ExtinguisherLifecycleStatusValue } from '../lib/extinguisherLifecycleStatus.ts';
 
 export interface NewExtinguisherData {
   assetId: string;
@@ -63,6 +64,15 @@ export interface RecalculateResult {
   overdueFlags: string[];
 }
 
+export type UpdateExtinguisherLifecycleStatus = ExtinguisherLifecycleStatusValue;
+
+export interface UpdateExtinguisherStatusResult {
+  extinguisherId: string;
+  assetId: string;
+  newStatus: UpdateExtinguisherLifecycleStatus;
+  unchanged: boolean;
+}
+
 export interface BatchRecalculateResult {
   orgId: string;
   updatedCount: number;
@@ -95,13 +105,26 @@ export async function replaceExtinguisher(
   newExtinguisherData: NewExtinguisherData,
   reason?: string,
 ): Promise<ReplaceExtinguisherResult> {
-  const fn = httpsCallable<unknown, ReplaceExtinguisherResult>(functions, 'replaceExtinguisher');
-  const result = await fn({ orgId, oldExtinguisherId, newExtinguisherData, reason });
+  const fn = httpsCallable<unknown, ReplaceExtinguisherResult>(
+    functions,
+    'replaceExtinguisher',
+  );
+  const result = await fn({
+    orgId,
+    oldExtinguisherId,
+    newExtinguisherData,
+    reason,
+  });
   return result.data;
 }
 
-export async function listReplacementHistory(orgId: string): Promise<ReplacementHistoryListRow[]> {
-  const fn = httpsCallable<unknown, { rows: ReplacementHistoryListRow[] }>(functions, 'listReplacementHistory');
+export async function listReplacementHistory(
+  orgId: string,
+): Promise<ReplacementHistoryListRow[]> {
+  const fn = httpsCallable<unknown, { rows: ReplacementHistoryListRow[] }>(
+    functions,
+    'listReplacementHistory',
+  );
   const result = await fn({ orgId });
   return result.data.rows;
 }
@@ -113,10 +136,10 @@ export async function updateReplacementHistoryStatus(
   status: ReplacementHistoryStatusUpdate,
   returnToSpare?: ReturnToSpareInput,
 ): Promise<{ historyId: string; returnedSpareExtinguisherId: string | null }> {
-  const fn = httpsCallable<unknown, { historyId: string; returnedSpareExtinguisherId: string | null }>(
-    functions,
-    'updateReplacementHistoryStatus',
-  );
+  const fn = httpsCallable<
+    unknown,
+    { historyId: string; returnedSpareExtinguisherId: string | null }
+  >(functions, 'updateReplacementHistoryStatus');
   const result = await fn({
     orgId,
     extinguisherId,
@@ -131,12 +154,36 @@ export async function updateReplacementHistoryStatus(
  * Retire an extinguisher permanently from service.
  * Lifecycle tracking stops; historical records preserved.
  */
+/**
+ * Correct lifecycle / category flags (owner/admin). Use when inventory status
+ * was set incorrectly (e.g. replaced vs active blocking Replace).
+ */
+export async function updateExtinguisherStatus(
+  orgId: string,
+  input: {
+    extinguisherId?: string;
+    assetId?: string;
+    newStatus: UpdateExtinguisherLifecycleStatus;
+    reason?: string;
+  },
+): Promise<UpdateExtinguisherStatusResult> {
+  const fn = httpsCallable<unknown, UpdateExtinguisherStatusResult>(
+    functions,
+    'updateExtinguisherStatus',
+  );
+  const result = await fn({ orgId, ...input });
+  return result.data;
+}
+
 export async function retireExtinguisher(
   orgId: string,
   extinguisherId: string,
   reason: string,
 ): Promise<RetireExtinguisherResult> {
-  const fn = httpsCallable<unknown, RetireExtinguisherResult>(functions, 'retireExtinguisher');
+  const fn = httpsCallable<unknown, RetireExtinguisherResult>(
+    functions,
+    'retireExtinguisher',
+  );
   const result = await fn({ orgId, extinguisherId, reason });
   return result.data;
 }
@@ -149,7 +196,10 @@ export async function recalculateLifecycle(
   orgId: string,
   extinguisherId: string,
 ): Promise<RecalculateResult> {
-  const fn = httpsCallable<unknown, RecalculateResult>(functions, 'recalculateExtinguisherLifecycle');
+  const fn = httpsCallable<unknown, RecalculateResult>(
+    functions,
+    'recalculateExtinguisherLifecycle',
+  );
   const result = await fn({ orgId, extinguisherId });
   return result.data;
 }
@@ -158,8 +208,13 @@ export async function recalculateLifecycle(
  * Batch-recalculate lifecycle dates and compliance status for all active extinguishers in an org.
  * Owner/admin only.
  */
-export async function batchRecalculateLifecycle(orgId: string): Promise<BatchRecalculateResult> {
-  const fn = httpsCallable<unknown, BatchRecalculateResult>(functions, 'batchRecalculateLifecycle');
+export async function batchRecalculateLifecycle(
+  orgId: string,
+): Promise<BatchRecalculateResult> {
+  const fn = httpsCallable<unknown, BatchRecalculateResult>(
+    functions,
+    'batchRecalculateLifecycle',
+  );
   const result = await fn({ orgId });
   return result.data;
 }

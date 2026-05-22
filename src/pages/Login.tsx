@@ -63,9 +63,17 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Branding */}
         <div className="mb-8 text-center">
-          <img src="/logo.png" alt="ExtinguisherTracker" className="mx-auto h-44 w-44 rounded-3xl object-contain drop-shadow-xl sm:h-52 sm:w-52" />
-          <h1 className="mt-5 text-3xl font-bold text-gray-900">ExtinguisherTracker</h1>
-          <p className="mt-1 text-sm text-gray-500">Created by Beck-Publishing</p>
+          <img
+            src="/logo.png"
+            alt="ExtinguisherTracker"
+            className="mx-auto h-44 w-44 rounded-3xl object-contain drop-shadow-xl sm:h-52 sm:w-52"
+          />
+          <h1 className="mt-5 text-3xl font-bold text-gray-900">
+            ExtinguisherTracker
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Created by Beck-Publishing
+          </p>
         </div>
 
         <div className="rounded-lg bg-white p-8 shadow">
@@ -77,9 +85,17 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              void handleSubmit(e);
+            }}
+            className="space-y-4"
+          >
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email
               </label>
               <input
@@ -95,7 +111,10 @@ export default function Login() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
               <input
@@ -121,7 +140,10 @@ export default function Login() {
 
           <p className="mt-6 text-center text-sm text-gray-600">
             Don&apos;t have an account?{' '}
-            <Link to="/signup" className="font-medium text-red-600 hover:text-red-500">
+            <Link
+              to="/signup"
+              className="font-medium text-red-600 hover:text-red-500"
+            >
               Sign up
             </Link>
           </p>

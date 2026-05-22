@@ -24,69 +24,69 @@ interface RepairOutput {
   repaired: number;
 }
 
-export const repairStaleReplacementLinks = onCall<RepairInput, Promise<RepairOutput>>(
-  { enforceAppCheck: false },
-  async (request) => {
-    const { uid } = validateAuth(request);
-    const { orgId } = request.data;
+export const repairStaleReplacementLinks = onCall<
+  RepairInput,
+  Promise<RepairOutput>
+>({ enforceAppCheck: false }, async (request) => {
+  const { uid } = validateAuth(request);
+  const { orgId } = request.data;
 
-    if (!orgId || typeof orgId !== 'string') {
-      throwInvalidArgument('Organization ID is required.');
+  if (!orgId || typeof orgId !== 'string') {
+    throwInvalidArgument('Organization ID is required.');
+  }
+
+  await validateMembership(orgId, uid, ['owner', 'admin']);
+
+  const snap = await adminDb
+    .collection(`org/${orgId}/extinguishers`)
+    .where('deletedAt', '==', null)
+    .get();
+
+  if (snap.empty) {
+    return { repaired: 0 };
+  }
+
+  const docById = new Map(snap.docs.map((d) => [d.id, d] as const));
+
+  /** Old extinguisher id → successor doc id (first successor wins). */
+  const successorByOldId = new Map<string, string>();
+  for (const newDoc of snap.docs) {
+    const d = newDoc.data();
+    if (d.deletedAt != null) continue;
+    const oldId = d.replacesExtId as string | undefined | null;
+    if (!oldId || typeof oldId !== 'string') continue;
+    if (!successorByOldId.has(oldId)) {
+      successorByOldId.set(oldId, newDoc.id);
     }
+  }
 
-    await validateMembership(orgId, uid, ['owner', 'admin']);
+  const pendingUpdates: Array<{ ref: DocumentReference; newId: string }> = [];
+  for (const [oldId, newId] of successorByOldId) {
+    const oldDoc = docById.get(oldId);
+    if (!oldDoc) continue;
+    const oldData = oldDoc.data();
+    if (oldData.deletedAt != null) continue;
+    if (oldData.lifecycleStatus === 'replaced') continue;
+    pendingUpdates.push({ ref: oldDoc.ref, newId });
+  }
 
-    const snap = await adminDb
-      .collection(`org/${orgId}/extinguishers`)
-      .where('deletedAt', '==', null)
-      .get();
+  let repaired = 0;
+  const serverTs = FieldValue.serverTimestamp();
 
-    if (snap.empty) {
-      return { repaired: 0 };
+  for (let i = 0; i < pendingUpdates.length; i += 450) {
+    const chunk = pendingUpdates.slice(i, i + 450);
+    const batch = adminDb.batch();
+    for (const { ref, newId } of chunk) {
+      batch.update(ref, {
+        lifecycleStatus: 'replaced',
+        complianceStatus: 'replaced',
+        replacedByExtId: newId,
+        updatedAt: serverTs,
+      });
     }
+    await batch.commit();
+    repaired += chunk.length;
+  }
 
-    const docById = new Map(snap.docs.map((d) => [d.id, d] as const));
-
-    /** Old extinguisher id → successor doc id (first successor wins). */
-    const successorByOldId = new Map<string, string>();
-    for (const newDoc of snap.docs) {
-      const d = newDoc.data();
-      if (d.deletedAt != null) continue;
-      const oldId = d.replacesExtId as string | undefined | null;
-      if (!oldId || typeof oldId !== 'string') continue;
-      if (!successorByOldId.has(oldId)) {
-        successorByOldId.set(oldId, newDoc.id);
-      }
-    }
-
-    const pendingUpdates: Array<{ ref: DocumentReference; newId: string }> = [];
-    for (const [oldId, newId] of successorByOldId) {
-      const oldDoc = docById.get(oldId);
-      if (!oldDoc) continue;
-      const oldData = oldDoc.data();
-      if (oldData.deletedAt != null) continue;
-      if (oldData.lifecycleStatus === 'replaced') continue;
-      pendingUpdates.push({ ref: oldDoc.ref, newId });
-    }
-
-    let repaired = 0;
-    const serverTs = FieldValue.serverTimestamp();
-
-    for (let i = 0; i < pendingUpdates.length; i += 450) {
-      const chunk = pendingUpdates.slice(i, i + 450);
-      const batch = adminDb.batch();
-      for (const { ref, newId } of chunk) {
-        batch.update(ref, {
-          lifecycleStatus: 'replaced',
-          complianceStatus: 'replaced',
-          replacedByExtId: newId,
-          updatedAt: serverTs,
-        });
-      }
-      await batch.commit();
-      repaired += chunk.length;
-    }
-
-    return { repaired };
-  },
-);
+  return { repaired };
+});

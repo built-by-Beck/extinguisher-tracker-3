@@ -5,7 +5,16 @@
  * Author: built_by_Beck
  */
 
-import { MapPin, Building2, Layers, CheckCircle2, XCircle, Clock, Flame, RefreshCw } from 'lucide-react';
+import {
+  MapPin,
+  Building2,
+  Layers,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Flame,
+  RefreshCw,
+} from 'lucide-react';
 import { getLocationTypeLabel } from '../../services/locationService.ts';
 
 export interface LocationCardStats {
@@ -30,7 +39,12 @@ const TYPE_ICONS: Record<string, typeof Building2> = {
   floor: Layers,
 };
 
-export function LocationCard({ name, locationType, stats, onClick }: LocationCardProps) {
+export function LocationCard({
+  name,
+  locationType,
+  stats,
+  onClick,
+}: LocationCardProps) {
   const Icon = (locationType && TYPE_ICONS[locationType]) || MapPin;
 
   const completionColor =
@@ -51,7 +65,9 @@ export function LocationCard({ name, locationType, stats, onClick }: LocationCar
       <div className="mb-3 flex items-start justify-between">
         <div className="flex items-center gap-2">
           <Icon className="h-5 w-5 text-red-500" />
-          <h3 className="font-semibold text-gray-900 group-hover:text-red-600">{name}</h3>
+          <h3 className="font-semibold text-gray-900 group-hover:text-red-600">
+            {name}
+          </h3>
         </div>
         {locationType && (
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
@@ -64,10 +80,14 @@ export function LocationCard({ name, locationType, stats, onClick }: LocationCar
       <div className="mb-3 flex items-baseline justify-between">
         <div className="flex items-center gap-1">
           <Flame className="h-4 w-4 text-gray-400" />
-          <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
+          <span className="text-2xl font-bold text-gray-900">
+            {stats.total}
+          </span>
           <span className="text-xs text-gray-500">extinguishers</span>
         </div>
-        <span className={`text-lg font-bold ${completionColor}`}>{stats.percentage}%</span>
+        <span className={`text-lg font-bold ${completionColor}`}>
+          {stats.percentage}%
+        </span>
       </div>
 
       {/* Progress bar */}

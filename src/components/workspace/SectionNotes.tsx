@@ -24,7 +24,8 @@ export function SectionNotes({
   const textareaId = useId();
 
   const [editNotes, setEditNotes] = useState(notes);
-  const [editSaveForNextMonth, setEditSaveForNextMonth] = useState(saveForNextMonth);
+  const [editSaveForNextMonth, setEditSaveForNextMonth] =
+    useState(saveForNextMonth);
   const [showOtherNotes, setShowOtherNotes] = useState(false);
 
   // Reset internal state when section changes
@@ -43,7 +44,8 @@ export function SectionNotes({
     ([key, val]) => key !== section && val.notes.trim().length > 0,
   );
 
-  const hasChanges = editNotes !== notes || editSaveForNextMonth !== saveForNextMonth;
+  const hasChanges =
+    editNotes !== notes || editSaveForNextMonth !== saveForNextMonth;
 
   const formattedLastUpdated = lastUpdated
     ? new Date(lastUpdated).toLocaleString()
@@ -59,10 +61,13 @@ export function SectionNotes({
         </div>
         {(() => {
           // Count total sections with saved notes (using allNotes, not local edit state)
-          const totalWithNotes = Object.values(allNotes).filter(v => v.notes.trim().length > 0).length;
+          const totalWithNotes = Object.values(allNotes).filter(
+            (v) => v.notes.trim().length > 0,
+          ).length;
           return totalWithNotes > 0 ? (
             <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
-              {totalWithNotes} section{totalWithNotes === 1 ? '' : 's'} with notes
+              {totalWithNotes} section{totalWithNotes === 1 ? '' : 's'} with
+              notes
             </span>
           ) : null;
         })()}
@@ -71,7 +76,10 @@ export function SectionNotes({
       {/* Body */}
       <div className="px-4 py-3">
         {/* Textarea */}
-        <label htmlFor={textareaId} className="mb-1 block text-xs font-medium text-gray-600">
+        <label
+          htmlFor={textareaId}
+          className="mb-1 block text-xs font-medium text-gray-600"
+        >
           Notes for {section}
         </label>
         <textarea
@@ -94,9 +102,7 @@ export function SectionNotes({
               disabled={disabled}
               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
-            <span className="select-none">
-              Keep for next month
-            </span>
+            <span className="select-none">Keep for next month</span>
           </label>
 
           {!disabled && (
@@ -140,8 +146,12 @@ export function SectionNotes({
                     key={sectionName}
                     className="rounded-md bg-gray-50 px-3 py-2"
                   >
-                    <p className="text-xs font-medium text-gray-700">{sectionName}</p>
-                    <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{note.notes}</p>
+                    <p className="text-xs font-medium text-gray-700">
+                      {sectionName}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">
+                      {note.notes}
+                    </p>
                   </div>
                 ))}
               </div>

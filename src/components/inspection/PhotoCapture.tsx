@@ -21,7 +21,7 @@ function isSafePhotoUrl(url: string): boolean {
     return (
       parsed.protocol === 'https:' &&
       (parsed.hostname.endsWith('.googleapis.com') ||
-       parsed.hostname.endsWith('.firebasestorage.app'))
+        parsed.hostname.endsWith('.firebasestorage.app'))
     );
   } catch {
     return false;
@@ -57,7 +57,10 @@ export function PhotoCapture({
     [photoPreview],
   );
   const safeExistingUrl = useMemo(
-    () => (existingPhotoUrl && isSafePhotoUrl(existingPhotoUrl) ? existingPhotoUrl : ''),
+    () =>
+      existingPhotoUrl && isSafePhotoUrl(existingPhotoUrl)
+        ? existingPhotoUrl
+        : '',
     [existingPhotoUrl],
   );
 

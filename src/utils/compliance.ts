@@ -37,7 +37,10 @@ export function getComplianceLabel(status: string): string {
     replaced: 'Replaced',
     retired: 'Retired',
   };
-  return labels[status] ?? status.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+  return (
+    labels[status] ??
+    status.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+  );
 }
 
 /** Map compliance status to severity for color coding */
@@ -98,7 +101,11 @@ export function formatDueDate(timestamp: unknown): string {
   let date: Date;
   try {
     // Handle Firestore Timestamp objects
-    if (typeof timestamp === 'object' && timestamp !== null && 'toDate' in timestamp) {
+    if (
+      typeof timestamp === 'object' &&
+      timestamp !== null &&
+      'toDate' in timestamp
+    ) {
       date = (timestamp as Timestamp).toDate();
     } else if (timestamp instanceof Date) {
       date = timestamp;
@@ -125,7 +132,11 @@ export function isOverdue(nextDate: unknown): boolean {
   if (!nextDate) return false;
   try {
     let date: Date;
-    if (typeof nextDate === 'object' && nextDate !== null && 'toDate' in nextDate) {
+    if (
+      typeof nextDate === 'object' &&
+      nextDate !== null &&
+      'toDate' in nextDate
+    ) {
       date = (nextDate as Timestamp).toDate();
     } else if (nextDate instanceof Date) {
       date = nextDate;
@@ -146,14 +157,22 @@ export function formatShortDate(timestamp: unknown): string {
   if (!timestamp) return '--';
   try {
     let date: Date;
-    if (typeof timestamp === 'object' && timestamp !== null && 'toDate' in timestamp) {
+    if (
+      typeof timestamp === 'object' &&
+      timestamp !== null &&
+      'toDate' in timestamp
+    ) {
       date = (timestamp as Timestamp).toDate();
     } else if (timestamp instanceof Date) {
       date = timestamp;
     } else {
       return '--';
     }
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   } catch {
     return '--';
   }

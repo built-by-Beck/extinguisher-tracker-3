@@ -1,4 +1,10 @@
-import { createContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import {
+  createContext,
+  useEffect,
+  useState,
+  useCallback,
+  type ReactNode,
+} from 'react';
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -22,7 +28,11 @@ export interface AuthContextValue {
   userProfile: UserProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    displayName: string,
+  ) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -83,35 +93,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
 
-  const signIn = useCallback(async (email: string, password: string): Promise<void> => {
-    const credential = await signInWithEmailAndPassword(auth, email, password);
-    // Update lastLoginAt on the user profile
-    const userDocRef = doc(db, 'usr', credential.user.uid);
-    const userSnap = await getDoc(userDocRef);
-    if (userSnap.exists()) {
-      await setDoc(userDocRef, { lastLoginAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
-    }
-  }, []);
+  const signIn = useCallback(
+    async (email: string, password: string): Promise<void> => {
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+      // Update lastLoginAt on the user profile
+      const userDocRef = doc(db, 'usr', credential.user.uid);
+      const userSnap = await getDoc(userDocRef);
+      if (userSnap.exists()) {
+        await setDoc(
+          userDocRef,
+          { lastLoginAt: serverTimestamp(), updatedAt: serverTimestamp() },
+          { merge: true },
+        );
+      }
+    },
+    [],
+  );
 
-  const signUp = useCallback(async (email: string, password: string, displayName: string): Promise<void> => {
-    const credential = await createUserWithEmailAndPassword(auth, email, password);
-    // Set display name on Firebase Auth profile
-    await updateProfile(credential.user, { displayName });
-    // Create usr/{uid} document with defaults
-    const userDocRef = doc(db, 'usr', credential.user.uid);
-    const newProfile: UserProfile = {
-      displayName,
-      email,
-      avatarId: 'helmet-red',
-      photoURL: null,
-      defaultOrgId: null,
-      activeOrgId: null,
-      createdAt: serverTimestamp() as UserProfile['createdAt'],
-      updatedAt: serverTimestamp() as UserProfile['updatedAt'],
-      lastLoginAt: serverTimestamp() as UserProfile['lastLoginAt'],
-    };
-    await setDoc(userDocRef, newProfile);
-  }, []);
+  const signUp = useCallback(
+    async (
+      email: string,
+      password: string,
+      displayName: string,
+    ): Promise<void> => {
+      const credential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+      // Set display name on Firebase Auth profile
+      await updateProfile(credential.user, { displayName });
+      // Create usr/{uid} document with defaults
+      const userDocRef = doc(db, 'usr', credential.user.uid);
+      const newProfile: UserProfile = {
+        displayName,
+        email,
+        avatarId: 'helmet-red',
+        photoURL: null,
+        defaultOrgId: null,
+        activeOrgId: null,
+        createdAt: serverTimestamp() as UserProfile['createdAt'],
+        updatedAt: serverTimestamp() as UserProfile['updatedAt'],
+        lastLoginAt: serverTimestamp() as UserProfile['lastLoginAt'],
+      };
+      await setDoc(userDocRef, newProfile);
+    },
+    [],
+  );
 
   const signOutFn = useCallback(async (): Promise<void> => {
     await firebaseSignOut(auth);
@@ -128,9 +160,5 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signOut: signOutFn,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

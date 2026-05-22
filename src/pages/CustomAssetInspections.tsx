@@ -36,8 +36,14 @@ import {
   type CustomAssetInspectionResult,
   type CustomAssetRecurrence,
 } from '../services/assetService.ts';
-import { subscribeToLocations, type Location } from '../services/locationService.ts';
-import { getActiveWorkspaceForCurrentMonth, type Workspace } from '../services/workspaceService.ts';
+import {
+  subscribeToLocations,
+  type Location,
+} from '../services/locationService.ts';
+import {
+  getActiveWorkspaceForCurrentMonth,
+  type Workspace,
+} from '../services/workspaceService.ts';
 import {
   getInspection,
   getInspectionForAssetInWorkspace,
@@ -45,9 +51,18 @@ import {
   type Inspection,
 } from '../services/inspectionService.ts';
 
-const RECURRENCE_OPTIONS: CustomAssetRecurrence[] = ['monthly', 'weekly', 'quarterly', 'annual', 'custom'];
+const RECURRENCE_OPTIONS: CustomAssetRecurrence[] = [
+  'monthly',
+  'weekly',
+  'quarterly',
+  'annual',
+  'custom',
+];
 
-function isWritableSubscription(plan?: string | null, status?: string | null): boolean {
+function isWritableSubscription(
+  plan?: string | null,
+  status?: string | null,
+): boolean {
   return plan === 'enterprise' || status === 'active' || status === 'trialing';
 }
 
@@ -67,12 +82,22 @@ export default function CustomAssetInspections() {
     isWritableSubscription(org?.plan, org?.subscriptionStatus);
 
   const [assets, setAssets] = useState<CustomAsset[]>([]);
-  const [templates, setTemplates] = useState<CustomAssetInspectionTemplate[]>([]);
+  const [templates, setTemplates] = useState<CustomAssetInspectionTemplate[]>(
+    [],
+  );
   const [locations, setLocations] = useState<Location[]>([]);
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
-  const [inspectionsByAsset, setInspectionsByAsset] = useState<Record<string, Inspection | null>>({});
-  const [answersByAsset, setAnswersByAsset] = useState<Record<string, Record<string, ChecklistAnswer>>>({});
-  const [savingInspectionAssetId, setSavingInspectionAssetId] = useState<string | null>(null);
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(
+    null,
+  );
+  const [inspectionsByAsset, setInspectionsByAsset] = useState<
+    Record<string, Inspection | null>
+  >({});
+  const [answersByAsset, setAnswersByAsset] = useState<
+    Record<string, Record<string, ChecklistAnswer>>
+  >({});
+  const [savingInspectionAssetId, setSavingInspectionAssetId] = useState<
+    string | null
+  >(null);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingAsset, setEditingAsset] = useState<CustomAsset | null>(null);
@@ -90,10 +115,12 @@ export default function CustomAssetInspections() {
   const [barcode, setBarcode] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [locationId, setLocationId] = useState<string | null>(null);
-  const [recurrence, setRecurrence] = useState<CustomAssetRecurrence>('monthly');
+  const [recurrence, setRecurrence] =
+    useState<CustomAssetRecurrence>('monthly');
   const [notes, setNotes] = useState('');
   const [details, setDetails] = useState('');
-  const [inspectionItems, setInspectionItems] = useState<CustomAssetInspectionItem[]>(emptyFormItems);
+  const [inspectionItems, setInspectionItems] =
+    useState<CustomAssetInspectionItem[]>(emptyFormItems);
 
   useEffect(() => {
     if (!orgId || !canUseFeature) return;
@@ -110,7 +137,9 @@ export default function CustomAssetInspections() {
       setActiveWorkspace(null);
       return;
     }
-    getActiveWorkspaceForCurrentMonth(orgId).then(setActiveWorkspace).catch(() => setActiveWorkspace(null));
+    getActiveWorkspaceForCurrentMonth(orgId)
+      .then(setActiveWorkspace)
+      .catch(() => setActiveWorkspace(null));
   }, [orgId, canUseFeature]);
 
   useEffect(() => {
@@ -119,7 +148,8 @@ export default function CustomAssetInspections() {
   }, [orgId]);
 
   useEffect(() => {
-    if (!orgId || !canUseFeature || !activeWorkspace || assets.length === 0) return;
+    if (!orgId || !canUseFeature || !activeWorkspace || assets.length === 0)
+      return;
     let cancelled = false;
     const workspaceId = activeWorkspace.id;
 
@@ -128,19 +158,35 @@ export default function CustomAssetInspections() {
       const nextAnswers: Record<string, Record<string, ChecklistAnswer>> = {};
 
       for (const asset of assets) {
-        if (!asset.id || !asset.active || asset.status !== 'active' || asset.recurrence !== 'monthly') continue;
-        let inspection = await getInspectionForAssetInWorkspace(orgId, asset.id, workspaceId);
+        if (
+          !asset.id ||
+          !asset.active ||
+          asset.status !== 'active' ||
+          asset.recurrence !== 'monthly'
+        )
+          continue;
+        let inspection = await getInspectionForAssetInWorkspace(
+          orgId,
+          asset.id,
+          workspaceId,
+        );
         if (!inspection && canManage) {
-          const inspectionId = await ensureCustomAssetInspectionForWorkspace(orgId, workspaceId, asset.id);
+          const inspectionId = await ensureCustomAssetInspectionForWorkspace(
+            orgId,
+            workspaceId,
+            asset.id,
+          );
           inspection = await getInspection(orgId, inspectionId);
         }
         nextInspections[asset.id] = inspection;
         const items = inspection?.checklistSnapshot?.length
           ? inspection.checklistSnapshot
           : asset.inspectionItems.filter((item) => item.active);
-        nextAnswers[asset.id] = inspection?.checklistAnswers ?? Object.fromEntries(
-          items.map((item) => [item.id, { result: 'unchecked' as const }]),
-        );
+        nextAnswers[asset.id] =
+          inspection?.checklistAnswers ??
+          Object.fromEntries(
+            items.map((item) => [item.id, { result: 'unchecked' as const }]),
+          );
       }
 
       if (!cancelled) {
@@ -150,7 +196,12 @@ export default function CustomAssetInspections() {
     }
 
     loadAssetInspections().catch((err: unknown) => {
-      if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load custom asset inspections.');
+      if (!cancelled)
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to load custom asset inspections.',
+        );
     });
 
     return () => {
@@ -209,21 +260,29 @@ export default function CustomAssetInspections() {
     setRecurrence(asset.recurrence ?? 'monthly');
     setNotes(asset.notes ?? '');
     setDetails(asset.details ?? '');
-    setInspectionItems(asset.inspectionItems.length ? [...asset.inspectionItems].sort((a, b) => a.order - b.order) : emptyFormItems());
+    setInspectionItems(
+      asset.inspectionItems.length
+        ? [...asset.inspectionItems].sort((a, b) => a.order - b.order)
+        : emptyFormItems(),
+    );
     setError('');
     setTemplateMessage('');
     setShowForm(true);
   }
 
   function updateItem(index: number, label: string) {
-    setInspectionItems((items) => items.map((item, i) => (i === index ? { ...item, label } : item)));
+    setInspectionItems((items) =>
+      items.map((item, i) => (i === index ? { ...item, label } : item)),
+    );
   }
 
   function removeItem(index: number) {
     setInspectionItems((items) =>
       items.length === 1
         ? emptyFormItems()
-        : items.filter((_, i) => i !== index).map((item, order) => ({ ...item, order })),
+        : items
+            .filter((_, i) => i !== index)
+            .map((item, order) => ({ ...item, order })),
     );
   }
 
@@ -240,7 +299,9 @@ export default function CustomAssetInspections() {
   const matchingTemplates = useMemo(() => {
     const normalized = assetType.trim().toLowerCase();
     if (!normalized) return [];
-    return templates.filter((template) => template.assetType?.trim().toLowerCase() === normalized);
+    return templates.filter(
+      (template) => template.assetType?.trim().toLowerCase() === normalized,
+    );
   }, [assetType, templates]);
 
   function applyTemplate(templateId: string) {
@@ -259,7 +320,12 @@ export default function CustomAssetInspections() {
       setError('Add at least one inspection column before saving a template.');
       return;
     }
-    const resolvedTemplateName = (templateName || assetType || name || 'Custom inspection template').trim();
+    const resolvedTemplateName = (
+      templateName ||
+      assetType ||
+      name ||
+      'Custom inspection template'
+    ).trim();
     setTemplateSaving(true);
     setError('');
     setTemplateMessage('');
@@ -273,13 +339,21 @@ export default function CustomAssetInspections() {
       setTemplateName(resolvedTemplateName);
       setTemplateMessage(`Saved template: ${resolvedTemplateName}`);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save inspection template.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to save inspection template.',
+      );
     } finally {
       setTemplateSaving(false);
     }
   }
 
-  function setInlineAnswer(assetId: string, itemId: string, result: CustomAssetInspectionResult) {
+  function setInlineAnswer(
+    assetId: string,
+    itemId: string,
+    result: CustomAssetInspectionResult,
+  ) {
     setAnswersByAsset((prev) => ({
       ...prev,
       [assetId]: {
@@ -294,7 +368,11 @@ export default function CustomAssetInspections() {
     }));
   }
 
-  function setInlineAnswerNotes(assetId: string, itemId: string, notesValue: string) {
+  function setInlineAnswerNotes(
+    assetId: string,
+    itemId: string,
+    notesValue: string,
+  ) {
     setAnswersByAsset((prev) => ({
       ...prev,
       [assetId]: {
@@ -311,23 +389,37 @@ export default function CustomAssetInspections() {
     if (!orgId || !asset.id || !canInspect) return;
     const inspection = inspectionsByAsset[asset.id];
     if (!inspection?.id) {
-      setError('Create this month\'s workspace or open the asset detail before saving this custom inspection.');
+      setError(
+        "Create this month's workspace or open the asset detail before saving this custom inspection.",
+      );
       return;
     }
-    const activeItems = (inspection.checklistSnapshot?.length ? inspection.checklistSnapshot : asset.inspectionItems)
+    const activeItems = (
+      inspection.checklistSnapshot?.length
+        ? inspection.checklistSnapshot
+        : asset.inspectionItems
+    )
       .filter((item) => item.active)
       .sort((a, b) => a.order - b.order);
     const answers = answersByAsset[asset.id] ?? {};
-    const hasUnchecked = activeItems.some((item) => (answers[item.id]?.result ?? 'unchecked') === 'unchecked');
+    const hasUnchecked = activeItems.some(
+      (item) => (answers[item.id]?.result ?? 'unchecked') === 'unchecked',
+    );
     if (hasUnchecked) {
-      setError(`Answer each inspection column for ${asset.name} before saving.`);
+      setError(
+        `Answer each inspection column for ${asset.name} before saving.`,
+      );
       return;
     }
 
     setSavingInspectionAssetId(asset.id);
     setError('');
     try {
-      const status = Object.values(answers).some((answer) => answer.result === 'fail') ? 'fail' : 'pass';
+      const status = Object.values(answers).some(
+        (answer) => answer.result === 'fail',
+      )
+        ? 'fail'
+        : 'pass';
       await saveInspectionCall(orgId, inspection.id, {
         status,
         checklistAnswers: answers,
@@ -343,7 +435,11 @@ export default function CustomAssetInspections() {
         },
       }));
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save custom asset inspection.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to save custom asset inspection.',
+      );
     } finally {
       setSavingInspectionAssetId(null);
     }
@@ -387,7 +483,9 @@ export default function CustomAssetInspections() {
       setShowForm(false);
       resetForm();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save custom asset.');
+      setError(
+        err instanceof Error ? err.message : 'Failed to save custom asset.',
+      );
     } finally {
       setSaving(false);
     }
@@ -399,7 +497,9 @@ export default function CustomAssetInspections() {
       await retireAsset(orgId, retireTarget.id, user.uid);
       setRetireTarget(null);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to retire custom asset.');
+      setError(
+        err instanceof Error ? err.message : 'Failed to retire custom asset.',
+      );
       setRetireTarget(null);
     }
   }
@@ -411,11 +511,17 @@ export default function CustomAssetInspections() {
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white">
             <Lock className="h-6 w-6" />
           </div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-indigo-700">Pro feature</p>
-          <h1 className="mt-2 text-3xl font-bold text-gray-900">Custom Asset Inspections</h1>
+          <p className="text-sm font-semibold uppercase tracking-wide text-indigo-700">
+            Pro feature
+          </p>
+          <h1 className="mt-2 text-3xl font-bold text-gray-900">
+            Custom Asset Inspections
+          </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-            Track inspections for non-extinguisher assets with your own rows and inspection columns. Basic
-            organizations can preview this feature, but creating assets and completing custom inspections requires Pro or higher.
+            Track inspections for non-extinguisher assets with your own rows and
+            inspection columns. Basic organizations can preview this feature,
+            but creating assets and completing custom inspections requires Pro
+            or higher.
           </p>
           <div className="mt-6 rounded-xl border border-indigo-100 bg-white p-5">
             <p className="font-medium text-gray-900">What this unlocks</p>
@@ -434,9 +540,12 @@ export default function CustomAssetInspections() {
     <div className="p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Custom Asset Inspections</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Custom Asset Inspections
+          </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Build your own inspection grid: asset rows, custom inspection columns, monthly results.
+            Build your own inspection grid: asset rows, custom inspection
+            columns, monthly results.
           </p>
         </div>
         {canManage && (
@@ -450,7 +559,11 @@ export default function CustomAssetInspections() {
         )}
       </div>
 
-      {error && <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && (
+        <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
 
       <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <label className="relative block">
@@ -475,76 +588,141 @@ export default function CustomAssetInspections() {
         {filteredAssets.length === 0 ? (
           <div className="px-4 py-12 text-center">
             <ClipboardCheck className="mx-auto h-10 w-10 text-gray-300" />
-            <p className="mt-3 text-sm font-medium text-gray-900">No custom assets yet</p>
-            <p className="mt-1 text-sm text-gray-500">Add your first row, then define what you inspect on it.</p>
+            <p className="mt-3 text-sm font-medium text-gray-900">
+              No custom assets yet
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              Add your first row, then define what you inspect on it.
+            </p>
           </div>
         ) : (
           filteredAssets.map((asset) => (
             <div
               key={asset.id}
               className="grid cursor-pointer grid-cols-[1.1fr_.8fr_.75fr_2.2fr_auto] items-start gap-3 border-b border-gray-100 px-4 py-3 text-sm hover:bg-gray-50 last:border-b-0"
-              onClick={() => navigate(`/dashboard/custom-asset-inspections/${asset.id}`)}
+              onClick={() =>
+                navigate(`/dashboard/custom-asset-inspections/${asset.id}`)
+              }
             >
               <div>
                 <p className="font-semibold text-gray-900">{asset.name}</p>
-                <p className="text-xs text-gray-500">{asset.status.replace(/_/g, ' ')}</p>
+                <p className="text-xs text-gray-500">
+                  {asset.status.replace(/_/g, ' ')}
+                </p>
               </div>
-              <span className="text-gray-600">{asset.locationName || 'Unassigned'}</span>
-              <span className="text-gray-600">{asset.assetType || asset.assetCode || 'Custom asset'}</span>
+              <span className="text-gray-600">
+                {asset.locationName || 'Unassigned'}
+              </span>
+              <span className="text-gray-600">
+                {asset.assetType || asset.assetCode || 'Custom asset'}
+              </span>
               <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
                 {!activeWorkspace ? (
-                  <p className="text-xs text-gray-500">Create this month&apos;s workspace to inspect these columns.</p>
+                  <p className="text-xs text-gray-500">
+                    Create this month&apos;s workspace to inspect these columns.
+                  </p>
                 ) : (
-                  (asset.inspectionItems.filter((item) => item.active).sort((a, b) => a.order - b.order)).map((item) => {
-                    const answer = asset.id ? answersByAsset[asset.id]?.[item.id] : undefined;
-                    return (
-                      <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-2">
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                          <p className="font-medium text-gray-900">{item.label}</p>
-                          <div className="flex items-center gap-1">
-                            {(['pass', 'fail', 'na'] as CustomAssetInspectionResult[]).map((result) => (
-                              <button
-                                key={result}
-                                type="button"
-                                onClick={() => asset.id && setInlineAnswer(asset.id, item.id, result)}
-                                disabled={!canInspect || inspectionsByAsset[asset.id ?? '']?.status === 'pass' || inspectionsByAsset[asset.id ?? '']?.status === 'fail'}
-                                className={`rounded px-2.5 py-1 text-xs font-semibold ${
-                                  answer?.result === result
-                                    ? result === 'pass'
-                                      ? 'bg-green-600 text-white'
-                                      : result === 'fail'
-                                        ? 'bg-red-600 text-white'
-                                        : 'bg-gray-700 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                } disabled:cursor-not-allowed disabled:opacity-50`}
-                              >
-                                {result === 'na' ? 'N/A' : result === 'pass' ? 'Pass' : 'Fail'}
-                              </button>
-                            ))}
+                  asset.inspectionItems
+                    .filter((item) => item.active)
+                    .sort((a, b) => a.order - b.order)
+                    .map((item) => {
+                      const answer = asset.id
+                        ? answersByAsset[asset.id]?.[item.id]
+                        : undefined;
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-lg border border-gray-200 bg-white p-2"
+                        >
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <p className="font-medium text-gray-900">
+                              {item.label}
+                            </p>
+                            <div className="flex items-center gap-1">
+                              {(
+                                [
+                                  'pass',
+                                  'fail',
+                                  'na',
+                                ] as CustomAssetInspectionResult[]
+                              ).map((result) => (
+                                <button
+                                  key={result}
+                                  type="button"
+                                  onClick={() =>
+                                    asset.id &&
+                                    setInlineAnswer(asset.id, item.id, result)
+                                  }
+                                  disabled={
+                                    !canInspect ||
+                                    inspectionsByAsset[asset.id ?? '']
+                                      ?.status === 'pass' ||
+                                    inspectionsByAsset[asset.id ?? '']
+                                      ?.status === 'fail'
+                                  }
+                                  className={`rounded px-2.5 py-1 text-xs font-semibold ${
+                                    answer?.result === result
+                                      ? result === 'pass'
+                                        ? 'bg-green-600 text-white'
+                                        : result === 'fail'
+                                          ? 'bg-red-600 text-white'
+                                          : 'bg-gray-700 text-white'
+                                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                  } disabled:cursor-not-allowed disabled:opacity-50`}
+                                >
+                                  {result === 'na'
+                                    ? 'N/A'
+                                    : result === 'pass'
+                                      ? 'Pass'
+                                      : 'Fail'}
+                                </button>
+                              ))}
+                            </div>
                           </div>
+                          <input
+                            value={answer?.notes ?? ''}
+                            onChange={(e) =>
+                              asset.id &&
+                              setInlineAnswerNotes(
+                                asset.id,
+                                item.id,
+                                e.target.value,
+                              )
+                            }
+                            disabled={
+                              !canInspect ||
+                              inspectionsByAsset[asset.id ?? '']?.status ===
+                                'pass' ||
+                              inspectionsByAsset[asset.id ?? '']?.status ===
+                                'fail'
+                            }
+                            className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
+                            placeholder={`Notes for ${item.label}`}
+                          />
                         </div>
-                        <input
-                          value={answer?.notes ?? ''}
-                          onChange={(e) => asset.id && setInlineAnswerNotes(asset.id, item.id, e.target.value)}
-                          disabled={!canInspect || inspectionsByAsset[asset.id ?? '']?.status === 'pass' || inspectionsByAsset[asset.id ?? '']?.status === 'fail'}
-                          className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
-                          placeholder={`Notes for ${item.label}`}
-                        />
-                      </div>
-                    );
-                  })
+                      );
+                    })
                 )}
-                {activeWorkspace && canInspect && asset.id && inspectionsByAsset[asset.id] && (
-                  <button
-                    type="button"
-                    onClick={() => saveInlineInspection(asset)}
-                    disabled={savingInspectionAssetId === asset.id || inspectionsByAsset[asset.id]?.status === 'pass' || inspectionsByAsset[asset.id]?.status === 'fail'}
-                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    {savingInspectionAssetId === asset.id ? 'Saving...' : 'Save row'}
-                  </button>
-                )}
+                {activeWorkspace &&
+                  canInspect &&
+                  asset.id &&
+                  inspectionsByAsset[asset.id] && (
+                    <button
+                      type="button"
+                      onClick={() => saveInlineInspection(asset)}
+                      disabled={
+                        savingInspectionAssetId === asset.id ||
+                        inspectionsByAsset[asset.id]?.status === 'pass' ||
+                        inspectionsByAsset[asset.id]?.status === 'fail'
+                      }
+                      className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      {savingInspectionAssetId === asset.id
+                        ? 'Saving...'
+                        : 'Save row'}
+                    </button>
+                  )}
               </div>
               <div className="flex items-center gap-1">
                 {canManage && (
@@ -589,7 +767,9 @@ export default function CustomAssetInspections() {
                 <h2 className="text-lg font-semibold text-gray-900">
                   {editingAsset ? 'Edit Custom Asset' : 'Add Custom Asset'}
                 </h2>
-                <p className="text-sm text-gray-500">What asset are you inspecting?</p>
+                <p className="text-sm text-gray-500">
+                  What asset are you inspecting?
+                </p>
               </div>
               <button
                 onClick={() => setShowForm(false)}
@@ -600,14 +780,27 @@ export default function CustomAssetInspections() {
               </button>
             </div>
             <div className="space-y-5 px-6 py-5">
-              {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+              {error && (
+                <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </p>
+              )}
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700">Asset name</span>
-                  <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Building D elevator" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Asset name
+                  </span>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    placeholder="Building D elevator"
+                  />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700">Asset type (optional)</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    Asset type (optional)
+                  </span>
                   <input
                     value={assetType}
                     onChange={(e) => {
@@ -619,50 +812,89 @@ export default function CustomAssetInspections() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700">Asset code (optional)</span>
-                  <input value={assetCode} onChange={(e) => setAssetCode(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Asset code (optional)
+                  </span>
+                  <input
+                    value={assetCode}
+                    onChange={(e) => setAssetCode(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700">Recurrence</span>
-                  <select value={recurrence} onChange={(e) => setRecurrence(e.target.value as CustomAssetRecurrence)} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                  <span className="text-sm font-medium text-gray-700">
+                    Recurrence
+                  </span>
+                  <select
+                    value={recurrence}
+                    onChange={(e) =>
+                      setRecurrence(e.target.value as CustomAssetRecurrence)
+                    }
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
                     {RECURRENCE_OPTIONS.map((option) => (
-                      <option key={option} value={option}>{option.replace(/_/g, ' ')}</option>
+                      <option key={option} value={option}>
+                        {option.replace(/_/g, ' ')}
+                      </option>
                     ))}
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700">Barcode (optional)</span>
-                  <input value={barcode} onChange={(e) => setBarcode(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Barcode (optional)
+                  </span>
+                  <input
+                    value={barcode}
+                    onChange={(e) => setBarcode(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700">Serial number (optional)</span>
-                  <input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Serial number (optional)
+                  </span>
+                  <input
+                    value={serialNumber}
+                    onChange={(e) => setSerialNumber(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
                 </label>
               </div>
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <div className="flex flex-wrap items-end gap-3">
                   <label className="min-w-64 flex-1">
-                    <span className="text-sm font-medium text-gray-700">Apply template</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      Apply template
+                    </span>
                     <select
                       value={selectedTemplateId}
-                      onChange={(e) => e.target.value ? applyTemplate(e.target.value) : setSelectedTemplateId('')}
+                      onChange={(e) =>
+                        e.target.value
+                          ? applyTemplate(e.target.value)
+                          : setSelectedTemplateId('')
+                      }
                       className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     >
                       <option value="">No template selected</option>
                       {templates.map((template) => (
                         <option key={template.id} value={template.id}>
-                          {template.name}{template.assetType ? ` (${template.assetType})` : ''}
+                          {template.name}
+                          {template.assetType ? ` (${template.assetType})` : ''}
                         </option>
                       ))}
                     </select>
                   </label>
                   <label className="min-w-56 flex-1">
-                    <span className="text-sm font-medium text-gray-700">Template name</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      Template name
+                    </span>
                     <input
                       value={templateName}
                       onChange={(e) => setTemplateName(e.target.value)}
                       className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      placeholder={assetType ? `${assetType} template` : 'Template name'}
+                      placeholder={
+                        assetType ? `${assetType} template` : 'Template name'
+                      }
                     />
                   </label>
                   {canManage && (
@@ -678,10 +910,14 @@ export default function CustomAssetInspections() {
                 </div>
                 {matchingTemplates.length > 0 && !selectedTemplateId && (
                   <div className="mt-3 rounded-lg border border-indigo-100 bg-white px-3 py-2 text-sm text-gray-700">
-                    Template found for <span className="font-semibold">{assetType.trim()}</span>.{' '}
+                    Template found for{' '}
+                    <span className="font-semibold">{assetType.trim()}</span>.{' '}
                     <button
                       type="button"
-                      onClick={() => matchingTemplates[0].id && applyTemplate(matchingTemplates[0].id)}
+                      onClick={() =>
+                        matchingTemplates[0].id &&
+                        applyTemplate(matchingTemplates[0].id)
+                      }
                       className="font-medium text-indigo-700 hover:text-indigo-900"
                     >
                       Apply {matchingTemplates[0].name}
@@ -689,26 +925,48 @@ export default function CustomAssetInspections() {
                   </div>
                 )}
                 {templateMessage && (
-                  <p className="mt-2 text-sm font-medium text-green-700">{templateMessage}</p>
+                  <p className="mt-2 text-sm font-medium text-green-700">
+                    {templateMessage}
+                  </p>
                 )}
                 <p className="mt-2 text-xs text-gray-500">
-                  Templates save only the inspection columns. Asset name and location stay unique for each asset.
+                  Templates save only the inspection columns. Asset name and
+                  location stay unique for each asset.
                 </p>
               </div>
               <label className="block">
-                <span className="text-sm font-medium text-gray-700">Where is this asset?</span>
+                <span className="text-sm font-medium text-gray-700">
+                  Where is this asset?
+                </span>
                 <div className="mt-1">
-                  <LocationSelector value={locationId} onChange={setLocationId} />
+                  <LocationSelector
+                    value={locationId}
+                    onChange={setLocationId}
+                  />
                 </div>
               </label>
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700">Notes</span>
-                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Notes
+                  </span>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700">Details</span>
-                  <textarea value={details} onChange={(e) => setDetails(e.target.value)} rows={3} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Details
+                  </span>
+                  <textarea
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
+                    rows={3}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
                 </label>
               </div>
               <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
@@ -718,12 +976,18 @@ export default function CustomAssetInspections() {
                       What on {name.trim() || 'this asset'} are you inspecting?
                     </p>
                     <p className="text-xs text-gray-500">
-                      Each answer becomes an editable inspection column for this asset row and is saved for future monthly workspaces.
+                      Each answer becomes an editable inspection column for this
+                      asset row and is saved for future monthly workspaces.
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setInspectionItems((items) => [...items, createInspectionItem('', items.length)])}
+                    onClick={() =>
+                      setInspectionItems((items) => [
+                        ...items,
+                        createInspectionItem('', items.length),
+                      ])
+                    }
                     className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-indigo-700 shadow-sm hover:bg-indigo-50"
                   >
                     Add column
@@ -738,17 +1002,47 @@ export default function CustomAssetInspections() {
                         className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         placeholder="Inspection column name"
                       />
-                      <button type="button" onClick={() => moveItem(index, -1)} className="rounded p-2 text-gray-400 hover:bg-white hover:text-gray-700" aria-label="Move inspection column up"><ArrowUp className="h-4 w-4" /></button>
-                      <button type="button" onClick={() => moveItem(index, 1)} className="rounded p-2 text-gray-400 hover:bg-white hover:text-gray-700" aria-label="Move inspection column down"><ArrowDown className="h-4 w-4" /></button>
-                      <button type="button" onClick={() => removeItem(index)} className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Remove inspection column"><X className="h-4 w-4" /></button>
+                      <button
+                        type="button"
+                        onClick={() => moveItem(index, -1)}
+                        className="rounded p-2 text-gray-400 hover:bg-white hover:text-gray-700"
+                        aria-label="Move inspection column up"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveItem(index, 1)}
+                        className="rounded p-2 text-gray-400 hover:bg-white hover:text-gray-700"
+                        aria-label="Move inspection column down"
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(index)}
+                        className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                        aria-label="Remove inspection column"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
             <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
-              <button onClick={() => setShowForm(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button onClick={handleSave} disabled={saving} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+              <button
+                onClick={() => setShowForm(false)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
                 {saving ? 'Saving...' : 'Save Custom Asset'}
               </button>
             </div>

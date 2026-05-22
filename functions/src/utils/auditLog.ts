@@ -16,7 +16,10 @@ interface AuditLogEntry {
  *
  * Writes both `performedAt` (spec-required) and `createdAt` (backward compat).
  */
-export async function writeAuditLog(orgId: string, entry: AuditLogEntry): Promise<void> {
+export async function writeAuditLog(
+  orgId: string,
+  entry: AuditLogEntry,
+): Promise<void> {
   const logsRef = adminDb.collection(`org/${orgId}/auditLogs`);
   const ts = FieldValue.serverTimestamp();
   await logsRef.add({
@@ -37,7 +40,7 @@ export async function writeAuditLog(orgId: string, entry: AuditLogEntry): Promis
 export function writeAuditLogTx(
   transaction: FirebaseFirestore.Transaction,
   orgId: string,
-  entry: AuditLogEntry
+  entry: AuditLogEntry,
 ): void {
   const logsRef = adminDb.collection(`org/${orgId}/auditLogs`).doc();
   const ts = FieldValue.serverTimestamp();
@@ -52,4 +55,3 @@ export function writeAuditLogTx(
     createdAt: ts,
   });
 }
-

@@ -6,7 +6,11 @@
  */
 
 export type ReportFormat = 'csv' | 'pdf' | 'json';
-export type ReportScope = 'failed_or_expired' | 'passed' | 'pending' | 'replacement_candidates';
+export type ReportScope =
+  | 'failed_or_expired'
+  | 'passed'
+  | 'pending'
+  | 'replacement_candidates';
 export type ReportSortBy = 'location' | 'assetId';
 
 export interface ReportGenerationOptions {

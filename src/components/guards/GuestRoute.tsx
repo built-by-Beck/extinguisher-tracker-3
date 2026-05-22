@@ -17,7 +17,8 @@ import { useGuest } from '../../hooks/useGuest.ts';
  */
 function GuestRouteInner() {
   const { orgId, token } = useParams<{ orgId: string; token: string }>();
-  const { isGuest, loading, error, activateWithToken, resumeSession } = useGuest();
+  const { isGuest, loading, error, activateWithToken, resumeSession } =
+    useGuest();
 
   useEffect(() => {
     if (!isGuest && !loading && !error && orgId && token) {
@@ -36,7 +37,9 @@ function GuestRouteInner() {
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
-          <p className="mt-4 text-sm text-gray-500">Activating guest session...</p>
+          <p className="mt-4 text-sm text-gray-500">
+            Activating guest session...
+          </p>
         </div>
       </div>
     );
@@ -46,7 +49,9 @@ function GuestRouteInner() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="mx-auto max-w-md rounded-lg border border-red-200 bg-white p-8 text-center shadow-sm">
-          <h1 className="mb-2 text-lg font-semibold text-red-700">Access Error</h1>
+          <h1 className="mb-2 text-lg font-semibold text-red-700">
+            Access Error
+          </h1>
           <p className="mb-6 text-sm text-gray-600">{error}</p>
           <a
             href="/guest/code"

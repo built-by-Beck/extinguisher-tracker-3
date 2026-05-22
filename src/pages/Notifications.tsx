@@ -25,7 +25,11 @@ import {
   subscribeToNotifications,
   markNotificationRead,
 } from '../services/notificationService.ts';
-import type { Notification, NotificationType, NotificationSeverity } from '../types/notification.ts';
+import type {
+  Notification,
+  NotificationType,
+  NotificationSeverity,
+} from '../types/notification.ts';
 
 function getNotifIcon(type: NotificationType) {
   switch (type) {
@@ -106,12 +110,16 @@ export default function Notifications() {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [typeFilter, setTypeFilter] = useState<NotificationType | ''>('');
-  const [severityFilter, setSeverityFilter] = useState<NotificationSeverity | ''>('');
+  const [severityFilter, setSeverityFilter] = useState<
+    NotificationSeverity | ''
+  >('');
   const [markingRead, setMarkingRead] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orgId) return;
-    const unsub = subscribeToNotifications(orgId, setNotifications, { limit: 100 });
+    const unsub = subscribeToNotifications(orgId, setNotifications, {
+      limit: 100,
+    });
     return () => unsub();
   }, [orgId]);
 
@@ -157,18 +165,24 @@ export default function Notifications() {
       <div className="mb-4 flex flex-wrap gap-3">
         <select
           value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value as NotificationType | '')}
+          onChange={(e) =>
+            setTypeFilter(e.target.value as NotificationType | '')
+          }
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
         >
           <option value="">All Types</option>
           {(Object.keys(typeLabels) as NotificationType[]).map((t) => (
-            <option key={t} value={t}>{typeLabels[t]}</option>
+            <option key={t} value={t}>
+              {typeLabels[t]}
+            </option>
           ))}
         </select>
 
         <select
           value={severityFilter}
-          onChange={(e) => setSeverityFilter(e.target.value as NotificationSeverity | '')}
+          onChange={(e) =>
+            setSeverityFilter(e.target.value as NotificationSeverity | '')
+          }
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
         >
           <option value="">All Severities</option>
@@ -182,7 +196,9 @@ export default function Notifications() {
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <Bell className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-sm font-semibold text-gray-900">No notifications</h3>
+          <h3 className="mt-4 text-sm font-semibold text-gray-900">
+            No notifications
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
             {typeFilter || severityFilter
               ? 'No notifications match the selected filters.'
@@ -202,7 +218,9 @@ export default function Notifications() {
               <div
                 key={notif.id}
                 className={`flex items-start gap-4 rounded-lg border p-4 shadow-sm transition-colors ${
-                  isUnread ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-white'
+                  isUnread
+                    ? 'border-blue-200 bg-blue-50'
+                    : 'border-gray-200 bg-white'
                 } ${isClickable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
                 onClick={isClickable ? () => handleCardClick(notif) : undefined}
               >
@@ -214,10 +232,13 @@ export default function Notifications() {
                 {/* Content */}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">{notif.title}</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {notif.title}
+                    </span>
                     <span
                       className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                        severityBadge[notif.severity] ?? 'bg-gray-100 text-gray-600'
+                        severityBadge[notif.severity] ??
+                        'bg-gray-100 text-gray-600'
                       }`}
                     >
                       {severityLabel[notif.severity] ?? notif.severity}
@@ -229,7 +250,9 @@ export default function Notifications() {
                     )}
                   </div>
                   <p className="mt-1 text-sm text-gray-600">{notif.message}</p>
-                  <p className="mt-1 text-xs text-gray-400">{formatTimestamp(notif.createdAt)}</p>
+                  <p className="mt-1 text-xs text-gray-400">
+                    {formatTimestamp(notif.createdAt)}
+                  </p>
                 </div>
 
                 {/* Mark read button */}

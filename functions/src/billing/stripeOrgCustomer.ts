@@ -18,7 +18,8 @@ export interface EnsureOrgCustomerOpts {
 
 function isMissingStripeCustomer(err: unknown): boolean {
   return (
-    err instanceof Stripe.errors.StripeInvalidRequestError && err.code === 'resource_missing'
+    err instanceof Stripe.errors.StripeInvalidRequestError &&
+    err.code === 'resource_missing'
   );
 }
 

@@ -1,22 +1,39 @@
 /**
  * Prominent Not yet inspected / Passed / Failed counts for the active workspace (or a specific workspace).
- * Stats come from the workspace document (same source as Dashboard and Workspaces list).
+ * Active workspace stats come from the monthly inspection-row snapshot; archived workspaces keep
+ * their stored report snapshot.
  *
  * Author: built_by_Beck
  */
 
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { collection, doc, query, where, onSnapshot } from 'firebase/firestore';
 import {
-  collection,
-  doc,
-  query,
-  where,
-  onSnapshot,
-} from 'firebase/firestore';
-import { CheckCircle2, Clock, XCircle, ClipboardList, Loader2 } from 'lucide-react';
+  CheckCircle2,
+  Clock,
+  XCircle,
+  ClipboardList,
+  Loader2,
+} from 'lucide-react';
 import { db } from '../../lib/firebase.ts';
-import type { Workspace, WorkspaceStats } from '../../services/workspaceService.ts';
+import type {
+  Workspace,
+  WorkspaceStats,
+} from '../../services/workspaceService.ts';
+import {
+  subscribeToExtinguishers,
+  type Extinguisher,
+} from '../../services/extinguisherService.ts';
+import {
+  subscribeToInspections,
+  type Inspection,
+} from '../../services/inspectionService.ts';
+import {
+  subscribeToLocations,
+  type Location,
+} from '../../services/locationService.ts';
+import { buildMonthlyWorkspaceInspectionSnapshot } from '../../utils/monthlyWorkspaceInspectionSnapshot.ts';
 
 const EMPTY_STATS: WorkspaceStats = {
   total: 0,
@@ -30,21 +47,51 @@ interface WorkspaceInspectionSummaryCardsProps {
   orgId: string;
   /** If set, show stats for this workspace only. Otherwise uses the latest active workspace. */
   workspaceId?: string | null;
+  /** Optional parent-provided data to avoid duplicate Firestore listeners on pages that already load it. */
+  workspace?: Workspace | null;
+  extinguishers?: Extinguisher[];
+  inspections?: Inspection[];
+  locations?: Location[];
   className?: string;
 }
 
 export function WorkspaceInspectionSummaryCards({
   orgId,
   workspaceId: fixedWorkspaceId,
+  workspace: providedWorkspace,
+  extinguishers: providedExtinguishers,
+  inspections: providedInspections,
+  locations: providedLocations,
   className = '',
 }: WorkspaceInspectionSummaryCardsProps) {
   const navigate = useNavigate();
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [internalWorkspace, setInternalWorkspace] = useState<Workspace | null>(
+    null,
+  );
+  const [internalExtinguishers, setInternalExtinguishers] = useState<
+    Extinguisher[]
+  >([]);
+  const [internalInspections, setInternalInspections] = useState<Inspection[]>(
+    [],
+  );
+  const [internalLocations, setInternalLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasProvidedWorkspace = providedWorkspace !== undefined;
+  const workspace = hasProvidedWorkspace
+    ? providedWorkspace
+    : internalWorkspace;
+  const extinguishers = providedExtinguishers ?? internalExtinguishers;
+  const inspections = providedInspections ?? internalInspections;
+  const locations = providedLocations ?? internalLocations;
 
   useEffect(() => {
+    if (hasProvidedWorkspace) {
+      setLoading(false);
+      return;
+    }
+
     if (!orgId) {
-      setWorkspace(null);
+      setInternalWorkspace(null);
       setLoading(false);
       return;
     }
@@ -55,14 +102,14 @@ export function WorkspaceInspectionSummaryCards({
         ref,
         (snap) => {
           if (snap.exists()) {
-            setWorkspace({ id: snap.id, ...snap.data() } as Workspace);
+            setInternalWorkspace({ id: snap.id, ...snap.data() } as Workspace);
           } else {
-            setWorkspace(null);
+            setInternalWorkspace(null);
           }
           setLoading(false);
         },
         () => {
-          setWorkspace(null);
+          setInternalWorkspace(null);
           setLoading(false);
         },
       );
@@ -77,26 +124,57 @@ export function WorkspaceInspectionSummaryCards({
       (snap) => {
         if (!snap.empty) {
           const latest = snap.docs
-            .map((d) => ({ id: d.id, ...d.data() } as Workspace))
-            .sort((a, b) => (b.monthYear ?? '').localeCompare(a.monthYear ?? ''))[0];
-          setWorkspace(latest ?? null);
+            .map((d) => ({ id: d.id, ...d.data() }) as Workspace)
+            .sort((a, b) =>
+              (b.monthYear ?? '').localeCompare(a.monthYear ?? ''),
+            )[0];
+          setInternalWorkspace(latest ?? null);
         } else {
-          setWorkspace(null);
+          setInternalWorkspace(null);
         }
         setLoading(false);
       },
       () => {
-        setWorkspace(null);
+        setInternalWorkspace(null);
         setLoading(false);
       },
     );
-  }, [orgId, fixedWorkspaceId]);
+  }, [orgId, fixedWorkspaceId, hasProvidedWorkspace]);
+
+  useEffect(() => {
+    if (!orgId) {
+      setInternalExtinguishers([]);
+      setInternalLocations([]);
+      return;
+    }
+    const unsubExtinguishers = providedExtinguishers
+      ? undefined
+      : subscribeToExtinguishers(orgId, setInternalExtinguishers);
+    const unsubLocations = providedLocations
+      ? undefined
+      : subscribeToLocations(orgId, setInternalLocations);
+    return () => {
+      unsubExtinguishers?.();
+      unsubLocations?.();
+    };
+  }, [orgId, providedExtinguishers, providedLocations]);
+
+  useEffect(() => {
+    if (providedInspections) return;
+    if (!orgId || !workspace?.id || workspace.status !== 'active') {
+      setInternalInspections([]);
+      return;
+    }
+    return subscribeToInspections(orgId, workspace.id, setInternalInspections);
+  }, [orgId, workspace?.id, workspace?.status, providedInspections]);
 
   if (!orgId) return null;
 
   if (loading) {
     return (
-      <div className={`flex items-center gap-2 text-sm text-gray-500 ${className}`}>
+      <div
+        className={`flex items-center gap-2 text-sm text-gray-500 ${className}`}
+      >
         <Loader2 className="h-4 w-4 animate-spin text-red-600" />
         Loading inspection progress…
       </div>
@@ -108,10 +186,15 @@ export function WorkspaceInspectionSummaryCards({
       <div
         className={`rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600 ${className}`}
       >
-        <p className="font-medium text-gray-800">No active inspection workspace</p>
+        <p className="font-medium text-gray-800">
+          No active inspection workspace
+        </p>
         <p className="mt-1">
           Create or open a workspace on the{' '}
-          <Link to="/dashboard/workspaces" className="font-medium text-red-600 hover:text-red-500">
+          <Link
+            to="/dashboard/workspaces"
+            className="font-medium text-red-600 hover:text-red-500"
+          >
             Inspections
           </Link>{' '}
           page to track monthly checks.
@@ -120,7 +203,17 @@ export function WorkspaceInspectionSummaryCards({
     );
   }
 
-  const stats = workspace.stats ?? EMPTY_STATS;
+  const monthlySnapshot = buildMonthlyWorkspaceInspectionSnapshot({
+    workspaceId: workspace.id,
+    inspections,
+    extinguishers,
+    locations,
+    isArchived: workspace.status === 'archived',
+  });
+  const stats =
+    workspace.status === 'active'
+      ? monthlySnapshot.stats
+      : (workspace.stats ?? EMPTY_STATS);
   const wsPath = `/dashboard/workspaces/${workspace.id}`;
 
   function goWorkspace() {
@@ -133,7 +226,9 @@ export function WorkspaceInspectionSummaryCards({
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <ClipboardList className="h-4 w-4 text-red-600" />
           <span>
-            <span className="font-semibold text-gray-900">{workspace.label}</span>
+            <span className="font-semibold text-gray-900">
+              {workspace.label}
+            </span>
             {fixedWorkspaceId ? (
               <span className="text-gray-500"> · this workspace only</span>
             ) : (
@@ -156,13 +251,19 @@ export function WorkspaceInspectionSummaryCards({
           className="flex flex-col rounded-lg border border-amber-200 bg-amber-50/80 p-4 text-left shadow-sm transition hover:border-amber-300 hover:shadow"
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-medium text-amber-900">Not yet inspected</span>
+            <span className="text-sm font-medium text-amber-900">
+              Not yet inspected
+            </span>
             <div className="rounded-lg bg-amber-200/80 p-2">
               <Clock className="h-5 w-5 text-amber-900" />
             </div>
           </div>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-amber-950">{stats.pending}</p>
-          <p className="mt-1 text-xs text-amber-800/90">Still not inspected this month (active workspace)</p>
+          <p className="mt-2 text-3xl font-bold tabular-nums text-amber-950">
+            {stats.pending}
+          </p>
+          <p className="mt-1 text-xs text-amber-800/90">
+            Still not inspected this month (active workspace)
+          </p>
         </button>
 
         <button
@@ -176,7 +277,9 @@ export function WorkspaceInspectionSummaryCards({
               <CheckCircle2 className="h-5 w-5 text-green-900" />
             </div>
           </div>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-green-950">{stats.passed}</p>
+          <p className="mt-2 text-3xl font-bold tabular-nums text-green-950">
+            {stats.passed}
+          </p>
           <p className="mt-1 text-xs text-green-800/90">Marked pass</p>
         </button>
 
@@ -191,7 +294,9 @@ export function WorkspaceInspectionSummaryCards({
               <XCircle className="h-5 w-5 text-red-900" />
             </div>
           </div>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-red-950">{stats.failed}</p>
+          <p className="mt-2 text-3xl font-bold tabular-nums text-red-950">
+            {stats.failed}
+          </p>
           <p className="mt-1 text-xs text-red-800/90">Marked fail</p>
         </button>
       </div>

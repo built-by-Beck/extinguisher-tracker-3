@@ -22,7 +22,10 @@ import {
   type ReactNode,
 } from 'react';
 import { useOnlineStatus } from '../hooks/useOnlineStatus.ts';
-import { getPendingCount, processQueue } from '../services/offlineSyncService.ts';
+import {
+  getPendingCount,
+  processQueue,
+} from '../services/offlineSyncService.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 
 export interface OfflineContextValue {
@@ -116,8 +119,6 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
   };
 
   return (
-    <OfflineContext.Provider value={value}>
-      {children}
-    </OfflineContext.Provider>
+    <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>
   );
 }

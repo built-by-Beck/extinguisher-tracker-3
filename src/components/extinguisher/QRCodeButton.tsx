@@ -31,7 +31,9 @@ export function QRCodeButton({ extId, hasQR }: QRCodeButtonProps) {
       await generateQR({ orgId, extId });
       setGenerated(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to generate QR code.');
+      setError(
+        err instanceof Error ? err.message : 'Failed to generate QR code.',
+      );
     } finally {
       setLoading(false);
     }
@@ -39,9 +41,7 @@ export function QRCodeButton({ extId, hasQR }: QRCodeButtonProps) {
 
   return (
     <div>
-      {error && (
-        <p className="mb-2 text-xs text-red-600">{error}</p>
-      )}
+      {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
       <button
         onClick={handleGenerate}
         disabled={loading || generated}

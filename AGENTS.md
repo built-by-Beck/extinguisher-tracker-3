@@ -15,6 +15,8 @@
 - `pnpm build` — type-check and build app to `dist/`.
 - `pnpm preview` — serve the production build locally.
 - `pnpm lint` — run ESLint across the repo.
+- `pnpm format` — run Prettier (`--write`) on the repo, excluding paths in `.prettierignore` (style; ESLint stays the correctness gate).
+- `pnpm format:check` — Prettier `--check` on the same scope (CI-friendly once the tree matches Prettier output).
 - `pnpm secrets:push` — push Stripe secrets from `functions/.env.secret`.
 
 ## AI Workflow
@@ -32,7 +34,7 @@
 - TypeScript strict mode; 2-space indentation.
 - Components in PascalCase (e.g., `InventoryTable.tsx`); hooks start with `use...`.
 - Use `.tsx` for components and `.ts` for non-JSX modules; prefer named exports and small, focused modules.
-- Resolve ESLint findings before merging. Note: `pnpm lint` currently reports known pre-existing errors; they do not block build/runtime.
+- Resolve ESLint findings before merging.
 
 ## Testing Guidelines
 

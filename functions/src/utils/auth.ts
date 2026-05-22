@@ -5,7 +5,10 @@ import { throwUnauthenticated } from './errors.js';
  * Validates that a callable request has an authenticated user.
  * Returns the authenticated uid and email.
  */
-export function validateAuth(request: CallableRequest): { uid: string; email: string } {
+export function validateAuth(request: CallableRequest): {
+  uid: string;
+  email: string;
+} {
   if (!request.auth) {
     throwUnauthenticated();
   }
