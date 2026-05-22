@@ -240,6 +240,8 @@ export const stripeWebhook = onRequest(
       }
     } catch (err) {
       console.error('Error processing webhook:', err);
+      res.status(500).send('Webhook handler failed');
+      return;
     }
 
     res.status(200).json({ received: true });

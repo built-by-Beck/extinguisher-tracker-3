@@ -83,6 +83,26 @@ export default function MarketingHomePage() {
                 View pricing
               </Link>
             </div>
+            <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-900">
+              <strong className="font-semibold">7-day Pro trial:</strong> start
+              on <strong>monthly Pro</strong> with{' '}
+              <strong>no credit card at checkout</strong>. Add a payment method
+              before the trial ends to keep Pro access. See{' '}
+              <Link
+                to="/pricing"
+                className="font-medium text-red-700 underline decoration-red-300 underline-offset-2 hover:text-red-800"
+              >
+                pricing
+              </Link>{' '}
+              and{' '}
+              <Link
+                to="/terms"
+                className="font-medium text-red-700 underline decoration-red-300 underline-offset-2 hover:text-red-800"
+              >
+                Terms
+              </Link>
+              .
+            </p>
             <p className="mt-4 text-sm text-gray-500">
               Already using the product?{' '}
               <Link

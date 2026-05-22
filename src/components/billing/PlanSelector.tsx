@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { Check, Loader2, Sparkles, X as XIcon } from 'lucide-react';
+import { Check, Loader2, Sparkles, X as XIcon, Zap } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
 import {
   PLANS,
   type PlanName,
   YEARLY_DISCOUNT_FRACTION,
+  yearlyMonthlyEquivDisplay,
 } from '../../lib/planConfig.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
@@ -20,12 +21,13 @@ export function PlanSelector() {
   const { org } = useOrg();
   const { userProfile } = useAuth();
   const [billingInterval, setBillingInterval] =
-    useState<BillingIntervalUi>('month');
+    useState<BillingIntervalUi>('year');
   const [loading, setLoading] = useState<PlanName | null>(null);
   const [error, setError] = useState('');
 
   const orgId = userProfile?.activeOrgId;
   const currentPlan = org?.plan;
+  const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
 
   async function handleSelectPlan(plan: PlanName) {
     if (!orgId || plan === currentPlan) return;
@@ -65,8 +67,15 @@ export function PlanSelector() {
         </p>
       )}
 
-      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-medium text-gray-900">Billing</p>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-900">Billing</p>
+          {billingInterval === 'year' && (
+            <p className="text-xs text-green-700 font-medium mt-0.5">
+              You're saving {discountPct}% with annual billing
+            </p>
+          )}
+        </div>
         <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
           <button
             type="button"
@@ -74,7 +83,7 @@ export function PlanSelector() {
             className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
               billingInterval === 'month'
                 ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                : 'text-gray-500 hover:text-gray-900'
             }`}
           >
             Monthly
@@ -82,13 +91,16 @@ export function PlanSelector() {
           <button
             type="button"
             onClick={() => setBillingInterval('year')}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            className={`relative rounded-md px-4 py-2 text-sm font-medium transition-colors ${
               billingInterval === 'year'
                 ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                : 'text-gray-500 hover:text-gray-900'
             }`}
           >
-            Yearly (save {Math.round(YEARLY_DISCOUNT_FRACTION * 100)}%)
+            Yearly
+            <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
+              SAVE {discountPct}%
+            </span>
           </button>
         </div>
       </div>
@@ -128,24 +140,42 @@ export function PlanSelector() {
         {PLANS.filter((p) => p.name !== 'enterprise').map((plan) => {
           const isCurrent = currentPlan === plan.name;
           const isLoading = loading === plan.name;
-          const offerProTrialUi =
-            plan.name === 'pro' &&
-            billingInterval === 'month' &&
+          const isPro = plan.name === 'pro';
+          const trialEligible =
+            isPro &&
             !org?.stripeSubscriptionId &&
             org?.proTrialConsumed !== true;
+          const offerProTrialUi = trialEligible && billingInterval === 'month';
+          const showTrialHint = trialEligible && billingInterval === 'year';
+          const monthlyEquivDisplay =
+            billingInterval === 'year' && plan.monthlyPrice !== null
+              ? yearlyMonthlyEquivDisplay(plan.monthlyPrice)
+              : null;
 
           return (
             <div
               key={plan.name}
-              className={`rounded-lg border-2 p-6 ${
-                isCurrent
-                  ? 'border-red-500 bg-red-50'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+              className={`relative rounded-xl border-2 p-6 transition-shadow ${
+                isPro && !isCurrent
+                  ? 'border-red-400 bg-white shadow-xl shadow-red-100'
+                  : isCurrent
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
               }`}
             >
-              <h3 className="text-lg font-bold text-gray-900">
+              {isPro && !isCurrent && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white shadow-md">
+                    <Zap className="h-3 w-3" />
+                    Most Popular
+                  </span>
+                </div>
+              )}
+
+              <h3 className={`text-lg font-bold ${isPro && !isCurrent ? 'mt-1 text-red-700' : 'text-gray-900'}`}>
                 {plan.displayName}
               </h3>
+
               {billingInterval === 'month' ? (
                 <p className="mt-1 text-3xl font-bold text-gray-900">
                   {formatUsd(plan.monthlyPrice!)}
@@ -154,21 +184,16 @@ export function PlanSelector() {
               ) : (
                 <>
                   <p className="mt-1 text-3xl font-bold text-gray-900">
-                    {formatUsd(plan.yearlyTotalPrice!)}
-                    <span className="text-sm font-normal text-gray-500">
-                      /yr
-                    </span>
+                    {monthlyEquivDisplay}
+                    <span className="text-sm font-normal text-gray-500">/mo</span>
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {formatUsd(plan.monthlyPrice! * 12)} if paid monthly — you
-                    save{' '}
-                    {formatUsd(
-                      plan.monthlyPrice! * 12 - plan.yearlyTotalPrice!,
-                    )}{' '}
-                    per year
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    billed yearly ·{' '}
+                    <span className="font-semibold text-green-700">save {discountPct}%</span>
                   </p>
                 </>
               )}
+
               <p className="mt-2 text-sm text-gray-500">
                 {plan.name === 'basic'
                   ? 'Best for small businesses replacing paper logs with easier inspections, reminders, and compliance reports.'
@@ -176,15 +201,26 @@ export function PlanSelector() {
                     ? 'Adds camera barcode scanning, GPS capture, inspection photos, and the AI assistant.'
                     : 'Everything in Pro, plus team members & invites, higher scale, and priority support.'}
               </p>
-              {plan.name === 'pro' &&
-                billingInterval === 'month' &&
-                !org?.stripeSubscriptionId &&
-                org?.proTrialConsumed !== true && (
-                  <p className="mt-2 rounded-md bg-blue-50 px-2 py-1.5 text-xs font-medium text-blue-800">
-                    7-day Pro trial — no credit card at checkout. Add a payment
-                    method before the trial ends to keep Pro access (see Terms).
-                  </p>
-                )}
+
+              {offerProTrialUi && (
+                <p className="mt-2 rounded-md bg-blue-50 px-2 py-1.5 text-xs font-medium text-blue-800">
+                  7-day Pro trial — no credit card at checkout. Add a payment
+                  method before the trial ends to keep Pro access (see Terms).
+                </p>
+              )}
+
+              {showTrialHint && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Want to try before you commit?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setBillingInterval('month')}
+                    className="font-medium text-blue-600 hover:underline underline-offset-2"
+                  >
+                    Switch to Monthly for a free 7-day trial.
+                  </button>
+                </p>
+              )}
 
               <ul className="mt-4 space-y-2">
                 {plan.features.map((feature) => {
@@ -224,17 +260,19 @@ export function PlanSelector() {
               <button
                 onClick={() => handleSelectPlan(plan.name)}
                 disabled={isCurrent || isLoading || loading !== null}
-                className={`mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
+                className={`mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
                   isCurrent
-                    ? 'bg-red-100 text-red-700 cursor-default'
-                    : 'bg-red-600 text-white hover:bg-red-700 disabled:opacity-50'
+                    ? 'cursor-default bg-red-100 text-red-700'
+                    : isPro
+                      ? 'bg-red-600 text-white shadow-sm shadow-red-300 hover:bg-red-700 disabled:opacity-50'
+                      : 'bg-red-600 text-white hover:bg-red-700 disabled:opacity-50'
                 }`}
               >
                 {isLoading ? (
                   <Loader2 className="mx-auto h-4 w-4 animate-spin" />
                 ) : isCurrent ? (
                   'Current Plan'
-                ) : plan.name === 'pro' && offerProTrialUi ? (
+                ) : offerProTrialUi ? (
                   'Start 7-day trial'
                 ) : currentPlan ? (
                   'Switch Plan'

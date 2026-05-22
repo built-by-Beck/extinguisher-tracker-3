@@ -219,6 +219,15 @@ export default function CreateOrg() {
               </select>
             </div>
 
+            <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+              After your organization exists, open{' '}
+              <strong className="text-gray-800">Settings → Billing</strong> to
+              subscribe. Eligible orgs can start a{' '}
+              <strong className="text-gray-800">7-day Pro trial</strong> on{' '}
+              <strong className="text-gray-800">monthly</strong> billing with no
+              credit card at checkout.
+            </p>
+
             <button
               type="submit"
               disabled={submitting}

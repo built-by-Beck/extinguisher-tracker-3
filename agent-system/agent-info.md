@@ -2277,3 +2277,27 @@ Added a lesson and resolved error-log entry: parent-provided data refactors must
 **Validation:** `pnpm build`, `pnpm lint`, `pnpm test`.
 
 **Review verdict:** ACCEPTED (scope: client query patterns + bounded reads; no rules/schema changes).
+
+## 2026-05-14 — Pre-launch security/billing review + trial visibility
+
+**Task:** Full review focus payments/security; surface 7-day Pro trial on homepage, signup, pricing, create-org; fix high-signal issues.
+
+**Findings addressed:**
+- **Firestore:** `org/{orgId}` client updates could change `featureFlags` (plan entitlements), `status`, or `slug` — not in the prior deny list. Added those keys to the blocked `affectedKeys()` set so only backend/webhooks control entitlements and lifecycle fields.
+- **Stripe webhook:** Handler errors were swallowed and still returned **200**, so Stripe would not retry and Firestore could drift from Stripe. On processing failure the handler now returns **500** so Stripe retries after transient errors.
+
+**Marketing / funnel:** Hero callout + SEO description (`marketingSeo.home`), `Signup.tsx`, `MarketingPricingPage.tsx` intro banner, `CreateOrg.tsx` pre-submit note — all mention the **7-day Pro trial (monthly, no card at checkout)** with links or Billing path where relevant.
+
+**Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build`, `npm --prefix functions test` — all pass (2026-05-14).
+
+## 2026-05-22 — Fix inspection flow: QR scan sends user to inventory instead of workspace
+
+**Task (SMALL):** After pressing Pass/Fail on an extinguisher, the user was always redirected to `/dashboard/inventory` instead of staying in the workspace inspection flow.
+
+**Root cause:** `QRLanding.tsx` always redirects authenticated users to `/dashboard/inventory/:extId`. This strips the workspace context — no `workspaceId` in URL params, no `returnTo` in navigation state. `ExtinguisherDetail` fell back to `returnTo = '/dashboard/inventory'`.
+
+**Fix:** `src/pages/ExtinguisherDetail.tsx` — changed `returnTo` from a static string to a `useMemo` that, when `workspaceId` is absent from the URL but `activeWorkspaceId` is loaded, returns `/dashboard/workspaces/${activeWorkspaceId}?loc=${ext.locationId}&leaf=pending` so the user lands on their building's pending extinguisher list. Updated the Back button label to say "Back to Workspace" whenever any workspace context is known.
+
+**Validation:** `npx tsc --noEmit` — passes.
+
+**Review verdict:** ACCEPTED WITH MINOR CONCERNS — remaining launch checklist: confirm Stripe webhook endpoint receives all documented event types; watch for brief post-checkout race before `trialing`/`active` is written; consider App Check on billing callables later.

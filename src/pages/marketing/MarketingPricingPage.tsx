@@ -33,6 +33,12 @@ export default function MarketingPricingPage() {
               subscription and entitlements are enforced in the product billing
               experience.
             </p>
+            <p className="mt-5 max-w-3xl rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-900">
+              <strong className="font-semibold">Try Pro free for 7 days</strong>{' '}
+              on <strong>monthly</strong> billing: no credit card at Stripe
+              Checkout. Add a payment method before the trial ends to keep Pro
+              access (see Terms).
+            </p>
           </div>
         </div>
 
@@ -106,7 +112,10 @@ export default function MarketingPricingPage() {
             ))}
           </div>
 
-          <p className="mt-10 text-center text-sm text-gray-500">
+          <p className="mt-10 text-center text-xs text-gray-400">
+            Yearly plans are billed as a single annual charge at checkout.
+          </p>
+          <p className="mt-3 text-center text-sm text-gray-500">
             Questions about Enterprise or procurement? Use Contact sales on the
             Enterprise plan.
           </p>

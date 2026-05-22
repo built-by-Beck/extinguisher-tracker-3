@@ -92,6 +92,14 @@ export default function Signup() {
           <h2 className="mb-6 text-2xl font-bold text-gray-900">
             Create Account
           </h2>
+          <p className="mb-6 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+            New organizations can start a{' '}
+            <strong className="font-semibold text-gray-900">
+              7-day Pro trial
+            </strong>{' '}
+            on monthly billing with no credit card at checkout. Choose Pro
+            (monthly) under Billing after you create your organization.
+          </p>
 
           {error && (
             <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">

@@ -9,7 +9,7 @@
  * Author: built_by_Beck
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -143,11 +143,6 @@ export default function ExtinguisherDetail() {
   const canEdit = hasRole(['owner', 'admin']);
   const stateReturnTo = (location.state as { returnTo?: string } | null)
     ?.returnTo;
-  const returnTo =
-    stateReturnTo ||
-    (workspaceId
-      ? `/dashboard/workspaces/${workspaceId}`
-      : '/dashboard/inventory');
 
   // State for extinguisher data
   const [ext, setExt] = useState<Extinguisher | null>(null);
@@ -206,6 +201,20 @@ export default function ExtinguisherDetail() {
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(
     null,
   );
+
+  // When accessed via QR code / inventory path (no workspaceId in URL), fall back to the
+  // active workspace at the extinguisher's building so the user stays in inspection flow.
+  const returnTo = useMemo(() => {
+    if (stateReturnTo) return stateReturnTo;
+    if (workspaceId) return `/dashboard/workspaces/${workspaceId}`;
+    if (activeWorkspaceId) {
+      const locId = ext?.locationId;
+      return locId
+        ? `/dashboard/workspaces/${activeWorkspaceId}?loc=${encodeURIComponent(locId)}&leaf=pending`
+        : `/dashboard/workspaces/${activeWorkspaceId}`;
+    }
+    return '/dashboard/inventory';
+  }, [stateReturnTo, workspaceId, activeWorkspaceId, ext?.locationId]);
 
   // Load extinguisher
   useEffect(() => {
@@ -499,7 +508,7 @@ export default function ExtinguisherDetail() {
         className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
       >
         <ArrowLeft className="h-4 w-4" />
-        {workspaceId ? 'Back to Workspace' : 'Back to Inventory'}
+        {workspaceId || activeWorkspaceId ? 'Back to Workspace' : 'Back to Inventory'}
       </button>
 
       {/* Offline banner */}

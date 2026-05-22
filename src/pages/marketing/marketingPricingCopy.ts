@@ -7,14 +7,16 @@
 
 import {
   PLANS,
-  yearlyTotalFromMonthly,
   YEARLY_DISCOUNT_FRACTION,
+  yearlyMonthlyEquivDisplay,
 } from '../../lib/planConfig.ts';
 
 function formatPrice(price: number | null): string {
   if (price === null) return 'Custom';
-  return price % 1 === 0 ? `$${price}` : `$${price}`;
+  return price % 1 === 0 ? `$${price}` : `$${price.toFixed(2)}`;
 }
+
+const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
 
 const basicPlan = PLANS.find((p) => p.name === 'basic')!;
 const proPlan = PLANS.find((p) => p.name === 'pro')!;
@@ -47,7 +49,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Basic',
     priceLabel: formatPrice(basicPlan.monthlyPrice),
     priceDetail: 'per month',
-    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(basicPlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
+    annualBillingNote: `Or ${yearlyMonthlyEquivDisplay(basicPlan.monthlyPrice!)}/mo billed yearly — save ${discountPct}%.`,
     blurb:
       'Small sites that want to ditch paper, speed up checks, and build a reliable workflow baseline.',
     bullets: [
@@ -65,7 +67,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Pro',
     priceLabel: formatPrice(proPlan.monthlyPrice),
     priceDetail: 'per month',
-    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(proPlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
+    annualBillingNote: `Or ${yearlyMonthlyEquivDisplay(proPlan.monthlyPrice!)}/mo billed yearly — save ${discountPct}%.`,
     blurb:
       'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
     bullets: [
@@ -86,7 +88,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Elite',
     priceLabel: formatPrice(elitePlan.monthlyPrice),
     priceDetail: 'per month',
-    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(elitePlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
+    annualBillingNote: `Or ${yearlyMonthlyEquivDisplay(elitePlan.monthlyPrice!)}/mo billed yearly — save ${discountPct}%.`,
     blurb:
       'Large programs that need advanced data tools, AI-supported operations, and priority help.',
     bullets: [

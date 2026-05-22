@@ -1,5 +1,11 @@
 ## Lessons Learned
 
+## 2026-05-22 — QRLanding strips workspace context
+
+`QRLanding` always redirects to `/dashboard/inventory/:extId`, losing workspaceId. Any component that computes `returnTo` from URL params will fall back to `/dashboard/inventory` for QR-scanned extinguishers.
+
+**How to apply:** Whenever `ExtinguisherDetail` (or similar) needs post-save navigation, use a `useMemo` that checks `activeWorkspaceId` as a fallback AFTER `workspaceId` from URL params, so QR-scan users stay in the inspection flow and land on their building's pending list.
+
 ## 2026-04-24 - Replacement Must Preserve Asset Slot
 
 Error: Initial implementation still allowed `assetId` edits in the replacement modal and wrote the submitted asset ID during replacement.
@@ -319,6 +325,14 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Move the disable comment to the line immediately above the dependency array (`[]`), or fix dependencies properly. For `resumeSession`, use a multi-line `useCallback(` form so the comment sits between the callback and `[],`.
 
 **Prevention rule:** For `react-hooks/exhaustive-deps`, place `eslint-disable-next-line` directly above the hook's dependency array (or use `eslint-disable-line` on the same line as `[]`), not inside the callback body.
+
+## 2026-05-14 - Org root `featureFlags` must be server-only in Firestore rules
+
+**What happened:** `org/{orgId}` `allow update` blocked many billing fields but **not** `featureFlags`, `status`, or `slug`. A signed-in owner could use the Firebase client SDK to set `featureFlags` (for example `customAssetInspections: true`) without a paid plan, bypassing UI and weakening tenant billing enforcement at the rules layer.
+
+**Fix used:** Add `featureFlags`, `status`, and `slug` to the `affectedKeys().hasAny([...])` deny list on `org/{orgId}` updates so only Admin SDK / Cloud Functions can change them.
+
+**Prevention rule:** Any field on `org/{orgId}` that mirrors Stripe, plan tier, or derived entitlements must be in the explicit deny list (or replaced with a positive allow-list diff) — treat unknown org fields as unsafe until reviewed.
 
 ## 2026-05-08 - Avoid Date.now in React Render for Trial Countdown
 
