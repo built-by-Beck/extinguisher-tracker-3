@@ -24,13 +24,9 @@ import {
 } from 'react-router-dom';
 import {
   ArrowLeft,
-  CheckCircle2,
-  XCircle,
-  Clock,
   Search,
   Loader2,
   FileText,
-  RefreshCw,
   WifiOff,
   MapPin,
   ChevronLeft,
@@ -105,6 +101,10 @@ import {
   type InspectionSortMode,
 } from '../utils/inspectionSorting.ts';
 import { resolveSectionTimerKey } from '../utils/sectionTimerKey.ts';
+import {
+  InspectionRowCard,
+  STATUS_STYLES,
+} from '../components/workspace/InspectionRowCard.tsx';
 
 type PendingScopeViewMode = 'grouped' | 'table';
 
@@ -119,6 +119,10 @@ const WS_Q_LOC = 'loc';
 const WS_Q_SCOPE = 'scope';
 const WS_Q_LEAF = 'leaf';
 const WS_Q_GROUP = 'group';
+const WS_Q_UNASSIGNED = 'unassigned';
+const WS_Q_DELETED = 'deleted';
+const WS_Q_SORT = 'sort';
+const DEFAULT_SORT_MODE: InspectionSortMode = 'floor';
 
 /** At a leaf location: pending queue vs completed (pass+fail) vs replaced pairs. */
 type LeafListTab = 'pending' | 'checked' | 'replaced';
@@ -153,6 +157,14 @@ function parseLeafTabFromSearch(sp: URLSearchParams): LeafListTab {
   return 'pending';
 }
 
+function parseSortModeFromSearch(sp: URLSearchParams): InspectionSortMode {
+  const v = sp.get(WS_Q_SORT);
+  if (v === 'table' || v === 'numeric' || v === 'floor' || v === 'spatial') {
+    return v;
+  }
+  return DEFAULT_SORT_MODE;
+}
+
 /** Canonical workspace list URL — used for router sync and for `returnTo` (so it matches state even before URL flush). */
 function buildWorkspaceViewSearchParams(
   sp: URLSearchParams,
@@ -165,13 +177,31 @@ function buildWorkspaceViewSearchParams(
     leafStatusTab: LeafListTab;
     pendingScopeViewMode: PendingScopeViewMode;
     pendingGroupedLocationFilter: string;
+    sortMode: InspectionSortMode;
   },
 ): URLSearchParams {
   const next = new URLSearchParams(sp);
   next.delete('status');
 
-  if (ctx.locationId) next.set(WS_Q_LOC, ctx.locationId);
-  else next.delete(WS_Q_LOC);
+  // Special buckets (unassigned / deleted) live at root and must be encoded so
+  // returning from an inspection lands the technician back in the same bucket.
+  if (ctx.showUnassigned) next.set(WS_Q_UNASSIGNED, '1');
+  else next.delete(WS_Q_UNASSIGNED);
+
+  if (ctx.showDeleted) next.set(WS_Q_DELETED, '1');
+  else next.delete(WS_Q_DELETED);
+
+  if (ctx.sortMode && ctx.sortMode !== DEFAULT_SORT_MODE) {
+    next.set(WS_Q_SORT, ctx.sortMode);
+  } else {
+    next.delete(WS_Q_SORT);
+  }
+
+  if (ctx.locationId && !ctx.showUnassigned && !ctx.showDeleted) {
+    next.set(WS_Q_LOC, ctx.locationId);
+  } else {
+    next.delete(WS_Q_LOC);
+  }
 
   if (
     !ctx.isLeaf &&
@@ -205,16 +235,6 @@ function buildWorkspaceViewSearchParams(
 
   return next;
 }
-const STATUS_STYLES: Record<
-  string,
-  { icon: typeof CheckCircle2; color: string; bg: string }
-> = {
-  pass: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
-  fail: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-100' },
-  pending: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100' },
-  replaced: { icon: RefreshCw, color: 'text-orange-600', bg: 'bg-orange-100' },
-};
-
 function extinguisherVicinityById(
   extinguishers: Extinguisher[],
 ): Map<string, string> {
@@ -362,57 +382,24 @@ function LeafExtinguisherTable({
         </button>
       </div>
       {inspections.map((insp) => {
-        const style = STATUS_STYLES[insp.status] ?? STATUS_STYLES.pending;
-        const Icon = style.icon;
         const vicinity =
           vicinityByExtinguisherId.get(insp.extinguisherId) ||
           insp.section ||
           '--';
         return (
-          <button
+          <InspectionRowCard
             key={insp.id}
-            type="button"
+            inspection={insp}
+            vicinity={vicinity}
+            actionLabel={isArchived ? 'View' : 'Inspect'}
+            actionMuted={isArchived}
             onClick={() =>
               navigate(
                 `/dashboard/workspaces/${workspaceId}/inspect-ext/${insp.extinguisherId}`,
                 { state: { returnTo } },
               )
             }
-            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-gray-300 hover:shadow-md"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-base font-semibold text-gray-900">
-                  {insp.assetId}
-                </p>
-                <p className="text-sm text-gray-600">{vicinity}</p>
-                <p className="text-xs text-gray-500">
-                  Serial: {insp.serial || '--'}
-                </p>
-              </div>
-              <div className="text-right">
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}
-                >
-                  <Icon className="h-3 w-3" />
-                  {insp.status.charAt(0).toUpperCase() + insp.status.slice(1)}
-                </span>
-                <p
-                  className={`mt-2 text-xs font-semibold ${isArchived ? 'text-gray-500' : 'text-red-600'}`}
-                >
-                  {isArchived ? 'View' : 'Inspect'}
-                </p>
-              </div>
-            </div>
-            {(insp.inspectedByEmail || insp.notes) && (
-              <div className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-500">
-                {insp.inspectedByEmail && (
-                  <p>Inspected by: {insp.inspectedByEmail}</p>
-                )}
-                {insp.notes && <p className="italic">Notes: {insp.notes}</p>}
-              </div>
-            )}
-          </button>
+          />
         );
       })}
     </div>
@@ -457,11 +444,17 @@ export default function WorkspaceDetail() {
   });
 
   const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
-  const [showUnassigned, setShowUnassigned] = useState(false);
-  const [showDeleted, setShowDeleted] = useState(false);
+  const [showUnassigned, setShowUnassigned] = useState(
+    () => searchParams.get(WS_Q_UNASSIGNED) === '1',
+  );
+  const [showDeleted, setShowDeleted] = useState(
+    () => searchParams.get(WS_Q_DELETED) === '1',
+  );
   const [sortKey, setSortKey] = useState<string>('assetId');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [sortMode, setSortMode] = useState<InspectionSortMode>('floor');
+  const [sortMode, setSortMode] = useState<InspectionSortMode>(() =>
+    parseSortModeFromSearch(searchParams),
+  );
   const [leafPage, setLeafPage] = useState(1);
   const [leafPageSize, setLeafPageSize] = useState(25);
   const [pendingScopeViewMode, setPendingScopeViewMode] =
@@ -541,6 +534,7 @@ export default function WorkspaceDetail() {
       leafStatusTab,
       pendingScopeViewMode,
       pendingGroupedLocationFilter,
+      sortMode,
     });
 
     if (
@@ -562,6 +556,7 @@ export default function WorkspaceDetail() {
     leafStatusTab,
     pendingScopeViewMode,
     pendingGroupedLocationFilter,
+    sortMode,
   ]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
@@ -575,6 +570,7 @@ export default function WorkspaceDetail() {
       leafStatusTab,
       pendingScopeViewMode,
       pendingGroupedLocationFilter,
+      sortMode,
     }).toString();
     return q ? `${location.pathname}?${q}` : location.pathname;
   }, [
@@ -588,6 +584,7 @@ export default function WorkspaceDetail() {
     leafStatusTab,
     pendingScopeViewMode,
     pendingGroupedLocationFilter,
+    sortMode,
   ]);
 
   const monthlyWorkspaceSnapshot = useMemo(
@@ -1375,11 +1372,12 @@ export default function WorkspaceDetail() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="mb-6">
+      {/* Sticky technician header — back, breadcrumb, progress, and scan stay
+          pinned while the list scrolls so a tech can scan from anywhere. */}
+      <div className="sticky top-0 z-20 -mx-6 mb-5 border-b border-gray-200 bg-gray-50/95 px-6 pb-4 pt-3 backdrop-blur supports-[backdrop-filter]:bg-gray-50/80">
         <button
           onClick={handleBack}
-          className="mb-3 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          className="mb-2 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
           <ArrowLeft className="h-4 w-4" />
           {drillDown.isRoot ? 'Back to Workspaces' : 'Back'}
@@ -1401,30 +1399,32 @@ export default function WorkspaceDetail() {
           </div>
         )}
 
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+        <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
             {drillDown.isRoot
               ? workspace.label
               : (drillDown.currentLocation?.name ?? workspace.label)}
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {currentViewStats.total} extinguisher
-            {currentViewStats.total !== 1 ? 's' : ''} in this view
+          <p className="text-sm text-gray-500">
+            <span className="font-semibold text-gray-700">
+              {currentViewStats.passed + currentViewStats.failed}
+            </span>{' '}
+            of {currentViewStats.total} checked
             {drillDown.isLeaf && (hasActiveFilters(filters) || searchQuery)
-              ? ` (${(floorScanGrouped ? leafInspectionsBase : leafInspections).length} matching filters)`
+              ? ` (${(floorScanGrouped ? leafInspectionsBase : leafInspections).length} matching)`
               : ''}
-            {isArchived && ' (archived — read only)'}
+            {isArchived && ' · read only'}
           </p>
         </div>
 
         {/* Progress bar */}
         <div
-          className="mt-3 h-3 rounded-full bg-gray-200"
+          className="mt-2 h-2.5 rounded-full bg-gray-200"
           aria-label={`${currentViewStats.passed} passed and ${currentViewStats.failed} failed out of ${currentViewStats.total} extinguishers`}
         >
           {currentViewStats.total > 0 && (
             <svg
-              className="h-3 w-full overflow-hidden rounded-full"
+              className="h-2.5 w-full overflow-hidden rounded-full"
               viewBox="0 0 100 12"
               preserveAspectRatio="none"
               aria-hidden="true"
@@ -1447,9 +1447,9 @@ export default function WorkspaceDetail() {
           )}
         </div>
 
-        {/* Scan/Search bar — directly under location title so cards + list read top-to-bottom */}
+        {/* Scan/Search bar — pinned in the sticky header so a tech can scan from anywhere */}
         {!isArchived && orgId && (
-          <div className="mt-5">
+          <div className="mt-3">
             <ScanSearchBar
               orgId={orgId}
               onExtinguisherFound={handleExtinguisherFound}
@@ -1460,9 +1460,12 @@ export default function WorkspaceDetail() {
             />
           </div>
         )}
+      </div>
 
+      {/* Scope summary + by-location breakdown (collapsible, below the sticky header) */}
+      <div className="mb-6">
         {!showUnassigned && !showDeleted && (
-          <div className="mt-5">
+          <div className="mt-1">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
               This location — tap a card to filter the list. At a room or floor,
               use Pending to work the queue; Checked shows Pass and Fail

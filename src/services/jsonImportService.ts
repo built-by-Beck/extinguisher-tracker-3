@@ -9,6 +9,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
+import { parseFloorFromText } from '../utils/floorParsing.ts';
 
 /** Shape of a single extinguisher in a JSON backup file */
 export interface BackupExtinguisher {
@@ -21,6 +22,7 @@ export interface BackupExtinguisher {
   serviceClass?: string;
   extinguisherSize?: string;
   section?: string;
+  floor?: string;
   vicinity?: string;
   parentLocation?: string;
   manufactureYear?: number;
@@ -145,6 +147,12 @@ export function mapToExtinguisher(
     vicinity: item.vicinity || '',
     parentLocation: item.parentLocation || '',
     section: item.section || '',
+    // Prefer an explicit floor column; otherwise infer from vicinity/section text.
+    floor:
+      (item.floor || '').trim() ||
+      parseFloorFromText(item.vicinity) ||
+      parseFloorFromText(item.section) ||
+      '',
     locationId: null,
     photos: item.photos || [],
     lastMonthlyInspection: item.checkedDate

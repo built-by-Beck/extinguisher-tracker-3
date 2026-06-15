@@ -10,8 +10,10 @@ import {
 } from '../../lib/planConfig.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
-
-type BillingIntervalUi = 'month' | 'year';
+import {
+  BillingIntervalToggle,
+  type BillingIntervalUi,
+} from './BillingIntervalToggle.tsx';
 
 function formatUsd(amount: number): string {
   return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
@@ -43,9 +45,7 @@ export function PlanSelector() {
       const result = await createCheckoutSession({
         orgId,
         plan,
-        ...(billingInterval === 'year'
-          ? { billingInterval: 'year' as const }
-          : {}),
+        billingInterval,
       });
       if (result.data.url) {
         window.location.href = result.data.url;
@@ -67,46 +67,13 @@ export function PlanSelector() {
         </p>
       )}
 
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-900">Billing</p>
-          {billingInterval === 'year' && (
-            <p className="text-xs text-green-700 font-medium mt-0.5">
-              You're saving {discountPct}% with annual billing
-            </p>
-          )}
-        </div>
-        <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
-          <button
-            type="button"
-            onClick={() => setBillingInterval('month')}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              billingInterval === 'month'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            onClick={() => setBillingInterval('year')}
-            className={`relative rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              billingInterval === 'year'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            Yearly
-            <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
-              SAVE {discountPct}%
-            </span>
-          </button>
-        </div>
-      </div>
+      <BillingIntervalToggle
+        value={billingInterval}
+        onChange={setBillingInterval}
+        prominent
+      />
 
-      {/* AI feature showcase */}
-      <div className="mb-6 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-red-50 p-5">
+      <div className="mb-6 mt-6 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-red-50 p-5">
         <div className="mb-3 flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-blue-500" />
           <h3 className="text-sm font-bold text-gray-900">

@@ -127,7 +127,7 @@ export function AiUpgradeCard() {
 
       {/* CTA */}
       <button
-        onClick={() => navigate('/dashboard/settings')}
+        onClick={() => navigate('/dashboard/settings?billing=1')}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-red-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg hover:from-blue-700 hover:to-red-700"
       >
         Upgrade to Pro to Unlock AI

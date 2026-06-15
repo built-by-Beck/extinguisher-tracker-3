@@ -452,9 +452,10 @@ export default function Inventory() {
     if (!locationFilter) return null;
     const collect = (id: string): string[] => {
       const children = locations.filter(
-        (l) => l.parentLocationId === id && !l.deletedAt,
+        (l) =>
+          l.parentLocationId === id && !l.deletedAt && typeof l.id === 'string',
       );
-      return [id, ...children.flatMap((c) => collect(c.id))];
+      return [id, ...children.flatMap((c) => collect(c.id!))];
     };
     return new Set(collect(locationFilter));
   }, [locationFilter, locations]);

@@ -124,6 +124,10 @@ export default function Locations() {
   const [formType, setFormType] = useState('building');
   const [formParent, setFormParent] = useState('');
   const [formDescription, setFormDescription] = useState('');
+  // Auto-create floors when adding a building (create only).
+  const [formFloorCount, setFormFloorCount] = useState('');
+  const [formIncludeGround, setFormIncludeGround] = useState(false);
+  const [formIncludeBasement, setFormIncludeBasement] = useState(false);
   const [formSaving, setFormSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Location | null>(null);
   const [formError, setFormError] = useState('');
@@ -148,6 +152,9 @@ export default function Locations() {
     setFormType('building');
     setFormParent('');
     setFormDescription('');
+    setFormFloorCount('');
+    setFormIncludeGround(false);
+    setFormIncludeBasement(false);
     setFormError('');
     setShowForm(true);
   }
@@ -158,6 +165,9 @@ export default function Locations() {
     setFormType(loc.locationType);
     setFormParent(loc.parentLocationId ?? '');
     setFormDescription(loc.description ?? '');
+    setFormFloorCount('');
+    setFormIncludeGround(false);
+    setFormIncludeBasement(false);
     setFormError('');
     setShowForm(true);
   }
@@ -199,7 +209,31 @@ export default function Locations() {
       if (editingLoc?.id) {
         await updateLocation(orgId, editingLoc.id, data);
       } else {
-        await createLocation(orgId, user.uid, data);
+        const newId = await createLocation(orgId, user.uid, data);
+        // When adding a building, optionally seed its floors as child locations
+        // so technicians can immediately drill Building -> Floor -> extinguishers.
+        if (formType === 'building') {
+          const floorNames: string[] = [];
+          if (formIncludeBasement) floorNames.push('Basement');
+          if (formIncludeGround) floorNames.push('Ground Floor');
+          const count = Math.min(
+            Math.max(Number.parseInt(formFloorCount, 10) || 0, 0),
+            100,
+          );
+          for (let i = 1; i <= count; i += 1) floorNames.push(`Floor ${i}`);
+
+          let order = 0;
+          for (const floorName of floorNames) {
+            await createLocation(orgId, user.uid, {
+              name: floorName,
+              locationType: 'floor',
+              parentLocationId: newId,
+              description: null,
+              sortOrder: order,
+            });
+            order += 1;
+          }
+        }
       }
 
       setShowForm(false);
@@ -360,6 +394,53 @@ export default function Locations() {
                   ))}
                 </select>
               </div>
+
+              {formType === 'building' && !editingLoc && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <label
+                    htmlFor="floor-count"
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                  >
+                    Number of floors
+                  </label>
+                  <input
+                    id="floor-count"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={formFloorCount}
+                    onChange={(e) => setFormFloorCount(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                    placeholder="e.g., 5"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    We&apos;ll automatically add Floor 1 through Floor N under
+                    this building. You can rename or remove them later.
+                  </p>
+                  <div className="mt-2 space-y-1.5">
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={formIncludeGround}
+                        onChange={(e) => setFormIncludeGround(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                      Add a Ground Floor
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={formIncludeBasement}
+                        onChange={(e) =>
+                          setFormIncludeBasement(e.target.checked)
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                      Add a Basement
+                    </label>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">

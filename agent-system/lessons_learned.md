@@ -349,3 +349,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Added `limit(50)` per field on the legacy wave, parallelized strict and legacy waves to cut round-trips, and kept inventory-wide listing separate from identifier search (bounded server path for likely IDs).
 
 **Prevention rule:** Any Firestore `getDocs` used for interactive search or scan lookup must include an explicit `limit()` on fallback queries, even when equality filters exist, unless the product explicitly needs a full collection scan.
+
+## 2026-06-15 - `uid` is on `useAuth().user`, not `userProfile`
+
+**What happened:** While adding floor tools to `DataOrganizer.tsx`, I used `userProfile.uid` to call `createLocation(orgId, uid, ...)`. Build failed: `TS2339: Property 'uid' does not exist on type 'UserProfile'`. `UserProfile` only carries app metadata (e.g. `activeOrgId`); the authenticated user id comes from the Firebase user object.
+
+**Fix used:** Destructure `const { user, userProfile } = useAuth();` and use `user.uid` (guard `if (!user?.uid) return;`). This matches `Locations.tsx` which already uses `user.uid` for `createLocation`.
+
+**Prevention rule:** For any privileged write needing the actor's uid, read it from `useAuth().user.uid`, never from `userProfile`. Use `userProfile` only for org/profile metadata like `activeOrgId`.
