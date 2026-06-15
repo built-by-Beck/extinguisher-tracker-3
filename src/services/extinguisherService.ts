@@ -745,11 +745,15 @@ export async function findExtinguisherByCode(
       searchInput: trimmed,
       orgId,
       collectionPath: collectionPathExtinguishers(orgId),
+<<<<<<< local-work-pending-merge
       phases: [
         'strict limit 1 (parallel)',
         'strict limit 8 (parallel)',
         'legacy limit 50 (parallel)',
       ],
+=======
+      phases: ['strict limit 1 (parallel)', 'strict limit 8 (parallel)', 'legacy limit 50 (parallel)'],
+>>>>>>> main
       note: 'No extra Firestore collections (inspections, workspaces, reports, photos, notes, history).',
     });
 
