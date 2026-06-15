@@ -1,6 +1,6 @@
-assetId,serial,parentLocation,vicinity
-EX-001,SN-12345,Building A,By the exit door on 2nd floor
-EX-002,SN-67890,Building A,Break room hallway near vending machines
-EX-003,SN-11111,Warehouse B,Behind loading dock door 3
-EX-004,SN-22222,Main Hospital,Lobby entrance next to front desk
-EX-005,SN-33333,Building C,Kitchen by the fire blanket
+assetId,serial,parentLocation,floor,vicinity
+EX-001,SN-12345,Building A,2nd Floor,By the exit door
+EX-002,SN-67890,Building A,1st Floor,Break room hallway near vending machines
+EX-003,SN-11111,Warehouse B,Ground Floor,Behind loading dock door 3
+EX-004,SN-22222,Main Hospital,1st Floor,Lobby entrance next to front desk
+EX-005,SN-33333,Building C,Basement,Kitchen by the fire blanket

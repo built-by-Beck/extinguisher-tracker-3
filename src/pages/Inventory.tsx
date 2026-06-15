@@ -446,6 +446,20 @@ export default function Inventory() {
     [locations],
   );
 
+  // Collect the selected location ID plus all its descendants so building-level
+  // selection cascades to floors/wings/zones assigned below it.
+  const locationFilterIds = useMemo(() => {
+    if (!locationFilter) return null;
+    const collect = (id: string): string[] => {
+      const children = locations.filter(
+        (l) =>
+          l.parentLocationId === id && !l.deletedAt && typeof l.id === 'string',
+      );
+      return [id, ...children.flatMap((c) => collect(c.id!))];
+    };
+    return new Set(collect(locationFilter));
+  }, [locationFilter, locations]);
+
   // Client-side filtering with enhanced location search; exact identifier strings use bounded Firestore reads.
   const filtered = useMemo(() => {
     function applyTableFilters(ext: Extinguisher, includeTextSearch: boolean) {
@@ -466,8 +480,9 @@ export default function Inventory() {
         if (isReplacedRecord) return false;
         if (isSupersededStale && !isReplacedRecord) return false;
       }
-      if (locationFilter) {
-        if (ext.locationId !== locationFilter) return false;
+      if (locationFilterIds) {
+        if (!ext.locationId || !locationFilterIds.has(ext.locationId))
+          return false;
       }
       if (complianceFilter && ext.complianceStatus !== complianceFilter)
         return false;
@@ -520,7 +535,7 @@ export default function Inventory() {
   }, [
     items,
     categoryFilter,
-    locationFilter,
+    locationFilterIds,
     complianceFilter,
     expiringFilter,
     searchQuery,

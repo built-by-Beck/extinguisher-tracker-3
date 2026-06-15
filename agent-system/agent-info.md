@@ -2301,3 +2301,68 @@ Added a lesson and resolved error-log entry: parent-provided data refactors must
 **Validation:** `npx tsc --noEmit` — passes.
 
 **Review verdict:** ACCEPTED WITH MINOR CONCERNS — remaining launch checklist: confirm Stripe webhook endpoint receives all documented event types; watch for brief post-checkout race before `trialing`/`active` is written; consider App Check on billing callables later.
+
+## 2026-05-27 — Ship-readiness fixes (build + legal + billing docs)
+
+**Task (SMALL):** Fix production build blocker and clear launch TODOs from prior ship assessment.
+
+**Changes:**
+- [`src/pages/Inventory.tsx`](src/pages/Inventory.tsx): location descendant filter skips locations without `id` so `collect()` is type-safe (`Location.id` is optional).
+- [`src/pages/marketing/TermsPage.tsx`](src/pages/marketing/TermsPage.tsx): removed stale lawyer TODO; added annual billing subsection; contact `help@extinguishertracker.com`.
+- [`src/pages/marketing/PrivacyPage.tsx`](src/pages/marketing/PrivacyPage.tsx): removed stale lawyer TODO; contact `help@extinguishertracker.com`.
+- [`README.md`](README.md): document yearly Stripe price IDs in `functions/.env`; clarify live webhook secret + monthly-only trial.
+
+**Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build`, `npm --prefix functions test` — all pass.
+
+**Review verdict:** ACCEPTED. **Still manual before prod:** Stripe live yearly price IDs in `functions/.env`, live webhook events verified, optional lawyer review of Terms/Privacy, App Check on callables (deferred).
+
+## 2026-06-15 — Workspace inspection redesign (Phase 1) + stay-in-location fix (Phase 2)
+
+**Task (LARGE, Full PBRD):** Redesign the monthly workspace inspection view for field technicians (mobile-first, tap-through, pending = home base) and fix the bug where inspecting an extinguisher reset the view back to the global not-yet-inspected list instead of staying in the current location/bucket. Part of a larger 6-phase plan (Phases 3-6 add Floors).
+
+**Phase 2 root cause:** `buildWorkspaceViewSearchParams` in [`src/pages/WorkspaceDetail.tsx`](src/pages/WorkspaceDetail.tsx) only encoded `loc`/`scope`/`leaf`/`group` into the URL. It never encoded `showUnassigned`/`showDeleted` (and didn't persist sort mode), so returning from an inspection while working the **Unassigned** bucket (common when extinguishers have `locationId: null`) collapsed back to root. Since `WorkspaceDetail` unmounts when `ExtinguisherDetail` (route `inspect-ext/:extId`) renders, view state must round-trip through the URL.
+
+**Phase 2 fix:** Added query keys `unassigned`/`deleted`/`sort` (`WS_Q_UNASSIGNED`, `WS_Q_DELETED`, `WS_Q_SORT`, `DEFAULT_SORT_MODE='floor'`), `parseSortModeFromSearch`, extended `buildWorkspaceViewSearchParams` to encode bucket + sort, and initialized `showUnassigned`/`showDeleted`/`sortMode` from the URL so the full scope is restored deterministically on mount. `returnTo` (already consumed by `ExtinguisherDetail` lines 207-216/394) now carries the bucket. Net: view only changes on explicit breadcrumb/card/Back.
+
+**Phase 1 redesign:** New [`src/components/workspace/InspectionRowCard.tsx`](src/components/workspace/InspectionRowCard.tsx) (large tap-target row, exports shared `STATUS_STYLES`); `LeafExtinguisherTable` and the local `STATUS_STYLES`/icon imports now use it. Sticky technician header (back, breadcrumb, "X of Y checked", progress, pinned `ScanSearchBar`) so a tech can scan from anywhere while the list scrolls. Responsive title/counts.
+
+**Deviation from plan:** Consolidated the planned 5-component extraction to one shared row component + in-place restructure of `WorkspaceDetail.tsx` to minimize regression risk on the inspection source-of-truth. No logic/stats changes — still routed through `buildMonthlyWorkspaceInspectionSnapshot`.
+
+**Validation:** `prettier --write`, `eslint` (0 errors), `pnpm build` (tsc + vite) — all pass (2026-06-15). Manual UI verification still recommended (drill-down, tabs, scan, inspect-and-return stays in Unassigned bucket).
+
+**Follow-up:** Guest mirror `GuestWorkspaceDetail.tsx` not redesigned.
+
+## 2026-06-15 — Floors feature (Phases 3-6) — built_by_Beck
+
+**Scope:** Add a first-class `floor` concept to extinguishers + locations so techs can drill Building → Floor → units during inspection. Writes to customer data (new field + bulk location creation/assignment), so treat as LARGE.
+
+**Phase 3 (data model):**
+- `Extinguisher.floor?: string` added to type ([`src/services/extinguisherService.ts`](src/services/extinguisherService.ts)); `createExtinguisher` defaults `floor: data.floor ?? ''`.
+- New [`src/utils/floorParsing.ts`](src/utils/floorParsing.ts): `parseFloorFromText` (returns "2nd Floor"/"Basement"/"Ground Floor"/"Mezzanine"/"Penthouse"/"Roof" or null) + `floorSortRank`.
+- `ExtinguisherForm.tsx` gained a Floor input (state/init/payload).
+- `Locations.tsx`: when **creating a building**, optional "Number of floors" + Ground/Basement checkboxes auto-create child `floor` locations (`Floor 1..N`, capped 100, ascending `sortOrder`) under the new building via `createLocation`.
+
+**Phase 4 (import):**
+- Client `jsonImportService.mapToExtinguisher` maps `floor`, falling back to `parseFloorFromText(vicinity)` then `(section)`.
+- Cloud Function `functions/src/data/importCSV.ts`: `CSVRow.floor` + doc `floor: row.floor || ''` (backend does NOT infer from vicinity — Data Organizer handles that).
+- `public/extinguisher-import-template.csv` now has a `floor` column with examples.
+
+**Phase 5 (Data Organizer tools):** [`src/pages/DataOrganizer.tsx`](src/pages/DataOrganizer.tsx)
+- `getIssues` flags `No floor` (empty floor field); new filter option + Floor table column (editable) + bulk "Assign Floor" input.
+- Tool 1 "Extract floor from vicinity": batch-sets `floor` from `parseFloorFromText` for units missing one.
+- Tool 2 "Create & assign floors": find-or-create Building (top-level, by normalized name; falls back to top-level ancestor of `locationId`) then find-or-create child `floor` location (keyed `${buildingId}::${normName}`), set unit `locationId`→floor + `parentLocation`→building. In-memory caches avoid duplicate location creation within one run; reports created/assigned/skipped.
+
+**Phase 6 (floor picker):** No code needed — `useLocationDrillDown` is generic over the location tree, so buildings with floor children render floors as cards and filter units per floor once Tool 2 assigns them.
+
+**Gotcha fixed:** `uid` lives on `useAuth().user`, NOT `userProfile` (which only has `activeOrgId`). Initial build failed `TS2339: Property 'uid' does not exist on type 'UserProfile'`.
+
+**Validation:** `prettier --write`, `eslint` (0 errors), `pnpm build` (tsc+vite), `npm --prefix functions run build` — all pass (2026-06-15). Manual verification recommended: import w/ floor column, Locations building+floors, Organizer Tool 1 then Tool 2, then inspect drill-down Building→Floor.
+
+### Review pass (2026-06-15) — verdict: ACCEPTED WITH MINOR CONCERNS
+Self-review of the floors changes. Two issues found & fixed in [`DataOrganizer.tsx`](src/pages/DataOrganizer.tsx) Tool 2:
+1. **Data-integrity (important):** original assign used `ext.locationId !== floorLoc.id`, which would FLATTEN units already assigned to a room/section *under* the target floor up to the floor, losing precision. Fixed: climb the unit's locationId ancestor chain; if the target floor is the node or an ancestor, treat as already placed and skip. Idempotent for already-on-floor units; still moves units sitting on the building or wrong floor.
+2. **Floor ordering:** created floor locations had no `sortOrder` (all tied at 0 → "Floor 10" before "Floor 2"). Fixed: `sortOrder: floorSortRank(label)`.
+
+Security/tenant: all writes org-scoped via `orgId`; `createLocation`/`batchUpdateExtinguishers` reuse existing org-scoped paths; page gated to owner/admin (`hasRole`). No new privileged path. `createLocation` persists `sortOrder`/`parentLocationId` and does NOT self-enforce name uniqueness, so bulk floor creation won't throw on dup names (Tool 2 also dedupes in-memory).
+
+Remaining minor concerns (non-blocking): (a) `getIssues` now flags `No floor` on every unit lacking the denormalized floor string even if assigned to a floor location — intentional (Organizer is where floors get filled) but inflates "needs attention" until Tool 1 runs; (b) Tool 2 has no confirm dialog (consistent w/ existing organizer tools) — it's idempotent & safe to re-run; (c) editing a unit's floor *location* later won't auto-sync the `floor` string (pre-existing denormalization pattern).

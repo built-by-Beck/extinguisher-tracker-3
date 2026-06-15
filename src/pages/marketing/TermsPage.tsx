@@ -2,8 +2,6 @@
  * Terms of Service page.
  * Matches existing marketing page styling (PublicMarketingLayout).
  *
- * TODO: Replace placeholder legal text with lawyer-reviewed content before launch.
- *
  * Author: built_by_Beck
  */
 
@@ -146,6 +144,17 @@ export default function TermsPage() {
                 payment card details.
               </p>
               <p className="mt-4 font-medium text-gray-800">
+                Annual billing
+              </p>
+              <p className="mt-2">
+                When you choose yearly billing, you prepay for twelve months at
+                the annual rate shown at checkout (typically 10% less than
+                twelve separate monthly payments). Annual plans are charged in
+                full at signup and renew each year unless cancelled. The no-card
+                Pro trial described below applies to <strong>monthly</strong>{' '}
+                billing only, not annual prepay.
+              </p>
+              <p className="mt-4 font-medium text-gray-800">
                 Free trial (Pro, monthly billing)
               </p>
               <p className="mt-2">
@@ -282,9 +291,15 @@ export default function TermsPage() {
 
             <Section num={14} title="Contact Information">
               <p>
-                If you have any questions about these Terms of Service, please
-                contact us through the contact information provided on our
-                website.
+                If you have any questions about these Terms of Service, contact
+                us at{' '}
+                <a
+                  href="mailto:help@extinguishertracker.com"
+                  className="font-medium text-red-600 hover:text-red-500"
+                >
+                  help@extinguishertracker.com
+                </a>
+                .
               </p>
             </Section>
           </div>

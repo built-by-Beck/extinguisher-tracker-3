@@ -2,8 +2,6 @@
  * Privacy Policy page.
  * Matches existing marketing page styling (PublicMarketingLayout).
  *
- * TODO: Replace placeholder legal text with lawyer-reviewed content before launch.
- *
  * Author: built_by_Beck
  */
 
@@ -345,8 +343,14 @@ export default function PrivacyPage() {
             <Section num={16} title="Contact Us">
               <p>
                 If you have any questions about this Privacy Policy or our data
-                practices, please contact us through the contact information
-                provided on our website.
+                practices, contact us at{' '}
+                <a
+                  href="mailto:help@extinguishertracker.com"
+                  className="font-medium text-red-600 hover:text-red-500"
+                >
+                  help@extinguishertracker.com
+                </a>
+                .
               </p>
             </Section>
           </div>

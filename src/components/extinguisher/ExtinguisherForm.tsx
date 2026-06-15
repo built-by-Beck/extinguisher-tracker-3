@@ -82,6 +82,7 @@ export function ExtinguisherForm({
     initialData?.expirationYear?.toString() ?? '',
   );
   const [section, setSection] = useState(initialData?.section ?? '');
+  const [floor, setFloor] = useState(initialData?.floor ?? '');
   const [locationId, setLocationId] = useState(initialData?.locationId ?? '');
   const [vicinity, setVicinity] = useState(initialData?.vicinity ?? '');
   const [parentLocation, setParentLocation] = useState(
@@ -104,6 +105,7 @@ export function ExtinguisherForm({
       setManufactureYear(initialData.manufactureYear?.toString() ?? '');
       setExpirationYear(initialData.expirationYear?.toString() ?? '');
       setSection(initialData.section ?? '');
+      setFloor(initialData.floor ?? '');
       setLocationId(initialData.locationId ?? '');
       setVicinity(initialData.vicinity ?? '');
       setParentLocation(initialData.parentLocation ?? '');
@@ -152,6 +154,7 @@ export function ExtinguisherForm({
         manufactureYear: manufactureYear ? parseInt(manufactureYear, 10) : null,
         expirationYear: expirationYear ? parseInt(expirationYear, 10) : null,
         section: section.trim(),
+        floor: floor.trim(),
         locationId: locationId || null,
         vicinity: vicinity.trim(),
         parentLocation: parentLocation.trim(),
@@ -454,6 +457,22 @@ export function ExtinguisherForm({
                 first.
               </p>
             )}
+          </div>
+          <div>
+            <label
+              htmlFor="floor"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
+              Floor
+            </label>
+            <input
+              id="floor"
+              type="text"
+              value={floor}
+              onChange={(e) => setFloor(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+              placeholder="e.g., 2nd Floor, Basement"
+            />
           </div>
           <div>
             <label

@@ -171,17 +171,22 @@ Set Cloud Functions secrets via Firebase:
 ```bash
 firebase functions:secrets:set STRIPE_SECRET_KEY
 firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
-firebase functions:secrets:set STRIPE_PRICE_ID_BASIC
-firebase functions:secrets:set STRIPE_PRICE_ID_PRO
-firebase functions:secrets:set STRIPE_PRICE_ID_ELITE
 ```
+
+Set **monthly and yearly** Stripe price IDs in `functions/.env` (deploy-time parameters, not Secret Manager):
+
+- `STRIPE_PRICE_ID_BASIC`, `STRIPE_PRICE_ID_PRO`, `STRIPE_PRICE_ID_ELITE`
+- `STRIPE_PRICE_ID_BASIC_YEARLY`, `STRIPE_PRICE_ID_PRO_YEARLY`, `STRIPE_PRICE_ID_ELITE_YEARLY`
+
+See [`functions/.env.example`](functions/.env.example) for amounts (yearly = monthly × 12 × 0.9).
 
 ### Billing (Stripe) and Pro trial
 
 - **Source of truth:** Stripe subscriptions and webhooks update cached fields on `org/{orgId}` (`subscriptionStatus`, `trialEnd`, `proTrialConsumed`, etc.). Clients never write billing fields; see [`firestore.rules`](firestore.rules).
 - **Pro 7-day trial (monthly only):** New organizations with **no existing Stripe subscription** can start Checkout with a **7-day** Pro trial and **`payment_method_collection: if_required`** (no card until needed). Configurable via **`PRO_TRIAL_DAYS`** in Functions runtime env (`functions/.env` / deploy env); default **7**.
 - **One trial per org:** `proTrialConsumed` is set when the subscription enters **`trialing`** for Pro (webhook). Orgs that already have **`stripeSubscriptionId`** (e.g. Basic) upgrade via paid Checkout without this trial path.
-- **Stripe webhook events:** Ensure your Stripe Dashboard endpoint receives at least: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `invoice.payment_failed`, and optionally **`customer.subscription.trial_will_end`** (audit log only today).
+- **Stripe webhook events:** Ensure your Stripe Dashboard endpoint receives at least: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `invoice.payment_failed`, and optionally **`customer.subscription.trial_will_end`** (audit log only today). Use the **live** signing secret in production (`STRIPE_WEBHOOK_SECRET`).
+- **Annual billing:** Yearly checkout uses the `*_YEARLY` price IDs above. The no-card Pro trial applies to **monthly** Pro only.
 
 ### Development
 

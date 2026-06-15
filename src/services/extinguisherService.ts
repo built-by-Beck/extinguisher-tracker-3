@@ -39,10 +39,7 @@ const EXTINGUISHER_LOOKUP_FIELDS = [
   'qrCodeValue',
 ] as const;
 
-function exSearchLog(
-  message: string,
-  detail?: Record<string, unknown>,
-): void {
+function exSearchLog(message: string, detail?: Record<string, unknown>): void {
   if (!isExSearchDebugEnabled()) return;
   if (detail) console.info(`[EX3 extinguisher search] ${message}`, detail);
   else console.info(`[EX3 extinguisher search] ${message}`);
@@ -228,6 +225,8 @@ export interface Extinguisher {
   vicinity: string;
   parentLocation: string;
   section: string;
+  /** Optional denormalized floor label, e.g. "Floor 2" / "Basement". */
+  floor?: string;
   locationId: string | null;
   photos: Array<{
     url: string;
@@ -506,6 +505,7 @@ export async function createExtinguisher(
     vicinity: data.vicinity ?? '',
     parentLocation: data.parentLocation ?? '',
     section: data.section ?? '',
+    floor: data.floor ?? '',
     locationId: data.locationId ?? null,
     photos: [],
     lastMonthlyInspection: null,
@@ -745,7 +745,15 @@ export async function findExtinguisherByCode(
       searchInput: trimmed,
       orgId,
       collectionPath: collectionPathExtinguishers(orgId),
+<<<<<<< local-work-pending-merge
+      phases: [
+        'strict limit 1 (parallel)',
+        'strict limit 8 (parallel)',
+        'legacy limit 50 (parallel)',
+      ],
+=======
       phases: ['strict limit 1 (parallel)', 'strict limit 8 (parallel)', 'legacy limit 50 (parallel)'],
+>>>>>>> main
       note: 'No extra Firestore collections (inspections, workspaces, reports, photos, notes, history).',
     });
 

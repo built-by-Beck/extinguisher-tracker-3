@@ -29,8 +29,11 @@ import {
 } from '../services/extinguisherService.ts';
 import {
   subscribeToLocations,
+  createLocation,
+  normalizeLocationName,
   type Location,
 } from '../services/locationService.ts';
+import { parseFloorFromText, floorSortRank } from '../utils/floorParsing.ts';
 
 const EXTINGUISHER_TYPES = [
   'ABC Dry Chemical',
@@ -58,6 +61,7 @@ const EXTINGUISHER_SIZES = [
 function getIssues(ext: Extinguisher): string[] {
   const issues: string[] = [];
   if (!ext.locationId && !ext.parentLocation) issues.push('No location');
+  if (!(ext.floor ?? '').trim()) issues.push('No floor');
   if (!ext.serial) issues.push('No serial');
   if (!ext.extinguisherType) issues.push('No type');
   if (!ext.manufactureYear) issues.push('No year');
@@ -66,7 +70,7 @@ function getIssues(ext: Extinguisher): string[] {
 }
 
 export default function DataOrganizer() {
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const orgId = userProfile?.activeOrgId ?? '';
   const { hasRole } = useOrg();
 
@@ -86,6 +90,16 @@ export default function DataOrganizer() {
   // Bulk Assignment States
   const [bulkLocId, setBulkLocId] = useState('');
   const [bulkSection, setBulkSection] = useState('');
+  const [bulkFloor, setBulkFloor] = useState('');
+  // Floor tools
+  const [extractingFloors, setExtractingFloors] = useState(false);
+  const [extractFloorsResult, setExtractFloorsResult] = useState<string | null>(
+    null,
+  );
+  const [assigningFloors, setAssigningFloors] = useState(false);
+  const [assignFloorsResult, setAssignFloorsResult] = useState<string | null>(
+    null,
+  );
   const [repairingReplacements, setRepairingReplacements] = useState(false);
   const [repairReplacementResult, setRepairReplacementResult] = useState<
     string | null
@@ -173,8 +187,8 @@ export default function DataOrganizer() {
 
   const handleBulkAssign = async () => {
     if (!orgId || selected.size === 0) return;
-    if (!bulkLocId && !bulkSection) {
-      alert('Please select a location or enter a section to assign.');
+    if (!bulkLocId && !bulkSection && !bulkFloor) {
+      alert('Please select a location, floor, or section to assign.');
       return;
     }
 
@@ -192,6 +206,9 @@ export default function DataOrganizer() {
         if (bulkSection) {
           data.section = bulkSection;
         }
+        if (bulkFloor) {
+          data.floor = bulkFloor;
+        }
         updates.push({ extId, data });
       }
 
@@ -200,11 +217,188 @@ export default function DataOrganizer() {
       setSelected(new Set());
       setBulkLocId('');
       setBulkSection('');
+      setBulkFloor('');
     } catch (err) {
       console.error('Failed bulk assign', err);
       alert('Failed to apply bulk assignment.');
     } finally {
       setBulkSaving(false);
+    }
+  };
+
+  // Tool 1: infer the floor label from each unit's vicinity/section text.
+  const handleExtractFloors = async () => {
+    if (!orgId) return;
+    setExtractingFloors(true);
+    setExtractFloorsResult(null);
+    try {
+      const updates: Array<{ extId: string; data: Partial<Extinguisher> }> = [];
+      for (const ext of extinguishers) {
+        if (!ext.id) continue;
+        if ((ext.floor ?? '').trim()) continue;
+        const parsed =
+          parseFloorFromText(ext.vicinity) || parseFloorFromText(ext.section);
+        if (parsed) updates.push({ extId: ext.id, data: { floor: parsed } });
+      }
+      if (updates.length === 0) {
+        setExtractFloorsResult(
+          'No floors could be detected from vicinity or section text.',
+        );
+        return;
+      }
+      await batchUpdateExtinguishers(orgId, updates);
+      setExtractFloorsResult(
+        `Set the floor on ${updates.length} extinguisher(s) from their vicinity text.`,
+      );
+    } catch (err) {
+      console.error('Failed to extract floors', err);
+      setExtractFloorsResult('Failed to extract floors. Please try again.');
+    } finally {
+      setExtractingFloors(false);
+    }
+  };
+
+  // Tool 2: ensure a Building -> Floor location exists for each unit's floor
+  // label and assign the unit to that floor location.
+  const handleCreateAssignFloors = async () => {
+    if (!orgId || !user?.uid) return;
+    const uid = user.uid;
+    setAssigningFloors(true);
+    setAssignFloorsResult(null);
+    try {
+      // Working maps over current + newly created locations.
+      const locById = new Map<string, Location>();
+      const buildingByName = new Map<string, Location>();
+      const floorByKey = new Map<string, Location>(); // `${buildingId}::${normFloor}`
+      for (const loc of locations) {
+        if (!loc.id) continue;
+        locById.set(loc.id, loc);
+        if (!loc.parentLocationId) {
+          buildingByName.set(normalizeLocationName(loc.name), loc);
+        }
+        if (loc.locationType === 'floor' && loc.parentLocationId) {
+          floorByKey.set(
+            `${loc.parentLocationId}::${normalizeLocationName(loc.name)}`,
+            loc,
+          );
+        }
+      }
+
+      const resolveBuilding = async (
+        ext: Extinguisher,
+      ): Promise<Location | null> => {
+        // Prefer the named building; fall back to the top-level ancestor of locationId.
+        const name = (ext.parentLocation ?? '').trim();
+        if (name) {
+          const norm = normalizeLocationName(name);
+          const existing = buildingByName.get(norm);
+          if (existing) return existing;
+          const id = await createLocation(orgId, uid, {
+            name,
+            locationType: 'building',
+            parentLocationId: null,
+            description: null,
+          });
+          const created: Location = {
+            id,
+            name,
+            locationType: 'building',
+            parentLocationId: null,
+          } as Location;
+          buildingByName.set(norm, created);
+          locById.set(id, created);
+          return created;
+        }
+        if (ext.locationId) {
+          let cur = locById.get(ext.locationId) ?? null;
+          while (cur?.parentLocationId) {
+            cur = locById.get(cur.parentLocationId) ?? null;
+          }
+          return cur;
+        }
+        return null;
+      };
+
+      let buildingsCreated = 0;
+      let floorsCreated = 0;
+      let assigned = 0;
+      let skipped = 0;
+      const startingBuildings = buildingByName.size;
+      const updates: Array<{ extId: string; data: Partial<Extinguisher> }> = [];
+
+      for (const ext of extinguishers) {
+        if (!ext.id) continue;
+        const floorLabel = (ext.floor ?? '').trim();
+        if (!floorLabel) {
+          skipped += 1;
+          continue;
+        }
+        const building = await resolveBuilding(ext);
+        if (!building?.id) {
+          skipped += 1;
+          continue;
+        }
+        const key = `${building.id}::${normalizeLocationName(floorLabel)}`;
+        let floorLoc = floorByKey.get(key);
+        if (!floorLoc) {
+          const id = await createLocation(orgId, uid, {
+            name: floorLabel,
+            locationType: 'floor',
+            parentLocationId: building.id,
+            description: null,
+            sortOrder: floorSortRank(floorLabel),
+          });
+          floorLoc = {
+            id,
+            name: floorLabel,
+            locationType: 'floor',
+            parentLocationId: building.id,
+          } as Location;
+          floorByKey.set(key, floorLoc);
+          locById.set(id, floorLoc);
+          floorsCreated += 1;
+        }
+        // Skip units already at the floor or in a more precise child of it
+        // (e.g. a room under the floor) so we never flatten existing precision.
+        let alreadyPlaced = false;
+        let cursorId: string | null = ext.locationId ?? null;
+        while (cursorId) {
+          if (cursorId === floorLoc.id) {
+            alreadyPlaced = true;
+            break;
+          }
+          cursorId = locById.get(cursorId)?.parentLocationId ?? null;
+        }
+        if (!alreadyPlaced) {
+          updates.push({
+            extId: ext.id,
+            data: {
+              locationId: floorLoc.id ?? null,
+              parentLocation: building.name,
+            },
+          });
+          assigned += 1;
+        }
+      }
+
+      buildingsCreated = buildingByName.size - startingBuildings;
+
+      if (updates.length > 0) {
+        await batchUpdateExtinguishers(orgId, updates);
+      }
+
+      setAssignFloorsResult(
+        `Created ${buildingsCreated} building(s) and ${floorsCreated} floor(s); ` +
+          `assigned ${assigned} extinguisher(s) to a floor.` +
+          (skipped > 0 ? ` ${skipped} skipped (no floor or building).` : ''),
+      );
+    } catch (err) {
+      console.error('Failed to create/assign floors', err);
+      setAssignFloorsResult(
+        'Failed to create and assign floors. Please try again.',
+      );
+    } finally {
+      setAssigningFloors(false);
     }
   };
 
@@ -417,6 +611,66 @@ export default function DataOrganizer() {
         </div>
       </div>
 
+      {/* Floor tools — extract floor labels and build Building -> Floor structure */}
+      <div className="mb-5 rounded-xl border border-teal-200 bg-teal-50/80 p-4">
+        <div className="flex items-start gap-3">
+          <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-teal-700" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-gray-900">
+              Organize floors
+            </p>
+            <p className="mt-0.5 text-sm text-gray-700">
+              Step 1 reads the floor from each unit&apos;s vicinity text (e.g.
+              &quot;2nd Floor&quot;) into a dedicated floor field. Step 2
+              creates a Floor location under each building and assigns units to
+              it, so you can drill Building → Floor while inspecting.
+            </p>
+            {(extractFloorsResult || assignFloorsResult) && (
+              <div className="mt-2 space-y-1">
+                {extractFloorsResult && (
+                  <p className="text-sm font-medium text-teal-900">
+                    {extractFloorsResult}
+                  </p>
+                )}
+                {assignFloorsResult && (
+                  <p className="text-sm font-medium text-teal-900">
+                    {assignFloorsResult}
+                  </p>
+                )}
+              </div>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleExtractFloors}
+                disabled={extractingFloors || !orgId}
+                className="flex items-center gap-2 rounded-lg border border-teal-300 bg-white px-4 py-2 text-sm font-medium text-teal-800 hover:bg-teal-50 disabled:opacity-50"
+              >
+                {extractingFloors ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Wrench className="h-4 w-4" />
+                )}
+                1. Extract floor from vicinity
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateAssignFloors}
+                disabled={assigningFloors || !orgId}
+                className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
+              >
+                {assigningFloors ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckSquare className="h-4 w-4" />
+                )}
+                2. Create &amp; assign floors
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Filter Bar */}
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <label className="text-sm font-medium text-gray-700">
@@ -432,6 +686,7 @@ export default function DataOrganizer() {
         >
           <option value="all">All Issues</option>
           <option value="No location">No location</option>
+          <option value="No floor">No floor</option>
           <option value="No serial">No serial</option>
           <option value="No type">No type</option>
           <option value="No year">No year</option>
@@ -462,6 +717,14 @@ export default function DataOrganizer() {
 
           <input
             type="text"
+            placeholder="Assign Floor..."
+            value={bulkFloor}
+            onChange={(e) => setBulkFloor(e.target.value)}
+            className="rounded-md border-orange-300 py-1.5 px-3 text-sm focus:border-orange-500 focus:ring-orange-500"
+          />
+
+          <input
+            type="text"
             placeholder="Assign Section..."
             value={bulkSection}
             onChange={(e) => setBulkSection(e.target.value)}
@@ -470,7 +733,7 @@ export default function DataOrganizer() {
 
           <button
             onClick={handleBulkAssign}
-            disabled={bulkSaving || (!bulkLocId && !bulkSection)}
+            disabled={bulkSaving || (!bulkLocId && !bulkSection && !bulkFloor)}
             className="flex items-center gap-2 rounded-md bg-orange-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
           >
             {bulkSaving ? (
@@ -510,6 +773,9 @@ export default function DataOrganizer() {
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-48">
                   Location
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Floor
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Section
@@ -581,6 +847,21 @@ export default function DataOrganizer() {
                           </option>
                         ))}
                       </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="text"
+                        value={
+                          (rowEdits.floor !== undefined
+                            ? rowEdits.floor
+                            : ext.floor) ?? ''
+                        }
+                        onChange={(e) =>
+                          handleEdit(ext.id!, 'floor', e.target.value)
+                        }
+                        className="block w-28 rounded-md border-gray-300 py-1 text-sm focus:border-red-500 focus:ring-red-500"
+                        placeholder="Floor"
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <input

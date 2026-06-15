@@ -20,6 +20,7 @@ interface CSVRow {
   extinguisherSize?: string;
   category?: string;
   section?: string;
+  floor?: string;
   vicinity?: string;
   parentLocation?: string;
   locationId?: string;
@@ -180,6 +181,7 @@ export const importExtinguishersCSV = onCall(async (request) => {
       vicinity: row.vicinity || '',
       parentLocation: row.parentLocation || '',
       section: row.section || '',
+      floor: row.floor || '',
       locationId: row.locationId || null,
       photos: [],
       lastMonthlyInspection: null,
