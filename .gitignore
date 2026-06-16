@@ -1,6 +1,12 @@
 # Dependencies
 node_modules/
 
+# Root uses pnpm — a root npm lockfile is stale/accidental (functions/ uses npm)
+/package-lock.json
+
+# Local scratch
+dependabot-alerts.json
+
 # Build output
 dist/
 dist-ssr/

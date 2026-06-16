@@ -29,14 +29,17 @@
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^7.13.1",
+    "react-router-dom": "^7.15.0",
     "read-excel-file": "^9.0.9",
     "tailwindcss": "^4.2.4"
   },
   "pnpm": {
     "overrides": {
-      "postcss": ">=8.5.10",
-      "protobufjs": ">=7.5.5"
+      "postcss": "^8.5.10",
+      "protobufjs": "^8.2.0",
+      "@grpc/grpc-js": "^1.9.16",
+      "esbuild": "^0.28.1",
+      "react-router": "^7.15.0"
     },
     "onlyBuiltDependencies": [
       "esbuild",
