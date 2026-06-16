@@ -15,6 +15,7 @@ import { DashboardAdBanner } from '../ads/DashboardAdBanner.tsx';
 import { AdSlot } from '../ads/AdSlot.tsx';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { hasFeature } from '../../lib/planConfig.ts';
+import { readBillingIntervalPreference, settingsBillingPath } from '../../lib/billingIntervalPreference.ts';
 
 const BANNER_PREF_KEY = 'ex3-hide-banner';
 
@@ -182,7 +183,9 @@ export function DashboardLayout() {
               losing access.
             </p>
             <button
-              onClick={() => navigate('/dashboard/settings?billing=1')}
+              onClick={() =>
+                navigate(settingsBillingPath(readBillingIntervalPreference()))
+              }
               className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-700"
             >
               Manage Billing
@@ -199,7 +202,9 @@ export function DashboardLayout() {
             </p>
             <button
               type="button"
-              onClick={() => navigate('/dashboard/settings?billing=1')}
+              onClick={() =>
+                navigate(settingsBillingPath(readBillingIntervalPreference()))
+              }
               className="rounded-md bg-amber-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800"
             >
               Billing
@@ -273,7 +278,9 @@ export function DashboardLayout() {
                   will be fully accessible once you resubscribe.
                 </p>
                 <button
-                  onClick={() => navigate('/dashboard/settings?billing=1')}
+                  onClick={() =>
+                navigate(settingsBillingPath(readBillingIntervalPreference()))
+              }
                   className="mt-6 rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-red-700"
                 >
                   Resubscribe

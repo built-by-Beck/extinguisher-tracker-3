@@ -25,6 +25,9 @@ import {
 } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
+import { MarketingPricingPlans } from '../../components/marketing/MarketingPricingPlans.tsx';
+import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
+import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 import { marketingSeo } from './marketingSeo.ts';
 
 function Section({
@@ -48,6 +51,7 @@ function Section({
 
 export default function MarketingHomePage() {
   const seo = marketingSeo.home;
+  const { interval, setInterval } = useBillingIntervalPreference();
 
   return (
     <>
@@ -70,12 +74,12 @@ export default function MarketingHomePage() {
               happens.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                to="/signup"
+              <MarketingSignupLink
+                interval={interval}
                 className="inline-flex justify-center rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
               >
                 Create account
-              </Link>
+              </MarketingSignupLink>
               <Link
                 to="/pricing"
                 className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
@@ -387,73 +391,20 @@ export default function MarketingHomePage() {
         </Section>
 
         <div className="border-y border-gray-200 bg-white" id="plans-preview">
-          <Section>
+          <Section className="pb-8">
             <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
               Plans
             </h2>
             <p className="mt-4 max-w-2xl text-gray-600">
-              Four tiers so you can match capability to portfolio size. Details
-              and FAQs live on the pricing page.
+              Choose monthly or yearly billing, then pick the tier that fits your
+              program. Checkout happens in the app after you create an account.
             </p>
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                {
-                  name: 'Basic',
-                  blurb:
-                    'Inventory, workflow, reports, and timers for small operations.',
-                },
-                {
-                  name: 'Pro',
-                  blurb:
-                    'AI guidance, camera scanning, GPS/photo evidence, and custom asset inspections.',
-                  recommended: true,
-                },
-                {
-                  name: 'Elite',
-                  blurb:
-                    'Team invites, bulk tags, guest sharing, and advanced data tools.',
-                },
-                {
-                  name: 'Enterprise',
-                  blurb:
-                    'Custom contracts, dedicated setup, and unlimited scale.',
-                },
-              ].map(({ name, blurb, recommended }) => (
-                <Link
-                  key={name}
-                  to={`/plans/${name.toLowerCase()}`}
-                  className={`group block rounded-xl border bg-white p-6 shadow-sm transition-shadow hover:shadow-md ${
-                    recommended
-                      ? 'border-red-200 ring-2 ring-red-100'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  {recommended ? (
-                    <p className="text-xs font-semibold uppercase tracking-wide text-red-600">
-                      Recommended
-                    </p>
-                  ) : (
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      Plan
-                    </p>
-                  )}
-                  <p className="mt-2 text-xl font-bold text-gray-900">{name}</p>
-                  <p className="mt-2 text-sm text-gray-600">{blurb}</p>
-                  <p className="mt-4 text-xs font-medium text-red-600 group-hover:underline">
-                    See what's included →
-                  </p>
-                </Link>
-              ))}
-            </div>
-            <div className="mt-8">
-              <Link
-                to="/pricing"
-                className="inline-flex rounded-md bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-red-700"
-              >
-                Compare plans
-              </Link>
-            </div>
           </Section>
+          <MarketingPricingPlans
+            compactToggle
+            interval={interval}
+            onIntervalChange={setInterval}
+          />
         </div>
 
         <Section className="pb-20">
@@ -466,12 +417,12 @@ export default function MarketingHomePage() {
               the inventory and inspection rhythm your team can sustain.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                to="/signup"
+              <MarketingSignupLink
+                interval={interval}
                 className="inline-flex w-full justify-center rounded-md bg-white px-6 py-3 text-sm font-semibold text-red-700 shadow hover:bg-red-50 sm:w-auto"
               >
                 Get started
-              </Link>
+              </MarketingSignupLink>
               <Link
                 to="/how-it-works"
                 className="inline-flex w-full justify-center rounded-md border border-red-400 px-6 py-3 text-sm font-semibold text-white hover:bg-red-700 sm:w-auto"

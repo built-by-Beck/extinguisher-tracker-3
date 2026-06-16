@@ -1,7 +1,13 @@
-import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, type FormEvent, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.ts';
 import { callCreateOrganization } from '../services/orgService.ts';
+import {
+  billingIntervalFromSearchParams,
+  readBillingIntervalPreference,
+  settingsBillingPath,
+  writeBillingIntervalPreference,
+} from '../lib/billingIntervalPreference.ts';
 
 const COMMON_TIMEZONES = [
   'America/New_York',
@@ -56,6 +62,17 @@ function getBrowserTimezone(): string {
 export default function CreateOrg() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const billingInterval =
+    billingIntervalFromSearchParams(searchParams) ??
+    readBillingIntervalPreference();
+  const preferredPlan = searchParams.get('plan');
+
+  useEffect(() => {
+    if (billingInterval) {
+      writeBillingIntervalPreference(billingInterval);
+    }
+  }, [billingInterval]);
 
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -104,8 +121,10 @@ export default function CreateOrg() {
         slug: slug || undefined,
         timezone,
       });
-      // After creation, OrgContext will pick up the new activeOrgId
-      navigate('/dashboard', { replace: true });
+      navigate(
+        settingsBillingPath(billingInterval ?? undefined),
+        { replace: true },
+      );
     } catch (err: unknown) {
       const fbErr = err as { message?: string };
       setError(
@@ -220,12 +239,30 @@ export default function CreateOrg() {
             </div>
 
             <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
-              After your organization exists, open{' '}
-              <strong className="text-gray-800">Settings → Billing</strong> to
-              subscribe. Eligible orgs can start a{' '}
-              <strong className="text-gray-800">7-day Pro trial</strong> on{' '}
-              <strong className="text-gray-800">monthly</strong> billing with no
-              credit card at checkout.
+              Next: choose{' '}
+              {preferredPlan ? (
+                <strong className="text-gray-800">{preferredPlan}</strong>
+              ) : (
+                'a plan'
+              )}{' '}
+              with{' '}
+              <strong className="text-gray-800">
+                {billingInterval === 'month' ? 'monthly' : 'yearly'}
+              </strong>{' '}
+              billing under <strong className="text-gray-800">Settings → Billing</strong>.
+              {billingInterval === 'month' ? (
+                <>
+                  {' '}
+                  Eligible orgs can start a{' '}
+                  <strong className="text-gray-800">7-day Pro trial</strong> on
+                  monthly with no card at checkout.
+                </>
+              ) : (
+                <>
+                  {' '}
+                  Yearly plans are charged as one annual payment at checkout.
+                </>
+              )}
             </p>
 
             <button

@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
+import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
+import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 import { marketingSeo } from './marketingSeo.ts';
 
 const steps = [
@@ -66,6 +68,7 @@ const steps = [
 
 export default function MarketingHowItWorksPage() {
   const seo = marketingSeo.howItWorks;
+  const { interval } = useBillingIntervalPreference();
 
   return (
     <>
@@ -119,12 +122,12 @@ export default function MarketingHowItWorksPage() {
           </p>
 
           <div className="mt-14 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
-            <Link
-              to="/signup"
+            <MarketingSignupLink
+              interval={interval}
               className="inline-flex rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700"
             >
               Create account
-            </Link>
+            </MarketingSignupLink>
             <Link
               to="/pricing"
               className="text-sm font-medium text-red-600 hover:text-red-500"

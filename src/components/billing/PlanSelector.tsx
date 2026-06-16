@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Check, Loader2, Sparkles, X as XIcon, Zap } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
@@ -11,6 +11,10 @@ import {
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import {
+  readBillingIntervalPreference,
+  writeBillingIntervalPreference,
+} from '../../lib/billingIntervalPreference.ts';
+import {
   BillingIntervalToggle,
   type BillingIntervalUi,
 } from './BillingIntervalToggle.tsx';
@@ -19,11 +23,28 @@ function formatUsd(amount: number): string {
   return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
 }
 
-export function PlanSelector() {
+export function PlanSelector({
+  initialInterval,
+}: {
+  initialInterval?: BillingIntervalUi;
+} = {}) {
   const { org } = useOrg();
   const { userProfile } = useAuth();
-  const [billingInterval, setBillingInterval] =
-    useState<BillingIntervalUi>('year');
+  const [billingInterval, setBillingIntervalState] = useState<BillingIntervalUi>(
+    () => initialInterval ?? readBillingIntervalPreference(),
+  );
+
+  function setBillingInterval(next: BillingIntervalUi) {
+    setBillingIntervalState(next);
+    writeBillingIntervalPreference(next);
+  }
+
+  useEffect(() => {
+    if (initialInterval) {
+      setBillingIntervalState(initialInterval);
+      writeBillingIntervalPreference(initialInterval);
+    }
+  }, [initialInterval]);
   const [loading, setLoading] = useState<PlanName | null>(null);
   const [error, setError] = useState('');
 

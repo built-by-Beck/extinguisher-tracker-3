@@ -38,6 +38,10 @@ import { httpsCallable } from 'firebase/functions';
 import { useOrg } from '../hooks/useOrg.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { hasFeature } from '../lib/planConfig.ts';
+import {
+  readBillingIntervalPreference,
+  settingsBillingPath,
+} from '../lib/billingIntervalPreference.ts';
 import { BillingStatus } from '../components/billing/BillingStatus.tsx';
 import { AssetLimitBar } from '../components/billing/AssetLimitBar.tsx';
 import type { Workspace } from '../services/workspaceService.ts';
@@ -318,7 +322,9 @@ export default function Dashboard() {
             </p>
           </div>
           <button
-            onClick={() => navigate('/dashboard/settings?billing=1')}
+            onClick={() =>
+              navigate(settingsBillingPath(readBillingIntervalPreference()))
+            }
             className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
           >
             Choose a Plan
@@ -339,7 +345,9 @@ export default function Dashboard() {
             </p>
           </div>
           <button
-            onClick={() => navigate('/dashboard/settings?billing=1')}
+            onClick={() =>
+              navigate(settingsBillingPath(readBillingIntervalPreference()))
+            }
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
             Upgrade Plan

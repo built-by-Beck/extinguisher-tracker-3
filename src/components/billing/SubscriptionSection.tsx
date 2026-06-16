@@ -1,6 +1,7 @@
 import { PlanSelector } from './PlanSelector.tsx';
 import { ManageBilling } from './ManageBilling.tsx';
 import { BillingStatus } from './BillingStatus.tsx';
+import type { BillingIntervalPreference } from '../../lib/billingIntervalPreference.ts';
 import type { Organization } from '../../types/organization.ts';
 
 type SubscriptionSectionProps = {
@@ -8,6 +9,7 @@ type SubscriptionSectionProps = {
   isOwner: boolean;
   billingNotice?: string | null;
   billingNoticeTone?: 'success' | 'info';
+  initialBillingInterval?: BillingIntervalPreference;
 };
 
 export function SubscriptionSection({
@@ -15,6 +17,7 @@ export function SubscriptionSection({
   isOwner,
   billingNotice,
   billingNoticeTone = 'success',
+  initialBillingInterval,
 }: SubscriptionSectionProps) {
   if (!isOwner) {
     return (
@@ -106,7 +109,7 @@ export function SubscriptionSection({
         <h3 className="mb-1 text-sm font-semibold text-gray-900">
           {org.plan ? 'Change plan' : 'Available plans'}
         </h3>
-        <PlanSelector />
+        <PlanSelector initialInterval={initialBillingInterval} />
       </div>
     </div>
   );

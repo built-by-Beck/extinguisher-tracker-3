@@ -20,6 +20,11 @@ import { db } from '../lib/firebase.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { SubscriptionSection } from '../components/billing/SubscriptionSection.tsx';
+import {
+  billingIntervalFromSearchParams,
+  writeBillingIntervalPreference,
+  type BillingIntervalPreference,
+} from '../lib/billingIntervalPreference.ts';
 import { toggleGuestAccessCall } from '../services/guestService.ts';
 import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
 import type { NfpaEdition } from '../types/organization.ts';
@@ -125,9 +130,16 @@ export default function OrgSettings() {
   const [billingNoticeTone, setBillingNoticeTone] = useState<'success' | 'info'>(
     'success',
   );
+  const [checkoutInterval, setCheckoutInterval] =
+    useState<BillingIntervalPreference | null>(null);
 
   useEffect(() => {
     const status = searchParams.get('billing');
+    const intervalFromUrl = billingIntervalFromSearchParams(searchParams);
+    if (intervalFromUrl) {
+      writeBillingIntervalPreference(intervalFromUrl);
+      setCheckoutInterval(intervalFromUrl);
+    }
     if (!status) return;
 
     if (status === 'success') {
@@ -324,6 +336,7 @@ export default function OrgSettings() {
         isOwner={isOwner}
         billingNotice={billingNotice}
         billingNoticeTone={billingNoticeTone}
+        initialBillingInterval={checkoutInterval ?? undefined}
       />
 
       {/* General settings */}

@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { PublicAdSlot } from '../ads/PublicAdSlot.tsx';
+import { MarketingSignupLink } from './MarketingSignupLink.tsx';
+import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-base font-semibold ${isActive ? 'text-red-600' : 'text-gray-700 hover:text-red-600'}`;
@@ -60,6 +62,7 @@ export function PublicMarketingLayout({
 }: PublicMarketingLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const { interval } = useBillingIntervalPreference();
   const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? {
     title: 'ExtinguisherTracker',
     subtitle: '',
@@ -115,12 +118,12 @@ export function PublicMarketingLayout({
             >
               Sign in
             </Link>
-            <Link
-              to="/signup"
+            <MarketingSignupLink
+              interval={interval}
               className="rounded-lg bg-red-600 px-5 py-2.5 text-base font-semibold text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
             >
               Get started
-            </Link>
+            </MarketingSignupLink>
           </nav>
 
           {mobileOpen ? (
@@ -204,13 +207,13 @@ export function PublicMarketingLayout({
               >
                 Sign in
               </Link>
-              <Link
-                to="/signup"
+              <MarketingSignupLink
+                interval={interval}
                 className="rounded-md bg-red-600 px-4 py-2 text-center text-sm font-medium text-white"
                 onClick={() => setMobileOpen(false)}
               >
                 Get started
-              </Link>
+              </MarketingSignupLink>
             </div>
           </div>
         ) : null}
@@ -306,9 +309,12 @@ export function PublicMarketingLayout({
                 <Link to="/login" className="text-gray-600 hover:text-red-600">
                   Sign in
                 </Link>
-                <Link to="/signup" className="text-gray-600 hover:text-red-600">
+                <MarketingSignupLink
+                  interval={interval}
+                  className="text-gray-600 hover:text-red-600"
+                >
                   Create account
-                </Link>
+                </MarketingSignupLink>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="font-medium text-gray-900">Company</span>

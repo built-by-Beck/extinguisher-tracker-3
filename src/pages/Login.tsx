@@ -1,6 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.ts';
+import {
+  billingIntervalFromSearchParams,
+  readBillingIntervalPreference,
+  withBillingIntervalQuery,
+} from '../lib/billingIntervalPreference.ts';
 
 function getFirebaseErrorMessage(code: string): string {
   switch (code) {
@@ -25,6 +30,11 @@ export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const signupTo = withBillingIntervalQuery(
+    '/signup',
+    billingIntervalFromSearchParams(searchParams) ??
+      readBillingIntervalPreference(),
+  );
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -141,7 +151,7 @@ export default function Login() {
           <p className="mt-6 text-center text-sm text-gray-600">
             Don&apos;t have an account?{' '}
             <Link
-              to="/signup"
+              to={signupTo}
               className="font-medium text-red-600 hover:text-red-500"
             >
               Sign up
