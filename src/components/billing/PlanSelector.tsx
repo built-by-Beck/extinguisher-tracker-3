@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Check, Loader2, Sparkles, X as XIcon, Zap } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
+import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
 import {
-  PLANS,
-  type PlanName,
-  YEARLY_DISCOUNT_FRACTION,
-  yearlyMonthlyEquivDisplay,
-} from '../../lib/planConfig.ts';
+  getLaunchPromoCheckoutHint,
+  TRIAL_DAYS,
+} from '../../lib/billingConfig.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import {
@@ -67,11 +66,41 @@ export function PlanSelector() {
         </p>
       )}
 
-      <BillingIntervalToggle
-        value={billingInterval}
-        onChange={setBillingInterval}
-        prominent
-      />
+      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-900">Billing</p>
+          <p className="mt-1 text-xs text-gray-500">
+            {TRIAL_DAYS}-day free trial for new subscriptions. Promo codes accepted at checkout.
+          </p>
+          {getLaunchPromoCheckoutHint() ? (
+            <p className="mt-1 text-xs font-medium text-amber-800">{getLaunchPromoCheckoutHint()}</p>
+          ) : null}
+        </div>
+        <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+          <button
+            type="button"
+            onClick={() => setBillingInterval('month')}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              billingInterval === 'month'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setBillingInterval('year')}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              billingInterval === 'year'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Yearly (save {Math.round(YEARLY_DISCOUNT_FRACTION * 100)}%)
+          </button>
+        </div>
+      </div>
 
       <div className="mb-6 mt-6 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-red-50 p-5">
         <div className="mb-3 flex items-center gap-2">

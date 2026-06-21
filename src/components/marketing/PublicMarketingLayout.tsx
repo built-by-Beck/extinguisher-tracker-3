@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { PublicAdSlot } from '../ads/PublicAdSlot.tsx';
+import { LaunchPromoBanner } from './LaunchPromoBanner.tsx';
+import { LimitedTimeOfferBanner } from './LimitedTimeOfferBanner.tsx';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-base font-semibold ${isActive ? 'text-red-600' : 'text-gray-700 hover:text-red-600'}`;
@@ -60,32 +62,30 @@ export function PublicMarketingLayout({
 }: PublicMarketingLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? {
-    title: 'ExtinguisherTracker',
-    subtitle: '',
-  };
+  const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? { title: 'Extinguisher Tracker', subtitle: '' };
+  const showLayoutMegaOffer = location.pathname !== '/pricing';
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-6 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
           <Link
             to="/"
-            className="flex items-center gap-3.5"
+            className="relative z-10 flex min-w-0 flex-1 items-center gap-2 sm:gap-3 md:flex-initial md:shrink-0"
             onClick={() => setMobileOpen(false)}
           >
             <img
               src="/logo.png"
-              alt="ExtinguisherTracker"
-              className="h-24 w-24 rounded-xl object-contain sm:h-28 sm:w-28"
+              alt="Extinguisher Tracker"
+              className="h-14 w-14 shrink-0 rounded-xl object-contain sm:h-20 sm:w-20 md:h-24 md:w-24"
             />
-            <span className="text-3xl font-bold tracking-tight text-gray-900">
-              Extinguisher<span className="text-red-600">Tracker</span>
+            <span className="truncate text-lg font-bold tracking-tight text-gray-900 sm:text-2xl md:text-3xl">
+              Extinguisher <span className="text-red-600">Tracker</span>
             </span>
           </Link>
 
           <nav
-            className="hidden items-center gap-8 md:flex"
+            className="hidden min-w-0 flex-1 flex-wrap items-center justify-end gap-x-3 gap-y-2 md:flex lg:gap-x-5"
             aria-label="Primary"
           >
             <NavLink to="/" end className={navLinkClass}>
@@ -123,29 +123,16 @@ export function PublicMarketingLayout({
             </Link>
           </nav>
 
-          {mobileOpen ? (
-            <button
-              type="button"
-              className="rounded-md p-2 text-gray-700 md:hidden"
-              aria-expanded="true"
-              aria-controls="marketing-mobile-nav"
-              onClick={() => setMobileOpen(false)}
-            >
-              <X className="h-6 w-6" aria-hidden />
-              <span className="sr-only">Close menu</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="rounded-md p-2 text-gray-700 md:hidden"
-              aria-expanded="false"
-              aria-controls="marketing-mobile-nav"
-              onClick={() => setMobileOpen(true)}
-            >
-              <Menu className="h-6 w-6" aria-hidden />
-              <span className="sr-only">Open menu</span>
-            </button>
-          )}
+          <button
+            type="button"
+            className="shrink-0 rounded-md p-2 text-gray-700 md:hidden"
+            aria-expanded={mobileOpen}
+            aria-controls="marketing-mobile-nav"
+            onClick={() => setMobileOpen((o) => !o)}
+          >
+            {mobileOpen ? <X className="h-6 w-6" aria-hidden /> : <Menu className="h-6 w-6" aria-hidden />}
+            <span className="sr-only">Menu</span>
+          </button>
         </div>
 
         {mobileOpen ? (
@@ -216,12 +203,15 @@ export function PublicMarketingLayout({
         ) : null}
       </header>
 
+      {showLayoutMegaOffer ? <LimitedTimeOfferBanner /> : null}
+      <LaunchPromoBanner />
+
       {/* Hero banner with page title overlay */}
-      <div className="relative bg-gray-900">
+      <div className="relative border-t border-gray-800 bg-gray-900 pt-1 sm:pt-2">
         <img
           src="/extinguisherTracker2.png"
-          alt="ExtinguisherTracker — Fire Extinguisher Tracking Made Simple"
-          className="mx-auto block w-[96%] object-contain py-1"
+          alt="Extinguisher Tracker — Fire Extinguisher Tracking Made Simple"
+          className="mx-auto block w-[96%] object-contain py-2 sm:py-3"
         />
         <div className="absolute inset-0 flex items-end justify-center pb-4 sm:pb-6">
           <div className="text-center">

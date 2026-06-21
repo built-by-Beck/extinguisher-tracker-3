@@ -114,42 +114,28 @@ function DataMaintenanceSection({ orgId }: { orgId: string }) {
 
 export default function OrgSettings() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { userProfile } = useAuth();
   const { org, membership, hasRole } = useOrg();
 
+  const billingParam = searchParams.get('billing');
   const orgId = userProfile?.activeOrgId ?? '';
   const canEdit = hasRole(['owner', 'admin']);
   const isOwner = membership?.role === 'owner';
-  const [billingNotice, setBillingNotice] = useState<string | null>(null);
-  const [billingNoticeTone, setBillingNoticeTone] = useState<'success' | 'info'>(
-    'success',
-  );
+  const showChoosePlanBanner = billingParam === 'choose' && isOwner && !org?.plan;
+  const showCanceledBanner = billingParam === 'canceled';
 
   useEffect(() => {
-    const status = searchParams.get('billing');
-    if (!status) return;
-
-    if (status === 'success') {
-      setBillingNotice(
-        'Checkout completed. Your subscription should update in a moment once Stripe confirms payment.',
-      );
-      setBillingNoticeTone('success');
-    } else if (status === 'canceled') {
-      setBillingNotice(
-        'Checkout was canceled. You can choose monthly or yearly billing and try again below.',
-      );
-      setBillingNoticeTone('info');
+    if (billingParam === 'success') {
+      navigate('/checkout/success', { replace: true });
     }
+  }, [billingParam, navigate]);
 
-    document
-      .getElementById('subscription')
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-    const next = new URLSearchParams(searchParams);
-    next.delete('billing');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  useEffect(() => {
+    if (billingParam === 'choose' || billingParam === 'canceled') {
+      document.getElementById('subscription-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [billingParam]);
 
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('');
@@ -519,7 +505,96 @@ export default function OrgSettings() {
         </button>
       </div>
 
-      {/* Save button */}
+      {/* Plan info */}
+      <div id="subscription-section" className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">Subscription</h2>
+
+        {showChoosePlanBanner && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden />
+            <div>
+              <p className="text-sm font-medium text-amber-900">Choose a plan to unlock your account</p>
+              <p className="mt-1 text-sm text-amber-800">
+                Pick Basic, Pro, or Elite below. Your free trial starts at checkout — enter a launch
+                promo code (EX3BASIC50, EX3PRO50, or EX3ELITE50) for 50% off year one.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {showCanceledBanner && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+            <p className="text-sm text-gray-700">
+              Checkout was canceled. Select a plan below when you are ready — your promo code still
+              works at Stripe checkout.
+            </p>
+          </div>
+        )}
+
+        <p className="mb-4 text-sm text-gray-500">
+          Basic is a simple fit for small businesses that want to replace paper logs, reduce
+          paperwork, and stay on schedule. AI assistant access is included with Pro, Elite, and
+          Enterprise plans.
+        </p>
+        <p className="mb-4 text-sm text-gray-500">
+          How to use AI: open the dashboard assistant and ask about overdue inspections,
+          maintenance dates, or a compliance summary.
+        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-gray-700">
+                Current Plan:{' '}
+                <span className="font-semibold">
+                  {org.plan ? org.plan.charAt(0).toUpperCase() + org.plan.slice(1) : 'No Plan'}
+                </span>
+              </p>
+              <BillingStatus />
+            </div>
+            {org.assetLimit !== null && org.assetLimit !== undefined && (
+              <p className="mt-1 text-sm text-gray-500">
+                Asset limit: {org.assetLimit}
+              </p>
+            )}
+            {org.subscriptionStatus === 'trialing' && org.trialEnd && (
+              <p className="mt-1 text-sm text-blue-700">
+                Free trial ends{' '}
+                {org.trialEnd.toDate().toLocaleDateString(undefined, {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+                . You will not be charged until then unless you cancel.
+              </p>
+            )}
+            {org.plan === 'basic' && (
+              <p className="mt-2 text-sm text-amber-700">
+                Upgrade to Pro for barcode scanning, GPS capture, inspection photos, and AI.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Billing button - owner only */}
+        {isOwner && org.stripeCustomerId && (
+          <div className="mt-4">
+            <ManageBilling />
+          </div>
+        )}
+
+        {/* Plan selector for owner when no plan or wants to change */}
+        {isOwner && (
+          <div className="mt-6">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">
+              {org.plan ? 'Change Plan' : 'Choose a Plan'}
+            </h3>
+            <PlanSelector />
+          </div>
+        )}
+      </div>
+
+      {/* Guest Access card — between Subscription and Save button */}
       {canEdit && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="mb-1 flex items-center gap-2">
