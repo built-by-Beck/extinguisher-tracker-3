@@ -220,6 +220,12 @@ Each entry follows this structure:
   5. Fixed webhook to sync subscription status from Stripe instead of forcing `active`.
 - **Rule**: When billing behavior is Stripe-driven, verify checkout session params, webhook cache updates, and marketing copy stay in sync. Use env flags for time-limited public promos.
 
+## 2026-06-21 — Live launch: Stripe webhook pointed at wrong Firebase project
+
+- **Issue**: After launch, checkout could complete in Stripe but orgs stayed on "No active subscription". Stripe Dashboard had only one webhook URL targeting `extinguishertracker` (legacy project), not EX3's `stripeWebhook` Cloud Run URL. Promo codes had no `max_redemptions`; Stripe API rejects patching that field on existing codes.
+- **Fix**: Created new Stripe webhook endpoint for `https://stripewebhook-ct4uk5wktq-uc.a.run.app` with billing events; rotated `STRIPE_WEBHOOK_SECRET` via `pnpm secrets:push`; redeployed `stripeWebhook`. Deactivated old EX3*50 codes and recreated with `max_redemptions=100`. Post-org redirect now sends owners to Settings → Choose plan.
+- **Rule**: Before go-live, verify Stripe webhook URL matches the deployed `stripeWebhook` function for THIS Firebase project (not a prior app). Use `stripe-recreate-promo-limits.sh` for capped promos — not patch.
+
 - **Context**: Phase 18 review of `InspectionPanel` — a useEffect resets internal state (checklist, notes, GPS, photo) when the `inspection` prop changes
 - **Issue**: The useEffect dependency array included `inspection.checklistData`, `inspection.notes`, and `inspection.gps`. Since `checklistData` and `gps` are objects, any re-fetch by the parent (even returning identical data) creates new object references, triggering the effect and blowing away the user's in-progress edits.
 - **Resolution**: Narrowed the dependency array to `[inspection.id, inspection.status]` only — the two scalar values that meaningfully indicate "this is a different inspection" or "the inspection outcome changed." Added an eslint-disable comment for `react-hooks/exhaustive-deps` with an explanatory block comment.
