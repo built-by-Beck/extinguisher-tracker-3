@@ -1,6 +1,6 @@
 # EX3 Lessons Learned
 
-**Last Updated**: 2026-04-13
+**Last Updated**: 2026-05-07
 
 This file tracks lessons learned during development. The review-agent updates this after reviewing completed work. Build-agent and plan-agent should consult this before starting new tasks.
 
@@ -19,6 +19,12 @@ Each entry follows this structure:
 ---
 
 ## Entries
+
+### 2026-05-07 -- Full `firebase deploy` aborts when cloud has extra functions
+- **Context**: Running `firebase deploy` (all targets) after commit/push; project `extinguisher-tracker-3` had legacy callable functions in GCP that are not exported from local `functions/src/index.ts`.
+- **Issue**: CLI exits with “functions are found in your project but do not exist in your local source code” and refuses deletion in non-interactive mode, so nothing deploys if you only ran the full command once.
+- **Resolution**: Deploy by target: `firebase deploy --only hosting` for the Vite app; `firebase deploy --only functions:onExtinguisherCreated` (or other named exports) to update triggers without reconciling deletions. Alternatively run `firebase functions:delete <name> --region us-central1` interactively for each orphan, or restore exports if those functions should remain.
+- **Rule**: If full deploy fails on orphan functions, use `--only` for hosting and specific function names; treat orphan cleanup as an explicit ops decision, not an accidental batch delete.
 
 ### 2026-04-14 -- Release pipeline blocked by pre-existing lint failures
 - **Context**: Running full release checks before commit/push/deploy for AI notes and scan/edit/pass-fail workflow improvements.
