@@ -3,7 +3,7 @@ import { HelpCircle } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { marketingSeo } from './marketingSeo.ts';
-import { marketingFaq } from './marketingPricingCopy.ts';
+import { getMarketingFaq } from './marketingPricingCopy.ts';
 
 const extraFaq = [
   {
@@ -26,7 +26,7 @@ const extraFaq = [
 
 export default function MarketingFaqPage() {
   const seo = marketingSeo.faq;
-  const allFaq = [...marketingFaq, ...extraFaq];
+  const allFaq = [...getMarketingFaq(), ...extraFaq];
 
   return (
     <>

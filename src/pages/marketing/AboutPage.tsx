@@ -10,6 +10,7 @@ import { Target, Users, Award, ShieldCheck } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { marketingSeo } from './marketingSeo.ts';
+import { TRIAL_DAYS } from '../../lib/billingConfig.ts';
 
 export default function AboutPage() {
   const seo = marketingSeo.about;
@@ -162,7 +163,7 @@ export default function AboutPage() {
               to="/signup"
               className="mt-4 inline-block rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700"
             >
-              Get started free
+              Start your {TRIAL_DAYS}-day free trial
             </Link>
           </div>
         </div>

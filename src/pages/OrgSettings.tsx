@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../lib/firebase.ts';
@@ -95,12 +95,28 @@ function DataMaintenanceSection({ orgId }: { orgId: string }) {
 
 export default function OrgSettings() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { userProfile } = useAuth();
   const { org, membership, hasRole } = useOrg();
 
+  const billingParam = searchParams.get('billing');
   const orgId = userProfile?.activeOrgId ?? '';
   const canEdit = hasRole(['owner', 'admin']);
   const isOwner = membership?.role === 'owner';
+  const showChoosePlanBanner = billingParam === 'choose' && isOwner && !org?.plan;
+  const showCanceledBanner = billingParam === 'canceled';
+
+  useEffect(() => {
+    if (billingParam === 'success') {
+      navigate('/checkout/success', { replace: true });
+    }
+  }, [billingParam, navigate]);
+
+  useEffect(() => {
+    if (billingParam === 'choose' || billingParam === 'canceled') {
+      document.getElementById('subscription-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [billingParam]);
 
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('');
@@ -299,8 +315,32 @@ export default function OrgSettings() {
       </div>
 
       {/* Plan info */}
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div id="subscription-section" className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Subscription</h2>
+
+        {showChoosePlanBanner && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden />
+            <div>
+              <p className="text-sm font-medium text-amber-900">Choose a plan to unlock your account</p>
+              <p className="mt-1 text-sm text-amber-800">
+                Pick Basic, Pro, or Elite below. Your free trial starts at checkout — enter a launch
+                promo code (EX3BASIC50, EX3PRO50, or EX3ELITE50) for 50% off year one.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {showCanceledBanner && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+            <p className="text-sm text-gray-700">
+              Checkout was canceled. Select a plan below when you are ready — your promo code still
+              works at Stripe checkout.
+            </p>
+          </div>
+        )}
+
         <p className="mb-4 text-sm text-gray-500">
           Basic is a simple fit for small businesses that want to replace paper logs, reduce
           paperwork, and stay on schedule. AI assistant access is included with Pro, Elite, and
@@ -324,6 +364,17 @@ export default function OrgSettings() {
             {org.assetLimit !== null && org.assetLimit !== undefined && (
               <p className="mt-1 text-sm text-gray-500">
                 Asset limit: {org.assetLimit}
+              </p>
+            )}
+            {org.subscriptionStatus === 'trialing' && org.trialEnd && (
+              <p className="mt-1 text-sm text-blue-700">
+                Free trial ends{' '}
+                {org.trialEnd.toDate().toLocaleDateString(undefined, {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+                . You will not be charged until then unless you cancel.
               </p>
             )}
             {org.plan === 'basic' && (

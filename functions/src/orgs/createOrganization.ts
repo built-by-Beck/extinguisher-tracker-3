@@ -103,6 +103,7 @@ export const createOrganization = onCall<CreateOrgInput, Promise<CreateOrgOutput
       subscriptionPriceId: null,
       subscriptionCurrentPeriodEnd: null,
       trialEnd: null,
+      trialUsedAt: null,
 
       // Feature flags (null until plan is set)
       featureFlags: null,

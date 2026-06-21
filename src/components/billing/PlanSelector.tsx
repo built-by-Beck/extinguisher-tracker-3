@@ -3,6 +3,10 @@ import { httpsCallable } from 'firebase/functions';
 import { Check, Loader2, Sparkles, X as XIcon } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
 import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
+import {
+  getLaunchPromoCheckoutHint,
+  TRIAL_DAYS,
+} from '../../lib/billingConfig.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 
@@ -56,7 +60,15 @@ export function PlanSelector() {
       )}
 
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-medium text-gray-900">Billing</p>
+        <div>
+          <p className="text-sm font-medium text-gray-900">Billing</p>
+          <p className="mt-1 text-xs text-gray-500">
+            {TRIAL_DAYS}-day free trial for new subscriptions. Promo codes accepted at checkout.
+          </p>
+          {getLaunchPromoCheckoutHint() ? (
+            <p className="mt-1 text-xs font-medium text-amber-800">{getLaunchPromoCheckoutHint()}</p>
+          ) : null}
+        </div>
         <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
           <button
             type="button"

@@ -209,7 +209,17 @@ Each entry follows this structure:
   3. Modified `WorkspaceDetail` to subscribe to the live `extinguishers` collection when active. It now merges the live inventory data with the snapshot `inspections`, dynamically generating "Pending" stubs for any new items so the location tile count accurately reflects real-time totals.
 - **Rule**: When building aggregate UI components (like location tiles or completion bars) that depend on snapshot data (e.g. active inspections), always join them with the live source of truth (the active inventory) to ensure newly created entities are instantly reflected. Always ensure form components map unified data back to all required legacy string fields for backwards compatibility.
 
-### 2026-03-26 -- useEffect for state re-sync must not depend on object-valued props
+### 2026-06-21 -- Billing trial and launch promos were documented but not wired
+- **Context**: User asked about free trial length and launch coupons; smoke test before advertising to new users.
+- **Issue**: App supported `trialing` status but `createCheckoutSession` never set `trial_period_days`. EX3 50% coupons existed in Stripe without promotion codes or product restrictions. `invoice.payment_succeeded` webhook hardcoded `subscriptionStatus: 'active'`, clobbering `trialing`. Marketing FAQ said trial was "configure in billing."
+- **Resolution**:
+  1. Added `STRIPE_TRIAL_DAYS=14` (functions) and `VITE_TRIAL_DAYS` / `VITE_LAUNCH_PROMO_ENABLED` (frontend) env vars.
+  2. Checkout grants 14-day trial when `trialUsedAt` is unset; webhook sets `trialUsedAt` on first trialing subscription.
+  3. Created Stripe promo codes `EX3BASIC50`, `EX3PRO50`, `EX3ELITE50` with product-scoped coupons via REST API (`scripts/stripe-setup-launch-promos.sh`).
+  4. Launch promo UI gated by `VITE_LAUNCH_PROMO_ENABLED` for easy takedown without code edits.
+  5. Fixed webhook to sync subscription status from Stripe instead of forcing `active`.
+- **Rule**: When billing behavior is Stripe-driven, verify checkout session params, webhook cache updates, and marketing copy stay in sync. Use env flags for time-limited public promos.
+
 - **Context**: Phase 18 review of `InspectionPanel` — a useEffect resets internal state (checklist, notes, GPS, photo) when the `inspection` prop changes
 - **Issue**: The useEffect dependency array included `inspection.checklistData`, `inspection.notes`, and `inspection.gps`. Since `checklistData` and `gps` are objects, any re-fetch by the parent (even returning identical data) creates new object references, triggering the effect and blowing away the user's in-progress edits.
 - **Resolution**: Narrowed the dependency array to `[inspection.id, inspection.status]` only — the two scalar values that meaningfully indicate "this is a different inspection" or "the inspection outcome changed." Added an eslint-disable comment for `react-hooks/exhaustive-deps` with an explanatory block comment.

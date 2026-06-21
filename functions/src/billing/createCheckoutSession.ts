@@ -3,7 +3,8 @@ import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { throwInvalidArgument, throwFailedPrecondition } from '../utils/errors.js';
-import { stripeSecretKey, getStripePriceIds } from '../config/params.js';
+import { stripeSecretKey, getStripePriceIds, getStripeTrialDays } from '../config/params.js';
+import { isTrialEligible } from './trialEligibility.js';
 import { priceIdForPlan, type BillingInterval, type PlanName } from './planConfig.js';
 import { getStripe } from './stripeClient.js';
 import { ensureOrgStripeCustomer } from './stripeOrgCustomer.js';
@@ -62,14 +63,24 @@ export const createCheckoutSession = onCall(
       },
     );
 
-    // Create checkout session
+    const trialDays = getStripeTrialDays();
+    const grantTrial = isTrialEligible({
+      trialUsedAt: orgData.trialUsedAt,
+      stripeSubscriptionId: orgData.stripeSubscriptionId as string | null,
+      plan: orgData.plan as string | null,
+    });
+
     const session = await getStripe().checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
       allow_promotion_codes: true,
       metadata: { orgId },
-      success_url: `${request.rawRequest?.headers?.origin ?? 'http://localhost:5173'}/dashboard/settings?billing=success`,
+      subscription_data: {
+        metadata: { orgId },
+        ...(grantTrial ? { trial_period_days: trialDays } : {}),
+      },
+      success_url: `${request.rawRequest?.headers?.origin ?? 'http://localhost:5173'}/checkout/success`,
       cancel_url: `${request.rawRequest?.headers?.origin ?? 'http://localhost:5173'}/dashboard/settings?billing=canceled`,
     });
 
@@ -79,7 +90,13 @@ export const createCheckoutSession = onCall(
       performedByEmail: email,
       entityType: 'billing',
       entityId: orgId,
-      details: { plan: planName, billingInterval, sessionId: session.id },
+      details: {
+        plan: planName,
+        billingInterval,
+        sessionId: session.id,
+        trialGranted: grantTrial,
+        trialDays: grantTrial ? trialDays : null,
+      },
     });
 
     return { url: session.url };

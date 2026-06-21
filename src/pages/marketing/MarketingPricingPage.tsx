@@ -4,9 +4,14 @@ import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import {
   CONTACT_SALES_MAILTO,
-  marketingFaq,
+  getMarketingFaq,
   marketingPlans,
 } from './marketingPricingCopy.ts';
+import {
+  getPermanentSavingsLine,
+} from '../../lib/billingConfig.ts';
+import { LaunchPromoBanner } from '../../components/marketing/LaunchPromoBanner.tsx';
+import { LimitedTimeOfferBanner } from '../../components/marketing/LimitedTimeOfferBanner.tsx';
 import { marketingSeo } from './marketingSeo.ts';
 
 export default function MarketingPricingPage() {
@@ -21,9 +26,15 @@ export default function MarketingPricingPage() {
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">Pricing</h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
               Compare <strong>Basic</strong>, <strong>Pro</strong>, <strong>Elite</strong>, and{' '}
-              <strong>Enterprise</strong>. Choose the plan that matches your AI needs, inspection volume, and team pace.
-              Dollar amounts on this page are for orientation only; subscription and entitlements are enforced in the product billing experience.
+              <strong>Enterprise</strong>. Every paid plan includes a {getPermanentSavingsLine()}.
             </p>
+          </div>
+        </div>
+
+        <div className="border-b border-gray-200 bg-gray-100 px-4 py-8 sm:px-6 sm:py-10">
+          <div className="mx-auto max-w-6xl space-y-6">
+            <LimitedTimeOfferBanner variant="inline" />
+            <LaunchPromoBanner variant="compact" />
           </div>
         </div>
 
@@ -48,6 +59,11 @@ export default function MarketingPricingPage() {
                 </p>
                 {plan.annualBillingNote ? (
                   <p className="mt-2 text-xs leading-relaxed text-gray-500">{plan.annualBillingNote}</p>
+                ) : null}
+                {plan.launchPromoNote ? (
+                  <p className="mt-2 text-xs font-medium leading-relaxed text-amber-800">
+                    {plan.launchPromoNote}
+                  </p>
                 ) : null}
                 <p className="mt-3 text-sm text-gray-600">{plan.blurb}</p>
                 <ul className="mt-6 flex-1 space-y-3 text-sm text-gray-700">
@@ -90,7 +106,7 @@ export default function MarketingPricingPage() {
           <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-16">
             <h2 className="text-2xl font-bold text-gray-900">FAQ</h2>
             <dl className="mt-8 space-y-8">
-              {marketingFaq.map((item) => (
+              {getMarketingFaq().map((item) => (
                 <div key={item.q}>
                   <dt className="text-base font-semibold text-gray-900">{item.q}</dt>
                   <dd className="mt-2 text-sm text-gray-600">{item.a}</dd>

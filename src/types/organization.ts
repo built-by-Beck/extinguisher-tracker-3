@@ -58,6 +58,8 @@ export interface Organization {
   subscriptionPriceId: string | null;
   subscriptionCurrentPeriodEnd: Timestamp | null;
   trialEnd: Timestamp | null;
+  /** Set when org starts a Stripe trial — prevents repeat trials. */
+  trialUsedAt?: Timestamp | null;
 
   // Optional cached feature flags
   featureFlags: OrgFeatureFlags | null;

@@ -1,4 +1,6 @@
 /** SEO strings for public marketing pages (edit freely). */
+import { TRIAL_DAYS } from '../../lib/billingConfig.ts';
+
 export const marketingSeo = {
   home: {
     title: 'Extinguisher Tracker — AI fire extinguisher inspections & compliance',
@@ -15,7 +17,7 @@ export const marketingSeo = {
   pricing: {
     title: 'Pricing — Extinguisher Tracker',
     description:
-      'Plans for teams of every size: Basic, Pro, Elite, and Enterprise. Compare features and choose the right fit for your organization.',
+      `Plans for teams of every size: Basic, Pro, Elite, and Enterprise. ${TRIAL_DAYS}-day free trial and 10% off annual billing.`,
     path: '/pricing',
   },
   howItWorks: {

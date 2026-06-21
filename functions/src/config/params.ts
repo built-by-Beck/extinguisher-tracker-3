@@ -17,6 +17,12 @@ export const stripePriceIdElite = defineString('STRIPE_PRICE_ID_ELITE', { defaul
 export const stripePriceIdBasicYearly = defineString('STRIPE_PRICE_ID_BASIC_YEARLY', { default: '' });
 export const stripePriceIdProYearly = defineString('STRIPE_PRICE_ID_PRO_YEARLY', { default: '' });
 export const stripePriceIdEliteYearly = defineString('STRIPE_PRICE_ID_ELITE_YEARLY', { default: '' });
+export const stripeTrialDays = defineString('STRIPE_TRIAL_DAYS', { default: '14' });
+
+export function getStripeTrialDays(): number {
+  const parsed = Number.parseInt(stripeTrialDays.value(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 14;
+}
 
 export type { StripePriceIds };
 

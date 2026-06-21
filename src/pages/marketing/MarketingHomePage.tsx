@@ -19,6 +19,7 @@ import {
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { marketingSeo } from './marketingSeo.ts';
+import { TRIAL_DAYS } from '../../lib/billingConfig.ts';
 
 function Section({
   id,
@@ -52,12 +53,15 @@ export default function MarketingHomePage() {
               Extinguisher Tracker helps your team run faster in the field: ask AI for NFPA guidance while you work, use
               auto timers to keep routes moving, and keep audit-ready records without jumping between apps or spreadsheets.
             </p>
+            <p className="mt-3 text-base font-medium text-red-700">
+              Limited time — first 100 customers get 50% off year one. Start with a {TRIAL_DAYS}-day free trial.
+            </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 to="/signup"
                 className="inline-flex justify-center rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
               >
-                Create account
+                Create account — {TRIAL_DAYS}-day free trial
               </Link>
               <Link
                 to="/pricing"
@@ -247,8 +251,8 @@ export default function MarketingHomePage() {
           <div className="rounded-2xl bg-red-600 px-6 py-12 text-center sm:px-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">Ready to tighten up your extinguisher program?</h2>
             <p className="mx-auto mt-4 max-w-2xl text-red-100">
-              Create an account, set up your organization, and start building the inventory and inspection rhythm your
-              team can sustain.
+              Create an account, set up your organization, and start your {TRIAL_DAYS}-day free trial with full plan
+              access.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link

@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { PublicAdSlot } from '../ads/PublicAdSlot.tsx';
+import { LaunchPromoBanner } from './LaunchPromoBanner.tsx';
+import { LimitedTimeOfferBanner } from './LimitedTimeOfferBanner.tsx';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-base font-semibold ${isActive ? 'text-red-600' : 'text-gray-700 hover:text-red-600'}`;
@@ -26,6 +28,7 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? { title: 'Extinguisher Tracker', subtitle: '' };
+  const showLayoutMegaOffer = location.pathname !== '/pricing';
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
@@ -136,6 +139,9 @@ export function PublicMarketingLayout({ children }: PublicMarketingLayoutProps) 
           </div>
         ) : null}
       </header>
+
+      {showLayoutMegaOffer ? <LimitedTimeOfferBanner /> : null}
+      <LaunchPromoBanner />
 
       {/* Hero banner with page title overlay */}
       <div className="relative border-t border-gray-800 bg-gray-900 pt-1 sm:pt-2">
