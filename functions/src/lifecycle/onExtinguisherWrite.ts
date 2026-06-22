@@ -71,16 +71,30 @@ export const onExtinguisherCreated = onDocumentCreated(
         currentExtData.lastSixYearMaintenance as Timestamp | null;
       const lastHydro = currentExtData.lastHydroTest as Timestamp | null;
 
+      const clientNextSix = currentExtData.nextSixYearMaintenance as Timestamp | null;
+      const clientNextHydro = currentExtData.nextHydroTest as Timestamp | null;
+      const userSetServiceDue = clientNextSix != null || clientNextHydro != null;
+
       const nextMonthlyInspection = calculateNextMonthlyInspection(
         lastMonthly,
         monthlySchedule,
         orgTimezone,
       );
       const nextAnnualInspection = calculateNextAnnualInspection(lastAnnual);
-      const nextHydroTest = calculateNextHydroTest(lastHydro, hydroInterval);
-      const nextSixYearMaintenance = needsSixYear
+
+      const calculatedNextHydroTest = calculateNextHydroTest(lastHydro, hydroInterval);
+      const calculatedNextSixYearMaintenance = needsSixYear
         ? calculateNextSixYearMaintenance(lastSixYear)
         : null;
+
+      // When the client supplied at least one next due date (e.g. from Add/Edit form),
+      // keep those values as-is so refill / hydro milestones are not replaced by defaults.
+      const nextSixYearMaintenance = userSetServiceDue
+        ? clientNextSix
+        : calculatedNextSixYearMaintenance;
+      const nextHydroTest = userSetServiceDue
+        ? clientNextHydro
+        : calculatedNextHydroTest;
 
       const calcInput: ExtinguisherForCalc = {
         lifecycleStatus: currentExtData.lifecycleStatus as string,

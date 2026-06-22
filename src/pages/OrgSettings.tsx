@@ -114,42 +114,35 @@ function DataMaintenanceSection({ orgId }: { orgId: string }) {
 
 export default function OrgSettings() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { userProfile } = useAuth();
   const { org, membership, hasRole } = useOrg();
 
+  const billingParam = searchParams.get('billing');
   const orgId = userProfile?.activeOrgId ?? '';
   const canEdit = hasRole(['owner', 'admin']);
   const isOwner = membership?.role === 'owner';
-  const [billingNotice, setBillingNotice] = useState<string | null>(null);
-  const [billingNoticeTone, setBillingNoticeTone] = useState<'success' | 'info'>(
-    'success',
-  );
+  const showChoosePlanBanner = billingParam === 'choose' && isOwner && !org?.plan;
+  const showCanceledBanner = billingParam === 'canceled';
 
   useEffect(() => {
-    const status = searchParams.get('billing');
-    if (!status) return;
-
-    if (status === 'success') {
-      setBillingNotice(
-        'Checkout completed. Your subscription should update in a moment once Stripe confirms payment.',
-      );
-      setBillingNoticeTone('success');
-    } else if (status === 'canceled') {
-      setBillingNotice(
-        'Checkout was canceled. You can choose monthly or yearly billing and try again below.',
-      );
-      setBillingNoticeTone('info');
+    if (billingParam === 'success') {
+      navigate('/checkout/success', { replace: true });
     }
+  }, [billingParam, navigate]);
 
-    document
-      .getElementById('subscription')
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  useEffect(() => {
+    if (billingParam === 'choose' || billingParam === 'canceled') {
+      document.getElementById('subscription')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [billingParam]);
 
-    const next = new URLSearchParams(searchParams);
-    next.delete('billing');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  const billingNotice = showChoosePlanBanner
+    ? 'Choose a plan to unlock your account. Pick Basic, Pro, or Elite below. Your free trial starts at checkout — enter EX3BASIC50, EX3PRO50, or EX3ELITE50 for 50% off year one.'
+    : showCanceledBanner
+      ? 'Checkout was canceled. Select a plan below when you are ready — your promo code still works at Stripe checkout.'
+      : null;
+  const billingNoticeTone: 'success' | 'info' = showCanceledBanner ? 'info' : 'success';
 
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('');
@@ -519,7 +512,7 @@ export default function OrgSettings() {
         </button>
       </div>
 
-      {/* Save button */}
+      {/* Guest Access card — between Subscription and Save button */}
       {canEdit && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="mb-1 flex items-center gap-2">

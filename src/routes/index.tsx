@@ -81,6 +81,7 @@ const MarketingFaqPage = lazy(
 const MarketingPlanDetailPage = lazy(
   () => import('../pages/marketing/MarketingPlanDetailPage.tsx'),
 );
+const CheckoutSuccess = lazy(() => import('../pages/CheckoutSuccess.tsx'));
 
 export function AppRoutes() {
   return (
@@ -129,6 +130,7 @@ export function AppRoutes() {
 
         {/* Protected dashboard routes */}
         <Route element={<ProtectedRoute />}>
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />

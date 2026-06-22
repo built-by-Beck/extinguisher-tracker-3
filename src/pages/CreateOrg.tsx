@@ -104,8 +104,8 @@ export default function CreateOrg() {
         slug: slug || undefined,
         timezone,
       });
-      // After creation, OrgContext will pick up the new activeOrgId
-      navigate('/dashboard', { replace: true });
+      // OrgContext picks up activeOrgId; send owner straight to plan selection
+      navigate('/dashboard/settings?billing=choose', { replace: true });
     } catch (err: unknown) {
       const fbErr = err as { message?: string };
       setError(
