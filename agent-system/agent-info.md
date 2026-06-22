@@ -2366,3 +2366,11 @@ Self-review of the floors changes. Two issues found & fixed in [`DataOrganizer.t
 Security/tenant: all writes org-scoped via `orgId`; `createLocation`/`batchUpdateExtinguishers` reuse existing org-scoped paths; page gated to owner/admin (`hasRole`). No new privileged path. `createLocation` persists `sortOrder`/`parentLocationId` and does NOT self-enforce name uniqueness, so bulk floor creation won't throw on dup names (Tool 2 also dedupes in-memory).
 
 Remaining minor concerns (non-blocking): (a) `getIssues` now flags `No floor` on every unit lacking the denormalized floor string even if assigned to a floor location — intentional (Organizer is where floors get filled) but inflates "needs attention" until Tool 1 runs; (b) Tool 2 has no confirm dialog (consistent w/ existing organizer tools) — it's idempotent & safe to re-run; (c) editing a unit's floor *location* later won't auto-sync the `floor` string (pre-existing denormalization pattern).
+
+## 2026-06-22 — Daily Review Bot — billing trial drift flagged
+
+**Scope:** Required daily review context, recent merge (`49a84c4` chunk-load recovery), package scripts, app/functions validation, targeted risky-pattern scan.
+
+**Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test`, and `git diff --check` all passed. Existing `functions/package-lock.json` has one pre-existing local metadata diff (`@pkgjs/parseargs` now `"dev": true`).
+
+**Finding:** High-risk billing inconsistency remains in Pro trial implementation. `README.md` and prior memory say Pro monthly trial should use `payment_method_collection: if_required`, `PRO_TRIAL_DAYS`, and set `proTrialConsumed` when trialing, but current `createCheckoutSession.ts` only applies generic `STRIPE_TRIAL_DAYS` via `trialUsedAt`, and `stripeWebhook.ts` sets `trialUsedAt` but not `proTrialConsumed`. Because this touches Stripe/billing/subscription gating, daily review did not patch it automatically; Build Agent should plan a focused billing fix with checkout/webhook tests.
