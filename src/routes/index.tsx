@@ -5,11 +5,11 @@ import { RootRedirect } from '../components/guards/RootRedirect.tsx';
 import { GuestRoute } from '../components/guards/GuestRoute.tsx';
 import { GuestLayout } from '../components/layout/GuestLayout.tsx';
 import { RouteFallback } from '../components/routes/RouteFallback.tsx';
+import Login from '../pages/Login.tsx';
+import Signup from '../pages/Signup.tsx';
+import CreateOrg from '../pages/CreateOrg.tsx';
 
-const Login = lazy(() => import('../pages/Login.tsx'));
-const Signup = lazy(() => import('../pages/Signup.tsx'));
 const AcceptInvite = lazy(() => import('../pages/AcceptInvite.tsx'));
-const CreateOrg = lazy(() => import('../pages/CreateOrg.tsx'));
 const DashboardLayout = lazy(() => import('../pages/DashboardLayout.tsx'));
 const Dashboard = lazy(() => import('../pages/Dashboard.tsx'));
 const Members = lazy(() => import('../pages/Members.tsx'));
