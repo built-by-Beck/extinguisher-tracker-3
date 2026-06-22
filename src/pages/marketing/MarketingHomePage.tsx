@@ -25,6 +25,12 @@ import {
 } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
+import { MarketingPricingPlans } from '../../components/marketing/MarketingPricingPlans.tsx';
+import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
+import { MarketingTrialHero } from '../../components/marketing/MarketingTrialHero.tsx';
+import { MarketingSavingsCallout } from '../../components/marketing/MarketingSavingsCallout.tsx';
+import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
+import { TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { marketingSeo } from './marketingSeo.ts';
 import { TRIAL_DAYS } from '../../lib/billingConfig.ts';
 
@@ -49,6 +55,7 @@ function Section({
 
 export default function MarketingHomePage() {
   const seo = marketingSeo.home;
+  const { interval, setInterval } = useBillingIntervalPreference();
 
   return (
     <>
@@ -70,16 +77,14 @@ export default function MarketingHomePage() {
               into one system built around the way life safety work actually
               happens.
             </p>
-            <p className="mt-3 text-base font-medium text-red-700">
-              Limited time — first 100 customers get 50% off year one. Start with a {TRIAL_DAYS}-day free trial.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                to="/signup"
-                className="inline-flex justify-center rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-              >
-                Create account — {TRIAL_DAYS}-day free trial
-              </Link>
+            <div className="mt-8">
+              <MarketingTrialHero
+                size="hero"
+                compareHref="#plans-preview"
+                onTrialClick={() => setInterval('month')}
+              />
+            </div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 to="/pricing"
                 className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
@@ -87,26 +92,6 @@ export default function MarketingHomePage() {
                 View pricing
               </Link>
             </div>
-            <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-900">
-              <strong className="font-semibold">7-day Pro trial:</strong> start
-              on <strong>monthly Pro</strong> with{' '}
-              <strong>no credit card at checkout</strong>. Add a payment method
-              before the trial ends to keep Pro access. See{' '}
-              <Link
-                to="/pricing"
-                className="font-medium text-red-700 underline decoration-red-300 underline-offset-2 hover:text-red-800"
-              >
-                pricing
-              </Link>{' '}
-              and{' '}
-              <Link
-                to="/terms"
-                className="font-medium text-red-700 underline decoration-red-300 underline-offset-2 hover:text-red-800"
-              >
-                Terms
-              </Link>
-              .
-            </p>
             <p className="mt-4 text-sm text-gray-500">
               Already using the product?{' '}
               <Link
@@ -391,73 +376,23 @@ export default function MarketingHomePage() {
         </Section>
 
         <div className="border-y border-gray-200 bg-white" id="plans-preview">
-          <Section>
+          <Section className="pb-4">
             <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
               Plans
             </h2>
             <p className="mt-4 max-w-2xl text-gray-600">
-              Four tiers so you can match capability to portfolio size. Details
-              and FAQs live on the pricing page.
+              Choose monthly or yearly billing, then pick the tier that fits your
+              program. Checkout happens in the app after you create an account.
             </p>
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                {
-                  name: 'Basic',
-                  blurb:
-                    'Inventory, workflow, reports, and timers for small operations.',
-                },
-                {
-                  name: 'Pro',
-                  blurb:
-                    'AI guidance, camera scanning, GPS/photo evidence, and custom asset inspections.',
-                  recommended: true,
-                },
-                {
-                  name: 'Elite',
-                  blurb:
-                    'Team invites, bulk tags, guest sharing, and advanced data tools.',
-                },
-                {
-                  name: 'Enterprise',
-                  blurb:
-                    'Custom contracts, dedicated setup, and unlimited scale.',
-                },
-              ].map(({ name, blurb, recommended }) => (
-                <Link
-                  key={name}
-                  to={`/plans/${name.toLowerCase()}`}
-                  className={`group block rounded-xl border bg-white p-6 shadow-sm transition-shadow hover:shadow-md ${
-                    recommended
-                      ? 'border-red-200 ring-2 ring-red-100'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  {recommended ? (
-                    <p className="text-xs font-semibold uppercase tracking-wide text-red-600">
-                      Recommended
-                    </p>
-                  ) : (
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      Plan
-                    </p>
-                  )}
-                  <p className="mt-2 text-xl font-bold text-gray-900">{name}</p>
-                  <p className="mt-2 text-sm text-gray-600">{blurb}</p>
-                  <p className="mt-4 text-xs font-medium text-red-600 group-hover:underline">
-                    See what's included →
-                  </p>
-                </Link>
-              ))}
-            </div>
-            <div className="mt-8">
-              <Link
-                to="/pricing"
-                className="inline-flex rounded-md bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-red-700"
-              >
-                Compare plans
-              </Link>
+            <div className="mt-6">
+              <MarketingSavingsCallout interval={interval} prominent />
             </div>
           </Section>
+          <MarketingPricingPlans
+            compactToggle
+            interval={interval}
+            onIntervalChange={setInterval}
+          />
         </div>
 
         <Section className="pb-20">
@@ -470,12 +405,13 @@ export default function MarketingHomePage() {
               access.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                to="/signup"
+              <MarketingSignupLink
+                proTrial
+                onClick={() => setInterval('month')}
                 className="inline-flex w-full justify-center rounded-md bg-white px-6 py-3 text-sm font-semibold text-red-700 shadow hover:bg-red-50 sm:w-auto"
               >
-                Get started
-              </Link>
+                {TRIAL_CTA_LABEL}
+              </MarketingSignupLink>
               <Link
                 to="/how-it-works"
                 className="inline-flex w-full justify-center rounded-md border border-red-400 px-6 py-3 text-sm font-semibold text-white hover:bg-red-700 sm:w-auto"

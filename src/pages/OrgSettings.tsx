@@ -20,6 +20,11 @@ import { db } from '../lib/firebase.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { SubscriptionSection } from '../components/billing/SubscriptionSection.tsx';
+import {
+  billingIntervalFromSearchParams,
+  writeBillingIntervalPreference,
+  type BillingIntervalPreference,
+} from '../lib/billingIntervalPreference.ts';
 import { toggleGuestAccessCall } from '../services/guestService.ts';
 import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
 import type { NfpaEdition } from '../types/organization.ts';
@@ -124,12 +129,19 @@ export default function OrgSettings() {
   const isOwner = membership?.role === 'owner';
   const showChoosePlanBanner = billingParam === 'choose' && isOwner && !org?.plan;
   const showCanceledBanner = billingParam === 'canceled';
+  const [checkoutInterval, setCheckoutInterval] =
+    useState<BillingIntervalPreference | null>(null);
 
   useEffect(() => {
+    const intervalFromUrl = billingIntervalFromSearchParams(searchParams);
+    if (intervalFromUrl) {
+      writeBillingIntervalPreference(intervalFromUrl);
+      setCheckoutInterval(intervalFromUrl);
+    }
     if (billingParam === 'success') {
       navigate('/checkout/success', { replace: true });
     }
-  }, [billingParam, navigate]);
+  }, [billingParam, navigate, searchParams]);
 
   useEffect(() => {
     if (billingParam === 'choose' || billingParam === 'canceled') {
@@ -317,6 +329,7 @@ export default function OrgSettings() {
         isOwner={isOwner}
         billingNotice={billingNotice}
         billingNoticeTone={billingNoticeTone}
+        initialBillingInterval={checkoutInterval ?? undefined}
       />
 
       {/* General settings */}

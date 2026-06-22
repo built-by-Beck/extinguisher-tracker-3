@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
@@ -7,12 +6,11 @@ import {
   getMarketingFaq,
   marketingPlans,
 } from './marketingPricingCopy.ts';
-import {
-  getPermanentSavingsLine,
-} from '../../lib/billingConfig.ts';
+import { getPermanentSavingsLine } from '../../lib/billingConfig.ts';
 import { LaunchPromoBanner } from '../../components/marketing/LaunchPromoBanner.tsx';
 import { LimitedTimeOfferBanner } from '../../components/marketing/LimitedTimeOfferBanner.tsx';
 import { marketingSeo } from './marketingSeo.ts';
+import { Link } from 'react-router-dom';
 
 export default function MarketingPricingPage() {
   const seo = marketingSeo.pricing;

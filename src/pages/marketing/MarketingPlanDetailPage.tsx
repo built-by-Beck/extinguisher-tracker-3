@@ -16,6 +16,12 @@ import {
 } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
+import { BillingIntervalToggle } from '../../components/billing/BillingIntervalToggle.tsx';
+import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
+import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
+import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
+import { PLANS } from '../../lib/planConfig.ts';
+import { marketingPriceForInterval } from '../../lib/marketingPlanPricing.ts';
 import {
   CONTACT_SALES_MAILTO,
   marketingPlans,
@@ -155,6 +161,7 @@ const includesNote: Record<MarketingPlanId, string | null> = {
 
 export default function MarketingPlanDetailPage() {
   const { planId } = useParams<{ planId: string }>();
+  const { interval, setInterval } = useBillingIntervalPreference();
 
   if (!planId || !VALID_IDS.has(planId)) {
     return <Navigate to="/pricing" replace />;
@@ -163,6 +170,12 @@ export default function MarketingPlanDetailPage() {
   const id = planId as MarketingPlanId;
   const plan = marketingPlans.find((p) => p.id === id);
   if (!plan) return <Navigate to="/pricing" replace />;
+
+  const planConfig = PLANS.find((p) => p.name === id);
+  const priceDisplay =
+    planConfig?.monthlyPrice != null
+      ? marketingPriceForInterval(planConfig.monthlyPrice, interval)
+      : { priceLabel: plan.priceLabel, priceDetail: plan.priceDetail };
 
   const planHighlights = highlights[id];
   const forWhoText = forWho[id];
@@ -200,21 +213,34 @@ export default function MarketingPlanDetailPage() {
               </div>
               <div className="shrink-0 sm:text-right">
                 <p className="text-4xl font-bold text-gray-900">
-                  {plan.priceLabel}
+                  {priceDisplay.priceLabel}
                   <span className="text-lg font-normal text-gray-500">
                     {' '}
-                    {plan.priceDetail}
+                    {priceDisplay.priceDetail}
                   </span>
                 </p>
-                {plan.annualBillingNote && (
+                {priceDisplay.footnote ? (
                   <p className="mt-1 text-xs text-gray-500">
-                    {plan.annualBillingNote}
+                    {priceDisplay.footnote}
                   </p>
-                )}
+                ) : null}
+                {id === 'pro' && interval === 'year' ? (
+                  <p className="mt-2 text-xs text-blue-800">
+                    Switch to monthly above for the 7-day Pro trial.
+                  </p>
+                ) : null}
               </div>
             </div>
 
-            <div className="mt-8">
+            <div className="mt-6">
+              <BillingIntervalToggle
+                value={interval}
+                onChange={setInterval}
+                prominent
+              />
+            </div>
+
+            <div className="mt-6">
               {plan.ctaHref === 'mailto' ? (
                 <a
                   href={CONTACT_SALES_MAILTO}
@@ -223,12 +249,16 @@ export default function MarketingPlanDetailPage() {
                   Contact sales
                 </a>
               ) : (
-                <Link
-                  to="/signup"
+                <MarketingSignupLink
+                  interval={interval}
+                  planId={id}
+                  proTrial={id === 'pro' && interval === 'month'}
                   className="inline-flex rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700"
                 >
-                  Get started with {plan.name}
-                </Link>
+                  {id === 'pro' && interval === 'month'
+                    ? TRIAL_CTA_LABEL
+                    : `${PLAN_CTA_LABEL} with ${plan.name}`}
+                </MarketingSignupLink>
               )}
             </div>
           </div>
@@ -312,12 +342,16 @@ export default function MarketingPlanDetailPage() {
                   Contact sales
                 </a>
               ) : (
-                <Link
-                  to="/signup"
+                <MarketingSignupLink
+                  interval={interval}
+                  planId={id}
+                  proTrial={id === 'pro' && interval === 'month'}
                   className="inline-flex rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700"
                 >
-                  Get started with {plan.name}
-                </Link>
+                  {id === 'pro' && interval === 'month'
+                    ? TRIAL_CTA_LABEL
+                    : `${PLAN_CTA_LABEL} with ${plan.name}`}
+                </MarketingSignupLink>
               )}
               <Link
                 to="/pricing"

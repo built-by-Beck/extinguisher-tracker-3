@@ -1,6 +1,20 @@
-import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, type FormEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.ts';
+import {
+  billingIntervalFromSearchParams,
+  writeBillingIntervalPreference,
+} from '../lib/billingIntervalPreference.ts';
+
+function signupQuerySuffix(searchParams: URLSearchParams): string {
+  const interval = billingIntervalFromSearchParams(searchParams);
+  const plan = searchParams.get('plan');
+  const params = new URLSearchParams();
+  if (interval) params.set('billingInterval', interval);
+  if (plan) params.set('plan', plan);
+  const q = params.toString();
+  return q ? `?${q}` : '';
+}
 
 function getFirebaseErrorMessage(code: string): string {
   switch (code) {
@@ -20,6 +34,19 @@ function getFirebaseErrorMessage(code: string): string {
 export default function Signup() {
   const { signUp, loading: authLoading, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const billingInterval = billingIntervalFromSearchParams(searchParams);
+  const preferredPlan = searchParams.get('plan');
+  const isTrialSignup =
+    preferredPlan === 'pro' && billingInterval === 'month';
+
+  useEffect(() => {
+    if (billingInterval) {
+      writeBillingIntervalPreference(billingInterval);
+    }
+  }, [billingInterval]);
+
+  const createOrgPath = `/create-org${signupQuerySuffix(searchParams)}`;
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -30,7 +57,7 @@ export default function Signup() {
 
   // If user is already authenticated, redirect to create-org
   if (!authLoading && user) {
-    navigate('/create-org', { replace: true });
+    navigate(createOrgPath, { replace: true });
     return null;
   }
 
@@ -61,7 +88,7 @@ export default function Signup() {
     setSubmitting(true);
     try {
       await signUp(email.trim(), password, displayName.trim());
-      navigate('/create-org', { replace: true });
+      navigate(createOrgPath, { replace: true });
     } catch (err: unknown) {
       const firebaseError = err as { code?: string };
       setError(getFirebaseErrorMessage(firebaseError.code ?? ''));
@@ -89,16 +116,55 @@ export default function Signup() {
         </div>
 
         <div className="rounded-lg bg-white p-8 shadow">
-          <h2 className="mb-6 text-2xl font-bold text-gray-900">
-            Create Account
+          <h2 className="mb-2 text-2xl font-bold text-gray-900">
+            {isTrialSignup ? 'Start your free trial' : 'Create Account'}
           </h2>
+          {isTrialSignup ? (
+            <p className="mb-4 text-sm font-medium text-red-800">
+              7-day Pro trial · monthly billing · no credit card at checkout
+            </p>
+          ) : null}
           <p className="mb-6 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-            New organizations can start a{' '}
-            <strong className="font-semibold text-gray-900">
-              7-day Pro trial
-            </strong>{' '}
-            on monthly billing with no credit card at checkout. Choose Pro
-            (monthly) under Billing after you create your organization.
+            {isTrialSignup ? (
+              <>
+                Create your account first, then set up your organization. After
+                that, choose <strong className="text-gray-900">Pro (monthly)</strong>{' '}
+                under Settings → Billing to start your trial — no card required
+                at Stripe Checkout.
+              </>
+            ) : billingInterval === 'year' ? (
+              <>
+                You chose <strong className="text-gray-900">yearly</strong>{' '}
+                billing on our pricing page. After you create your organization,
+                pick a plan under Settings → Billing (annual prepay at checkout).
+              </>
+            ) : billingInterval === 'month' ? (
+              <>
+                You chose <strong className="text-gray-900">monthly</strong>{' '}
+                billing. Eligible orgs can start a{' '}
+                <strong className="font-semibold text-gray-900">
+                  7-day Pro trial
+                </strong>{' '}
+                with no credit card at checkout — choose Pro (monthly) under
+                Billing after setup.
+              </>
+            ) : (
+              <>
+                New organizations can start a{' '}
+                <strong className="font-semibold text-gray-900">
+                  7-day Pro trial
+                </strong>{' '}
+                on monthly billing with no credit card at checkout. Choose
+                monthly or yearly on{' '}
+                <Link
+                  to="/pricing"
+                  className="font-medium text-red-600 hover:text-red-500"
+                >
+                  pricing
+                </Link>{' '}
+                before signup, or pick billing under Settings after setup.
+              </>
+            )}
           </p>
 
           {error && (
@@ -197,7 +263,11 @@ export default function Signup() {
               disabled={submitting}
               className="w-full rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? 'Creating account...' : 'Create Account'}
+              {submitting
+                ? 'Creating account...'
+                : isTrialSignup
+                  ? 'Create account & continue'
+                  : 'Create Account'}
             </button>
           </form>
 

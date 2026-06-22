@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
+import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
+import { TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { marketingSeo } from './marketingSeo.ts';
 
 const steps = [
@@ -161,12 +163,12 @@ export default function MarketingGettingStartedPage() {
               inspection run.
             </p>
             <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                to="/signup"
+              <MarketingSignupLink
+                proTrial
                 className="inline-flex rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700"
               >
-                Create account
-              </Link>
+                {TRIAL_CTA_LABEL}
+              </MarketingSignupLink>
               <Link
                 to="/faq"
                 className="inline-flex rounded-md border border-gray-500 px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800"

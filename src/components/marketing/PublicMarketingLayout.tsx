@@ -1,9 +1,13 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { PublicAdSlot } from '../ads/PublicAdSlot.tsx';
+import { MarketingSignupLink } from './MarketingSignupLink.tsx';
+import { TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { LaunchPromoBanner } from './LaunchPromoBanner.tsx';
 import { LimitedTimeOfferBanner } from './LimitedTimeOfferBanner.tsx';
+
+const TRIAL_BAR_DISMISS_KEY = 'ex3-hide-trial-bar';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-base font-semibold ${isActive ? 'text-red-600' : 'text-gray-700 hover:text-red-600'}`;
@@ -61,12 +65,55 @@ export function PublicMarketingLayout({
   children,
 }: PublicMarketingLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [trialBarHidden, setTrialBarHidden] = useState(true);
   const location = useLocation();
-  const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? { title: 'Extinguisher Tracker', subtitle: '' };
+  const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? {
+    title: 'ExtinguisherTracker',
+    subtitle: '',
+  };
   const showLayoutMegaOffer = location.pathname !== '/pricing';
+
+  useEffect(() => {
+    try {
+      setTrialBarHidden(
+        window.localStorage.getItem(TRIAL_BAR_DISMISS_KEY) === '1',
+      );
+    } catch {
+      setTrialBarHidden(false);
+    }
+  }, []);
+
+  function dismissTrialBar() {
+    setTrialBarHidden(true);
+    try {
+      window.localStorage.setItem(TRIAL_BAR_DISMISS_KEY, '1');
+    } catch {
+      // ignore
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
+      {!trialBarHidden ? (
+        <div className="bg-red-700 px-4 py-2.5 text-center text-sm text-white">
+          <span className="font-semibold">7-day Pro trial</span> — no credit
+          card required.{' '}
+          <MarketingSignupLink
+            proTrial
+            className="font-bold underline decoration-white/50 underline-offset-2 hover:text-red-100"
+          >
+            {TRIAL_CTA_LABEL}
+          </MarketingSignupLink>
+          <button
+            type="button"
+            onClick={dismissTrialBar}
+            className="ml-4 text-xs text-red-200 hover:text-white"
+            aria-label="Dismiss trial announcement"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
           <Link
@@ -115,12 +162,12 @@ export function PublicMarketingLayout({
             >
               Sign in
             </Link>
-            <Link
-              to="/signup"
+            <MarketingSignupLink
+              proTrial
               className="rounded-lg bg-red-600 px-5 py-2.5 text-base font-semibold text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
             >
-              Get started
-            </Link>
+              {TRIAL_CTA_LABEL}
+            </MarketingSignupLink>
           </nav>
 
           <button
@@ -191,13 +238,13 @@ export function PublicMarketingLayout({
               >
                 Sign in
               </Link>
-              <Link
-                to="/signup"
+              <MarketingSignupLink
+                proTrial
                 className="rounded-md bg-red-600 px-4 py-2 text-center text-sm font-medium text-white"
                 onClick={() => setMobileOpen(false)}
               >
-                Get started
-              </Link>
+                {TRIAL_CTA_LABEL}
+              </MarketingSignupLink>
             </div>
           </div>
         ) : null}
@@ -296,9 +343,12 @@ export function PublicMarketingLayout({
                 <Link to="/login" className="text-gray-600 hover:text-red-600">
                   Sign in
                 </Link>
-                <Link to="/signup" className="text-gray-600 hover:text-red-600">
-                  Create account
-                </Link>
+                <MarketingSignupLink
+                  proTrial
+                  className="text-gray-600 hover:text-red-600"
+                >
+                  {TRIAL_CTA_LABEL}
+                </MarketingSignupLink>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="font-medium text-gray-900">Company</span>
