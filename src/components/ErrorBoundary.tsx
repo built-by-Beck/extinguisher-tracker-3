@@ -7,6 +7,7 @@
 
 import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { isStaleChunkLoadError, reloadOnceForStaleChunk } from '../lib/chunkLoadRecovery.ts';
 
 interface Props {
   children: ReactNode;
@@ -36,12 +37,16 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReset = () => {
+    if (this.state.error && isStaleChunkLoadError(this.state.error)) {
+      reloadOnceForStaleChunk();
+      return;
+    }
     this.setState({ hasError: false, error: null });
   };
 
   handleGoHome = () => {
     this.setState({ hasError: false, error: null });
-    window.location.href = '/dashboard';
+    window.location.href = '/';
   };
 
   render() {
@@ -56,8 +61,9 @@ export class ErrorBoundary extends Component<Props, State> {
               Something went wrong
             </h2>
             <p className="mb-6 text-sm text-gray-500">
-              An unexpected error occurred. You can try again or return to the
-              dashboard.
+              {this.state.error && isStaleChunkLoadError(this.state.error)
+                ? 'The app was updated. Reloading should fix this — try again below.'
+                : 'An unexpected error occurred. You can try again or return home.'}
             </p>
             {this.state.error && (
               <pre className="mb-6 max-h-24 overflow-auto rounded bg-gray-100 p-3 text-left text-xs text-gray-600">
@@ -75,7 +81,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 onClick={this.handleGoHome}
                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
               >
-                Go to Dashboard
+                Go to Home
               </button>
             </div>
           </div>

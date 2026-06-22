@@ -1,6 +1,6 @@
 # EX3 Lessons Learned
 
-**Last Updated**: 2026-04-13
+**Last Updated**: 2026-05-07
 
 This file tracks lessons learned during development. The review-agent updates this after reviewing completed work. Build-agent and plan-agent should consult this before starting new tasks.
 
@@ -19,6 +19,12 @@ Each entry follows this structure:
 ---
 
 ## Entries
+
+### 2026-05-07 -- Full `firebase deploy` aborts when cloud has extra functions
+- **Context**: Running `firebase deploy` (all targets) after commit/push; project `extinguisher-tracker-3` had legacy callable functions in GCP that are not exported from local `functions/src/index.ts`.
+- **Issue**: CLI exits with “functions are found in your project but do not exist in your local source code” and refuses deletion in non-interactive mode, so nothing deploys if you only ran the full command once.
+- **Resolution**: Deploy by target: `firebase deploy --only hosting` for the Vite app; `firebase deploy --only functions:onExtinguisherCreated` (or other named exports) to update triggers without reconciling deletions. Alternatively run `firebase functions:delete <name> --region us-central1` interactively for each orphan, or restore exports if those functions should remain.
+- **Rule**: If full deploy fails on orphan functions, use `--only` for hosting and specific function names; treat orphan cleanup as an explicit ops decision, not an accidental batch delete.
 
 ### 2026-04-14 -- Release pipeline blocked by pre-existing lint failures
 - **Context**: Running full release checks before commit/push/deploy for AI notes and scan/edit/pass-fail workflow improvements.
@@ -203,7 +209,23 @@ Each entry follows this structure:
   3. Modified `WorkspaceDetail` to subscribe to the live `extinguishers` collection when active. It now merges the live inventory data with the snapshot `inspections`, dynamically generating "Pending" stubs for any new items so the location tile count accurately reflects real-time totals.
 - **Rule**: When building aggregate UI components (like location tiles or completion bars) that depend on snapshot data (e.g. active inspections), always join them with the live source of truth (the active inventory) to ensure newly created entities are instantly reflected. Always ensure form components map unified data back to all required legacy string fields for backwards compatibility.
 
-### 2026-03-26 -- useEffect for state re-sync must not depend on object-valued props
+### 2026-06-21 -- Billing trial and launch promos were documented but not wired
+- **Context**: User asked about free trial length and launch coupons; smoke test before advertising to new users.
+- **Issue**: App supported `trialing` status but `createCheckoutSession` never set `trial_period_days`. EX3 50% coupons existed in Stripe without promotion codes or product restrictions. `invoice.payment_succeeded` webhook hardcoded `subscriptionStatus: 'active'`, clobbering `trialing`. Marketing FAQ said trial was "configure in billing."
+- **Resolution**:
+  1. Added `STRIPE_TRIAL_DAYS=14` (functions) and `VITE_TRIAL_DAYS` / `VITE_LAUNCH_PROMO_ENABLED` (frontend) env vars.
+  2. Checkout grants 14-day trial when `trialUsedAt` is unset; webhook sets `trialUsedAt` on first trialing subscription.
+  3. Created Stripe promo codes `EX3BASIC50`, `EX3PRO50`, `EX3ELITE50` with product-scoped coupons via REST API (`scripts/stripe-setup-launch-promos.sh`).
+  4. Launch promo UI gated by `VITE_LAUNCH_PROMO_ENABLED` for easy takedown without code edits.
+  5. Fixed webhook to sync subscription status from Stripe instead of forcing `active`.
+- **Rule**: When billing behavior is Stripe-driven, verify checkout session params, webhook cache updates, and marketing copy stay in sync. Use env flags for time-limited public promos.
+
+## 2026-06-21 — Live launch: Stripe webhook pointed at wrong Firebase project
+
+- **Issue**: After launch, checkout could complete in Stripe but orgs stayed on "No active subscription". Stripe Dashboard had only one webhook URL targeting `extinguishertracker` (legacy project), not EX3's `stripeWebhook` Cloud Run URL. Promo codes had no `max_redemptions`; Stripe API rejects patching that field on existing codes.
+- **Fix**: Created new Stripe webhook endpoint for `https://stripewebhook-ct4uk5wktq-uc.a.run.app` with billing events; rotated `STRIPE_WEBHOOK_SECRET` via `pnpm secrets:push`; redeployed `stripeWebhook`. Deactivated old EX3*50 codes and recreated with `max_redemptions=100`. Post-org redirect now sends owners to Settings → Choose plan.
+- **Rule**: Before go-live, verify Stripe webhook URL matches the deployed `stripeWebhook` function for THIS Firebase project (not a prior app). Use `stripe-recreate-promo-limits.sh` for capped promos — not patch.
+
 - **Context**: Phase 18 review of `InspectionPanel` — a useEffect resets internal state (checklist, notes, GPS, photo) when the `inspection` prop changes
 - **Issue**: The useEffect dependency array included `inspection.checklistData`, `inspection.notes`, and `inspection.gps`. Since `checklistData` and `gps` are objects, any re-fetch by the parent (even returning identical data) creates new object references, triggering the effect and blowing away the user's in-progress edits.
 - **Resolution**: Narrowed the dependency array to `[inspection.id, inspection.status]` only — the two scalar values that meaningfully indicate "this is a different inspection" or "the inspection outcome changed." Added an eslint-disable comment for `react-hooks/exhaustive-deps` with an explanatory block comment.

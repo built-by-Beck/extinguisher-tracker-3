@@ -11,27 +11,18 @@ import type { StripePriceIds } from '../billing/planConfig.js';
 export const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
 export const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
 
-export const stripePriceIdBasic = defineString('STRIPE_PRICE_ID_BASIC', {
-  default: '',
-});
-export const stripePriceIdPro = defineString('STRIPE_PRICE_ID_PRO', {
-  default: '',
-});
-export const stripePriceIdElite = defineString('STRIPE_PRICE_ID_ELITE', {
-  default: '',
-});
-export const stripePriceIdBasicYearly = defineString(
-  'STRIPE_PRICE_ID_BASIC_YEARLY',
-  { default: '' },
-);
-export const stripePriceIdProYearly = defineString(
-  'STRIPE_PRICE_ID_PRO_YEARLY',
-  { default: '' },
-);
-export const stripePriceIdEliteYearly = defineString(
-  'STRIPE_PRICE_ID_ELITE_YEARLY',
-  { default: '' },
-);
+export const stripePriceIdBasic = defineString('STRIPE_PRICE_ID_BASIC', { default: '' });
+export const stripePriceIdPro = defineString('STRIPE_PRICE_ID_PRO', { default: '' });
+export const stripePriceIdElite = defineString('STRIPE_PRICE_ID_ELITE', { default: '' });
+export const stripePriceIdBasicYearly = defineString('STRIPE_PRICE_ID_BASIC_YEARLY', { default: '' });
+export const stripePriceIdProYearly = defineString('STRIPE_PRICE_ID_PRO_YEARLY', { default: '' });
+export const stripePriceIdEliteYearly = defineString('STRIPE_PRICE_ID_ELITE_YEARLY', { default: '' });
+export const stripeTrialDays = defineString('STRIPE_TRIAL_DAYS', { default: '14' });
+
+export function getStripeTrialDays(): number {
+  const parsed = Number.parseInt(stripeTrialDays.value(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 14;
+}
 
 export type { StripePriceIds };
 

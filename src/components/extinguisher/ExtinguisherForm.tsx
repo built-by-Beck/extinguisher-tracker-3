@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { serverTimestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuth.ts';
 import {
   subscribeToLocations,
@@ -32,6 +32,47 @@ const SERVICE_CLASSES = [
   'nonRechargeable',
   'other',
 ] as const;
+
+type ServiceDueKind = '' | 'six_year' | 'hydro';
+
+function timestampToDateInput(value: unknown): string {
+  if (value == null) return '';
+  try {
+    let d: Date;
+    if (
+      typeof value === 'object' &&
+      value !== null &&
+      'toDate' in value &&
+      typeof (value as { toDate: () => Date }).toDate === 'function'
+    ) {
+      d = (value as { toDate: () => Date }).toDate();
+    } else if (
+      typeof value === 'object' &&
+      value !== null &&
+      'seconds' in value &&
+      typeof (value as { seconds: number }).seconds === 'number'
+    ) {
+      d = new Date((value as { seconds: number }).seconds * 1000);
+    } else {
+      return '';
+    }
+    if (Number.isNaN(d.getTime())) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  } catch {
+    return '';
+  }
+}
+
+function dateInputToTimestamp(dateStr: string): Timestamp | null {
+  const trimmed = dateStr.trim();
+  if (!trimmed) return null;
+  const d = new Date(`${trimmed}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return Timestamp.fromDate(d);
+}
 
 interface ExtinguisherFormProps {
   initialData?: Partial<Extinguisher>;
@@ -66,21 +107,16 @@ export function ExtinguisherForm({
     initialData?.manufacturer ?? '',
   );
   const [category, setCategory] = useState(initialData?.category ?? 'standard');
-  const [extinguisherType, setExtinguisherType] = useState(
-    initialData?.extinguisherType ?? '',
-  );
-  const [serviceClass, setServiceClass] = useState(
-    initialData?.serviceClass ?? '',
-  );
-  const [extinguisherSize, setExtinguisherSize] = useState(
-    initialData?.extinguisherSize ?? '',
-  );
-  const [manufactureYear, setManufactureYear] = useState<string>(
-    initialData?.manufactureYear?.toString() ?? '',
-  );
-  const [expirationYear, setExpirationYear] = useState<string>(
-    initialData?.expirationYear?.toString() ?? '',
-  );
+  const [extinguisherType, setExtinguisherType] = useState(initialData?.extinguisherType ?? '');
+  const [serviceClass, setServiceClass] = useState(initialData?.serviceClass ?? '');
+  const [extinguisherSize, setExtinguisherSize] = useState(initialData?.extinguisherSize ?? '');
+  const [manufactureYear, setManufactureYear] = useState<string>(initialData?.manufactureYear?.toString() ?? '');
+  const [expirationYear, setExpirationYear] = useState<string>(initialData?.expirationYear?.toString() ?? '');
+  const [serviceDueKind, setServiceDueKind] = useState<ServiceDueKind>('');
+  const [serviceDueDate, setServiceDueDate] = useState('');
+  /** When true, leaving the service-due controls unchanged avoids overwriting two stored dates. */
+  const [initialHadBothServiceDates, setInitialHadBothServiceDates] = useState(false);
+  const [serviceDueTouched, setServiceDueTouched] = useState(false);
   const [section, setSection] = useState(initialData?.section ?? '');
   const [floor, setFloor] = useState(initialData?.floor ?? '');
   const [locationId, setLocationId] = useState(initialData?.locationId ?? '');
@@ -104,6 +140,28 @@ export function ExtinguisherForm({
       setExtinguisherSize(initialData.extinguisherSize ?? '');
       setManufactureYear(initialData.manufactureYear?.toString() ?? '');
       setExpirationYear(initialData.expirationYear?.toString() ?? '');
+      const sixTs = initialData.nextSixYearMaintenance;
+      const hydroTs = initialData.nextHydroTest;
+      const sixStr = timestampToDateInput(sixTs);
+      const hydroStr = timestampToDateInput(hydroTs);
+      if (sixStr && hydroStr) {
+        setInitialHadBothServiceDates(true);
+        setServiceDueKind('');
+        setServiceDueDate('');
+      } else {
+        setInitialHadBothServiceDates(false);
+        if (sixStr && !hydroStr) {
+          setServiceDueKind('six_year');
+          setServiceDueDate(sixStr);
+        } else if (hydroStr && !sixStr) {
+          setServiceDueKind('hydro');
+          setServiceDueDate(hydroStr);
+        } else {
+          setServiceDueKind('');
+          setServiceDueDate('');
+        }
+      }
+      setServiceDueTouched(false);
       setSection(initialData.section ?? '');
       setFloor(initialData.floor ?? '');
       setLocationId(initialData.locationId ?? '');
@@ -161,11 +219,23 @@ export function ExtinguisherForm({
         barcode: barcode.trim() || null,
       };
 
-      if (sixYearServiceCompleted) {
-        payload.lastSixYearMaintenance = serverTimestamp();
-      }
-      if (hydroServiceCompleted) {
-        payload.lastHydroTest = serverTimestamp();
+      const skipServiceDueFields =
+        initialHadBothServiceDates && !serviceDueTouched;
+      if (!skipServiceDueFields) {
+        let nextSixYearMaintenance: Timestamp | null = null;
+        let nextHydroTest: Timestamp | null = null;
+        if (serviceDueKind === 'six_year' || serviceDueKind === 'hydro') {
+          const dueTs = dateInputToTimestamp(serviceDueDate);
+          if (dueTs) {
+            if (serviceDueKind === 'six_year') {
+              nextSixYearMaintenance = dueTs;
+            } else {
+              nextHydroTest = dueTs;
+            }
+          }
+        }
+        payload.nextSixYearMaintenance = nextSixYearMaintenance;
+        payload.nextHydroTest = nextHydroTest;
       }
 
       await onSubmit(payload);
@@ -373,6 +443,47 @@ export function ExtinguisherForm({
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               placeholder="e.g., 2032"
             />
+          </div>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <label htmlFor="serviceDueKind" className="mb-1 block text-sm font-medium text-gray-700">
+              Next service due (after refill / shop work)
+            </label>
+            <p className="mb-2 text-xs text-gray-500">
+              Use this when manufacture and expiration years alone do not reflect the next six-year maintenance or
+              hydrostatic test. Pick one type and enter the due date from the tag or service record.
+            </p>
+            {initialHadBothServiceDates && !serviceDueTouched ? (
+              <p className="mb-2 text-xs text-amber-800">
+                This unit has both a six-year and hydro due date on file. Change the options below only if you want to
+                replace them with a single tracked date.
+              </p>
+            ) : null}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <select
+                id="serviceDueKind"
+                value={serviceDueKind}
+                onChange={(e) => {
+                  setServiceDueTouched(true);
+                  setServiceDueKind(e.target.value as ServiceDueKind);
+                }}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+              >
+                <option value="">Not tracking (use defaults from inspections)</option>
+                <option value="six_year">Six-year maintenance</option>
+                <option value="hydro">Hydrostatic test</option>
+              </select>
+              <input
+                id="serviceDueDate"
+                type="date"
+                value={serviceDueDate}
+                onChange={(e) => {
+                  setServiceDueTouched(true);
+                  setServiceDueDate(e.target.value);
+                }}
+                disabled={!serviceDueKind}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -15,34 +15,34 @@ import {
 import { getStripe } from './stripeClient.js';
 import { writeAuditLog } from '../utils/auditLog.js';
 
+function subscriptionPeriodEnd(subscription: Stripe.Subscription): Date | null {
+  const itemEnd = subscription.items.data[0]?.current_period_end;
+  if (itemEnd) {
+    return new Date(itemEnd * 1000);
+  }
+  const legacyEnd = (subscription as Stripe.Subscription & { current_period_end?: number })
+    .current_period_end;
+  return legacyEnd ? new Date(legacyEnd * 1000) : null;
+}
+
 function buildOrgUpdate(plan: PlanName, subscription: Stripe.Subscription) {
   const config = PLAN_CONFIGS[plan];
-  /** Stripe Subscription resource includes current_period_end (SDK typings vary by API version). */
-  const periodEndSec = (
-    subscription as Stripe.Subscription & {
-      current_period_end?: number;
-    }
-  ).current_period_end;
-  return {
+  const update: Record<string, unknown> = {
     plan,
     assetLimit: config.assetLimit,
     overLimit: false,
     stripeSubscriptionId: subscription.id,
     subscriptionStatus: subscription.status,
     subscriptionPriceId: subscription.items.data[0]?.price?.id ?? null,
-    subscriptionCurrentPeriodEnd: periodEndSec
-      ? new Date(periodEndSec * 1000)
-      : null,
-    trialEnd: subscription.trial_end
-      ? new Date(subscription.trial_end * 1000)
-      : null,
-    /** Once Pro enters trialing, org cannot start another no-card Pro trial checkout. */
-    ...(subscription.status === 'trialing' && plan === 'pro'
-      ? { proTrialConsumed: true }
-      : {}),
+    subscriptionCurrentPeriodEnd: subscriptionPeriodEnd(subscription),
+    trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
     featureFlags: config.featureFlags,
     updatedAt: new Date(),
   };
+  if (subscription.status === 'trialing') {
+    update.trialUsedAt = new Date();
+  }
+  return update;
 }
 
 async function resolveOrgId(
@@ -102,13 +102,21 @@ async function handleSubscriptionEvent(
   });
 }
 
-async function getSubscriptionFromInvoice(
-  invoice: Stripe.Invoice,
-): Promise<{ subscription: Stripe.Subscription; orgId?: string } | null> {
-  const subRef = invoice.parent?.subscription_details?.subscription;
-  if (!subRef) return null;
+function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const parentSub = invoice.parent?.subscription_details?.subscription;
+  if (parentSub) {
+    return typeof parentSub === 'string' ? parentSub : parentSub.id;
+  }
+  const legacySub = (invoice as Stripe.Invoice & { subscription?: string | Stripe.Subscription | null })
+    .subscription;
+  if (!legacySub) return null;
+  return typeof legacySub === 'string' ? legacySub : legacySub.id;
+}
 
-  const subId = typeof subRef === 'string' ? subRef : subRef.id;
+async function getSubscriptionFromInvoice(invoice: Stripe.Invoice): Promise<{ subscription: Stripe.Subscription; orgId?: string } | null> {
+  const subId = getInvoiceSubscriptionId(invoice);
+  if (!subId) return null;
+
   const subscription = await getStripe().subscriptions.retrieve(subId);
   const orgId = await resolveOrgId(subscription);
   return { subscription, orgId };
@@ -192,26 +200,7 @@ export const stripeWebhook = onRequest(
           const invoice = event.data.object as Stripe.Invoice;
           const result = await getSubscriptionFromInvoice(invoice);
           if (result?.orgId) {
-            // Full sync from Stripe (preserves trialing; avoids forcing active on $0 trial invoices)
             await handleSubscriptionEvent(result.subscription, prices);
-          }
-          break;
-        }
-
-        case 'customer.subscription.trial_will_end': {
-          const subscription = event.data.object as Stripe.Subscription;
-          const orgId = await resolveOrgId(subscription);
-          if (orgId) {
-            await writeAuditLog(orgId, {
-              action: 'billing.trial_will_end',
-              performedBy: 'stripe-webhook',
-              entityType: 'billing',
-              entityId: orgId,
-              details: {
-                subscriptionId: subscription.id,
-                trialEnd: subscription.trial_end ?? null,
-              },
-            });
           }
           break;
         }
@@ -235,12 +224,30 @@ export const stripeWebhook = onRequest(
           break;
         }
 
+        case 'customer.subscription.trial_will_end': {
+          const subscription = event.data.object as Stripe.Subscription;
+          const orgId = await resolveOrgId(subscription);
+          if (orgId) {
+            await writeAuditLog(orgId, {
+              action: 'billing.trial_will_end',
+              performedBy: 'stripe-webhook',
+              entityType: 'billing',
+              entityId: orgId,
+              details: {
+                subscriptionId: subscription.id,
+                trialEnd: subscription.trial_end,
+              },
+            });
+          }
+          break;
+        }
+
         default:
           console.log(`Unhandled Stripe event: ${event.type}`);
       }
     } catch (err) {
       console.error('Error processing webhook:', err);
-      res.status(500).send('Webhook handler failed');
+      res.status(500).json({ error: 'Webhook handler failed' });
       return;
     }
 

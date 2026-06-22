@@ -5,7 +5,7 @@ import { PublicMarketingLayout } from '../../components/marketing/PublicMarketin
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 import { marketingSeo } from './marketingSeo.ts';
-import { marketingFaq } from './marketingPricingCopy.ts';
+import { getMarketingFaq } from './marketingPricingCopy.ts';
 
 const extraFaq = [
   {
@@ -53,7 +53,7 @@ const extraFaq = [
 export default function MarketingFaqPage() {
   const seo = marketingSeo.faq;
   const { interval } = useBillingIntervalPreference();
-  const allFaq = [...marketingFaq, ...extraFaq];
+  const allFaq = [...getMarketingFaq(), ...extraFaq];
 
   return (
     <>

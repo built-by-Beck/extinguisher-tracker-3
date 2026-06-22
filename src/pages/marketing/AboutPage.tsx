@@ -11,6 +11,7 @@ import { PublicMarketingLayout } from '../../components/marketing/PublicMarketin
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 import { marketingSeo } from './marketingSeo.ts';
+import { TRIAL_DAYS } from '../../lib/billingConfig.ts';
 
 export default function AboutPage() {
   const seo = marketingSeo.about;
@@ -217,7 +218,7 @@ export default function AboutPage() {
               interval={interval}
               className="mt-4 inline-block rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700"
             >
-              Get started free
+              Start your {TRIAL_DAYS}-day free trial
             </MarketingSignupLink>
           </div>
         </div>

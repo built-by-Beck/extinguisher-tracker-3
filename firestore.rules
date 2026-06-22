@@ -133,6 +133,7 @@ service cloud.firestore {
           'subscriptionPriceId',
           'subscriptionCurrentPeriodEnd',
           'trialEnd',
+          'trialUsedAt',
           'plan',
           'assetLimit',
           'overLimit',
