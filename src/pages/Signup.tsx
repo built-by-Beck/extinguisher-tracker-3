@@ -36,6 +36,9 @@ export default function Signup() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const billingInterval = billingIntervalFromSearchParams(searchParams);
+  const preferredPlan = searchParams.get('plan');
+  const isTrialSignup =
+    preferredPlan === 'pro' && billingInterval === 'month';
 
   useEffect(() => {
     if (billingInterval) {
@@ -113,11 +116,23 @@ export default function Signup() {
         </div>
 
         <div className="rounded-lg bg-white p-8 shadow">
-          <h2 className="mb-6 text-2xl font-bold text-gray-900">
-            Create Account
+          <h2 className="mb-2 text-2xl font-bold text-gray-900">
+            {isTrialSignup ? 'Start your free trial' : 'Create Account'}
           </h2>
+          {isTrialSignup ? (
+            <p className="mb-4 text-sm font-medium text-red-800">
+              7-day Pro trial · monthly billing · no credit card at checkout
+            </p>
+          ) : null}
           <p className="mb-6 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-            {billingInterval === 'year' ? (
+            {isTrialSignup ? (
+              <>
+                Create your account first, then set up your organization. After
+                that, choose <strong className="text-gray-900">Pro (monthly)</strong>{' '}
+                under Settings → Billing to start your trial — no card required
+                at Stripe Checkout.
+              </>
+            ) : billingInterval === 'year' ? (
               <>
                 You chose <strong className="text-gray-900">yearly</strong>{' '}
                 billing on our pricing page. After you create your organization,
@@ -248,7 +263,11 @@ export default function Signup() {
               disabled={submitting}
               className="w-full rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? 'Creating account...' : 'Create Account'}
+              {submitting
+                ? 'Creating account...'
+                : isTrialSignup
+                  ? 'Create account & continue'
+                  : 'Create Account'}
             </button>
           </form>
 

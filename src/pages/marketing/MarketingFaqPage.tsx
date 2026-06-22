@@ -3,7 +3,7 @@ import { HelpCircle } from 'lucide-react';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
-import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
+import { TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { marketingSeo } from './marketingSeo.ts';
 import { getMarketingFaq } from './marketingPricingCopy.ts';
 
@@ -52,7 +52,6 @@ const extraFaq = [
 
 export default function MarketingFaqPage() {
   const seo = marketingSeo.faq;
-  const { interval } = useBillingIntervalPreference();
   const allFaq = [...getMarketingFaq(), ...extraFaq];
 
   return (
@@ -107,10 +106,10 @@ export default function MarketingFaqPage() {
                 Open Getting Started
               </Link>
               <MarketingSignupLink
-                interval={interval}
+                proTrial
                 className="inline-flex rounded-md border border-red-300 px-6 py-3 text-sm font-semibold text-white hover:bg-red-700"
               >
-                Create account
+                {TRIAL_CTA_LABEL}
               </MarketingSignupLink>
             </div>
           </div>

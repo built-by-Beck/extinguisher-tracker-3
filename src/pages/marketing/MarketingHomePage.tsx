@@ -27,7 +27,10 @@ import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { MarketingPricingPlans } from '../../components/marketing/MarketingPricingPlans.tsx';
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
+import { MarketingTrialHero } from '../../components/marketing/MarketingTrialHero.tsx';
+import { MarketingSavingsCallout } from '../../components/marketing/MarketingSavingsCallout.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
+import { TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { marketingSeo } from './marketingSeo.ts';
 import { TRIAL_DAYS } from '../../lib/billingConfig.ts';
 
@@ -74,16 +77,14 @@ export default function MarketingHomePage() {
               into one system built around the way life safety work actually
               happens.
             </p>
-            <p className="mt-3 text-base font-medium text-red-700">
-              Limited time — first 100 customers get 50% off year one. Start with a {TRIAL_DAYS}-day free trial.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <MarketingSignupLink
-                interval={interval}
-                className="inline-flex justify-center rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-              >
-                Create account — {TRIAL_DAYS}-day free trial
-              </MarketingSignupLink>
+            <div className="mt-8">
+              <MarketingTrialHero
+                size="hero"
+                compareHref="#plans-preview"
+                onTrialClick={() => setInterval('month')}
+              />
+            </div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 to="/pricing"
                 className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
@@ -91,26 +92,6 @@ export default function MarketingHomePage() {
                 View pricing
               </Link>
             </div>
-            <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-900">
-              <strong className="font-semibold">7-day Pro trial:</strong> start
-              on <strong>monthly Pro</strong> with{' '}
-              <strong>no credit card at checkout</strong>. Add a payment method
-              before the trial ends to keep Pro access. See{' '}
-              <Link
-                to="/pricing"
-                className="font-medium text-red-700 underline decoration-red-300 underline-offset-2 hover:text-red-800"
-              >
-                pricing
-              </Link>{' '}
-              and{' '}
-              <Link
-                to="/terms"
-                className="font-medium text-red-700 underline decoration-red-300 underline-offset-2 hover:text-red-800"
-              >
-                Terms
-              </Link>
-              .
-            </p>
             <p className="mt-4 text-sm text-gray-500">
               Already using the product?{' '}
               <Link
@@ -395,7 +376,7 @@ export default function MarketingHomePage() {
         </Section>
 
         <div className="border-y border-gray-200 bg-white" id="plans-preview">
-          <Section className="pb-8">
+          <Section className="pb-4">
             <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
               Plans
             </h2>
@@ -403,6 +384,9 @@ export default function MarketingHomePage() {
               Choose monthly or yearly billing, then pick the tier that fits your
               program. Checkout happens in the app after you create an account.
             </p>
+            <div className="mt-6">
+              <MarketingSavingsCallout interval={interval} prominent />
+            </div>
           </Section>
           <MarketingPricingPlans
             compactToggle
@@ -422,10 +406,11 @@ export default function MarketingHomePage() {
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <MarketingSignupLink
-                interval={interval}
+                proTrial
+                onClick={() => setInterval('month')}
                 className="inline-flex w-full justify-center rounded-md bg-white px-6 py-3 text-sm font-semibold text-red-700 shadow hover:bg-red-50 sm:w-auto"
               >
-                Get started
+                {TRIAL_CTA_LABEL}
               </MarketingSignupLink>
               <Link
                 to="/how-it-works"

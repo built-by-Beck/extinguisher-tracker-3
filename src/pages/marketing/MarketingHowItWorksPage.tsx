@@ -12,7 +12,7 @@ import {
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
-import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
+import { TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { marketingSeo } from './marketingSeo.ts';
 
 const steps = [
@@ -68,7 +68,6 @@ const steps = [
 
 export default function MarketingHowItWorksPage() {
   const seo = marketingSeo.howItWorks;
-  const { interval } = useBillingIntervalPreference();
 
   return (
     <>
@@ -123,10 +122,10 @@ export default function MarketingHowItWorksPage() {
 
           <div className="mt-14 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
             <MarketingSignupLink
-              interval={interval}
+              proTrial
               className="inline-flex rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700"
             >
-              Create account
+              {TRIAL_CTA_LABEL}
             </MarketingSignupLink>
             <Link
               to="/pricing"

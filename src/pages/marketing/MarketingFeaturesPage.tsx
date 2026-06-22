@@ -27,6 +27,7 @@ import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
+import { TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { marketingSeo } from './marketingSeo.ts';
 
 type FeatureBlockProps = {
@@ -74,7 +75,7 @@ function FeatureBlock({
 
 export default function MarketingFeaturesPage() {
   const seo = marketingSeo.features;
-  const { interval } = useBillingIntervalPreference();
+  const { setInterval } = useBillingIntervalPreference();
 
   return (
     <>
@@ -102,10 +103,11 @@ export default function MarketingFeaturesPage() {
                 View pricing
               </Link>
               <MarketingSignupLink
-                interval={interval}
+                proTrial
+                onClick={() => setInterval('month')}
                 className="inline-flex rounded-md border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50"
               >
-                Create account
+                {TRIAL_CTA_LABEL}
               </MarketingSignupLink>
             </div>
           </div>

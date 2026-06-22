@@ -141,8 +141,7 @@ export default function OrgSettings() {
     if (billingParam === 'success') {
       navigate('/checkout/success', { replace: true });
     }
-    }
-  }, [billingParam, navigate]);
+  }, [billingParam, navigate, searchParams]);
 
   useEffect(() => {
     if (billingParam === 'choose' || billingParam === 'canceled') {

@@ -19,6 +19,7 @@ import { PublicMarketingLayout } from '../../components/marketing/PublicMarketin
 import { BillingIntervalToggle } from '../../components/billing/BillingIntervalToggle.tsx';
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
+import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { PLANS } from '../../lib/planConfig.ts';
 import { marketingPriceForInterval } from '../../lib/marketingPlanPricing.ts';
 import {
@@ -255,8 +256,8 @@ export default function MarketingPlanDetailPage() {
                   className="inline-flex rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700"
                 >
                   {id === 'pro' && interval === 'month'
-                    ? 'Start 7-day free trial'
-                    : `Get started with ${plan.name}`}
+                    ? TRIAL_CTA_LABEL
+                    : `${PLAN_CTA_LABEL} with ${plan.name}`}
                 </MarketingSignupLink>
               )}
             </div>
@@ -348,8 +349,8 @@ export default function MarketingPlanDetailPage() {
                   className="inline-flex rounded-md bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-red-700"
                 >
                   {id === 'pro' && interval === 'month'
-                    ? 'Start 7-day free trial'
-                    : `Get started with ${plan.name}`}
+                    ? TRIAL_CTA_LABEL
+                    : `${PLAN_CTA_LABEL} with ${plan.name}`}
                 </MarketingSignupLink>
               )}
               <Link

@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react';
-import { PLANS } from '../../lib/planConfig.ts';
+import { PLANS, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
 import { marketingPriceForInterval } from '../../lib/marketingPlanPricing.ts';
 import type { BillingIntervalPreference } from '../../lib/billingIntervalPreference.ts';
 import {
@@ -10,6 +10,9 @@ import {
 import { BillingIntervalToggle } from '../billing/BillingIntervalToggle.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 import { MarketingSignupLink } from './MarketingSignupLink.tsx';
+import { MarketingTrialHero } from './MarketingTrialHero.tsx';
+import { MarketingSavingsCallout } from './MarketingSavingsCallout.tsx';
+import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 
 const monthlyPriceById: Record<MarketingPlanId, number | null> = {
   basic: PLANS.find((p) => p.name === 'basic')!.monthlyPrice,
@@ -37,6 +40,7 @@ export function MarketingPricingPlans({
   const internal = useBillingIntervalPreference();
   const interval = controlledInterval ?? internal.interval;
   const setInterval = onIntervalChange ?? internal.setInterval;
+  const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
 
   return (
     <>
@@ -48,40 +52,39 @@ export function MarketingPricingPlans({
             </h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
               Compare <strong>Basic</strong>, <strong>Pro</strong>,{' '}
-              <strong>Elite</strong>, and <strong>Enterprise</strong>. Choose
-              monthly or yearly billing, then pick a plan in the app after you
-              create an account.
+              <strong>Elite</strong>, and <strong>Enterprise</strong>. Yearly
+              billing saves {discountPct}% — or start a no-card Pro trial on
+              monthly.
             </p>
-            <div className="mt-5 flex flex-col gap-4 rounded-lg border border-red-100 bg-red-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-red-900">
-                <strong className="font-semibold">Try Pro free for 7 days</strong>{' '}
-                on <strong>monthly</strong> billing — no credit card at Stripe
-                Checkout. Add a payment method before the trial ends to keep Pro
-                access (see Terms).
-              </p>
-              <MarketingSignupLink
-                proTrial
-                onClick={() => setInterval('month')}
-                className="inline-flex shrink-0 items-center justify-center rounded-md bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-              >
-                Start 7-day free trial
-              </MarketingSignupLink>
+            <div className="mt-8">
+              <MarketingTrialHero
+                size="band"
+                compareHref="#pricing-plans"
+                onTrialClick={() => setInterval('month')}
+              />
             </div>
           </div>
         </div>
       ) : null}
 
       <div
+        id={showIntro ? 'pricing-plans' : undefined}
         className={
           showIntro
             ? 'mx-auto max-w-6xl px-4 pt-10 sm:px-6'
             : 'mx-auto max-w-6xl px-4 sm:px-6'
         }
       >
+        {!showIntro && !compactToggle ? (
+          <div className="mb-6">
+            <MarketingSavingsCallout interval={interval} prominent />
+          </div>
+        ) : null}
         <BillingIntervalToggle
           value={interval}
           onChange={setInterval}
-          prominent={!compactToggle}
+          prominent={!compactToggle && !showIntro}
+          variant={showIntro || compactToggle ? 'marketing' : 'settings'}
         />
       </div>
 
@@ -182,9 +185,7 @@ export function MarketingPricingPlans({
                           : 'bg-gray-900 hover:bg-gray-800'
                       }`}
                     >
-                      {offerProTrialCta
-                        ? 'Start 7-day free trial'
-                        : plan.ctaLabel}
+                      {offerProTrialCta ? TRIAL_CTA_LABEL : PLAN_CTA_LABEL}
                     </MarketingSignupLink>
                     {plan.id === 'pro' && interval === 'year' ? (
                       <MarketingSignupLink
@@ -192,7 +193,7 @@ export function MarketingPricingPlans({
                         onClick={() => setInterval('month')}
                         className="mt-3 block w-full text-center text-sm font-medium text-red-600 hover:text-red-500"
                       >
-                        Start 7-day free trial instead (monthly, no card)
+                        {TRIAL_CTA_LABEL} instead (monthly, no card)
                       </MarketingSignupLink>
                     ) : null}
                   </>
@@ -202,9 +203,15 @@ export function MarketingPricingPlans({
           })}
         </div>
 
-        <p className="mt-10 text-center text-xs text-gray-400">
+        <p
+          className={`mt-10 text-center text-sm ${
+            interval === 'year'
+              ? 'font-semibold text-green-700'
+              : 'text-gray-500'
+          }`}
+        >
           {interval === 'year'
-            ? 'Yearly plans are billed as a single annual charge at checkout.'
+            ? `Yearly plans save ${discountPct}% — billed as a single annual charge at checkout.`
             : 'Monthly plans renew each month unless cancelled.'}
         </p>
       </div>

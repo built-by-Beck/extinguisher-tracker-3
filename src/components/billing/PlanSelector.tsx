@@ -13,10 +13,7 @@ import {
   readBillingIntervalPreference,
   writeBillingIntervalPreference,
 } from '../../lib/billingIntervalPreference.ts';
-import {
-  BillingIntervalToggle,
-  type BillingIntervalUi,
-} from './BillingIntervalToggle.tsx';
+import { type BillingIntervalUi } from './BillingIntervalToggle.tsx';
 
 function formatUsd(amount: number): string {
   return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
