@@ -178,12 +178,11 @@ export const createOrganization = onCall<
       name: trimmedName,
       slug: slug || null,
       stripeCustomerId: stripeCustomer.id,
-      stripeSubscriptionId: null,
-      subscriptionStatus: null,
-      subscriptionPriceId: null,
-      subscriptionCurrentPeriodEnd: null,
-      trialEnd: null,
-      trialUsedAt: null,
+    },
+    performedBy: uid,
+    performedByEmail: email,
+    performedAt: now,
+  });
 
   await batch.commit();
 

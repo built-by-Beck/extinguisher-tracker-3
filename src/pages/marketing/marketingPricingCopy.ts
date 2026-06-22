@@ -17,8 +17,6 @@ function formatPrice(price: number | null): string {
   return price % 1 === 0 ? `$${price}` : `$${price.toFixed(2)}`;
 }
 
-const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
-
 const basicPlan = PLANS.find((p) => p.name === 'basic')!;
 const proPlan = PLANS.find((p) => p.name === 'pro')!;
 const elitePlan = PLANS.find((p) => p.name === 'elite')!;

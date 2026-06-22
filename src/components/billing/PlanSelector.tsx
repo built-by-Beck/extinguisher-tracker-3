@@ -2,17 +2,14 @@ import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Check, Loader2, Sparkles, X as XIcon, Zap } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
-import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
+import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION, yearlyMonthlyEquivDisplay } from '../../lib/planConfig.ts';
 import {
   getLaunchPromoCheckoutHint,
   TRIAL_DAYS,
 } from '../../lib/billingConfig.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
-import {
-  BillingIntervalToggle,
-  type BillingIntervalUi,
-} from './BillingIntervalToggle.tsx';
+import type { BillingIntervalUi } from './BillingIntervalToggle.tsx';
 
 function formatUsd(amount: number): string {
   return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;

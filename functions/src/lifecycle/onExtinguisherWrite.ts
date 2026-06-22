@@ -75,7 +75,11 @@ export const onExtinguisherCreated = onDocumentCreated(
       const clientNextHydro = currentExtData.nextHydroTest as Timestamp | null;
       const userSetServiceDue = clientNextSix != null || clientNextHydro != null;
 
-      const nextMonthlyInspection = calculateNextMonthlyInspection(lastMonthly);
+      const nextMonthlyInspection = calculateNextMonthlyInspection(
+        lastMonthly,
+        monthlySchedule,
+        orgTimezone,
+      );
       const nextAnnualInspection = calculateNextAnnualInspection(lastAnnual);
 
       const calculatedNextHydroTest = calculateNextHydroTest(lastHydro, hydroInterval);

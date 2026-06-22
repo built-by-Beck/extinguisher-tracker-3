@@ -1,5 +1,4 @@
 import { onCall } from 'firebase-functions/v2/https';
-import type Stripe from 'stripe';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
@@ -10,10 +9,7 @@ import { priceIdForPlan, type BillingInterval, type PlanName } from './planConfi
 import { getStripe } from './stripeClient.js';
 import { ensureOrgStripeCustomer } from './stripeOrgCustomer.js';
 import { writeAuditLog } from '../utils/auditLog.js';
-import {
-  proTrialDaysFromEnv,
-  shouldUseProMonthlyTrial,
-} from './proTrialEligibility.js';
+import { shouldUseProMonthlyTrial } from './proTrialEligibility.js';
 
 export const createCheckoutSession = onCall(
   { secrets: [stripeSecretKey] },
