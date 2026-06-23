@@ -374,6 +374,22 @@
         { "fieldPath": "orgId", "order": "ASCENDING" },
         { "fieldPath": "replacedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "workTimeDaily",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "workspaceId", "order": "ASCENDING" },
+        { "fieldPath": "workDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "workTimeDaily",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "workspaceId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

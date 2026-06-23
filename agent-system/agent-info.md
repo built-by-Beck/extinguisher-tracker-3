@@ -2366,3 +2366,15 @@ Self-review of the floors changes. Two issues found & fixed in [`DataOrganizer.t
 Security/tenant: all writes org-scoped via `orgId`; `createLocation`/`batchUpdateExtinguishers` reuse existing org-scoped paths; page gated to owner/admin (`hasRole`). No new privileged path. `createLocation` persists `sortOrder`/`parentLocationId` and does NOT self-enforce name uniqueness, so bulk floor creation won't throw on dup names (Tool 2 also dedupes in-memory).
 
 Remaining minor concerns (non-blocking): (a) `getIssues` now flags `No floor` on every unit lacking the denormalized floor string even if assigned to a floor location — intentional (Organizer is where floors get filled) but inflates "needs attention" until Tool 1 runs; (b) Tool 2 has no confirm dialog (consistent w/ existing organizer tools) — it's idempotent & safe to re-run; (c) editing a unit's floor *location* later won't auto-sync the `floor` string (pre-existing denormalization pattern).
+
+## 2026-06-22 — Time tracking overhaul — built_by_Beck
+
+Replaced localStorage-only section timer with Firestore-backed per-user daily time tracking.
+
+- New `org/{orgId}/workTimeDaily` collection + rules/indexes; `workTimeService.ts`, `workTimeUtils.ts`
+- Global `SectionTimerProvider` in DashboardLayout: manual Start/Stop, 10h session + daily caps, idle auto-stop with global modal, sticky timer bar
+- New `/dashboard/time-tracking` page: date/workspace/member filters, today + workspace totals, admin CSV export, auto-start preference (default off)
+- Archive reads `workTimeDaily` server-side → `workTimeByMember` on report snapshot
+- Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
+- Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
+- Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync

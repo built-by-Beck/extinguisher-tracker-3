@@ -129,28 +129,7 @@ export default function Workspaces() {
     setError('');
 
     try {
-      // Read section times from localStorage before archiving
-      const timesKey = `sectionTimes_${orgId}_${archiveTargetId}`;
-      const activeKey = `sectionTimerActive_${orgId}_${archiveTargetId}`;
-      let sectionTimes: Record<string, number> | null = null;
-      try {
-        const savedTimes = localStorage.getItem(timesKey);
-        if (savedTimes) {
-          sectionTimes = JSON.parse(savedTimes) as Record<string, number>;
-        }
-      } catch {
-        // localStorage unavailable — archive without times
-      }
-
-      await archiveWorkspaceCall(orgId, archiveTargetId, sectionTimes);
-
-      // Clear localStorage for this workspace after successful archive
-      try {
-        localStorage.removeItem(timesKey);
-        localStorage.removeItem(activeKey);
-      } catch {
-        // Silently fail
-      }
+      await archiveWorkspaceCall(orgId, archiveTargetId);
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : 'Failed to archive workspace.',
