@@ -2366,3 +2366,13 @@ Self-review of the floors changes. Two issues found & fixed in [`DataOrganizer.t
 Security/tenant: all writes org-scoped via `orgId`; `createLocation`/`batchUpdateExtinguishers` reuse existing org-scoped paths; page gated to owner/admin (`hasRole`). No new privileged path. `createLocation` persists `sortOrder`/`parentLocationId` and does NOT self-enforce name uniqueness, so bulk floor creation won't throw on dup names (Tool 2 also dedupes in-memory).
 
 Remaining minor concerns (non-blocking): (a) `getIssues` now flags `No floor` on every unit lacking the denormalized floor string even if assigned to a floor location — intentional (Organizer is where floors get filled) but inflates "needs attention" until Tool 1 runs; (b) Tool 2 has no confirm dialog (consistent w/ existing organizer tools) — it's idempotent & safe to re-run; (c) editing a unit's floor *location* later won't auto-sync the `floor` string (pre-existing denormalization pattern).
+
+## 2026-06-23 — Daily Review Bot health check
+
+**Task (SMALL review):** Ran the scheduled review bot pass for build health, recent changes, risky patterns, and high-risk billing/security surfaces. No application code changes were made.
+
+**Checked:** `package.json`, `functions/package.json`, recent git status/diff/log, latest launch/promo commit file list, focused billing files (`createCheckoutSession`, `stripeWebhook`, billing config, checkout success), scanner/hook eslint-disable hits, TODO/debug/secret/empty-catch searches.
+
+**Validation:** `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` passed. `pnpm format:check` failed across 35 existing files, so CI-style formatting is currently not clean. Functions tests also emit repeated `ts-jest` TS151002 warnings about Node hybrid module kind without `isolatedModules: true`.
+
+**Review verdict:** REVISION REQUIRED for formatting drift only. Recommended Build Agent follow-up: run Prettier intentionally, review the broad formatting diff (billing/functions/marketing/lifecycle/page files), and consider a separate functions test-config cleanup for the recurring ts-jest warning.
