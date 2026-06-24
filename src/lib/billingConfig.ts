@@ -24,6 +24,24 @@ export const LAUNCH_PROMO = {
   bannerImage: '/launch-promo-banner.png',
 } as const;
 
+/** Launch promo discount — 50% off first-year charges at checkout with promo code. */
+export const LAUNCH_PROMO_DISCOUNT_FRACTION = 0.5;
+
+export function applyLaunchPromoDiscount(amount: number): number {
+  return (
+    Math.round(amount * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION) * 100) / 100
+  );
+}
+
+export function formatUsd(amount: number): string {
+  return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
+}
+
+/** Headline monthly price shown on pricing/settings when launch promo is active. */
+export function launchPromoMonthlyDisplay(monthlyPrice: number): string {
+  return formatUsd(applyLaunchPromoDiscount(monthlyPrice));
+}
+
 export function getPermanentSavingsLine(): string {
   return `${TRIAL_DAYS}-day free trial · 10% off annual prepay`;
 }

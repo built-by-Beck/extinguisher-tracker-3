@@ -7,14 +7,31 @@
 
 import { PLANS, yearlyTotalFromMonthly, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
 import {
+  applyLaunchPromoDiscount,
   getLaunchPromoFaqItem,
   getLaunchPromoPlanNote,
+  LAUNCH_PROMO_ENABLED,
   TRIAL_DAYS,
 } from '../../lib/billingConfig.ts';
 
 function formatPrice(price: number | null): string {
   if (price === null) return 'Custom';
   return price % 1 === 0 ? `$${price}` : `$${price.toFixed(2)}`;
+}
+
+function headlineMonthlyPrice(monthly: number): string {
+  if (LAUNCH_PROMO_ENABLED) {
+    return formatPrice(applyLaunchPromoDiscount(monthly));
+  }
+  return formatPrice(monthly);
+}
+
+function annualBillingNote(monthly: number): string {
+  const yearlyTotal = yearlyTotalFromMonthly(monthly);
+  if (LAUNCH_PROMO_ENABLED) {
+    return `Or ${formatPrice(applyLaunchPromoDiscount(yearlyTotal))} first year if prepaid (50% launch promo).`;
+  }
+  return `Or ${formatPrice(yearlyTotal)} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`;
 }
 
 const basicPlan = PLANS.find((p) => p.name === 'basic')!;
@@ -48,9 +65,9 @@ export const marketingPlans: MarketingPlanCard[] = [
   {
     id: 'basic',
     name: 'Basic',
-    priceLabel: formatPrice(basicPlan.monthlyPrice),
-    priceDetail: 'per month',
-    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(basicPlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
+    priceLabel: headlineMonthlyPrice(basicPlan.monthlyPrice!),
+    priceDetail: LAUNCH_PROMO_ENABLED ? 'per month · first year' : 'per month',
+    annualBillingNote: annualBillingNote(basicPlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('basic') ?? undefined,
     blurb: 'Small sites that want to ditch paper, speed up checks, and build a reliable workflow baseline.',
     bullets: [
@@ -66,9 +83,9 @@ export const marketingPlans: MarketingPlanCard[] = [
   {
     id: 'pro',
     name: 'Pro',
-    priceLabel: formatPrice(proPlan.monthlyPrice),
-    priceDetail: 'per month',
-    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(proPlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
+    priceLabel: headlineMonthlyPrice(proPlan.monthlyPrice!),
+    priceDetail: LAUNCH_PROMO_ENABLED ? 'per month · first year' : 'per month',
+    annualBillingNote: annualBillingNote(proPlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('pro') ?? undefined,
     blurb: 'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
     bullets: [
@@ -87,9 +104,9 @@ export const marketingPlans: MarketingPlanCard[] = [
   {
     id: 'elite',
     name: 'Elite',
-    priceLabel: formatPrice(elitePlan.monthlyPrice),
-    priceDetail: 'per month',
-    annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(elitePlan.monthlyPrice!))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
+    priceLabel: headlineMonthlyPrice(elitePlan.monthlyPrice!),
+    priceDetail: LAUNCH_PROMO_ENABLED ? 'per month · first year' : 'per month',
+    annualBillingNote: annualBillingNote(elitePlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('elite') ?? undefined,
     blurb: 'Large programs that need advanced data tools, AI-supported operations, and priority help.',
     bullets: [

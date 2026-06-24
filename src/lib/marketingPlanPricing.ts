@@ -5,6 +5,11 @@
  */
 
 import {
+  applyLaunchPromoDiscount,
+  formatUsd,
+  LAUNCH_PROMO_ENABLED,
+} from './billingConfig.ts';
+import {
   YEARLY_DISCOUNT_FRACTION,
   yearlyMonthlyEquivDisplay,
   yearlyTotalFromMonthly,
@@ -17,27 +22,36 @@ export type MarketingPriceDisplay = {
   footnote?: string;
 };
 
-function formatUsd(amount: number): string {
-  return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
-}
-
 export function marketingPriceForInterval(
   monthlyPrice: number,
   interval: BillingIntervalPreference,
 ): MarketingPriceDisplay {
   const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
+  const promoActive = LAUNCH_PROMO_ENABLED;
 
   if (interval === 'month') {
+    const displayMonthly = promoActive
+      ? applyLaunchPromoDiscount(monthlyPrice)
+      : monthlyPrice;
     return {
-      priceLabel: formatUsd(monthlyPrice),
-      priceDetail: 'per month',
+      priceLabel: formatUsd(displayMonthly),
+      priceDetail: promoActive ? 'per month · first year' : 'per month',
     };
   }
 
   const yearlyTotal = yearlyTotalFromMonthly(monthlyPrice);
+  const displayYearlyTotal = promoActive
+    ? applyLaunchPromoDiscount(yearlyTotal)
+    : yearlyTotal;
+  const priceLabel = promoActive
+    ? formatUsd(Math.round((displayYearlyTotal / 12) * 100) / 100)
+    : yearlyMonthlyEquivDisplay(monthlyPrice);
+
   return {
-    priceLabel: yearlyMonthlyEquivDisplay(monthlyPrice),
-    priceDetail: 'per month',
-    footnote: `Billed yearly at ${formatUsd(yearlyTotal)} — save ${discountPct}% vs monthly.`,
+    priceLabel,
+    priceDetail: promoActive ? 'per month · first year' : 'per month',
+    footnote: promoActive
+      ? `First year billed at ${formatUsd(displayYearlyTotal)} (50% launch promo) — then ${formatUsd(yearlyTotal)}/yr.`
+      : `Billed yearly at ${formatUsd(yearlyTotal)} — save ${discountPct}% vs monthly.`,
   };
 }
