@@ -5,8 +5,12 @@ import { functions } from '../../lib/firebase.ts';
 import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION, yearlyMonthlyEquivDisplay } from '../../lib/planConfig.ts';
 import {
   getLaunchPromoCheckoutHint,
+  getLaunchPromoCode,
+  getLaunchPromoPriceDisclaimer,
+  LAUNCH_PROMO_ENABLED,
   TRIAL_DAYS,
 } from '../../lib/billingConfig.ts';
+import { marketingPriceForInterval } from '../../lib/marketingPlanPricing.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import {
@@ -165,6 +169,14 @@ export function PlanSelector({
             billingInterval === 'year' && plan.monthlyPrice !== null
               ? yearlyMonthlyEquivDisplay(plan.monthlyPrice)
               : null;
+          const promoPrice =
+            plan.monthlyPrice !== null && plan.name !== 'enterprise'
+              ? marketingPriceForInterval(
+                  plan.monthlyPrice,
+                  billingInterval,
+                  plan.name as 'basic' | 'pro' | 'elite',
+                )
+              : null;
 
           return (
             <div
@@ -191,10 +203,58 @@ export function PlanSelector({
               </h3>
 
               {billingInterval === 'month' ? (
-                <p className="mt-1 text-3xl font-bold text-gray-900">
-                  {formatUsd(plan.monthlyPrice!)}
-                  <span className="text-sm font-normal text-gray-500">/mo</span>
-                </p>
+                promoPrice?.regularPriceLabel ? (
+                  <>
+                    <p className="mt-1 flex flex-wrap items-baseline gap-2">
+                      <span className="text-lg font-semibold text-gray-400 line-through">
+                        {formatUsd(plan.monthlyPrice!)}
+                      </span>
+                      <span className="text-3xl font-bold text-gray-900">
+                        {promoPrice.priceLabel}
+                        <span className="text-sm font-normal text-gray-500">
+                          /mo
+                        </span>
+                      </span>
+                    </p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
+                      {getLaunchPromoPriceDisclaimer(
+                        plan.monthlyPrice!,
+                        plan.name as 'basic' | 'pro' | 'elite',
+                        'month',
+                      )}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-1 text-3xl font-bold text-gray-900">
+                    {formatUsd(plan.monthlyPrice!)}
+                    <span className="text-sm font-normal text-gray-500">/mo</span>
+                  </p>
+                )
+              ) : promoPrice?.regularPriceLabel ? (
+                <>
+                  <p className="mt-1 flex flex-wrap items-baseline gap-2">
+                    <span className="text-lg font-semibold text-gray-400 line-through">
+                      {monthlyEquivDisplay}
+                      <span className="text-sm font-normal">/mo</span>
+                    </span>
+                    <span className="text-3xl font-bold text-gray-900">
+                      {promoPrice.priceLabel}
+                      <span className="text-sm font-normal text-gray-500">
+                        /mo
+                      </span>
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {promoPrice.footnote}
+                  </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
+                    {getLaunchPromoPriceDisclaimer(
+                      plan.monthlyPrice!,
+                      plan.name as 'basic' | 'pro' | 'elite',
+                      'year',
+                    )}
+                  </p>
+                </>
               ) : (
                 <>
                   <p className="mt-1 text-3xl font-bold text-gray-900">
@@ -203,10 +263,22 @@ export function PlanSelector({
                   </p>
                   <p className="mt-0.5 text-xs text-gray-500">
                     billed yearly ·{' '}
-                    <span className="font-semibold text-green-700">save {discountPct}%</span>
+                    <span className="font-semibold text-green-700">
+                      save {discountPct}%
+                    </span>
                   </p>
                 </>
               )}
+
+              {LAUNCH_PROMO_ENABLED &&
+              plan.name !== 'enterprise' &&
+              getLaunchPromoCode(plan.name as 'basic' | 'pro' | 'elite') ? (
+                <p className="mt-2 text-xs font-semibold text-amber-800">
+                  Code{' '}
+                  {getLaunchPromoCode(plan.name as 'basic' | 'pro' | 'elite')}{' '}
+                  at checkout
+                </p>
+              ) : null}
 
               <p className="mt-2 text-sm text-gray-500">
                 {plan.name === 'basic'

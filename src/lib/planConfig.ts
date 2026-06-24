@@ -9,9 +9,9 @@
 export type PlanName = 'basic' | 'pro' | 'elite' | 'enterprise';
 
 // Read prices/limits from env (Vite injects at build time). Fallback to defaults.
-const ENV_PRICE_BASIC = Number(import.meta.env.VITE_PRICE_BASIC) || 29.99;
-const ENV_PRICE_PRO = Number(import.meta.env.VITE_PRICE_PRO) || 99;
-const ENV_PRICE_ELITE = Number(import.meta.env.VITE_PRICE_ELITE) || 199;
+const ENV_PRICE_BASIC = Number(import.meta.env.VITE_PRICE_BASIC) || 39.99;
+const ENV_PRICE_PRO = Number(import.meta.env.VITE_PRICE_PRO) || 129.99;
+const ENV_PRICE_ELITE = Number(import.meta.env.VITE_PRICE_ELITE) || 229.99;
 const ENV_LIMIT_BASIC = Number(import.meta.env.VITE_LIMIT_BASIC) || 50;
 const ENV_LIMIT_PRO = Number(import.meta.env.VITE_LIMIT_PRO) || 250;
 const ENV_LIMIT_ELITE = Number(import.meta.env.VITE_LIMIT_ELITE) || 500;

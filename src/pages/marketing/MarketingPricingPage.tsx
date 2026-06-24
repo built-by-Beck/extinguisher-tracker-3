@@ -6,7 +6,8 @@ import {
   getMarketingFaq,
   marketingPlans,
 } from './marketingPricingCopy.ts';
-import { getPermanentSavingsLine } from '../../lib/billingConfig.ts';
+import { MarketingPlanPriceDisplay } from '../../components/marketing/MarketingPlanPriceDisplay.tsx';
+import { LAUNCH_PROMO, LAUNCH_PROMO_ENABLED } from '../../lib/billingConfig.ts';
 import { LaunchPromoBanner } from '../../components/marketing/LaunchPromoBanner.tsx';
 import { LimitedTimeOfferBanner } from '../../components/marketing/LimitedTimeOfferBanner.tsx';
 import { marketingSeo } from './marketingSeo.ts';
@@ -29,8 +30,19 @@ export default function MarketingPricingPage() {
               Pricing
             </h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
-              Compare <strong>Basic</strong>, <strong>Pro</strong>, <strong>Elite</strong>, and{' '}
-              <strong>Enterprise</strong>. Every paid plan includes a {getPermanentSavingsLine()}.
+              {LAUNCH_PROMO_ENABLED ? (
+                <>
+                  Lock in <strong>{LAUNCH_PROMO.headline}</strong> on Basic, Pro,
+                  or Elite — then compare features. Every paid plan also includes
+                  a free trial before your first charge.
+                </>
+              ) : (
+                <>
+                  Compare <strong>Basic</strong>, <strong>Pro</strong>,{' '}
+                  <strong>Elite</strong>, and <strong>Enterprise</strong>. Every
+                  paid plan includes a free trial and annual prepay savings.
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -61,27 +73,19 @@ export default function MarketingPricingPage() {
                 <h2 className="mt-1 text-xl font-bold text-gray-900">
                   {plan.name}
                 </h2>
-                <p className="mt-3 flex items-baseline gap-1">
-                  <span className="text-3xl font-bold tracking-tight text-gray-900">
-                    {plan.priceLabel}
-                  </span>
-                  {plan.priceDetail ? (
-                    <span className="text-sm text-gray-500">
-                      {' '}
-                      {plan.priceDetail}
-                    </span>
-                  ) : null}
-                </p>
-                {plan.annualBillingNote ? (
-                  <p className="mt-2 text-xs leading-relaxed text-gray-500">
-                    {plan.annualBillingNote}
-                  </p>
-                ) : null}
-                {plan.launchPromoNote ? (
-                  <p className="mt-2 text-xs font-medium leading-relaxed text-amber-800">
-                    {plan.launchPromoNote}
-                  </p>
-                ) : null}
+                <div className="mt-3">
+                  <MarketingPlanPriceDisplay
+                    price={{
+                      priceLabel: plan.priceLabel,
+                      priceDetail: plan.priceDetail,
+                      regularPriceLabel: plan.regularPriceLabel,
+                      promoBadge: plan.promoBadge,
+                      promoCode: plan.promoCode,
+                      promoDisclaimer: plan.promoDisclaimer,
+                      footnote: plan.annualBillingNote,
+                    }}
+                  />
+                </div>
                 <p className="mt-3 text-sm text-gray-600">{plan.blurb}</p>
                 <ul className="mt-6 flex-1 space-y-3 text-sm text-gray-700">
                   {plan.bullets.map((b) => (

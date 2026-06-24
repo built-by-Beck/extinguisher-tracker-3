@@ -12,6 +12,7 @@ import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPref
 import { MarketingSignupLink } from './MarketingSignupLink.tsx';
 import { MarketingTrialHero } from './MarketingTrialHero.tsx';
 import { MarketingSavingsCallout } from './MarketingSavingsCallout.tsx';
+import { MarketingPlanPriceDisplay } from './MarketingPlanPriceDisplay.tsx';
 import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 
 const monthlyPriceById: Record<MarketingPlanId, number | null> = {
@@ -100,7 +101,11 @@ export function MarketingPricingPlans({
             const monthlyPrice = monthlyPriceById[plan.id];
             const price =
               monthlyPrice !== null
-                ? marketingPriceForInterval(monthlyPrice, interval)
+                ? marketingPriceForInterval(
+                    monthlyPrice,
+                    interval,
+                    plan.id === 'enterprise' ? undefined : plan.id,
+                  )
                 : {
                     priceLabel: plan.priceLabel,
                     priceDetail: plan.priceDetail,
@@ -127,21 +132,9 @@ export function MarketingPricingPlans({
                 <h2 className="mt-1 text-xl font-bold text-gray-900">
                   {plan.name}
                 </h2>
-                <p className="mt-3 flex items-baseline gap-1">
-                  <span className="text-3xl font-bold tracking-tight text-gray-900">
-                    {price.priceLabel}
-                  </span>
-                  {price.priceDetail ? (
-                    <span className="text-sm text-gray-500">
-                      {price.priceDetail}
-                    </span>
-                  ) : null}
-                </p>
-                {price.footnote ? (
-                  <p className="mt-2 text-xs leading-relaxed text-gray-500">
-                    {price.footnote}
-                  </p>
-                ) : null}
+                <div className="mt-3">
+                  <MarketingPlanPriceDisplay price={price} />
+                </div>
                 {plan.id === 'pro' && interval === 'year' ? (
                   <p className="mt-2 text-xs text-blue-800">
                     Switch to <strong>Monthly</strong> above for the 7-day Pro

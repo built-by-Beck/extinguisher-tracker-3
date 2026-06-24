@@ -9,9 +9,9 @@
 export type PlanName = 'basic' | 'pro' | 'elite' | 'enterprise';
 
 // Read prices/limits from env. Fallback to defaults.
-const ENV_PRICE_BASIC = Number(process.env.PRICE_BASIC) || 29.99;
-const ENV_PRICE_PRO = Number(process.env.PRICE_PRO) || 99;
-const ENV_PRICE_ELITE = Number(process.env.PRICE_ELITE) || 199;
+const ENV_PRICE_BASIC = Number(process.env.PRICE_BASIC) || 39.99;
+const ENV_PRICE_PRO = Number(process.env.PRICE_PRO) || 129.99;
+const ENV_PRICE_ELITE = Number(process.env.PRICE_ELITE) || 229.99;
 const ENV_LIMIT_BASIC = Number(process.env.LIMIT_BASIC) || 50;
 const ENV_LIMIT_PRO = Number(process.env.LIMIT_PRO) || 250;
 const ENV_LIMIT_ELITE = Number(process.env.LIMIT_ELITE) || 500;

@@ -18,6 +18,7 @@ import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { BillingIntervalToggle } from '../../components/billing/BillingIntervalToggle.tsx';
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
+import { MarketingPlanPriceDisplay } from '../../components/marketing/MarketingPlanPriceDisplay.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { PLANS } from '../../lib/planConfig.ts';
@@ -174,7 +175,11 @@ export default function MarketingPlanDetailPage() {
   const planConfig = PLANS.find((p) => p.name === id);
   const priceDisplay =
     planConfig?.monthlyPrice != null
-      ? marketingPriceForInterval(planConfig.monthlyPrice, interval)
+      ? marketingPriceForInterval(
+          planConfig.monthlyPrice,
+          interval,
+          id === 'enterprise' ? undefined : id,
+        )
       : { priceLabel: plan.priceLabel, priceDetail: plan.priceDetail };
 
   const planHighlights = highlights[id];
@@ -212,18 +217,7 @@ export default function MarketingPlanDetailPage() {
                 <p className="mt-3 text-lg text-gray-600">{plan.blurb}</p>
               </div>
               <div className="shrink-0 sm:text-right">
-                <p className="text-4xl font-bold text-gray-900">
-                  {priceDisplay.priceLabel}
-                  <span className="text-lg font-normal text-gray-500">
-                    {' '}
-                    {priceDisplay.priceDetail}
-                  </span>
-                </p>
-                {priceDisplay.footnote ? (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {priceDisplay.footnote}
-                  </p>
-                ) : null}
+                <MarketingPlanPriceDisplay price={priceDisplay} size="hero" />
                 {id === 'pro' && interval === 'year' ? (
                   <p className="mt-2 text-xs text-blue-800">
                     Switch to monthly above for the 7-day Pro trial.
