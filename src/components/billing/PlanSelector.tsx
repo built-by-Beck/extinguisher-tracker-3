@@ -164,6 +164,14 @@ export function PlanSelector({
             plan.monthlyPrice !== null
               ? marketingPriceForInterval(plan.monthlyPrice, billingInterval)
               : null;
+          const promoPrice =
+            plan.monthlyPrice !== null && plan.name !== 'enterprise'
+              ? marketingPriceForInterval(
+                  plan.monthlyPrice,
+                  billingInterval,
+                  plan.name as 'basic' | 'pro' | 'elite',
+                )
+              : null;
 
           return (
             <div
@@ -212,6 +220,16 @@ export function PlanSelector({
                     </p>
                   ) : null}
                 </>
+              ) : null}
+
+              {LAUNCH_PROMO_ENABLED &&
+              plan.name !== 'enterprise' &&
+              getLaunchPromoCode(plan.name as 'basic' | 'pro' | 'elite') ? (
+                <p className="mt-2 text-xs font-semibold text-amber-800">
+                  Code{' '}
+                  {getLaunchPromoCode(plan.name as 'basic' | 'pro' | 'elite')}{' '}
+                  at checkout
+                </p>
               ) : null}
 
               <p className="mt-2 text-sm text-gray-500">

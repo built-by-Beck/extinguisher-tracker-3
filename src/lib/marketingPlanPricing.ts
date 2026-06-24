@@ -22,11 +22,15 @@ export type MarketingPriceDisplay = {
   /** Full price before launch promo (shown struck-through when promo active). */
   regularPriceLabel?: string;
   footnote?: string;
+  /** Small print: first year only, then regular rate. */
+  promoDisclaimer?: string;
+  promoCode?: string;
 };
 
 export function marketingPriceForInterval(
   monthlyPrice: number,
   interval: BillingIntervalPreference,
+  planId?: LaunchPromoPlanId,
 ): MarketingPriceDisplay {
   const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
   const promoActive = LAUNCH_PROMO_ENABLED;

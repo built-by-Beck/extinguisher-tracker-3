@@ -63,6 +63,33 @@ export type MarketingPlanCard = {
   recommended?: boolean;
 };
 
+function paidPlanPriceFields(
+  planId: 'basic' | 'pro' | 'elite',
+  monthlyPrice: number,
+) {
+  if (!LAUNCH_PROMO_ENABLED) {
+    return {
+      priceLabel: formatPrice(monthlyPrice),
+      priceDetail: 'per month',
+      annualBillingNote: `Or ${formatPrice(yearlyTotalFromMonthly(monthlyPrice))} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`,
+    };
+  }
+
+  const promoMonthly = launchPromoMonthlyPrice(monthlyPrice);
+  const promoYearly = yearlyTotalFromMonthly(monthlyPrice) * 0.5;
+
+  return {
+    priceLabel: formatPrice(promoMonthly),
+    priceDetail: 'per month',
+    regularPriceLabel: formatPrice(monthlyPrice),
+    promoBadge: '50% off year 1',
+    promoCode: planId === 'basic' ? 'EX3BASIC50' : planId === 'pro' ? 'EX3PRO50' : 'EX3ELITE50',
+    promoDisclaimer:
+      getLaunchPromoPriceDisclaimer(monthlyPrice, planId, 'month') ?? undefined,
+    annualBillingNote: `Or ${formatPrice(Math.round(promoYearly * 100) / 100)} for your first year if prepaid (50% off + ${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% annual savings vs monthly).`,
+  };
+}
+
 export const marketingPlans: MarketingPlanCard[] = [
   {
     id: 'basic',

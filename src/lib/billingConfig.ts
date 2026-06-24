@@ -8,10 +8,14 @@ export type LaunchPromoPlanId = 'basic' | 'pro' | 'elite';
 export const TRIAL_DAYS = Number(import.meta.env.VITE_TRIAL_DAYS) || 14;
 
 export const LAUNCH_PROMO_ENABLED =
-  import.meta.env.VITE_LAUNCH_PROMO_ENABLED === 'true';
+  String(import.meta.env.VITE_LAUNCH_PROMO_ENABLED ?? 'true').toLowerCase() !==
+  'false';
 
 export const LAUNCH_PROMO_MAX_CUSTOMERS =
   Number(import.meta.env.VITE_LAUNCH_PROMO_MAX_CUSTOMERS) || 100;
+
+/** Matches Stripe launch coupons (50% off, repeating 12 months). */
+export const LAUNCH_PROMO_DISCOUNT_FRACTION = 0.5;
 
 export const LAUNCH_PROMO = {
   headline: '50% off your first year',
