@@ -11,32 +11,36 @@ vi.mock('./billingConfig.ts', () => ({
         : 'EX3ELITE50',
   getLaunchPromoPriceDisclaimer: () =>
     '50% off your first year with code EX3PRO50 at checkout. After 12 months, billing returns to $99/mo.',
-  launchPromoMonthlyPrice: (monthly: number) =>
-    Math.round(monthly * 0.5 * 100) / 100,
+  launchPromoMonthlyPrice: (monthly: number) => {
+    const halfExact = monthly * 0.5;
+    const snapped = Math.floor(halfExact) + 0.99;
+    if (Math.abs(halfExact - snapped) <= 0.01) return snapped;
+    return Math.round(halfExact * 100) / 100;
+  },
 }));
 
 import { marketingPriceForInterval } from './marketingPlanPricing.ts';
 
 describe('marketingPriceForInterval launch promo', () => {
   it('shows half monthly price as hero with regular struck through', () => {
-    const display = marketingPriceForInterval(99, 'month', 'pro');
-    expect(display.priceLabel).toBe('$49.50');
-    expect(display.regularPriceLabel).toBe('$99');
+    const display = marketingPriceForInterval(129.99, 'month', 'pro');
+    expect(display.priceLabel).toBe('$64.99');
+    expect(display.regularPriceLabel).toBe('$129.99');
     expect(display.promoBadge).toBe('50% off year 1');
     expect(display.promoCode).toBe('EX3PRO50');
     expect(display.promoDisclaimer).toContain('After 12 months');
   });
 
   it('shows discounted yearly equivalent when interval is year', () => {
-    const display = marketingPriceForInterval(99, 'year', 'pro');
-    expect(display.regularPriceLabel).toBe('$88.99');
-    expect(display.priceLabel).toBe('$44.55');
+    const display = marketingPriceForInterval(129.99, 'year', 'pro');
+    expect(display.regularPriceLabel).toBe('$116.99');
+    expect(display.priceLabel).toBe('$58.50');
     expect(display.footnote).toContain('first year');
   });
 
   it('falls back to regular pricing when plan id is omitted', () => {
-    const display = marketingPriceForInterval(99, 'month');
-    expect(display.priceLabel).toBe('$99');
+    const display = marketingPriceForInterval(129.99, 'month');
+    expect(display.priceLabel).toBe('$129.99');
     expect(display.regularPriceLabel).toBeUndefined();
   });
 });
