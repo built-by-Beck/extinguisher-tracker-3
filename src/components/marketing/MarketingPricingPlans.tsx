@@ -8,6 +8,7 @@ import {
   type MarketingPlanId,
 } from '../../pages/marketing/marketingPricingCopy.ts';
 import { BillingIntervalToggle } from '../billing/BillingIntervalToggle.tsx';
+import { PlanHeadlinePrice } from '../billing/PlanHeadlinePrice.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 import { MarketingSignupLink } from './MarketingSignupLink.tsx';
 import { MarketingTrialHero } from './MarketingTrialHero.tsx';
@@ -109,6 +110,7 @@ export function MarketingPricingPlans({
                 : {
                     priceLabel: plan.priceLabel,
                     priceDetail: plan.priceDetail,
+                    regularPriceLabel: plan.regularPriceLabel,
                   };
 
             const showTrialBullet =
@@ -132,9 +134,12 @@ export function MarketingPricingPlans({
                 <h2 className="mt-1 text-xl font-bold text-gray-900">
                   {plan.name}
                 </h2>
-                <div className="mt-3">
-                  <MarketingPlanPriceDisplay price={price} />
-                </div>
+                <PlanHeadlinePrice price={price} />
+                {price.footnote ? (
+                  <p className="mt-2 text-xs leading-relaxed text-gray-500">
+                    {price.footnote}
+                  </p>
+                ) : null}
                 {plan.id === 'pro' && interval === 'year' ? (
                   <p className="mt-2 text-xs text-blue-800">
                     Switch to <strong>Monthly</strong> above for the 7-day Pro

@@ -2,15 +2,14 @@ import { useState, useEffect } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Check, Loader2, Sparkles, X as XIcon, Zap } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
-import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION, yearlyMonthlyEquivDisplay } from '../../lib/planConfig.ts';
+import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
 import {
   getLaunchPromoCheckoutHint,
-  getLaunchPromoCode,
-  getLaunchPromoPriceDisclaimer,
   LAUNCH_PROMO_ENABLED,
   TRIAL_DAYS,
 } from '../../lib/billingConfig.ts';
 import { marketingPriceForInterval } from '../../lib/marketingPlanPricing.ts';
+import { PlanHeadlinePrice } from './PlanHeadlinePrice.tsx';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import {
@@ -18,10 +17,6 @@ import {
   writeBillingIntervalPreference,
 } from '../../lib/billingIntervalPreference.ts';
 import { type BillingIntervalUi } from './BillingIntervalToggle.tsx';
-
-function formatUsd(amount: number): string {
-  return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
-}
 
 export function PlanSelector({
   initialInterval,
@@ -165,9 +160,9 @@ export function PlanSelector({
             org?.proTrialConsumed !== true;
           const offerProTrialUi = trialEligible && billingInterval === 'month';
           const showTrialHint = trialEligible && billingInterval === 'year';
-          const monthlyEquivDisplay =
-            billingInterval === 'year' && plan.monthlyPrice !== null
-              ? yearlyMonthlyEquivDisplay(plan.monthlyPrice)
+          const priceDisplay =
+            plan.monthlyPrice !== null
+              ? marketingPriceForInterval(plan.monthlyPrice, billingInterval)
               : null;
           const promoPrice =
             plan.monthlyPrice !== null && plan.name !== 'enterprise'
@@ -202,73 +197,30 @@ export function PlanSelector({
                 {plan.displayName}
               </h3>
 
-              {billingInterval === 'month' ? (
-                promoPrice?.regularPriceLabel ? (
-                  <>
-                    <p className="mt-1 flex flex-wrap items-baseline gap-2">
-                      <span className="text-lg font-semibold text-gray-400 line-through">
-                        {formatUsd(plan.monthlyPrice!)}
-                      </span>
-                      <span className="text-3xl font-bold text-gray-900">
-                        {promoPrice.priceLabel}
-                        <span className="text-sm font-normal text-gray-500">
-                          /mo
-                        </span>
-                      </span>
-                    </p>
-                    <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
-                      {getLaunchPromoPriceDisclaimer(
-                        plan.monthlyPrice!,
-                        plan.name as 'basic' | 'pro' | 'elite',
-                        'month',
+              {priceDisplay ? (
+                <>
+                  <PlanHeadlinePrice price={priceDisplay} variant="settings" />
+                  {billingInterval === 'year' ? (
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {LAUNCH_PROMO_ENABLED ? (
+                        <>
+                          first year ·{' '}
+                          <span className="font-semibold text-amber-700">50% launch promo</span>
+                        </>
+                      ) : (
+                        <>
+                          billed yearly ·{' '}
+                          <span className="font-semibold text-green-700">save {discountPct}%</span>
+                        </>
                       )}
                     </p>
-                  </>
-                ) : (
-                  <p className="mt-1 text-3xl font-bold text-gray-900">
-                    {formatUsd(plan.monthlyPrice!)}
-                    <span className="text-sm font-normal text-gray-500">/mo</span>
-                  </p>
-                )
-              ) : promoPrice?.regularPriceLabel ? (
-                <>
-                  <p className="mt-1 flex flex-wrap items-baseline gap-2">
-                    <span className="text-lg font-semibold text-gray-400 line-through">
-                      {monthlyEquivDisplay}
-                      <span className="text-sm font-normal">/mo</span>
-                    </span>
-                    <span className="text-3xl font-bold text-gray-900">
-                      {promoPrice.priceLabel}
-                      <span className="text-sm font-normal text-gray-500">
-                        /mo
-                      </span>
-                    </span>
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    {promoPrice.footnote}
-                  </p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
-                    {getLaunchPromoPriceDisclaimer(
-                      plan.monthlyPrice!,
-                      plan.name as 'basic' | 'pro' | 'elite',
-                      'year',
-                    )}
-                  </p>
+                  ) : LAUNCH_PROMO_ENABLED && !priceDisplay.regularPriceLabel ? (
+                    <p className="mt-0.5 text-xs font-medium text-amber-700">
+                      first year · 50% launch promo
+                    </p>
+                  ) : null}
                 </>
-              ) : (
-                <>
-                  <p className="mt-1 text-3xl font-bold text-gray-900">
-                    {monthlyEquivDisplay}
-                    <span className="text-sm font-normal text-gray-500">/mo</span>
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    billed yearly ·{' '}
-                    <span className="font-semibold text-green-700">
-                      save {discountPct}%
-                    </span>
-                  </p>
-                </>
-              )}
+              ) : null}
 
               {LAUNCH_PROMO_ENABLED &&
               plan.name !== 'enterprise' &&

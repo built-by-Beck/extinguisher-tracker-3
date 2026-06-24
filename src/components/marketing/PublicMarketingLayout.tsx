@@ -51,7 +51,7 @@ const MARKETING_PAGE_TITLES: Record<
     title: 'Terms of Service',
     subtitle: 'Usage terms and legal guidelines',
   },
-  '/privacy': {
+  '/privacy-policy': {
     title: 'Privacy Policy',
     subtitle: 'How we collect, use, and protect your data',
   },
@@ -359,7 +359,7 @@ export function PublicMarketingLayout({
                   Terms of Service
                 </Link>
                 <Link
-                  to="/privacy"
+                  to="/privacy-policy"
                   className="text-gray-600 hover:text-red-600"
                 >
                   Privacy Policy

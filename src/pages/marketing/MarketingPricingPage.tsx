@@ -10,6 +10,7 @@ import { MarketingPlanPriceDisplay } from '../../components/marketing/MarketingP
 import { LAUNCH_PROMO, LAUNCH_PROMO_ENABLED } from '../../lib/billingConfig.ts';
 import { LaunchPromoBanner } from '../../components/marketing/LaunchPromoBanner.tsx';
 import { LimitedTimeOfferBanner } from '../../components/marketing/LimitedTimeOfferBanner.tsx';
+import { PlanHeadlinePrice } from '../../components/billing/PlanHeadlinePrice.tsx';
 import { marketingSeo } from './marketingSeo.ts';
 import { Link } from 'react-router-dom';
 
@@ -73,19 +74,23 @@ export default function MarketingPricingPage() {
                 <h2 className="mt-1 text-xl font-bold text-gray-900">
                   {plan.name}
                 </h2>
-                <div className="mt-3">
-                  <MarketingPlanPriceDisplay
-                    price={{
-                      priceLabel: plan.priceLabel,
-                      priceDetail: plan.priceDetail,
-                      regularPriceLabel: plan.regularPriceLabel,
-                      promoBadge: plan.promoBadge,
-                      promoCode: plan.promoCode,
-                      promoDisclaimer: plan.promoDisclaimer,
-                      footnote: plan.annualBillingNote,
-                    }}
-                  />
-                </div>
+                <PlanHeadlinePrice
+                  price={{
+                    priceLabel: plan.priceLabel,
+                    priceDetail: plan.priceDetail,
+                    regularPriceLabel: plan.regularPriceLabel,
+                  }}
+                />
+                {plan.annualBillingNote ? (
+                  <p className="mt-2 text-xs leading-relaxed text-gray-500">
+                    {plan.annualBillingNote}
+                  </p>
+                ) : null}
+                {plan.launchPromoNote ? (
+                  <p className="mt-2 text-xs font-medium leading-relaxed text-amber-800">
+                    {plan.launchPromoNote}
+                  </p>
+                ) : null}
                 <p className="mt-3 text-sm text-gray-600">{plan.blurb}</p>
                 <ul className="mt-6 flex-1 space-y-3 text-sm text-gray-700">
                   {plan.bullets.map((b) => (

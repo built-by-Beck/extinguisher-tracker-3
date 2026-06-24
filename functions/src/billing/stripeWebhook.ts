@@ -13,6 +13,7 @@ import {
   type StripePriceIds,
 } from './planConfig.js';
 import { getStripe } from './stripeClient.js';
+import { handleCheckoutLaunchPromo } from './launchPromoStats.js';
 import { writeAuditLog } from '../utils/auditLog.js';
 
 function subscriptionPeriodEnd(subscription: Stripe.Subscription): Date | null {
@@ -159,6 +160,7 @@ export const stripeWebhook = onRequest(
             });
             await handleSubscriptionEvent(subscription, prices);
           }
+          await handleCheckoutLaunchPromo(session);
           break;
         }
 

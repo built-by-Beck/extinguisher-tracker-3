@@ -23,6 +23,7 @@ import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPref
 import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { PLANS } from '../../lib/planConfig.ts';
 import { marketingPriceForInterval } from '../../lib/marketingPlanPricing.ts';
+import { PlanHeadlinePrice } from '../../components/billing/PlanHeadlinePrice.tsx';
 import {
   CONTACT_SALES_MAILTO,
   marketingPlans,
@@ -175,12 +176,12 @@ export default function MarketingPlanDetailPage() {
   const planConfig = PLANS.find((p) => p.name === id);
   const priceDisplay =
     planConfig?.monthlyPrice != null
-      ? marketingPriceForInterval(
-          planConfig.monthlyPrice,
-          interval,
-          id === 'enterprise' ? undefined : id,
-        )
-      : { priceLabel: plan.priceLabel, priceDetail: plan.priceDetail };
+      ? marketingPriceForInterval(planConfig.monthlyPrice, interval)
+      : {
+          priceLabel: plan.priceLabel,
+          priceDetail: plan.priceDetail,
+          regularPriceLabel: plan.regularPriceLabel,
+        };
 
   const planHighlights = highlights[id];
   const forWhoText = forWho[id];
@@ -217,7 +218,12 @@ export default function MarketingPlanDetailPage() {
                 <p className="mt-3 text-lg text-gray-600">{plan.blurb}</p>
               </div>
               <div className="shrink-0 sm:text-right">
-                <MarketingPlanPriceDisplay price={priceDisplay} size="hero" />
+                <PlanHeadlinePrice price={priceDisplay} className="sm:items-end" />
+                {priceDisplay.footnote ? (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {priceDisplay.footnote}
+                  </p>
+                ) : null}
                 {id === 'pro' && interval === 'year' ? (
                   <p className="mt-2 text-xs text-blue-800">
                     Switch to monthly above for the 7-day Pro trial.

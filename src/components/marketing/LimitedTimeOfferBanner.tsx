@@ -5,6 +5,7 @@ import {
   LAUNCH_PROMO_MAX_CUSTOMERS,
   LAUNCH_PROMO,
 } from '../../lib/billingConfig.ts';
+import { LaunchPromoSpotsCounter } from './LaunchPromoSpotsCounter.tsx';
 
 type LimitedTimeOfferBannerProps = {
   /** `hero` = full-width site header strip; `inline` = in-page block above trial banner */
@@ -77,15 +78,14 @@ export function LimitedTimeOfferBanner({ variant = 'hero' }: LimitedTimeOfferBan
             </p>
           </div>
 
-          {/* Right: CTA + urgency */}
+          {/* Right: live spots counter + CTA */}
           <div className="flex shrink-0 flex-col items-center gap-4 lg:items-end">
-            <div className="flex items-center gap-2 rounded-xl border border-amber-400/40 bg-black/40 px-4 py-3">
-              <Zap className="h-5 w-5 text-amber-300" aria-hidden />
-              <span className="text-sm font-semibold text-white sm:text-base">
-                Only{' '}
-                <span className="text-amber-200">{LAUNCH_PROMO_MAX_CUSTOMERS} spots</span>{' '}
-                available
-              </span>
+            <div className="rounded-2xl border border-amber-400/50 bg-black/50 px-6 py-4 shadow-lg shadow-amber-500/10">
+              <div className="mb-2 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-300">
+                <Zap className="h-4 w-4" aria-hidden />
+                Live availability
+              </div>
+              <LaunchPromoSpotsCounter variant="hero" />
             </div>
 
             <Link

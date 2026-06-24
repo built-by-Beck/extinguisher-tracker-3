@@ -1,10 +1,10 @@
 /**
- * Privacy Policy page.
- * Matches existing marketing page styling (PublicMarketingLayout).
+ * Privacy Policy — ExtinguisherTracker.com
  *
  * Author: built_by_Beck
  */
 
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.tsx';
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
@@ -17,7 +17,7 @@ function Section({
 }: {
   num: number;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="mb-8">
@@ -28,6 +28,15 @@ function Section({
         {children}
       </div>
     </section>
+  );
+}
+
+function Subsection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="font-semibold text-gray-800">{title}</h3>
+      {children}
+    </div>
   );
 }
 
@@ -44,117 +53,153 @@ export default function PrivacyPage() {
       <PublicMarketingLayout>
         <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6 sm:py-16">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900">
-            Privacy Policy
+            Privacy Policy for ExtinguisherTracker.com
           </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Last Updated: May 8, 2026
-          </p>
+          <p className="mt-2 text-sm text-gray-500">Last Updated: June 24, 2026</p>
+
+          <div className="mt-8 space-y-3 text-sm leading-relaxed text-gray-600">
+            <p>
+              Extinguisher Tracker respects your privacy. This Privacy Policy
+              explains how we collect, use, store, and protect information when
+              you visit or use ExtinguisherTracker.com, including our website,
+              web app, inspection tools, reports, account features, and related
+              services.
+            </p>
+            <p>
+              By using Extinguisher Tracker, you agree to the practices described
+              in this Privacy Policy.
+            </p>
+          </div>
 
           <div className="mt-10">
-            <Section num={1} title="Introduction">
+            <Section num={1} title="Information We Collect">
+              <p>We may collect the following types of information:</p>
+
+              <Subsection title="Account Information">
+                <p>
+                  When you create an account or sign up for Extinguisher
+                  Tracker, we may collect:
+                </p>
+                <ul className="list-disc space-y-1 pl-6">
+                  <li>Name</li>
+                  <li>Email address</li>
+                  <li>Company or organization name</li>
+                  <li>Phone number, if provided</li>
+                  <li>Login information</li>
+                  <li>Subscription or account status</li>
+                </ul>
+              </Subsection>
+
+              <Subsection title="Fire Extinguisher and Inspection Data">
+                <p>When you use the service, you may enter or upload information such as:</p>
+                <ul className="list-disc space-y-1 pl-6">
+                  <li>Fire extinguisher asset numbers</li>
+                  <li>Serial numbers</li>
+                  <li>Barcode or QR code information</li>
+                  <li>Location or vicinity descriptions</li>
+                  <li>Inspection status</li>
+                  <li>Notes</li>
+                  <li>Inspection dates</li>
+                  <li>Maintenance history</li>
+                  <li>Photos uploaded for inspection or support purposes</li>
+                  <li>Reports or exported inspection records</li>
+                </ul>
+              </Subsection>
+
+              <Subsection title="Payment Information">
+                <p>
+                  If you purchase a paid plan, payment processing may be handled
+                  by a third-party payment provider such as Stripe. We do not
+                  store your full credit card number on our servers. Stripe may
+                  collect and process payment and transaction information
+                  according to its own privacy practices.
+                </p>
+              </Subsection>
+
+              <Subsection title="Technical Information">
+                <p>We may automatically collect certain technical information, including:</p>
+                <ul className="list-disc space-y-1 pl-6">
+                  <li>IP address</li>
+                  <li>Browser type</li>
+                  <li>Device type</li>
+                  <li>Operating system</li>
+                  <li>Pages visited</li>
+                  <li>Time and date of visits</li>
+                  <li>App usage activity</li>
+                  <li>Error logs</li>
+                  <li>Performance data</li>
+                </ul>
+                <p>
+                  This helps us improve speed, security, reliability, and user
+                  experience.
+                </p>
+              </Subsection>
+            </Section>
+
+            <Section num={2} title="How We Use Information">
+              <p>We use collected information to:</p>
+              <ul className="list-disc space-y-1 pl-6">
+                <li>Provide and operate Extinguisher Tracker</li>
+                <li>Create and manage user accounts</li>
+                <li>
+                  Allow users to inspect, search, and manage fire extinguisher
+                  records
+                </li>
+                <li>Generate reports and inspection history</li>
+                <li>Improve website and app performance</li>
+                <li>Provide customer support</li>
+                <li>Process subscriptions and payments</li>
+                <li>Detect bugs, errors, abuse, or unauthorized access</li>
+                <li>
+                  Send service updates, account notices, or important system
+                  messages
+                </li>
+                <li>Improve features, tools, and user experience</li>
+                <li>Market our services, when allowed by law</li>
+              </ul>
               <p>
-                ExtinguisherTracker (&quot;we&quot;, &quot;our&quot;, or
-                &quot;us&quot;) is committed to protecting your privacy. This
-                Privacy Policy explains how we collect, use, disclose, and
-                safeguard your information when you use our service.
-              </p>
-              <p>
-                Please read this Privacy Policy carefully. By using the Service,
-                you consent to the data practices described in this policy.
+                <strong>We do not sell your fire extinguisher inspection records.</strong>
               </p>
             </Section>
 
-            <Section num={2} title="Information We Collect">
-              <h3 className="mt-2 font-semibold text-gray-800">
-                2.1 Information You Provide
-              </h3>
+            <Section num={3} title="AI Features and Uploaded Content">
               <p>
-                We collect information that you voluntarily provide when using
-                our Service:
+                Extinguisher Tracker may include AI-assisted features that help
+                users ask questions, review inspection-related situations, or
+                organize information.
+              </p>
+              <p>
+                If you upload photos, notes, or inspection details to use with AI
+                features, that information may be processed to provide a response
+                or service. You should not upload private, sensitive, or
+                confidential information unless it is necessary for your use of
+                the service.
+              </p>
+              <p>
+                AI responses are provided for convenience and should not replace
+                official code books, your company&apos;s policies, manufacturer
+                instructions, licensed professionals, or the authority having
+                jurisdiction.
+              </p>
+            </Section>
+
+            <Section num={4} title="How We Share Information">
+              <p>
+                We may share information with trusted service providers only when
+                needed to operate the service. These may include:
               </p>
               <ul className="list-disc space-y-1 pl-6">
-                <li>Account information (name, email address, password)</li>
-                <li>
-                  Fire extinguisher data (asset IDs, locations, serial numbers)
-                </li>
-                <li>Inspection records and notes</li>
-                <li>Photos uploaded during inspections</li>
-                <li>GPS location data (when you choose to capture it)</li>
-                <li>Payment information (processed by Stripe)</li>
-              </ul>
-
-              <h3 className="mt-4 font-semibold text-gray-800">
-                2.2 Automatically Collected Information
-              </h3>
-              <p>
-                We automatically collect certain information when you use our
-                Service:
-              </p>
-              <ul className="list-disc space-y-1 pl-6">
-                <li>
-                  Device information (browser type, operating system, device
-                  type)
-                </li>
-                <li>Usage data (pages visited, features used, time spent)</li>
-                <li>IP address and general location information</li>
-                <li>Cookies and similar tracking technologies</li>
-              </ul>
-            </Section>
-
-            <Section num={3} title="How We Use Your Information">
-              <p>We use the collected information for various purposes:</p>
-              <ul className="list-disc space-y-1 pl-6">
-                <li>To provide, maintain, and improve our Service</li>
-                <li>
-                  To process your transactions and manage your subscription
-                </li>
-                <li>
-                  To send you technical notices, updates, and support messages
-                </li>
-                <li>To respond to your comments, questions, and requests</li>
-                <li>To monitor and analyze usage patterns and trends</li>
-                <li>
-                  To detect, prevent, and address technical issues and security
-                  threats
-                </li>
-                <li>To comply with legal obligations</li>
+                <li>Website hosting providers</li>
+                <li>Database and authentication providers</li>
+                <li>Payment processors</li>
+                <li>Email service providers</li>
+                <li>Analytics or performance tools</li>
+                <li>Customer support tools</li>
+                <li>Security and fraud-prevention services</li>
               </ul>
               <p>
-                If AI assistant features are enabled for your plan, prompts and
-                responses may be processed and stored to provide the feature,
-                improve response quality, and support operational
-                troubleshooting.
-              </p>
-              <p>
-                Photos attached inside the AI assistant are temporary question
-                attachments for analysis and are not uploaded to Firebase
-                Storage or saved as inspection photos by ExtinguisherTracker.
-              </p>
-            </Section>
-
-            <Section num={4} title="Cookies and Tracking Technologies">
-              <p>
-                We use cookies and similar tracking technologies to track
-                activity on our Service and store certain information. Cookies
-                are files with a small amount of data that are stored on your
-                device.
-              </p>
-              <p>
-                You can instruct your browser to refuse all cookies or to
-                indicate when a cookie is being sent. However, if you do not
-                accept cookies, you may not be able to use some portions of our
-                Service.
-              </p>
-            </Section>
-
-            <Section num={5} title="Third-Party Services">
-              <h3 className="mt-2 font-semibold text-gray-800">
-                5.1 Google Firebase
-              </h3>
-              <p>
-                We use Google Firebase for authentication, data storage, and
-                file hosting. Firebase may collect and process data as described
-                in{' '}
+                For example, Google Firebase may be used for authentication,
+                database, hosting, or app services. See{' '}
                 <a
                   href="https://policies.google.com/privacy"
                   className="font-medium text-red-600 hover:text-red-500"
@@ -162,15 +207,8 @@ export default function PrivacyPage() {
                   rel="noopener noreferrer"
                 >
                   Google&apos;s Privacy Policy
-                </a>
-                .
-              </p>
-
-              <h3 className="mt-4 font-semibold text-gray-800">5.2 Stripe</h3>
-              <p>
-                We use Stripe to process subscription payments. We do not store
-                or have access to your full credit card information. Payment
-                information is encrypted and processed securely by Stripe. See{' '}
+                </a>{' '}
+                and{' '}
                 <a
                   href="https://stripe.com/privacy"
                   className="font-medium text-red-600 hover:text-red-500"
@@ -181,177 +219,193 @@ export default function PrivacyPage() {
                 </a>
                 .
               </p>
-              <p className="mt-2">
-                If you start a trial that does not require a card at signup,
-                Stripe still processes billing identity and subscription events as
-                described in their policies when you add a payment method or when
-                charges occur.
+              <p>
+                Extinguisher Tracker is a multi-tenant platform. Each
+                organization&apos;s operational data is logically isolated and
+                accessible only to authorized members of that organization.
+              </p>
+              <p>
+                We may also disclose information if required by law, legal
+                process, safety concerns, fraud prevention, or to protect our
+                rights and users.
               </p>
             </Section>
 
-            <Section num={6} title="Data Storage and Security">
+            <Section num={5} title="Cookies and Tracking Technologies">
               <p>
-                Your data is stored securely using Google Firebase&apos;s cloud
-                infrastructure, which provides enterprise-grade security
-                including:
+                ExtinguisherTracker.com may use cookies, local storage, analytics
+                tools, pixels, or similar technologies to:
               </p>
               <ul className="list-disc space-y-1 pl-6">
-                <li>Encryption in transit and at rest</li>
-                <li>Regular security audits and updates</li>
-                <li>Redundant backup systems</li>
-                <li>Access controls and authentication</li>
+                <li>Keep users logged in</li>
+                <li>Remember preferences</li>
+                <li>Improve site performance</li>
+                <li>Understand how visitors use the website</li>
+                <li>Measure advertising performance</li>
+                <li>Improve marketing campaigns</li>
               </ul>
               <p>
-                While we implement reasonable security measures, no method of
-                transmission over the Internet or electronic storage is 100%
-                secure. We cannot guarantee absolute security of your data.
+                You may be able to disable cookies through your browser settings,
+                but some features may not work correctly.
               </p>
             </Section>
 
-            <Section num={7} title="Data Retention">
+            <Section num={6} title="Facebook and Advertising">
               <p>
-                We retain your personal information for as long as your account
-                is active or as needed to provide you services. If you wish to
-                delete your account or request that we no longer use your
-                information, you can do so through your account settings or by
-                contacting us.
+                If you interact with our Facebook ads, submit a form, click an ad,
+                or visit our website from an ad, we may receive information such
+                as your name, email address, phone number, company information,
+                or other details you choose to provide.
               </p>
-              <p>
-                We may retain and use your information as necessary to comply
-                with legal obligations, resolve disputes, and enforce our
-                agreements.
-              </p>
-            </Section>
-
-            <Section num={8} title="Your Data Rights">
-              <p>You have the following rights regarding your personal data:</p>
+              <p>We may use this information to:</p>
               <ul className="list-disc space-y-1 pl-6">
-                <li>
-                  <strong>Access:</strong> You can access your personal data
-                  through your account dashboard
-                </li>
-                <li>
-                  <strong>Correction:</strong> You can update or correct your
-                  information at any time
-                </li>
-                <li>
-                  <strong>Deletion:</strong> You can request deletion of your
-                  account and associated data
-                </li>
-                <li>
-                  <strong>Export:</strong> You can export your data via the
-                  reports feature
-                </li>
-                <li>
-                  <strong>Objection:</strong> You can object to processing of
-                  your personal data
-                </li>
-                <li>
-                  <strong>Portability:</strong> You can request a copy of your
-                  data in a structured format
-                </li>
+                <li>Contact you about Extinguisher Tracker</li>
+                <li>Provide demos or signup information</li>
+                <li>Follow up on your request</li>
+                <li>Improve advertising performance</li>
+                <li>Measure ad results</li>
               </ul>
-            </Section>
-
-            <Section num={9} title="Children's Privacy">
               <p>
-                Our Service is not intended for children under 13 years of age.
-                We do not knowingly collect personal information from children
-                under 13. If you are a parent or guardian and believe your child
-                has provided us with personal information, please contact us.
-              </p>
-            </Section>
-
-            <Section num={10} title="International Data Transfers">
-              <p>
-                Your information may be transferred to and maintained on
-                computers located outside of your state, province, country, or
-                other governmental jurisdiction where data protection laws may
-                differ. By using our Service, you consent to such transfers.
-              </p>
-            </Section>
-
-            <Section num={11} title="California Privacy Rights">
-              <p>
-                If you are a California resident, you have specific rights under
-                the California Consumer Privacy Act (CCPA), including:
-              </p>
-              <ul className="list-disc space-y-1 pl-6">
-                <li>
-                  The right to know what personal information is collected,
-                  used, and shared
-                </li>
-                <li>
-                  The right to delete personal information held by businesses
-                </li>
-                <li>
-                  The right to opt-out of the sale of personal information (we
-                  do not sell personal information)
-                </li>
-                <li>
-                  The right to non-discrimination for exercising your CCPA
-                  rights
-                </li>
-              </ul>
-            </Section>
-
-            <Section num={12} title="GDPR Compliance (EU Users)">
-              <p>
-                If you are located in the European Economic Area (EEA), you have
-                rights under the General Data Protection Regulation (GDPR). We
-                process your data based on the following legal grounds:
-              </p>
-              <ul className="list-disc space-y-1 pl-6">
-                <li>Your consent (which you can withdraw at any time)</li>
-                <li>The performance of a contract with you</li>
-                <li>Compliance with legal obligations</li>
-                <li>
-                  Our legitimate interests (where not overridden by your rights)
-                </li>
-              </ul>
-            </Section>
-
-            <Section num={13} title="Do Not Track Signals">
-              <p>
-                We do not currently respond to &quot;Do Not Track&quot; signals
-                from web browsers. Third-party services we use may track
-                browsing activities across different websites.
-              </p>
-            </Section>
-
-            <Section num={14} title="Multi-Tenant Data Isolation">
-              <p>
-                ExtinguisherTracker is a multi-tenant platform. Each
-                organization&apos;s data is logically isolated and accessible
-                only to authorized members of that organization. We enforce
-                strict access controls at the database level to prevent
-                cross-organization data access. Organization owners control
-                member access and permissions within their organization.
-              </p>
-            </Section>
-
-            <Section num={15} title="Changes to This Privacy Policy">
-              <p>
-                We may update our Privacy Policy from time to time. We will
-                notify you of any changes by posting the new Privacy Policy on
-                this page and updating the &quot;Last Updated&quot; date. You
-                are advised to review this Privacy Policy periodically for any
-                changes.
-              </p>
-            </Section>
-
-            <Section num={16} title="Contact Us">
-              <p>
-                If you have any questions about this Privacy Policy or our data
-                practices, contact us at{' '}
+                Meta may also collect and process information according to{' '}
                 <a
-                  href="mailto:help@extinguishertracker.com"
+                  href="https://www.facebook.com/privacy/policy/"
                   className="font-medium text-red-600 hover:text-red-500"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  help@extinguishertracker.com
+                  Meta&apos;s Privacy Policy
                 </a>
                 .
               </p>
+            </Section>
+
+            <Section num={7} title="Data Security">
+              <p>
+                We use reasonable technical and organizational measures to
+                protect information from unauthorized access, loss, misuse, or
+                alteration.
+              </p>
+              <p>
+                However, no website, app, database, or internet transmission is
+                100% secure. Users are responsible for keeping their login
+                information private and using strong passwords.
+              </p>
+            </Section>
+
+            <Section num={8} title="Data Retention">
+              <p>We keep information as long as necessary to:</p>
+              <ul className="list-disc space-y-1 pl-6">
+                <li>Provide the service</li>
+                <li>Maintain inspection history</li>
+                <li>Support account records</li>
+                <li>Meet legal, tax, accounting, or business requirements</li>
+                <li>Resolve disputes</li>
+                <li>Enforce agreements</li>
+                <li>Improve security and prevent abuse</li>
+              </ul>
+              <p>
+                Users may request deletion of their account or certain personal
+                information by contacting us.
+              </p>
+            </Section>
+
+            <Section num={9} title="Your Choices and Rights">
+              <p>Depending on where you live, you may have rights to:</p>
+              <ul className="list-disc space-y-1 pl-6">
+                <li>Access your personal information</li>
+                <li>Correct inaccurate information</li>
+                <li>Request deletion of personal information</li>
+                <li>Opt out of certain marketing communications</li>
+                <li>Request a copy of your data</li>
+                <li>Limit certain uses of your information</li>
+              </ul>
+              <p>
+                California residents may have additional privacy rights under the
+                CCPA, which gives California consumers more control over personal
+                information collected by businesses.
+              </p>
+              <p>To make a privacy request, contact us using the information below.</p>
+            </Section>
+
+            <Section num={10} title="Email and Marketing Communications">
+              <p>
+                If you sign up, request information, or submit a form, we may
+                contact you by email about Extinguisher Tracker.
+              </p>
+              <p>
+                You can unsubscribe from marketing emails at any time by using
+                the unsubscribe link in the email or by contacting us directly.
+              </p>
+              <p>
+                We may still send important service-related messages, such as
+                account, billing, security, or system notices.
+              </p>
+            </Section>
+
+            <Section num={11} title="Children's Privacy">
+              <p>
+                Extinguisher Tracker is intended for businesses, organizations,
+                facility teams, technicians, and adult users. It is not intended
+                for children under 13.
+              </p>
+              <p>
+                We do not knowingly collect personal information from children
+                under 13. If we learn that we have collected information from a
+                child, we will take reasonable steps to delete it.
+              </p>
+            </Section>
+
+            <Section num={12} title="Third-Party Links">
+              <p>
+                Our website may contain links to third-party websites, services,
+                or tools. We are not responsible for the privacy practices,
+                policies, or content of third-party websites.
+              </p>
+              <p>
+                You should review the privacy policies of any third-party services
+                you use.
+              </p>
+            </Section>
+
+            <Section num={13} title="Changes to This Privacy Policy">
+              <p>
+                We may update this Privacy Policy from time to time. When we make
+                changes, we will update the &quot;Last Updated&quot; date above.
+              </p>
+              <p>
+                Continued use of ExtinguisherTracker.com after changes means you
+                accept the updated Privacy Policy.
+              </p>
+            </Section>
+
+            <Section num={14} title="Contact Us">
+              <p>
+                For questions about this Privacy Policy or to request access,
+                correction, or deletion of your information, contact us at:
+              </p>
+              <ul className="list-none space-y-1 pl-0">
+                <li>
+                  <strong>Extinguisher Tracker</strong>
+                </li>
+                <li>
+                  Website:{' '}
+                  <a
+                    href="https://extinguishertracker.com"
+                    className="font-medium text-red-600 hover:text-red-500"
+                  >
+                    ExtinguisherTracker.com
+                  </a>
+                </li>
+                <li>
+                  Email:{' '}
+                  <a
+                    href="mailto:support@extinguishertracker.com"
+                    className="font-medium text-red-600 hover:text-red-500"
+                  >
+                    support@extinguishertracker.com
+                  </a>
+                </li>
+              </ul>
             </Section>
           </div>
 
