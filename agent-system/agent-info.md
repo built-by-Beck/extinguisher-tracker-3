@@ -2366,3 +2366,11 @@ Self-review of the floors changes. Two issues found & fixed in [`DataOrganizer.t
 Security/tenant: all writes org-scoped via `orgId`; `createLocation`/`batchUpdateExtinguishers` reuse existing org-scoped paths; page gated to owner/admin (`hasRole`). No new privileged path. `createLocation` persists `sortOrder`/`parentLocationId` and does NOT self-enforce name uniqueness, so bulk floor creation won't throw on dup names (Tool 2 also dedupes in-memory).
 
 Remaining minor concerns (non-blocking): (a) `getIssues` now flags `No floor` on every unit lacking the denormalized floor string even if assigned to a floor location — intentional (Organizer is where floors get filled) but inflates "needs attention" until Tool 1 runs; (b) Tool 2 has no confirm dialog (consistent w/ existing organizer tools) — it's idempotent & safe to re-run; (c) editing a unit's floor *location* later won't auto-sync the `floor` string (pre-existing denormalization pattern).
+
+## 2026-06-24 — Daily Review Bot — built_by_Beck
+
+**Scope:** Focused review run on branch `cursor/daily-project-review-91f7`. Required context read: `agent-system/agent-info.md` tail, `agent-system/lessons-learned.md`, `agent-system/lessons_learned.md`, root/functions `package.json`, recent git status/diff/log.
+
+**Findings:** Root `pnpm lint`, `pnpm build`, and `pnpm test` passed. `pnpm format:check` failed with Prettier warnings across 35 app/functions files, mostly billing/marketing/recent launch-promo surfaces. Per review-bot scope, no broad formatting rewrite was made. Existing working tree also had an unrelated install-script style lockfile metadata change: `functions/package-lock.json` adds `"dev": true` to optional `@pkgjs/parseargs`.
+
+**Follow-up:** Build Agent should run `pnpm format` or targeted Prettier on the listed files, then rerun `pnpm format:check`; backend-specific function checks were not run after the format gate failed.
