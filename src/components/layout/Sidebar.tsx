@@ -27,6 +27,7 @@ import {
   CircleHelp,
   Archive,
   ClipboardCheck,
+  Clock,
 } from 'lucide-react';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useOffline } from '../../hooks/useOffline.ts';
@@ -51,6 +52,13 @@ const navItems: NavItem[] = [
     label: 'Inspections',
     icon: ClipboardList,
     end: false,
+  },
+  {
+    to: '/dashboard/time-tracking',
+    label: 'Time Tracking',
+    icon: Clock,
+    end: false,
+    requiredFeature: 'sectionTimeTracking',
   },
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
   {

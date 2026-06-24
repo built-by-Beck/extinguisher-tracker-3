@@ -128,20 +128,17 @@ export async function createWorkspaceCall(
 export async function archiveWorkspaceCall(
   orgId: string,
   workspaceId: string,
-  sectionTimes?: Record<string, number> | null,
 ): Promise<{ passed: number; failed: number; pending: number }> {
   const fn = httpsCallable<
     {
       orgId: string;
       workspaceId: string;
-      sectionTimes?: Record<string, number> | null;
     },
     { workspaceId: string; passed: number; failed: number; pending: number }
   >(functions, 'archiveWorkspace');
   const result = await fn({
     orgId,
     workspaceId,
-    sectionTimes: sectionTimes ?? null,
   });
   return result.data;
 }

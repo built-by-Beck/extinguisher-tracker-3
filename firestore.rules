@@ -249,6 +249,20 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      match /workTimeDaily/{docId} {
+        allow read: if isMember(orgId) && (
+          resource.data.userId == request.auth.uid
+          || hasRole(orgId, ['owner', 'admin'])
+        );
+        allow create, update: if hasRole(orgId, ['owner', 'admin', 'inspector'])
+          && hasWritableSubscription(orgId)
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.durationMs is number
+          && request.resource.data.durationMs >= 0
+          && request.resource.data.durationMs <= 36000000;
+        allow delete: if false;
+      }
+
       match /notifications/{notificationId} {
         allow read: if isMember(orgId) && !isGuest(orgId);
         allow create, update: if false;

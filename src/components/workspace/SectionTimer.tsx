@@ -1,120 +1,84 @@
-import {
-  Pause,
-  Play,
-  RotateCcw,
-  StopCircle,
-  Timer,
-  Trash2,
-} from 'lucide-react';
+import { Play, Pause, StopCircle, Timer } from 'lucide-react';
+import { formatWorkTimeHours } from '../../utils/workTimeUtils.ts';
 
 interface SectionTimerProps {
   section: string;
-  activeSection: string | null;
-  totalTime: number;
-  onStart: (section: string) => void;
+  isActive: boolean;
+  todayMs: number;
+  totalMs: number;
+  onStart: () => void;
   onPause: () => void;
   onStop: () => void;
-  onResetSection: (section: string) => void;
-  onResetAll: () => void;
   disabled?: boolean;
   formatTime: (ms: number) => string;
 }
 
 export function SectionTimer({
   section,
-  activeSection,
-  totalTime,
+  isActive,
+  todayMs,
+  totalMs,
   onStart,
   onPause,
   onStop,
-  onResetSection,
-  onResetAll,
   disabled = false,
   formatTime,
 }: SectionTimerProps) {
-  const isActive = activeSection === section;
-  const displayTime = formatTime(totalTime);
-
-  // Compute minutes for subtitle
-  const totalMinutes = Math.floor(totalTime / 60000);
-  const minuteLabel = totalMinutes === 1 ? 'minute' : 'minutes';
+  const liveDisplay = isActive ? totalMs : totalMs;
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-      <div className="flex items-center justify-between">
-        {/* Left side: timer display */}
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <Timer
-            className={`h-5 w-5 ${isActive ? 'text-red-600 animate-pulse' : 'text-gray-400'}`}
+            className={`h-5 w-5 shrink-0 ${isActive ? 'animate-pulse text-red-600' : 'text-gray-400'}`}
           />
-          <div>
+          <div className="min-w-0">
             <p
-              className={`text-lg font-bold ${isActive ? 'text-red-600' : totalTime > 0 ? 'text-gray-900' : 'text-gray-400'}`}
+              className={`text-lg font-bold tabular-nums ${isActive ? 'text-red-600' : liveDisplay > 0 ? 'text-gray-900' : 'text-gray-400'}`}
             >
-              {displayTime}
+              {formatTime(liveDisplay)}
             </p>
-            {totalTime > 0 && (
-              <p className="text-xs text-gray-500">
-                {totalMinutes} {minuteLabel} in this section
-              </p>
-            )}
+            <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-gray-500">
+              <span>Today: {formatWorkTimeHours(todayMs)}</span>
+              <span>Total: {formatWorkTimeHours(totalMs)}</span>
+            </div>
           </div>
         </div>
 
-        {/* Right side: controls */}
         {!disabled && (
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {isActive ? (
-              <button
-                type="button"
-                onClick={() => onPause()}
-                aria-label={`Pause timer for ${section}`}
-                className="rounded-full bg-amber-100 p-2 text-amber-600 transition-colors hover:bg-amber-200"
-                title="Pause timer"
-              >
-                <Pause className="h-5 w-5" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onStart(section)}
-                aria-label={`Start timer for ${section}`}
-                className="rounded-full bg-green-100 p-2 text-green-600 transition-colors hover:bg-green-200"
-                title="Start timer"
-              >
-                <Play className="h-5 w-5" />
-              </button>
-            )}
-            {(isActive || totalTime > 0) && (
               <>
                 <button
                   type="button"
-                  onClick={() => onStop()}
+                  onClick={onPause}
+                  aria-label={`Pause timer for ${section}`}
+                  className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-100"
+                  title="Pause timer"
+                >
+                  <Pause className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onStop}
                   aria-label={`Stop timer for ${section}`}
-                  className="rounded-full bg-red-100 p-2 text-red-600 transition-colors hover:bg-red-200"
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
                   title="Stop timer"
                 >
                   <StopCircle className="h-5 w-5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onResetSection(section)}
-                  aria-label={`Reset timer for ${section}`}
-                  className="rounded-full bg-gray-100 p-2 text-gray-600 transition-colors hover:bg-gray-200"
-                  title="Reset this section timer"
-                >
-                  <RotateCcw className="h-5 w-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onResetAll()}
-                  aria-label="Reset all section timers for this workspace"
-                  className="rounded-full bg-gray-100 p-2 text-gray-600 transition-colors hover:bg-gray-200"
-                  title="Reset all section timers"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
               </>
+            ) : (
+              <button
+                type="button"
+                onClick={onStart}
+                aria-label={`Start timer for ${section}`}
+                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+                title="Start timer"
+              >
+                <Play className="h-5 w-5" />
+              </button>
             )}
           </div>
         )}

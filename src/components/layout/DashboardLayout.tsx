@@ -13,6 +13,10 @@ import { OfflineBanner } from '../offline/OfflineBanner.tsx';
 import { AiAssistantPanel } from '../ai/AiAssistantPanel.tsx';
 import { DashboardAdBanner } from '../ads/DashboardAdBanner.tsx';
 import { AdSlot } from '../ads/AdSlot.tsx';
+import { SectionTimerProvider } from '../../contexts/SectionTimerContext.tsx';
+import { GlobalTimerBar } from '../timeTracking/GlobalTimerBar.tsx';
+import { IdleTimerModal } from '../timeTracking/IdleTimerModal.tsx';
+import { useSectionTimerContext } from '../../contexts/SectionTimerContext.tsx';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { hasFeature } from '../../lib/planConfig.ts';
 import { readBillingIntervalPreference, settingsBillingPath } from '../../lib/billingIntervalPreference.ts';
@@ -38,6 +42,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/getting-started': 'Getting Started',
   '/dashboard/faq': 'FAQ',
   '/dashboard/import-guide': 'Import Guide',
+  '/dashboard/time-tracking': 'Time Tracking',
 };
 
 /** Per-page header colors — fire-protection palette with blue/green accents */
@@ -69,6 +74,7 @@ const PAGE_COLORS: Record<string, { bg: string; bgHidden: string }> = {
   '/dashboard/getting-started': { bg: 'bg-red-900', bgHidden: 'bg-red-800' },
   '/dashboard/faq': { bg: 'bg-orange-900', bgHidden: 'bg-orange-800' },
   '/dashboard/import-guide': { bg: 'bg-cyan-800', bgHidden: 'bg-cyan-700' },
+  '/dashboard/time-tracking': { bg: 'bg-teal-900', bgHidden: 'bg-teal-800' },
 };
 
 function getPageColors(pathname: string): { bg: string; bgHidden: string } {
@@ -99,6 +105,55 @@ function getPageTitle(pathname: string, search: string): string {
     if (PAGE_TITLES[parent]) return PAGE_TITLES[parent];
   }
   return 'Dashboard';
+}
+
+function DashboardTimerChrome() {
+  const { org } = useOrg();
+  const {
+    idlePromptSection,
+    confirmActive,
+    dismissIdle,
+    segmentCapReached,
+    dailyCapReached,
+    clearSegmentCapFlag,
+  } = useSectionTimerContext();
+
+  const hasTimeFeature = hasFeature(
+    org?.featureFlags as unknown as Record<string, boolean> | undefined,
+    'sectionTimeTracking',
+    org?.plan,
+  );
+
+  if (!hasTimeFeature) return null;
+
+  return (
+    <>
+      <GlobalTimerBar />
+      {(segmentCapReached || dailyCapReached) && (
+        <div className="flex shrink-0 items-center justify-between border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          <span>
+            {segmentCapReached &&
+              'Timer stopped — 10 hour maximum per session.'}
+            {dailyCapReached && ' Daily 10 hour section cap reached.'}
+          </span>
+          <button
+            type="button"
+            onClick={clearSegmentCapFlag}
+            className="text-xs font-medium underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      {idlePromptSection && (
+        <IdleTimerModal
+          section={idlePromptSection}
+          onResume={confirmActive}
+          onDone={dismissIdle}
+        />
+      )}
+    </>
+  );
 }
 
 export function DashboardLayout() {
@@ -159,7 +214,8 @@ export function DashboardLayout() {
     msToTrialEnd <= 3 * 24 * 60 * 60 * 1000;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <SectionTimerProvider>
+      <div className="flex h-screen overflow-hidden bg-gray-50">
       {/* Sidebar */}
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -170,6 +226,8 @@ export function DashboardLayout() {
 
         {/* Offline / sync status banner */}
         <OfflineBanner />
+
+        <DashboardTimerChrome />
 
         {/* Plan-based ad banner (only on publisher content pages) */}
         <DashboardAdBanner />
@@ -296,5 +354,6 @@ export function DashboardLayout() {
         {hasAiAccess && <AiAssistantPanel />}
       </div>
     </div>
+    </SectionTimerProvider>
   );
 }

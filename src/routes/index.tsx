@@ -23,6 +23,7 @@ const CustomAssetInspections = lazy(
   () => import('../pages/CustomAssetInspections.tsx'),
 );
 const CustomAssetDetail = lazy(() => import('../pages/CustomAssetDetail.tsx'));
+const TimeTracking = lazy(() => import('../pages/TimeTracking.tsx'));
 const DataOrganizer = lazy(() => import('../pages/DataOrganizer.tsx'));
 const ExtinguisherCreate = lazy(
   () => import('../pages/ExtinguisherCreate.tsx'),
@@ -173,6 +174,7 @@ export function AppRoutes() {
             <Route path="notifications" element={<Notifications />} />
             <Route path="sync-queue" element={<SyncQueue />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="time-tracking" element={<TimeTracking />} />
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="calculator" element={<Calculator />} />
             <Route path="getting-started" element={<GettingStarted />} />

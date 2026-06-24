@@ -688,7 +688,38 @@ org/{orgId}/sectionNotes/{noteId}
 - global note: `{section_slug}`
 - workspace note: `{workspaceId}_{section_slug}`
 
-### `sectionTimes/{timeId}` — Section Time Totals
+### `workTimeDaily/{docId}` — Per-User Daily Section Time
+
+Stores accumulated section-level time per user per calendar day.
+
+#### Time Shape
+
+```
+org/{orgId}/workTimeDaily/{docId}
+  userId: string
+  userEmail: string
+  workspaceId: string
+  workspaceLabel: string
+  locationId: string | null
+  section: string
+  workDate: string              // YYYY-MM-DD local calendar date
+  durationMs: number
+  updatedAt: Timestamp
+```
+
+#### Document ID Convention
+
+```
+{userId}__{workspaceId}__{section_slug}__{workDate}
+```
+
+#### Notes
+
+- Running timer state is client-side only (per user).
+- Firestore stores persisted daily totals; workspace totals are aggregated from daily docs.
+- Admins/owners can read all members' rows; inspectors read only their own.
+
+### `sectionTimes/{timeId}` — Section Time Totals (legacy)
 
 Stores accumulated section-level time totals for a workspace.
 

@@ -33,12 +33,68 @@ interface InspectionResultData {
   checklistData: Record<string, string> | null;
 }
 
+interface WorkTimeMemberRow {
+  userId: string;
+  userEmail: string;
+  section: string;
+  totalMs: number;
+}
+
+async function aggregateWorkTimeByMember(
+  orgId: string,
+  workspaceId: string,
+): Promise<{
+  workTimeByMember: WorkTimeMemberRow[];
+  sectionTimes: Record<string, number> | null;
+}> {
+  const snap = await adminDb
+    .collection(`org/${orgId}/workTimeDaily`)
+    .where('workspaceId', '==', workspaceId)
+    .get();
+
+  const byMemberSection = new Map<string, WorkTimeMemberRow>();
+  const sectionTotals = new Map<string, number>();
+
+  snap.forEach((d) => {
+    const data = d.data();
+    const userId = (data.userId as string) ?? '';
+    const userEmail = (data.userEmail as string) ?? '';
+    const section = (data.section as string) ?? '';
+    const durationMs = (data.durationMs as number) ?? 0;
+    if (!section || durationMs <= 0) return;
+
+    const key = `${userId}::${section}`;
+    const existing = byMemberSection.get(key) ?? {
+      userId,
+      userEmail,
+      section,
+      totalMs: 0,
+    };
+    existing.totalMs += durationMs;
+    byMemberSection.set(key, existing);
+
+    sectionTotals.set(section, (sectionTotals.get(section) ?? 0) + durationMs);
+  });
+
+  const workTimeByMember = [...byMemberSection.values()].sort((a, b) => {
+    const emailCmp = a.userEmail.localeCompare(b.userEmail);
+    if (emailCmp !== 0) return emailCmp;
+    return a.section.localeCompare(b.section);
+  });
+
+  const sectionTimes =
+    sectionTotals.size > 0
+      ? Object.fromEntries(sectionTotals.entries())
+      : null;
+
+  return { workTimeByMember, sectionTimes };
+}
+
 export const archiveWorkspace = onCall(async (request) => {
   const { uid, email } = validateAuth(request);
-  const { orgId, workspaceId, sectionTimes } = request.data as {
+  const { orgId, workspaceId } = request.data as {
     orgId: string;
     workspaceId: string;
-    sectionTimes?: Record<string, number> | null;
   };
 
   if (!orgId || typeof orgId !== 'string') {
@@ -49,6 +105,11 @@ export const archiveWorkspace = onCall(async (request) => {
   }
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
+
+  const { workTimeByMember, sectionTimes } = await aggregateWorkTimeByMember(
+    orgId,
+    workspaceId,
+  );
 
   // 1. Fetch inspections outside transaction (queries not allowed in tx)
   const inspSnap = await adminDb
@@ -121,7 +182,7 @@ export const archiveWorkspace = onCall(async (request) => {
       status: 'archived',
       archivedAt: serverTimestamp,
       archivedBy: uid,
-      sectionTimes: sectionTimes ?? null,
+      sectionTimes,
       stats: {
         total: inspSnap.size,
         passed,
@@ -143,7 +204,8 @@ export const archiveWorkspace = onCall(async (request) => {
       passedCount: passed,
       failedCount: failed,
       pendingCount: pending,
-      sectionTimes: sectionTimes ?? null,
+      sectionTimes,
+      workTimeByMember,
       results: enrichedResults, // NOTE: Limited to ~1000 items due to 1MB doc size
       csvDownloadUrl: null,
       csvFilePath: null,

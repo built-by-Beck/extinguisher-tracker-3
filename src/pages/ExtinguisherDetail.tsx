@@ -31,7 +31,6 @@ import {
   ChevronUp,
   Camera,
   Navigation,
-  Clock,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -63,8 +62,10 @@ import {
   subscribeToLocations,
   type Location,
 } from '../services/locationService.ts';
-import { useSectionTimer } from '../hooks/useSectionTimer.ts';
+import { useWorkspaceSectionTimer } from '../contexts/SectionTimerContext.tsx';
 import { resolveSectionTimerKey } from '../utils/sectionTimerKey.ts';
+import { getAutoStartTimerPreference } from '../utils/workTimeUtils.ts';
+import { SectionTimer } from '../components/workspace/SectionTimer.tsx';
 import { InspectionPanel } from '../components/inspection/InspectionPanel.tsx';
 import { WorkspaceInspectionSummaryCards } from '../components/workspace/WorkspaceInspectionSummaryCards.tsx';
 import { ReplaceExtinguisherModal } from '../components/extinguisher/ReplaceExtinguisherModal.tsx';
@@ -166,12 +167,22 @@ export default function ExtinguisherDetail() {
     null,
   );
 
+  const resolvedWorkspaceId = workspaceId ?? activeWorkspaceId ?? '';
+
   const {
-    activeSection: timerActiveSection,
-    startTimer,
-    getTotalTime,
+    startForSection,
+    pauseTimer,
+    stopTimer,
+    isActiveForSection,
+    getLiveTodayTime,
+    getLiveTotalTime,
     formatTime,
-  } = useSectionTimer(orgId, activeWorkspaceId ?? '');
+    activeSection: timerActiveSection,
+    activeWorkspaceId: timerActiveWorkspaceId,
+  } = useWorkspaceSectionTimer(
+    resolvedWorkspaceId,
+    workspaceContext?.label ?? resolvedWorkspaceId,
+  );
 
   // Workspace creation state (for one-click create)
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
@@ -207,14 +218,14 @@ export default function ExtinguisherDetail() {
   const returnTo = useMemo(() => {
     if (stateReturnTo) return stateReturnTo;
     if (workspaceId) return `/dashboard/workspaces/${workspaceId}`;
-    if (activeWorkspaceId) {
+    if (resolvedWorkspaceId) {
       const locId = ext?.locationId;
       return locId
-        ? `/dashboard/workspaces/${activeWorkspaceId}?loc=${encodeURIComponent(locId)}&leaf=pending`
-        : `/dashboard/workspaces/${activeWorkspaceId}`;
+        ? `/dashboard/workspaces/${resolvedWorkspaceId}?loc=${encodeURIComponent(locId)}&leaf=pending`
+        : `/dashboard/workspaces/${resolvedWorkspaceId}`;
     }
     return '/dashboard/inventory';
-  }, [stateReturnTo, workspaceId, activeWorkspaceId, ext?.locationId]);
+  }, [stateReturnTo, workspaceId, resolvedWorkspaceId, ext?.locationId]);
 
   // Load extinguisher
   useEffect(() => {
@@ -379,29 +390,30 @@ export default function ExtinguisherDetail() {
     (status: 'pass' | 'fail') => {
       if (status !== 'pass' && status !== 'fail') return;
       if (
-        activeWorkspaceId &&
+        resolvedWorkspaceId &&
         ext &&
         canInspectInContext &&
         hasFeature(
           org?.featureFlags as Record<string, boolean> | null | undefined,
           'sectionTimeTracking',
           org?.plan,
-        )
+        ) &&
+        getAutoStartTimerPreference()
       ) {
         const key = resolveSectionTimerKey(ext, locations, inspection ?? null);
-        if (key) startTimer(key);
+        if (key) startForSection(key);
       }
       navigate(returnTo);
     },
     [
-      activeWorkspaceId,
+      resolvedWorkspaceId,
       ext,
       canInspectInContext,
       org?.featureFlags,
       org?.plan,
       locations,
       inspection,
-      startTimer,
+      startForSection,
       navigate,
       returnTo,
     ],
@@ -785,24 +797,26 @@ export default function ExtinguisherDetail() {
             </p>
           </div>
 
-          {activeWorkspaceId &&
+          {resolvedWorkspaceId &&
             !isWorkspaceReadOnly &&
             hasFeature(
               org?.featureFlags as Record<string, boolean> | null | undefined,
               'sectionTimeTracking',
               org?.plan,
             ) &&
-            timerActiveSection && (
-              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                <Clock
-                  className="h-4 w-4 shrink-0 text-amber-700"
-                  aria-hidden
+            timerActiveSection &&
+            timerActiveWorkspaceId === resolvedWorkspaceId && (
+              <div className="mb-4">
+                <SectionTimer
+                  section={timerActiveSection}
+                  isActive={isActiveForSection(timerActiveSection)}
+                  todayMs={getLiveTodayTime(timerActiveSection)}
+                  totalMs={getLiveTotalTime(timerActiveSection)}
+                  onStart={() => startForSection(timerActiveSection)}
+                  onPause={pauseTimer}
+                  onStop={stopTimer}
+                  formatTime={formatTime}
                 />
-                <span className="font-medium">Section timer</span>
-                <span className="text-amber-800">{timerActiveSection}</span>
-                <span className="font-mono tabular-nums text-amber-900">
-                  {formatTime(getTotalTime(timerActiveSection))}
-                </span>
               </div>
             )}
 
