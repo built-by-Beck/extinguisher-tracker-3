@@ -58,3 +58,56 @@
 ```bash
 lsof -ti :9099 -ti :8080 -ti :5001 -ti :9199 -ti :4000 | sort -u | xargs -r kill -9
 ```
+
+## Cursor Cloud specific instructions
+
+### Environment files
+
+The update script handles dependency installation and Cloud Functions compilation. Before starting services, create env files if they don't exist:
+
+```bash
+cp -n .env.example .env
+cp -n functions/.env.example functions/.env
+cp -n functions/.env.secret.example functions/.secret.local
+```
+
+Then ensure `.env` has at minimum:
+
+```
+VITE_FIREBASE_PROJECT_ID=demo-ex3
+VITE_FIREBASE_API_KEY=fake-api-key
+VITE_USE_EMULATORS=true
+```
+
+And `functions/.secret.local` has placeholder Stripe secrets (required by `defineSecret`):
+
+```
+STRIPE_SECRET_KEY=sk_test_fake
+STRIPE_WEBHOOK_SECRET=whsec_fake
+```
+
+### Starting services
+
+Follow the startup sequence from the "Environment, Emulators & Secrets" section above. Use `--project demo-ex3` with emulators to avoid needing real Firebase credentials:
+
+```bash
+firebase emulators:start --project demo-ex3
+```
+
+The `demo-` prefix tells emulators to run in fully offline mode with no auth against real Firebase services.
+
+### pnpm build scripts
+
+`package.json` includes `pnpm.onlyBuiltDependencies` to allowlist `esbuild`, `@firebase/util`, and `protobufjs` postinstall scripts. Without this, Vite will fail because esbuild's native binary won't be installed.
+
+### Testing
+
+- Frontend: `pnpm test` (Vitest, 10 suites / 86 tests)
+- Backend: `cd functions && npm test` (Jest, 11 suites / 45 tests)
+- Lint: `pnpm lint`
+
+### Known emulator-mode limitations
+
+- The `createOrganization` Cloud Function may fail with an "internal" error in emulator mode due to Stripe `defineSecret` not resolving real values. Auth, Firestore reads/writes, and Storage all work normally.
+- Pub/Sub-triggered functions (`complianceReminderJob`, `overdueDetectionJob`, `cleanupExpiredGuestsJob`) are skipped because the Pub/Sub emulator is not configured.
+- Vertex AI / Gemini client-side features require a real Firebase project with billing enabled and will not work in demo mode.
