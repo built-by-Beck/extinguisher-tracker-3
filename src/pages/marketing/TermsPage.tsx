@@ -198,7 +198,7 @@ export default function TermsPage() {
               <p>
                 Your use of the Service is also governed by our{' '}
                 <Link
-                  to="/privacy"
+                  to="/privacy-policy"
                   className="font-medium text-red-600 hover:text-red-500"
                 >
                   Privacy Policy
@@ -307,7 +307,7 @@ export default function TermsPage() {
           <div className="mt-10 border-t border-gray-200 pt-8">
             <p className="text-sm text-gray-600">
               <Link
-                to="/privacy"
+                to="/privacy-policy"
                 className="font-medium text-red-600 hover:text-red-500"
               >
                 Privacy Policy

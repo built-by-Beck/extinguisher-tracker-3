@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '../components/guards/ProtectedRoute.tsx';
 import { RootRedirect } from '../components/guards/RootRedirect.tsx';
 import { GuestRoute } from '../components/guards/GuestRoute.tsx';
@@ -97,7 +97,8 @@ export function AppRoutes() {
         <Route path="/how-it-works" element={<MarketingHowItWorksPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/terms" element={<TermsPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/privacy-policy" element={<PrivacyPage />} />
+        <Route path="/privacy" element={<Navigate to="/privacy-policy" replace />} />
         <Route
           path="/getting-started"
           element={<MarketingGettingStartedPage />}

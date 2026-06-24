@@ -54,7 +54,7 @@ export const marketingSeo = {
   privacy: {
     title: 'Privacy Policy — ExtinguisherTracker',
     description:
-      'Privacy Policy for ExtinguisherTracker. How we collect, use, and protect your data.',
-    path: '/privacy',
+      'Privacy Policy for ExtinguisherTracker.com. How we collect, use, store, and protect your account, inspection, and payment information.',
+    path: '/privacy-policy',
   },
 } as const;
