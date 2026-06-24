@@ -13,6 +13,9 @@ export const LAUNCH_PROMO_ENABLED =
 export const LAUNCH_PROMO_MAX_CUSTOMERS =
   Number(import.meta.env.VITE_LAUNCH_PROMO_MAX_CUSTOMERS) || 100;
 
+/** Matches Stripe launch coupons (50% off, repeating 12 months). */
+export const LAUNCH_PROMO_DISCOUNT_FRACTION = 0.5;
+
 export const LAUNCH_PROMO = {
   headline: '50% off your first year',
   description: `50% off your first year — limited to the first ${LAUNCH_PROMO_MAX_CUSTOMERS} customers`,
@@ -23,6 +26,43 @@ export const LAUNCH_PROMO = {
   },
   bannerImage: '/launch-promo-banner.png',
 } as const;
+
+function formatUsd(amount: number): string {
+  return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
+}
+
+/** First-year monthly price after the 50% launch coupon. */
+export function launchPromoMonthlyPrice(monthlyPrice: number): number {
+  return (
+    Math.round(monthlyPrice * LAUNCH_PROMO_DISCOUNT_FRACTION * 100) / 100
+  );
+}
+
+/** Promo code for a paid plan when launch promo is active. */
+export function getLaunchPromoCode(
+  planId: LaunchPromoPlanId,
+): string | null {
+  if (!LAUNCH_PROMO_ENABLED) return null;
+  return LAUNCH_PROMO.codes[planId];
+}
+
+/** Small-print disclaimer: first year only, then regular rate. */
+export function getLaunchPromoPriceDisclaimer(
+  monthlyPrice: number,
+  planId: LaunchPromoPlanId,
+  interval: 'month' | 'year' = 'month',
+): string | null {
+  if (!LAUNCH_PROMO_ENABLED) return null;
+  const code = LAUNCH_PROMO.codes[planId];
+  const promoMonthly = launchPromoMonthlyPrice(monthlyPrice);
+
+  if (interval === 'month') {
+    return `50% off your first year with code ${code} at checkout. After 12 months, billing returns to ${formatUsd(monthlyPrice)}/mo.`;
+  }
+
+  const regularMonthly = formatUsd(monthlyPrice);
+  return `50% off your first year with code ${code} at checkout. After year one, billing returns to ${regularMonthly}/mo on monthly or the standard yearly rate if prepaid. Promo price shown: ${formatUsd(promoMonthly)}/mo equivalent.`;
+}
 
 export function getPermanentSavingsLine(): string {
   return `${TRIAL_DAYS}-day free trial · 10% off annual prepay`;
