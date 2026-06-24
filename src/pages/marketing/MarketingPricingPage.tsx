@@ -9,6 +9,7 @@ import {
 import { getPermanentSavingsLine } from '../../lib/billingConfig.ts';
 import { LaunchPromoBanner } from '../../components/marketing/LaunchPromoBanner.tsx';
 import { LimitedTimeOfferBanner } from '../../components/marketing/LimitedTimeOfferBanner.tsx';
+import { PlanHeadlinePrice } from '../../components/billing/PlanHeadlinePrice.tsx';
 import { marketingSeo } from './marketingSeo.ts';
 import { Link } from 'react-router-dom';
 
@@ -61,17 +62,13 @@ export default function MarketingPricingPage() {
                 <h2 className="mt-1 text-xl font-bold text-gray-900">
                   {plan.name}
                 </h2>
-                <p className="mt-3 flex items-baseline gap-1">
-                  <span className="text-3xl font-bold tracking-tight text-gray-900">
-                    {plan.priceLabel}
-                  </span>
-                  {plan.priceDetail ? (
-                    <span className="text-sm text-gray-500">
-                      {' '}
-                      {plan.priceDetail}
-                    </span>
-                  ) : null}
-                </p>
+                <PlanHeadlinePrice
+                  price={{
+                    priceLabel: plan.priceLabel,
+                    priceDetail: plan.priceDetail,
+                    regularPriceLabel: plan.regularPriceLabel,
+                  }}
+                />
                 {plan.annualBillingNote ? (
                   <p className="mt-2 text-xs leading-relaxed text-gray-500">
                     {plan.annualBillingNote}

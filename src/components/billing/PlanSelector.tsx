@@ -9,6 +9,7 @@ import {
   TRIAL_DAYS,
 } from '../../lib/billingConfig.ts';
 import { marketingPriceForInterval } from '../../lib/marketingPlanPricing.ts';
+import { PlanHeadlinePrice } from './PlanHeadlinePrice.tsx';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import {
@@ -190,10 +191,7 @@ export function PlanSelector({
 
               {priceDisplay ? (
                 <>
-                  <p className="mt-1 text-3xl font-bold text-gray-900">
-                    {priceDisplay.priceLabel}
-                    <span className="text-sm font-normal text-gray-500">/mo</span>
-                  </p>
+                  <PlanHeadlinePrice price={priceDisplay} variant="settings" />
                   {billingInterval === 'year' ? (
                     <p className="mt-0.5 text-xs text-gray-500">
                       {LAUNCH_PROMO_ENABLED ? (
@@ -208,7 +206,7 @@ export function PlanSelector({
                         </>
                       )}
                     </p>
-                  ) : LAUNCH_PROMO_ENABLED ? (
+                  ) : LAUNCH_PROMO_ENABLED && !priceDisplay.regularPriceLabel ? (
                     <p className="mt-0.5 text-xs font-medium text-amber-700">
                       first year · 50% launch promo
                     </p>

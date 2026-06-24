@@ -50,6 +50,8 @@ export type MarketingPlanCard = {
   name: string;
   priceLabel: string;
   priceDetail: string;
+  /** Full monthly price before launch promo (marketing pricing page). */
+  regularPriceLabel?: string;
   /** Shown under the headline price for paid tiers (yearly prepay). */
   annualBillingNote?: string;
   /** Launch promo footnote (hidden when VITE_LAUNCH_PROMO_ENABLED=false). */
@@ -67,6 +69,9 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Basic',
     priceLabel: headlineMonthlyPrice(basicPlan.monthlyPrice!),
     priceDetail: LAUNCH_PROMO_ENABLED ? 'per month · first year' : 'per month',
+    regularPriceLabel: LAUNCH_PROMO_ENABLED
+      ? formatPrice(basicPlan.monthlyPrice!)
+      : undefined,
     annualBillingNote: annualBillingNote(basicPlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('basic') ?? undefined,
     blurb: 'Small sites that want to ditch paper, speed up checks, and build a reliable workflow baseline.',
@@ -85,6 +90,9 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Pro',
     priceLabel: headlineMonthlyPrice(proPlan.monthlyPrice!),
     priceDetail: LAUNCH_PROMO_ENABLED ? 'per month · first year' : 'per month',
+    regularPriceLabel: LAUNCH_PROMO_ENABLED
+      ? formatPrice(proPlan.monthlyPrice!)
+      : undefined,
     annualBillingNote: annualBillingNote(proPlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('pro') ?? undefined,
     blurb: 'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
@@ -106,6 +114,9 @@ export const marketingPlans: MarketingPlanCard[] = [
     name: 'Elite',
     priceLabel: headlineMonthlyPrice(elitePlan.monthlyPrice!),
     priceDetail: LAUNCH_PROMO_ENABLED ? 'per month · first year' : 'per month',
+    regularPriceLabel: LAUNCH_PROMO_ENABLED
+      ? formatPrice(elitePlan.monthlyPrice!)
+      : undefined,
     annualBillingNote: annualBillingNote(elitePlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('elite') ?? undefined,
     blurb: 'Large programs that need advanced data tools, AI-supported operations, and priority help.',
