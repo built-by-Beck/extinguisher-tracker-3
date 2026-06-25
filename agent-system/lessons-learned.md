@@ -242,3 +242,15 @@ Each entry follows this structure:
 - **Issue**: A test fixture used `manufactureYear: 3000` to guarantee a unit was not older than 6 years.
 - **Resolution**: Replaced the impossible sentinel with the current UTC year so the fixture remains realistic and future-safe.
 - **Rule**: Test fixtures for real-world domain data should use plausible dynamic dates or named constants instead of impossible values that look like product data.
+
+### 2026-06-25 -- Pricing helper, UI copy, and tests must evolve together
+- **Context**: Daily Review Bot found launch-promo pricing code failing lint/build/tests after pricing UI changed from `MarketingPlanPriceDisplay` to `PlanHeadlinePrice`.
+- **Issue**: Stale imports and an unused `paidPlanPriceFields` helper remained; `marketingPriceForInterval` accepted a plan id but ignored it; `PlanSelector` called a nonexistent `getLaunchPromoCode`; a duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION` export broke TypeScript; tests mocked obsolete helper names and old rounding behavior.
+- **Resolution**: Removed stale imports/helper code, removed the duplicate export, made `marketingPriceForInterval` use the plan id for promo metadata, read promo codes from `LAUNCH_PROMO.codes`, and updated tests to the current discount/copy contract.
+- **Rule**: When replacing pricing display components or promo helpers, update the helper contract, all call sites, and tests in the same change. Build-check pricing code after lint because unused-symbol fixes can reveal missing exports and stale test mocks.
+
+### 2026-06-25 -- Use `pnpm exec prettier` for targeted formatting
+- **Context**: While fixing the pricing review issues, running `pnpm format -- <files>` invoked the repo script `prettier --write .` and formatted unrelated files before the churn was reverted.
+- **Issue**: The package script includes `.` before forwarded args, so adding file paths does not limit scope.
+- **Resolution**: Reverted unrelated formatting changes and used `pnpm exec prettier --write <files>` for the intended files.
+- **Rule**: For targeted formatting, use `pnpm exec prettier --write <path...>` (or run the full `pnpm format` intentionally). Do not use `pnpm format -- <path...>` when trying to keep a review fix narrow.
