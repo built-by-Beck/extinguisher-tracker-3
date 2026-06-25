@@ -2378,3 +2378,12 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-06-25 — Daily review pricing health fix — built_by_Beck
+
+Review Bot found root lint/build/test failures in launch-promo pricing code:
+
+- Removed stale unused marketing price display imports/helper code and duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION`.
+- Made `marketingPriceForInterval` use its optional plan id for promo metadata; `PlanSelector` now passes the plan id and reads promo codes from `LAUNCH_PROMO.codes`.
+- Updated `marketingPlanPricing.test.ts` to match current discount rounding/copy.
+- Validation: targeted Prettier, `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions test`, and `npm --prefix functions run build` pass. Functions Jest still emits existing ts-jest TS151002 warnings.

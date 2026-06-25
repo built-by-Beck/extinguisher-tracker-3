@@ -28,13 +28,8 @@ export const LAUNCH_PROMO = {
   bannerImage: '/launch-promo-banner.png',
 } as const;
 
-/** Launch promo discount — 50% off first-year charges at checkout with promo code. */
-export const LAUNCH_PROMO_DISCOUNT_FRACTION = 0.5;
-
 export function applyLaunchPromoDiscount(amount: number): number {
-  return (
-    Math.round(amount * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION) * 100) / 100
-  );
+  return Math.round(amount * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION) * 100) / 100;
 }
 
 export function formatUsd(amount: number): string {
@@ -55,7 +50,9 @@ export function getLaunchPromoBannerCopy(): string | null {
   return `Limited time for the first ${LAUNCH_PROMO_MAX_CUSTOMERS} customers: ${LAUNCH_PROMO.headline}. Use EX3PRO50 (Pro), EX3BASIC50 (Basic), or EX3ELITE50 (Elite) at checkout — applies after your ${TRIAL_DAYS}-day free trial.`;
 }
 
-export function getLaunchPromoPlanNote(planId: LaunchPromoPlanId): string | null {
+export function getLaunchPromoPlanNote(
+  planId: LaunchPromoPlanId,
+): string | null {
   if (!LAUNCH_PROMO_ENABLED) return null;
   const code = LAUNCH_PROMO.codes[planId];
   return `Limited time — first ${LAUNCH_PROMO_MAX_CUSTOMERS} customers: ${LAUNCH_PROMO.headline} with code ${code}.`;

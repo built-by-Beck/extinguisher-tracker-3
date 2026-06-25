@@ -357,3 +357,19 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Destructure `const { user, userProfile } = useAuth();` and use `user.uid` (guard `if (!user?.uid) return;`). This matches `Locations.tsx` which already uses `user.uid` for `createLocation`.
 
 **Prevention rule:** For any privileged write needing the actor's uid, read it from `useAuth().user.uid`, never from `userProfile`. Use `userProfile` only for org/profile metadata like `activeOrgId`.
+
+## 2026-06-25 - Keep pricing promo helpers, UI, and tests in sync
+
+**What happened:** Daily Review Bot found launch-promo pricing code failing lint/build/tests. Stale imports and an unused helper remained after the UI moved to `PlanHeadlinePrice`; `marketingPriceForInterval` accepted but ignored `planId`; `PlanSelector` called nonexistent `getLaunchPromoCode`; `billingConfig.ts` duplicated `LAUNCH_PROMO_DISCOUNT_FRACTION`; tests mocked obsolete promo helpers and old rounding.
+
+**Fix used:** Removed stale pricing imports/helper code and the duplicate export, made `marketingPriceForInterval` use `planId` for promo metadata, read checkout codes from `LAUNCH_PROMO.codes`, and updated the pricing tests for current rounding/copy.
+
+**Prevention rule:** When changing pricing displays or launch-promo helpers, update helper types, all call sites, and tests together. Run build after lint because unused-symbol fixes can expose missing exports and stale mocks.
+
+## 2026-06-25 - Use pnpm exec prettier for targeted formatting
+
+**What happened:** Running `pnpm format -- <files>` during a narrow review fix invoked the repo script `prettier --write .` and formatted unrelated files.
+
+**Fix used:** Reverted unrelated formatting churn and used `pnpm exec prettier --write <files>` for the targeted files.
+
+**Prevention rule:** Use `pnpm exec prettier --write <path...>` for targeted formatting. Reserve `pnpm format` for intentional whole-repo formatting.
