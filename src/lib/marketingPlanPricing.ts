@@ -24,6 +24,7 @@ export type MarketingPriceDisplay = {
   /** Full price before launch promo (shown struck-through when promo active). */
   regularPriceLabel?: string;
   footnote?: string;
+  promoBadge?: string;
   /** Small print: first year only, then regular rate. */
   promoDisclaimer?: string;
   promoCode?: string;
