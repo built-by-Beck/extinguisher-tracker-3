@@ -2378,3 +2378,10 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-06-26 — Daily review bot pricing health fix — built_by_Beck
+
+- Review found root `pnpm lint` broken by stale launch-promo pricing symbols after the plan-card price display refactor.
+- Fixed display-only pricing code: removed duplicate promo discount export, added `getLaunchPromoCode`, made `marketingPriceForInterval` require a paid plan id for promo display, removed stale imports/dead helper code, and restored the optional `promoBadge` type used by the legacy price display component.
+- Validation: targeted `marketingPlanPricing.test.ts`, `pnpm lint`, `pnpm build`, `pnpm test`, functions lint/build/test all pass. Functions Jest still prints existing ts-jest Node hybrid module warnings.
+- Review verdict: ACCEPTED. No auth, Firestore rules, Stripe checkout/webhook behavior, permissions, or production config changed.
