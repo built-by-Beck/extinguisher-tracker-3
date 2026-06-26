@@ -357,3 +357,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Destructure `const { user, userProfile } = useAuth();` and use `user.uid` (guard `if (!user?.uid) return;`). This matches `Locations.tsx` which already uses `user.uid` for `createLocation`.
 
 **Prevention rule:** For any privileged write needing the actor's uid, read it from `useAuth().user.uid`, never from `userProfile`. Use `userProfile` only for org/profile metadata like `activeOrgId`.
+
+## 2026-06-26 - Lint can miss stale shared display type fields
+
+**What happened:** During a daily review pricing-health fix, lint was resolved before build, but `pnpm build` still failed because the unused `MarketingPlanPriceDisplay` component is compiled and referenced `price.promoBadge` while `MarketingPriceDisplay` no longer declared that optional field. The targeted pricing test also needed its assertion aligned to the current displayed copy.
+
+**Fix used:** Restored `promoBadge?: string` on `MarketingPriceDisplay`, aligned the test assertion with the current "First year" copy, and reran targeted Vitest plus full app/functions lint, build, and test checks.
+
+**Prevention rule:** When changing shared display helpers or types, run the TypeScript build in addition to lint and targeted tests; unused exported components can still compile against stale type fields that ESLint will not catch.
