@@ -3,6 +3,8 @@
  * Set VITE_LAUNCH_PROMO_ENABLED=false and redeploy to remove launch promo from the site.
  */
 
+import { yearlyTotalFromMonthly } from './planConfig.ts';
+
 export type LaunchPromoPlanId = 'basic' | 'pro' | 'elite';
 
 export const TRIAL_DAYS = Number(import.meta.env.VITE_TRIAL_DAYS) || 14;
@@ -28,22 +30,47 @@ export const LAUNCH_PROMO = {
   bannerImage: '/launch-promo-banner.png',
 } as const;
 
-/** Launch promo discount — 50% off first-year charges at checkout with promo code. */
-export const LAUNCH_PROMO_DISCOUNT_FRACTION = 0.5;
-
 export function applyLaunchPromoDiscount(amount: number): number {
-  return (
-    Math.round(amount * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION) * 100) / 100
-  );
+  return Math.round(amount * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION) * 100) / 100;
 }
 
 export function formatUsd(amount: number): string {
   return amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`;
 }
 
+export function getLaunchPromoCode(planId: LaunchPromoPlanId): string | null {
+  if (!LAUNCH_PROMO_ENABLED) return null;
+  return LAUNCH_PROMO.codes[planId];
+}
+
+export function launchPromoMonthlyPrice(monthlyPrice: number): number {
+  const discounted = monthlyPrice * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION);
+  const snappedToNinetyNine = Math.floor(discounted) + 0.99;
+  if (Math.abs(discounted - snappedToNinetyNine) <= 0.01) {
+    return Math.round(snappedToNinetyNine * 100) / 100;
+  }
+  return Math.round(discounted * 100) / 100;
+}
+
+export function getLaunchPromoPriceDisclaimer(
+  monthlyPrice: number,
+  planId: LaunchPromoPlanId,
+  interval: 'month' | 'year' = 'month',
+): string | null {
+  const code = getLaunchPromoCode(planId);
+  if (!code) return null;
+
+  const regularRate =
+    interval === 'year'
+      ? `${formatUsd(yearlyTotalFromMonthly(monthlyPrice))}/yr`
+      : `${formatUsd(monthlyPrice)}/mo`;
+
+  return `50% off your first year with code ${code} at checkout. After 12 months, billing returns to ${regularRate}.`;
+}
+
 /** Headline monthly price shown on pricing/settings when launch promo is active. */
 export function launchPromoMonthlyDisplay(monthlyPrice: number): string {
-  return formatUsd(applyLaunchPromoDiscount(monthlyPrice));
+  return formatUsd(launchPromoMonthlyPrice(monthlyPrice));
 }
 
 export function getPermanentSavingsLine(): string {
@@ -55,7 +82,9 @@ export function getLaunchPromoBannerCopy(): string | null {
   return `Limited time for the first ${LAUNCH_PROMO_MAX_CUSTOMERS} customers: ${LAUNCH_PROMO.headline}. Use EX3PRO50 (Pro), EX3BASIC50 (Basic), or EX3ELITE50 (Elite) at checkout — applies after your ${TRIAL_DAYS}-day free trial.`;
 }
 
-export function getLaunchPromoPlanNote(planId: LaunchPromoPlanId): string | null {
+export function getLaunchPromoPlanNote(
+  planId: LaunchPromoPlanId,
+): string | null {
   if (!LAUNCH_PROMO_ENABLED) return null;
   const code = LAUNCH_PROMO.codes[planId];
   return `Limited time — first ${LAUNCH_PROMO_MAX_CUSTOMERS} customers: ${LAUNCH_PROMO.headline} with code ${code}.`;

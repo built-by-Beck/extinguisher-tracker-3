@@ -7,7 +7,11 @@
 import {
   applyLaunchPromoDiscount,
   formatUsd,
+  getLaunchPromoCode,
+  getLaunchPromoPriceDisclaimer,
   LAUNCH_PROMO_ENABLED,
+  launchPromoMonthlyPrice,
+  type LaunchPromoPlanId,
 } from './billingConfig.ts';
 import {
   YEARLY_DISCOUNT_FRACTION,
@@ -24,6 +28,7 @@ export type MarketingPriceDisplay = {
   footnote?: string;
   /** Small print: first year only, then regular rate. */
   promoDisclaimer?: string;
+  promoBadge?: string;
   promoCode?: string;
 };
 
@@ -33,17 +38,24 @@ export function marketingPriceForInterval(
   planId?: LaunchPromoPlanId,
 ): MarketingPriceDisplay {
   const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
-  const promoActive = LAUNCH_PROMO_ENABLED;
-  const regularPriceLabel = promoActive ? formatUsd(monthlyPrice) : undefined;
+  const promoActive = LAUNCH_PROMO_ENABLED && Boolean(planId);
+  const promoCode = promoActive && planId ? getLaunchPromoCode(planId) : null;
 
   if (interval === 'month') {
     const displayMonthly = promoActive
-      ? applyLaunchPromoDiscount(monthlyPrice)
+      ? launchPromoMonthlyPrice(monthlyPrice)
       : monthlyPrice;
     return {
       priceLabel: formatUsd(displayMonthly),
       priceDetail: promoActive ? 'per month · first year' : 'per month',
-      regularPriceLabel,
+      regularPriceLabel: promoActive ? formatUsd(monthlyPrice) : undefined,
+      promoBadge: promoActive ? '50% off year 1' : undefined,
+      promoCode: promoCode ?? undefined,
+      promoDisclaimer:
+        promoActive && planId
+          ? (getLaunchPromoPriceDisclaimer(monthlyPrice, planId, interval) ??
+            undefined)
+          : undefined,
     };
   }
 
@@ -58,7 +70,16 @@ export function marketingPriceForInterval(
   return {
     priceLabel,
     priceDetail: promoActive ? 'per month · first year' : 'per month',
-    regularPriceLabel,
+    regularPriceLabel: promoActive
+      ? yearlyMonthlyEquivDisplay(monthlyPrice)
+      : undefined,
+    promoBadge: promoActive ? '50% off year 1' : undefined,
+    promoCode: promoCode ?? undefined,
+    promoDisclaimer:
+      promoActive && planId
+        ? (getLaunchPromoPriceDisclaimer(monthlyPrice, planId, interval) ??
+          undefined)
+        : undefined,
     footnote: promoActive
       ? `First year billed at ${formatUsd(displayYearlyTotal)} (50% launch promo) — then ${formatUsd(yearlyTotal)}/yr.`
       : `Billed yearly at ${formatUsd(yearlyTotal)} — save ${discountPct}% vs monthly.`,
