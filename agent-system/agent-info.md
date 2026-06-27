@@ -2378,3 +2378,13 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-06-27 — Daily review: launch promo pricing build repair — built_by_Beck
+
+Review bot found and fixed a broken launch-promo pricing refactor that was failing lint, Vitest, and `pnpm build`.
+
+- Restored single-source promo helpers in `src/lib/billingConfig.ts` (`getLaunchPromoCode`, `launchPromoMonthlyPrice`, `getLaunchPromoPriceDisclaimer`) and removed the duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION`.
+- Updated `marketingPriceForInterval` to apply promo pricing only when a paid plan ID is supplied; no plan ID now falls back to regular pricing as tests expect.
+- Settings and marketing plan detail pages now pass paid plan IDs into the pricing helper; dead `MarketingPlanPriceDisplay` imports and unused pricing-copy helper were removed.
+- No Stripe API calls, secrets, webhooks, subscription enforcement, Firestore rules, or persisted billing state were changed.
+- Validation: scoped Prettier check for touched files, `pnpm lint`, `pnpm test` (13 files / 104 tests), `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` pass. Full `pnpm format:check` still fails on unrelated pre-existing formatting drift in 38 files.

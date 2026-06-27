@@ -242,3 +242,9 @@ Each entry follows this structure:
 - **Issue**: A test fixture used `manufactureYear: 3000` to guarantee a unit was not older than 6 years.
 - **Resolution**: Replaced the impossible sentinel with the current UTC year so the fixture remains realistic and future-safe.
 - **Rule**: Test fixtures for real-world domain data should use plausible dynamic dates or named constants instead of impossible values that look like product data.
+
+### 2026-06-27 -- Pricing helper mocks must mirror every imported billing export
+- **Context**: Daily review fixed a launch-promo pricing refactor that broke root lint, tests, and build.
+- **Issue**: `marketingPlanPricing.test.ts` mocked `billingConfig.ts` but omitted newly imported helpers (`formatUsd`, then `applyLaunchPromoDiscount`), so tests failed before validating pricing behavior. The yearly promo assertion also expected lowercase `first year` while the helper emitted `First year`.
+- **Resolution**: Added all imported helper exports to the mock, aligned the footnote copy with the test expectation, and reran lint/test/build.
+- **Rule**: When a module under test uses a full `vi.mock()` for another module, update the mock every time imports change. Prefer focused behavior assertions, and keep promo/pricing copy casing consistent between helper output and tests.
