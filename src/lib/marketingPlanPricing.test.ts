@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('./billingConfig.ts', () => ({
   LAUNCH_PROMO_ENABLED: true,
   LAUNCH_PROMO_DISCOUNT_FRACTION: 0.5,
+  applyLaunchPromoDiscount: (amount: number) =>
+    Math.round(amount * 0.5 * 100) / 100,
   formatUsd: (amount: number) =>
     amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`,
   getLaunchPromoCode: (planId: string) =>
