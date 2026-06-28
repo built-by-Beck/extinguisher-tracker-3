@@ -7,6 +7,7 @@
 import {
   applyLaunchPromoDiscount,
   formatUsd,
+  getLaunchPromoCode,
   LAUNCH_PROMO_ENABLED,
 } from './billingConfig.ts';
 import {
@@ -15,12 +16,14 @@ import {
   yearlyTotalFromMonthly,
 } from './planConfig.ts';
 import type { BillingIntervalPreference } from './billingIntervalPreference.ts';
+import type { LaunchPromoPlanId } from './billingConfig.ts';
 
 export type MarketingPriceDisplay = {
   priceLabel: string;
   priceDetail: string;
   /** Full price before launch promo (shown struck-through when promo active). */
   regularPriceLabel?: string;
+  promoBadge?: string;
   footnote?: string;
   /** Small print: first year only, then regular rate. */
   promoDisclaimer?: string;
@@ -33,8 +36,9 @@ export function marketingPriceForInterval(
   planId?: LaunchPromoPlanId,
 ): MarketingPriceDisplay {
   const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
-  const promoActive = LAUNCH_PROMO_ENABLED;
-  const regularPriceLabel = promoActive ? formatUsd(monthlyPrice) : undefined;
+  const promoCode = planId ? getLaunchPromoCode(planId) : null;
+  const promoActive = LAUNCH_PROMO_ENABLED && promoCode !== null;
+  const promoBadge = promoActive ? '50% off year 1' : undefined;
 
   if (interval === 'month') {
     const displayMonthly = promoActive
@@ -43,7 +47,12 @@ export function marketingPriceForInterval(
     return {
       priceLabel: formatUsd(displayMonthly),
       priceDetail: promoActive ? 'per month · first year' : 'per month',
-      regularPriceLabel,
+      regularPriceLabel: promoActive ? formatUsd(monthlyPrice) : undefined,
+      promoBadge,
+      promoCode: promoCode ?? undefined,
+      promoDisclaimer: promoActive
+        ? `50% off your first year with code ${promoCode} at checkout. After 12 months, billing returns to ${formatUsd(monthlyPrice)}/mo.`
+        : undefined,
     };
   }
 
@@ -58,7 +67,14 @@ export function marketingPriceForInterval(
   return {
     priceLabel,
     priceDetail: promoActive ? 'per month · first year' : 'per month',
-    regularPriceLabel,
+    regularPriceLabel: promoActive
+      ? yearlyMonthlyEquivDisplay(monthlyPrice)
+      : undefined,
+    promoBadge,
+    promoCode: promoCode ?? undefined,
+    promoDisclaimer: promoActive
+      ? `50% off your first year with code ${promoCode} at checkout. After 12 months, annual billing returns to ${formatUsd(yearlyTotal)}/yr.`
+      : undefined,
     footnote: promoActive
       ? `First year billed at ${formatUsd(displayYearlyTotal)} (50% launch promo) — then ${formatUsd(yearlyTotal)}/yr.`
       : `Billed yearly at ${formatUsd(yearlyTotal)} — save ${discountPct}% vs monthly.`,

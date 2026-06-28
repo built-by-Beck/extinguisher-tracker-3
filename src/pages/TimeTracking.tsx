@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Clock } from 'lucide-react';
-import { collection, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  orderBy,
+} from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { db } from '../lib/firebase.ts';
@@ -9,6 +15,7 @@ import {
   aggregateWorkTimeRows,
   exportWorkTimeCsv,
   subscribeToWorkTimeForWorkspace,
+  subscribeToUserWorkTimeForWorkspace,
   type WorkTimeDaily,
 } from '../services/workTimeService.ts';
 import {
@@ -97,12 +104,24 @@ export default function TimeTracking() {
       setWorkTimeRows([]);
       return;
     }
+    if (!isAdmin) {
+      if (!userId) {
+        setWorkTimeRows([]);
+        return;
+      }
+      return subscribeToUserWorkTimeForWorkspace(
+        orgId,
+        userId,
+        selectedWorkspaceId,
+        setWorkTimeRows,
+      );
+    }
     return subscribeToWorkTimeForWorkspace(
       orgId,
       selectedWorkspaceId,
       setWorkTimeRows,
     );
-  }, [orgId, selectedWorkspaceId]);
+  }, [isAdmin, orgId, selectedWorkspaceId, userId]);
 
   useEffect(() => {
     if (!orgId || !isAdmin) return;
@@ -181,13 +200,10 @@ export default function TimeTracking() {
     [filteredRows],
   );
 
-  const handleAutoStartChange = useCallback(
-    (enabled: boolean) => {
-      setAutoStart(enabled);
-      setAutoStartTimerPreference(enabled);
-    },
-    [],
-  );
+  const handleAutoStartChange = useCallback((enabled: boolean) => {
+    setAutoStart(enabled);
+    setAutoStartTimerPreference(enabled);
+  }, []);
 
   const handleExportCsv = useCallback(() => {
     const csv = exportWorkTimeCsv(filteredRows);

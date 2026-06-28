@@ -357,3 +357,13 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Destructure `const { user, userProfile } = useAuth();` and use `user.uid` (guard `if (!user?.uid) return;`). This matches `Locations.tsx` which already uses `user.uid` for `createLocation`.
 
 **Prevention rule:** For any privileged write needing the actor's uid, read it from `useAuth().user.uid`, never from `userProfile`. Use `userProfile` only for org/profile metadata like `activeOrgId`.
+
+## 2026-06-28 - Firestore owner checks need old and new document validation
+
+**What happened:** Daily review found `workTimeDaily` client reads were fixed to query non-admin users by their own `userId`, but Review then caught a remaining rules integrity issue: updates only checked `request.resource.data.userId == request.auth.uid`.
+
+**Impact:** A malicious non-admin client could target another member's existing `workTimeDaily` document and submit an update that changes `userId` to themselves, effectively taking over or corrupting another user's time record.
+
+**Fix used so far:** Client query shape was corrected in `TimeTracking.tsx` so inspectors/viewers no longer issue workspace-wide reads that Firestore will reject. The Firestore rules hardening is still pending human/planned follow-up because it changes customer-data permissions.
+
+**Prevention rule:** For user-owned Firestore documents, update rules must validate both the existing owner (`resource.data.userId == request.auth.uid`) and the resulting owner (`request.resource.data.userId == request.auth.uid`), or enforce an immutable owner/doc-id invariant with rules tests.
