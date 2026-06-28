@@ -33,6 +33,7 @@ export { importExtinguishersCSV } from './data/importCSV.js';
 export { exportExtinguishersCSV } from './data/exportCSV.js';
 export { cleanupPendingInspections } from './data/cleanupPendingInspections.js';
 export { backfillExpiredFromInspectionNotes } from './data/backfillExpiredFromInspectionNotes.js';
+export { explainExtinguisherSearch } from './data/explainExtinguisherSearch.js';
 
 // Workspaces
 export { createWorkspace } from './workspaces/createWorkspace.js';

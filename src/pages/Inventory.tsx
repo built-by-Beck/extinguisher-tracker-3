@@ -270,7 +270,7 @@ export default function Inventory() {
         .then(setServerIdMatches)
         .catch(() => setServerIdMatches([]))
         .finally(() => setServerIdFetching(false));
-    }, 280);
+    }, 100);
     return () => window.clearTimeout(handle);
   }, [orgId, searchQuery, useServerIdentifierSearch]);
 

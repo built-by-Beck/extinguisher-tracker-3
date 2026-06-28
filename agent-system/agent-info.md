@@ -2378,3 +2378,27 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-06-28 — Extinguisher search diagnostics (Query Explain + client timing) — built_by_Beck
+
+**Task:** Diagnose slow identifier search — distinguish network vs Firestore index vs local cache; add Gemini-suggested Query Explain path.
+
+**Findings:** Web SDK has no `.explain()` (Admin/server only). Identifier queries already match compound indexes (`deletedAt`, `lifecycleStatus`, field). Inventory still subscribes to the full active list (no limit) — substring/location search filters that snapshot client-side and can feel slow independent of identifier Firestore reads.
+
+**Changes:**
+- `extinguisherService.ts`: per-field lookup timing, `fromCache` metadata, `diagnoseExtinguisherIdentifierSearch()`, `window.__EX3_diagnoseExtinguisherSearch` when `EX3_DEBUG_SEARCH=1` or Vite dev; initial inventory snapshot log (doc count + fromCache).
+- `functions/src/data/explainExtinguisherSearch.ts`: owner/admin callable runs Admin Query Explain on strict/legacy lookup queries (+ optional inventory list).
+
+**How to use:** DevTools console after reload with debug on — `await __EX3_diagnoseExtinguisherSearch(orgId, 'SERIAL123')`; add `{ includeServerExplain: true, analyze: true }` for index scan stats (requires deployed callable + owner/admin).
+
+**Validation:** `pnpm lint`, `pnpm build`, `npm --prefix functions run build` pass.
+
+**Review verdict:** ACCEPTED WITH MINOR CONCERNS — deploy `explainExtinguisherSearch` function before server explain works in prod; `analyze:true` bills normal query reads.
+
+## 2026-06-28 — Barcode/scan lookup speed fix — built_by_Beck
+
+**Problem:** Scan + typed barcode both use `findExtinguisherByCode`, which ran up to **3 sequential Firestore waves** (strict limit 1, strict limit 8, legacy limit 50 × 4 fields = up to 12 round-trips). Legacy wave also ran when strict found replaced/inactive docs (no benefit).
+
+**Fix:** Single shared `lookupActiveExtinguisherByIdentifier`: one strict wave (limit 8 × 4 fields), legacy only when strict returns **zero** docs (missing `lifecycleStatus`), 5‑min session cache for scan/type single-hit lookups, Inventory identifier debounce 280ms → 100ms.
+
+**Validation:** `pnpm lint`, `pnpm build` pass.
