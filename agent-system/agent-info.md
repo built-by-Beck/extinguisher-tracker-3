@@ -2378,3 +2378,15 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-06-28 — Daily review bot launch-promo + time tracking findings — built_by_Beck
+
+**Task (Review Bot / focused fixes):** Daily scheduled review of recent code health, risky patterns, and recent merge changes.
+
+**Fixes committed:**
+- Launch-promo pricing display refactor was build-breaking (`pnpm lint`, `pnpm build`, `pnpm test` failed). Restored display-only helper/type consistency in `billingConfig`, `marketingPlanPricing`, pricing pages/cards, and tests without changing checkout/webhook/price ID/subscription logic.
+- `TimeTracking.tsx` now uses `subscribeToUserWorkTimeForWorkspace` for non-owner/admin users so inspector/viewer reads match existing `workTimeDaily` rules; owners/admins still use the workspace-wide subscription.
+
+**Validation:** targeted Prettier check for changed files, `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run build`, `npm --prefix functions run lint`, and `npm --prefix functions test` all pass after fixes. Repository-wide `pnpm format:check` still fails on unrelated pre-existing formatting drift.
+
+**Review verdict:** REVISION REQUIRED / high-risk follow-up. `firestore.rules` for `workTimeDaily` allows create/update when the resulting `request.resource.data.userId == request.auth.uid`, but update does not also require `resource.data.userId == request.auth.uid`. A malicious non-admin client could overwrite another member's existing time doc by changing `userId` to themselves. Safest next action: focused Firestore rules fix + rules tests proving non-admins cannot workspace-wide query, can read/update only own docs, and cannot take over another user's time doc.
