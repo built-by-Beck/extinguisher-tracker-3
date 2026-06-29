@@ -357,3 +357,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Destructure `const { user, userProfile } = useAuth();` and use `user.uid` (guard `if (!user?.uid) return;`). This matches `Locations.tsx` which already uses `user.uid` for `createLocation`.
 
 **Prevention rule:** For any privileged write needing the actor's uid, read it from `useAuth().user.uid`, never from `userProfile`. Use `userProfile` only for org/profile metadata like `activeOrgId`.
+
+## 2026-06-29 - Launch Promo Pricing Helpers Must Stay In Sync With Displays And Tests
+
+**What happened:** Daily Review Bot found launch-promo pricing changes left the app in a broken state: root ESLint failed on stale pricing imports/dead variables, `billingConfig.ts` declared `LAUNCH_PROMO_DISCOUNT_FRACTION` twice, and promo display/test code referenced helper fields/functions that were no longer exported or populated.
+
+**Fix used:** Restored shared promo helpers (`getLaunchPromoCode`, `launchPromoMonthlyPrice`, `getLaunchPromoPriceDisclaimer`), made `marketingPriceForInterval` consume `planId` to return promo badge/code/disclaimer and interval-specific regular prices, removed stale imports/dead helpers, and updated the existing promo unit test assertion.
+
+**Prevention rule:** When changing billing or marketing pricing display code, update the shared pricing helper, all rendered price components, and unit-test mocks together. Run `pnpm lint`, `pnpm test`, and `pnpm build` before assuming pricing copy changes are safe.
