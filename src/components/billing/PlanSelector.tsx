@@ -2,11 +2,17 @@ import { useState, useEffect } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Check, Loader2, Sparkles, X as XIcon, Zap } from 'lucide-react';
 import { functions } from '../../lib/firebase.ts';
-import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
 import {
+  PLANS,
+  type PlanName,
+  YEARLY_DISCOUNT_FRACTION,
+} from '../../lib/planConfig.ts';
+import {
+  getLaunchPromoCode,
   getLaunchPromoCheckoutHint,
   LAUNCH_PROMO_ENABLED,
   TRIAL_DAYS,
+  type LaunchPromoPlanId,
 } from '../../lib/billingConfig.ts';
 import { marketingPriceForInterval } from '../../lib/marketingPlanPricing.ts';
 import { PlanHeadlinePrice } from './PlanHeadlinePrice.tsx';
@@ -25,9 +31,10 @@ export function PlanSelector({
 } = {}) {
   const { org } = useOrg();
   const { userProfile } = useAuth();
-  const [billingInterval, setBillingIntervalState] = useState<BillingIntervalUi>(
-    () => initialInterval ?? readBillingIntervalPreference(),
-  );
+  const [billingInterval, setBillingIntervalState] =
+    useState<BillingIntervalUi>(
+      () => initialInterval ?? readBillingIntervalPreference(),
+    );
 
   function setBillingInterval(next: BillingIntervalUi) {
     setBillingIntervalState(next);
@@ -87,10 +94,13 @@ export function PlanSelector({
         <div>
           <p className="text-sm font-medium text-gray-900">Billing</p>
           <p className="mt-1 text-xs text-gray-500">
-            {TRIAL_DAYS}-day free trial for new subscriptions. Promo codes accepted at checkout.
+            {TRIAL_DAYS}-day free trial for new subscriptions. Promo codes
+            accepted at checkout.
           </p>
           {getLaunchPromoCheckoutHint() ? (
-            <p className="mt-1 text-xs font-medium text-amber-800">{getLaunchPromoCheckoutHint()}</p>
+            <p className="mt-1 text-xs font-medium text-amber-800">
+              {getLaunchPromoCheckoutHint()}
+            </p>
           ) : null}
         </div>
         <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
@@ -162,14 +172,10 @@ export function PlanSelector({
           const showTrialHint = trialEligible && billingInterval === 'year';
           const priceDisplay =
             plan.monthlyPrice !== null
-              ? marketingPriceForInterval(plan.monthlyPrice, billingInterval)
-              : null;
-          const promoPrice =
-            plan.monthlyPrice !== null && plan.name !== 'enterprise'
               ? marketingPriceForInterval(
                   plan.monthlyPrice,
                   billingInterval,
-                  plan.name as 'basic' | 'pro' | 'elite',
+                  plan.name as LaunchPromoPlanId,
                 )
               : null;
 
@@ -193,7 +199,9 @@ export function PlanSelector({
                 </div>
               )}
 
-              <h3 className={`text-lg font-bold ${isPro && !isCurrent ? 'mt-1 text-red-700' : 'text-gray-900'}`}>
+              <h3
+                className={`text-lg font-bold ${isPro && !isCurrent ? 'mt-1 text-red-700' : 'text-gray-900'}`}
+              >
                 {plan.displayName}
               </h3>
 
@@ -205,16 +213,21 @@ export function PlanSelector({
                       {LAUNCH_PROMO_ENABLED ? (
                         <>
                           first year ·{' '}
-                          <span className="font-semibold text-amber-700">50% launch promo</span>
+                          <span className="font-semibold text-amber-700">
+                            50% launch promo
+                          </span>
                         </>
                       ) : (
                         <>
                           billed yearly ·{' '}
-                          <span className="font-semibold text-green-700">save {discountPct}%</span>
+                          <span className="font-semibold text-green-700">
+                            save {discountPct}%
+                          </span>
                         </>
                       )}
                     </p>
-                  ) : LAUNCH_PROMO_ENABLED && !priceDisplay.regularPriceLabel ? (
+                  ) : LAUNCH_PROMO_ENABLED &&
+                    !priceDisplay.regularPriceLabel ? (
                     <p className="mt-0.5 text-xs font-medium text-amber-700">
                       first year · 50% launch promo
                     </p>
