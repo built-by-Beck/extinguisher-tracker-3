@@ -2378,3 +2378,26 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-06-29 — Daily review: launch promo pricing helper repair — built_by_Beck
+
+Daily Review Bot found root ESLint failing after launch-promo pricing changes:
+unused `MarketingPlanPriceDisplay` imports, unused `promoPrice`, unused
+`paidPlanPriceFields`, and an unused `planId` parameter in
+`marketingPriceForInterval`. Focused inspection also found `billingConfig.ts`
+declared `LAUNCH_PROMO_DISCOUNT_FRACTION` twice and referenced promo helpers
+that were missing from the shared config.
+
+Fix:
+- Restored shared promo helpers in `billingConfig.ts` (`getLaunchPromoCode`,
+  `launchPromoMonthlyPrice`, `getLaunchPromoPriceDisclaimer`) and removed the
+  duplicate discount constant.
+- Updated `marketingPriceForInterval` to use `planId` for promo badge/code,
+  monthly charm pricing, yearly equivalent regular price, and promo disclaimer.
+- Removed stale imports/dead helper and passed plan IDs from settings/detail
+  pricing surfaces so launch promo display does not silently fall back to
+  regular prices.
+- Validation after fix: `pnpm lint`, touched-file Prettier check, `pnpm test`,
+  `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run
+  build`, and `npm --prefix functions run test` pass. Repository-wide
+  `pnpm format:check` still fails on 38 unrelated pre-existing files.

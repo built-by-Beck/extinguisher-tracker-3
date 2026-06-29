@@ -242,3 +242,9 @@ Each entry follows this structure:
 - **Issue**: A test fixture used `manufactureYear: 3000` to guarantee a unit was not older than 6 years.
 - **Resolution**: Replaced the impossible sentinel with the current UTC year so the fixture remains realistic and future-safe.
 - **Rule**: Test fixtures for real-world domain data should use plausible dynamic dates or named constants instead of impossible values that look like product data.
+
+### 2026-06-29 -- Launch promo pricing helpers must stay in sync with displays and tests
+- **Context**: Daily Review Bot found launch-promo pricing changes that broke lint/build integrity around marketing and settings price displays.
+- **Issue**: Stale `MarketingPlanPriceDisplay` imports/dead helpers remained, `billingConfig.ts` duplicated `LAUNCH_PROMO_DISCOUNT_FRACTION`, and display/test code referenced promo helper fields/functions that were not consistently exported or populated.
+- **Resolution**: Restored shared promo helper exports, made `marketingPriceForInterval` use the plan ID for promo badge/code/disclaimer and interval-specific regular prices, removed stale imports/dead helper code, and updated the focused unit test.
+- **Rule**: When changing billing or marketing pricing display code, update shared helpers, rendered price components, and unit-test mocks together; verify with `pnpm lint`, `pnpm test`, and `pnpm build`.
