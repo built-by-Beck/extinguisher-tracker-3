@@ -78,6 +78,20 @@ function parseNoteStatus(
   return undefined;
 }
 
+function parseNoteCategory(text: string): string | undefined {
+  const lower = text.toLowerCase();
+  if (lower.includes('safety')) return 'safety';
+  if (lower.includes('maintenance')) return 'maintenance';
+  if (lower.includes('compliance') || lower.includes('nfpa')) return 'compliance';
+  if (lower.includes('tag')) return 'tagging';
+  if (lower.includes('replacement') || lower.includes('replace'))
+    return 'replacement';
+  if (lower.includes('location') || lower.includes('access')) return 'location';
+  if (lower.includes('follow up') || lower.includes('follow-up'))
+    return 'follow_up';
+  return undefined;
+}
+
 export function parseAiMemoryIntent(
   message: string,
   now = new Date(),
@@ -134,6 +148,27 @@ export function parseAiMemoryIntent(
     /\b(note|notes|idea|ideas|inspection notes?)\b/.test(normalized) &&
     /\b(show|list|find|get|recall|what|which|all)\b/.test(normalized);
   if (asksForNotes) {
+    const noteCategory = parseNoteCategory(normalized);
+    if (noteCategory) {
+      return {
+        type: 'list_notes_by_category',
+        noteCategory,
+        noteStatus: parseNoteStatus(normalized),
+      };
+    }
+
+    const assetMatch =
+      message.match(/\babout\s+([a-z0-9_-]{2,})\b/i) ??
+      message.match(/\bfor\s+([a-z0-9_-]{2,})\b/i) ??
+      message.match(/\b([a-z]{1,5}-\d{2,})\b/i);
+    if (assetMatch?.[1]) {
+      return {
+        type: 'list_notes_by_asset',
+        assetQuery: assetMatch[1],
+        noteStatus: parseNoteStatus(normalized),
+      };
+    }
+
     const monthWindow = parseMonthWindow(normalized, now);
     if (monthWindow) {
       return {

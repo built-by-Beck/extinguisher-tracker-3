@@ -28,6 +28,7 @@ import {
   Archive,
   ClipboardCheck,
   Clock,
+  NotebookPen,
 } from 'lucide-react';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useOffline } from '../../hooks/useOffline.ts';
@@ -59,6 +60,13 @@ const navItems: NavItem[] = [
     icon: Clock,
     end: false,
     requiredFeature: 'sectionTimeTracking',
+  },
+  {
+    to: '/dashboard/notes',
+    label: 'Notes',
+    icon: NotebookPen,
+    end: false,
+    requiredFeature: 'aiAssistant',
   },
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
   {

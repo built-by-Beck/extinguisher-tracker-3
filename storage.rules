@@ -77,6 +77,15 @@ service firebase.storage {
       allow delete: if hasRole(orgId, ['owner', 'admin']);
     }
 
+    match /org/{orgId}/notes/{noteId}/{fileName} {
+      allow read: if isMember(orgId);
+      allow write: if hasRole(orgId, ['owner', 'admin', 'inspector'])
+        && hasWritableSubscription(orgId)
+        && isAllowedImageContentType()
+        && isWithinInspectionPhotoSizeLimit();
+      allow delete: if hasRole(orgId, ['owner', 'admin']);
+    }
+
     match /org/{orgId}/branding/logo/current {
       allow read: if isMember(orgId);
       allow write: if isOrgCreator(orgId)
