@@ -18,19 +18,38 @@ import {
   X,
   Lightbulb,
   Check,
+  Mic,
+  MicOff,
+  Download,
+  ClipboardCheck,
+  Camera,
+  Merge,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
+import { useOffline } from '../hooks/useOffline.ts';
+import { useActiveWorkspace } from '../hooks/useActiveWorkspace.ts';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition.ts';
 import { useAiAssistant } from '../contexts/AiAssistantContext.tsx';
 import {
+  convertNoteToInspectionCall,
   createAiNoteCall,
+  createAiNoteOfflineAware,
+  mergeAiNotesCall,
   subscribeToAiNotes,
   updateAiNoteCall,
+  updateAiNoteOfflineAware,
 } from '../services/aiNotesService.ts';
+import {
+  fileToDataUrl,
+  uploadNotePhoto,
+} from '../services/notePhotoService.ts';
 import {
   suggestNoteOrganization,
   type NoteOrganizationSuggestion,
 } from '../services/aiNoteOrganizer.ts';
+import { downloadNotesCsv } from '../lib/exportNotesCsv.ts';
+import { NOTE_TEMPLATES } from '../lib/noteTemplates.ts';
 import type {
   AiNote,
   AiNoteStatus,
@@ -98,8 +117,17 @@ const EMPTY_FORM: NoteFormState = {
 
 export default function Notes() {
   const { userProfile } = useAuth();
-  const { hasRole } = useOrg();
+  const { org, hasRole } = useOrg();
+  const { isOnline } = useOffline();
+  const activeWorkspace = useActiveWorkspace(userProfile?.activeOrgId ?? '');
   const { openAssistant } = useAiAssistant();
+  const {
+    supported: voiceSupported,
+    listening,
+    error: voiceError,
+    startListening,
+    stopListening,
+  } = useSpeechRecognition();
   const orgId = userProfile?.activeOrgId ?? '';
   const canManageNotes = hasRole(['owner', 'admin', 'inspector']);
 
@@ -126,6 +154,10 @@ export default function Notes() {
   const [dismissedSuggestions, setDismissedSuggestions] = useState<string[]>(
     [],
   );
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [convertingNoteId, setConvertingNoteId] = useState<string | null>(null);
+  const [savedLocally, setSavedLocally] = useState(false);
 
   useEffect(() => {
     if (!orgId) return;
@@ -177,10 +209,22 @@ export default function Notes() {
     hideResolved,
   ]);
 
-  function openCreateModal() {
-    setForm(EMPTY_FORM);
+  function openCreateModal(templateId?: string) {
+    const template = NOTE_TEMPLATES.find((item) => item.id === templateId);
+    setForm(
+      template
+        ? {
+            ...EMPTY_FORM,
+            content: template.content,
+            category: template.category,
+          }
+        : EMPTY_FORM,
+    );
+    setPhotoFile(null);
+    setPhotoPreview(null);
     setCreateOpen(true);
     setError(null);
+    setSavedLocally(false);
   }
 
   function openEditModal(note: AiNote) {
@@ -195,14 +239,29 @@ export default function Notes() {
       relatedEntityLabel: note.relatedEntityLabel ?? '',
       pinned: note.pinned,
     });
+    setPhotoFile(null);
+    setPhotoPreview(note.photoUrl ?? null);
     setError(null);
+    setSavedLocally(false);
   }
 
   function closeModal() {
     setCreateOpen(false);
     setSelectedNote(null);
     setForm(EMPTY_FORM);
+    setPhotoFile(null);
+    setPhotoPreview(null);
     setError(null);
+    setSavedLocally(false);
+    stopListening();
+  }
+
+  async function handlePhotoSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
   }
 
   async function handleSaveCreate() {
@@ -212,12 +271,13 @@ export default function Notes() {
     }
     setSaving(true);
     setError(null);
+    setSavedLocally(false);
     try {
-      await createAiNoteCall({
+      const baseInput = {
         orgId,
         title: form.title.trim() || undefined,
         content: form.content.trim(),
-        source: 'manual',
+        source: 'manual' as const,
         category: form.category || null,
         priority: form.priority || null,
         tags: form.tags
@@ -226,10 +286,40 @@ export default function Notes() {
           .filter(Boolean),
         relatedEntityLabel: form.relatedEntityLabel.trim() || null,
         relatedEntityType: form.relatedEntityLabel.trim()
-          ? 'extinguisher'
+          ? ('extinguisher' as const)
           : null,
         pinned: form.pinned,
-      });
+        workspaceId: activeWorkspace?.id ?? null,
+        workspaceLabel: activeWorkspace?.label ?? null,
+      };
+
+      if (photoFile && isOnline) {
+        const { noteId } = await createAiNoteCall(baseInput);
+        const { photoUrl, photoPath } = await uploadNotePhoto(
+          orgId,
+          noteId,
+          photoFile,
+        );
+        await updateAiNoteCall({ orgId, noteId, photoUrl, photoPath });
+      } else {
+        const photoDataUrl = photoFile ? await fileToDataUrl(photoFile) : null;
+        const result = await createAiNoteOfflineAware(
+          baseInput,
+          isOnline,
+          photoDataUrl,
+          photoFile?.type ?? null,
+        );
+        if (!result.synced) {
+          setSavedLocally(true);
+        } else if (photoFile && result.noteId) {
+          const { photoUrl, photoPath } = await uploadNotePhoto(
+            orgId,
+            result.noteId,
+            photoFile,
+          );
+          await updateAiNoteCall({ orgId, noteId: result.noteId, photoUrl, photoPath });
+        }
+      }
       closeModal();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create note');
@@ -245,8 +335,9 @@ export default function Notes() {
     }
     setSaving(true);
     setError(null);
+    setSavedLocally(false);
     try {
-      await updateAiNoteCall({
+      const payload = {
         orgId,
         noteId: selectedNote.id,
         title: form.title.trim() || null,
@@ -260,10 +351,24 @@ export default function Notes() {
           .filter(Boolean),
         relatedEntityLabel: form.relatedEntityLabel.trim() || null,
         relatedEntityType: form.relatedEntityLabel.trim()
-          ? 'extinguisher'
+          ? ('extinguisher' as const)
           : null,
         pinned: form.pinned,
-      });
+        workspaceId: activeWorkspace?.id ?? selectedNote.workspaceId,
+        workspaceLabel: activeWorkspace?.label ?? selectedNote.workspaceLabel,
+      };
+
+      if (photoFile && isOnline) {
+        const { photoUrl, photoPath } = await uploadNotePhoto(
+          orgId,
+          selectedNote.id,
+          photoFile,
+        );
+        await updateAiNoteCall({ ...payload, photoUrl, photoPath });
+      } else {
+        const result = await updateAiNoteOfflineAware(payload, isOnline);
+        if (!result.synced) setSavedLocally(true);
+      }
       closeModal();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update note');
@@ -319,6 +424,29 @@ export default function Notes() {
 
   async function applySuggestion(suggestion: NoteOrganizationSuggestion) {
     if (!orgId) return;
+
+    if (suggestion.action === 'merge') {
+      const targetNoteId =
+        suggestion.payload.targetNoteId ?? suggestion.noteIds[0];
+      const sourceNoteIds = suggestion.noteIds.filter(
+        (id) => id !== targetNoteId,
+      );
+      if (!targetNoteId || sourceNoteIds.length === 0) return;
+      setApplyingSuggestionId(suggestion.id);
+      setError(null);
+      try {
+        await mergeAiNotesCall({ orgId, targetNoteId, sourceNoteIds });
+        setSuggestions((current) =>
+          current.filter((item) => item.id !== suggestion.id),
+        );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to merge notes');
+      } finally {
+        setApplyingSuggestionId(null);
+      }
+      return;
+    }
+
     setApplyingSuggestionId(suggestion.id);
     setError(null);
     try {
@@ -356,6 +484,45 @@ export default function Notes() {
     }
   }
 
+  async function handleConvertToInspection(note: AiNote) {
+    if (!orgId || !canManageNotes) return;
+    setConvertingNoteId(note.id);
+    setError(null);
+    try {
+      const result = await convertNoteToInspectionCall({
+        orgId,
+        noteId: note.id,
+        workspaceId: note.workspaceId ?? activeWorkspace?.id,
+      });
+      setError(null);
+      window.alert(
+        `Converted note to a failed inspection task for ${result.assetId ?? 'the linked asset'}. Open the workspace inspection to review it.`,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to convert note to inspection',
+      );
+    } finally {
+      setConvertingNoteId(null);
+    }
+  }
+
+  function handleVoiceInput() {
+    if (listening) {
+      stopListening();
+      return;
+    }
+    startListening((text, isFinal) => {
+      setForm((current) => ({
+        ...current,
+        content: isFinal
+          ? `${current.content}${current.content ? ' ' : ''}${text}`.trim()
+          : `${current.content}${current.content ? ' ' : ''}${text}`.trim(),
+      }));
+      if (isFinal) stopListening();
+    });
+  }
+
   const modalOpen = createOpen || !!selectedNote;
 
   return (
@@ -365,10 +532,29 @@ export default function Notes() {
           <h1 className="text-2xl font-bold text-gray-900">Notes</h1>
           <p className="mt-1 text-sm text-gray-500">
             Floor-walk observations for your organization. Tell the AI to take a
-            note, or add one manually here.
+            note, use voice input, or add one manually here.
           </p>
+          {activeWorkspace && (
+            <p className="mt-1 text-xs text-gray-500">
+              New notes will tag workspace:{' '}
+              <span className="font-medium">{activeWorkspace.label}</span>
+            </p>
+          )}
+          {!isOnline && (
+            <p className="mt-1 text-xs font-medium text-amber-700">
+              Offline — new notes will sync when you reconnect.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => downloadNotesCsv(filtered, org?.name ?? 'organization')}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
           <button
             type="button"
             onClick={() =>
@@ -382,7 +568,7 @@ export default function Notes() {
           {canManageNotes && (
             <button
               type="button"
-              onClick={openCreateModal}
+              onClick={() => openCreateModal()}
               className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
             >
               <Plus className="h-4 w-4" />
@@ -397,6 +583,24 @@ export default function Notes() {
           {error}
         </div>
       )}
+      {voiceError && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {voiceError}
+        </div>
+      )}
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {NOTE_TEMPLATES.map((template) => (
+          <button
+            key={template.id}
+            type="button"
+            onClick={() => openCreateModal(template.id)}
+            className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs text-gray-700 hover:border-red-300 hover:text-red-700"
+          >
+            {template.label}
+          </button>
+        ))}
+      </div>
 
       <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -450,10 +654,12 @@ export default function Notes() {
                   >
                     {applyingSuggestionId === suggestion.id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : suggestion.action === 'merge' ? (
+                      <Merge className="h-3 w-3" />
                     ) : (
                       <Check className="h-3 w-3" />
                     )}
-                    Apply
+                    {suggestion.action === 'merge' ? 'Merge' : 'Apply'}
                   </button>
                   <button
                     type="button"
@@ -611,10 +817,23 @@ export default function Notes() {
                   <p className="mt-1 text-sm text-gray-700 line-clamp-3">
                     {note.content}
                   </p>
+                  {note.photoUrl && (
+                    <img
+                      src={note.photoUrl}
+                      alt="Note attachment"
+                      className="mt-2 max-h-32 rounded-lg border border-gray-200 object-cover"
+                    />
+                  )}
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
                     <span>{note.createdByEmail ?? 'Unknown author'}</span>
                     <span>•</span>
                     <span>{formatTimestamp(note.updatedAt)}</span>
+                    {note.workspaceLabel && (
+                      <>
+                        <span>•</span>
+                        <span>{note.workspaceLabel}</span>
+                      </>
+                    )}
                     {note.relatedEntityLabel && (
                       <>
                         <span>•</span>
@@ -640,6 +859,20 @@ export default function Notes() {
 
                 {canManageNotes && (
                   <div className="flex shrink-0 flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleConvertToInspection(note)}
+                      disabled={convertingNoteId === note.id}
+                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-300 px-2 py-1 text-[11px] text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                      title="Convert to failed inspection task"
+                    >
+                      {convertingNoteId === note.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <ClipboardCheck className="h-3 w-3" />
+                      )}
+                      Inspect
+                    </button>
                     <button
                       type="button"
                       onClick={() => void handleTogglePin(note)}
@@ -725,6 +958,43 @@ export default function Notes() {
                   rows={5}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {voiceSupported && (
+                    <button
+                      type="button"
+                      onClick={handleVoiceInput}
+                      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs ${
+                        listening
+                          ? 'border-red-300 bg-red-50 text-red-700'
+                          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {listening ? (
+                        <MicOff className="h-3.5 w-3.5" />
+                      ) : (
+                        <Mic className="h-3.5 w-3.5" />
+                      )}
+                      {listening ? 'Stop voice' : 'Voice input'}
+                    </button>
+                  )}
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
+                    <Camera className="h-3.5 w-3.5" />
+                    Attach photo
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => void handlePhotoSelect(e)}
+                    />
+                  </label>
+                </div>
+                {photoPreview && (
+                  <img
+                    src={photoPreview}
+                    alt="Selected note photo"
+                    className="mt-2 max-h-40 rounded-lg border border-gray-200 object-cover"
+                  />
+                )}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
@@ -837,6 +1107,12 @@ export default function Notes() {
                 Pin this note
               </label>
             </div>
+
+            {savedLocally && (
+              <p className="mt-4 text-sm text-amber-700">
+                Saved locally. This note will sync when you are back online.
+              </p>
+            )}
 
             <div className="mt-6 flex justify-end gap-2">
               <button

@@ -90,6 +90,11 @@ export function sanitizeStatus(value: unknown): AiNoteStatus | null {
     : null;
 }
 
+export function sanitizeOptionalUrl(value: unknown, maxLength = 2048): string | null {
+  const text = sanitizeText(value, maxLength);
+  return text || null;
+}
+
 export function assertAiAssistantEnabled(
   orgData: FirebaseFirestore.DocumentData | undefined,
 ): void {

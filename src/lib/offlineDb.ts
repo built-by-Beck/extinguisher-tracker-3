@@ -44,6 +44,24 @@ export interface QueuedInspection {
   conflictReason?: string;
 }
 
+export type NoteQueueOperation = 'create' | 'update';
+
+export interface QueuedAiNote {
+  queueId: string;
+  orgId: string;
+  operation: NoteQueueOperation;
+  noteId?: string;
+  payload: Record<string, unknown>;
+  photoDataUrl?: string | null;
+  photoMimeType?: string | null;
+  queuedAt: number;
+  attempts: number;
+  lastAttemptAt: number | null;
+  error: string | null;
+  syncStatus: 'pending' | 'syncing' | 'failed' | 'synced' | 'conflict';
+  conflictReason?: string;
+}
+
 export interface CachedExtinguisher {
   cacheKey: string; // `${orgId}_${extinguisherId}`
   orgId: string;
@@ -94,6 +112,14 @@ interface Ex3OfflineSchema {
       'by-queuedAt': number;
     };
   };
+  noteQueue: {
+    key: string;
+    value: QueuedAiNote;
+    indexes: {
+      'by-orgId': string;
+      'by-queuedAt': number;
+    };
+  };
   cachedExtinguishers: {
     key: string;
     value: CachedExtinguisher;
@@ -136,8 +162,9 @@ let dbPromise: Promise<IDBPDatabase<Ex3OfflineSchema>> | null = null;
 
 export function getOfflineDb(): Promise<IDBPDatabase<Ex3OfflineSchema>> {
   if (!dbPromise) {
-    dbPromise = openDB<Ex3OfflineSchema>('ex3-offline', 1, {
-      upgrade(db) {
+    dbPromise = openDB<Ex3OfflineSchema>('ex3-offline', 2, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
         // inspectionQueue store
         const queueStore = db.createObjectStore('inspectionQueue', {
           keyPath: 'queueId',
@@ -175,6 +202,15 @@ export function getOfflineDb(): Promise<IDBPDatabase<Ex3OfflineSchema>> {
         db.createObjectStore('syncMeta', {
           keyPath: 'key',
         });
+        }
+
+        if (oldVersion < 2 && !db.objectStoreNames.contains('noteQueue')) {
+          const noteStore = db.createObjectStore('noteQueue', {
+            keyPath: 'queueId',
+          });
+          noteStore.createIndex('by-orgId', 'orgId');
+          noteStore.createIndex('by-queuedAt', 'queuedAt');
+        }
       },
     });
   }

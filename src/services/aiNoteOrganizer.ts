@@ -13,12 +13,14 @@ export interface NoteOrganizationSuggestion {
     | 'set_status'
     | 'set_priority'
     | 'link_entity'
-    | 'resolve';
+    | 'resolve'
+    | 'merge';
   payload: {
     category?: NoteCategory | null;
     status?: 'open' | 'in_progress' | 'resolved';
     priority?: 'low' | 'normal' | 'high' | null;
     relatedEntityLabel?: string | null;
+    targetNoteId?: string;
   };
 }
 
@@ -63,13 +65,37 @@ function buildHeuristicSuggestions(notes: AiNote[]): NoteOrganizationSuggestion[
 
   for (const [label, grouped] of byAsset.entries()) {
     if (grouped.length < 2) continue;
+    const target = grouped[0];
     suggestions.push({
-      id: `asset-${label}`,
-      title: `Group notes for ${label}`,
-      description: `${grouped.length} open notes mention ${label}. Link them together and resolve duplicates when handled.`,
+      id: `merge-${label}`,
+      title: `Merge duplicate notes for ${label}`,
+      description: `${grouped.length} open notes mention ${label}. Merge them into one note and close the duplicates.`,
       noteIds: grouped.map((note) => note.id),
-      action: 'link_entity',
-      payload: { relatedEntityLabel: label },
+      action: 'merge',
+      payload: {
+        targetNoteId: target.id,
+        relatedEntityLabel: label,
+      },
+    });
+  }
+
+  const byNormalizedContent = new Map<string, AiNote[]>();
+  for (const note of openNotes) {
+    const key = note.content.trim().toLowerCase().slice(0, 80);
+    if (key.length < 12) continue;
+    const bucket = byNormalizedContent.get(key) ?? [];
+    bucket.push(note);
+    byNormalizedContent.set(key, bucket);
+  }
+  for (const grouped of byNormalizedContent.values()) {
+    if (grouped.length < 2) continue;
+    suggestions.push({
+      id: `merge-content-${grouped[0].id}`,
+      title: 'Merge similar notes',
+      description: `${grouped.length} notes appear to describe the same observation.`,
+      noteIds: grouped.map((note) => note.id),
+      action: 'merge',
+      payload: { targetNoteId: grouped[0].id },
     });
   }
 

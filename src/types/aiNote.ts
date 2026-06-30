@@ -31,6 +31,11 @@ export interface AiNote {
   relatedEntityId: string | null;
   relatedEntityLabel: string | null;
   pinned: boolean;
+  photoUrl: string | null;
+  photoPath: string | null;
+  workspaceId: string | null;
+  workspaceLabel: string | null;
+  mergedIntoNoteId: string | null;
   createdBy: string;
   createdByEmail: string | null;
   createdAt: unknown;

@@ -14,6 +14,7 @@ import {
   assertAiAssistantEnabled,
   sanitizeCategory,
   sanitizeEntityType,
+  sanitizeOptionalUrl,
   sanitizePriority,
   sanitizeStatus,
   sanitizeTags,
@@ -37,6 +38,10 @@ interface UpdateAiNoteInput {
   relatedEntityId?: string | null;
   relatedEntityLabel?: string | null;
   pinned?: boolean;
+  photoUrl?: string | null;
+  photoPath?: string | null;
+  workspaceId?: string | null;
+  workspaceLabel?: string | null;
 }
 
 interface UpdateAiNoteResult {
@@ -162,6 +167,28 @@ export const updateAiNote = onCall<
     if (request.data.pinned !== undefined) {
       updates.pinned = request.data.pinned === true;
       details.pinned = request.data.pinned === true;
+    }
+
+    if (request.data.photoUrl !== undefined) {
+      updates.photoUrl = sanitizeOptionalUrl(request.data.photoUrl);
+      details.photoUrl = updates.photoUrl;
+    }
+
+    if (request.data.photoPath !== undefined) {
+      updates.photoPath = sanitizeOptionalUrl(request.data.photoPath, 512);
+      details.photoPath = updates.photoPath;
+    }
+
+    if (request.data.workspaceId !== undefined) {
+      const workspaceId = sanitizeText(request.data.workspaceId, 128);
+      updates.workspaceId = workspaceId || null;
+      details.workspaceId = workspaceId || null;
+    }
+
+    if (request.data.workspaceLabel !== undefined) {
+      const workspaceLabel = sanitizeText(request.data.workspaceLabel, 120);
+      updates.workspaceLabel = workspaceLabel || null;
+      details.workspaceLabel = workspaceLabel || null;
     }
 
     if (Object.keys(updates).length === 0) {

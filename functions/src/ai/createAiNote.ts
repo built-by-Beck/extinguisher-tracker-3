@@ -13,6 +13,7 @@ import {
   sanitizeCategory,
   sanitizeEntityType,
   sanitizePriority,
+  sanitizeOptionalUrl,
   sanitizeTags,
   sanitizeText,
   type NoteCategory,
@@ -32,6 +33,10 @@ interface CreateAiNoteInput {
   relatedEntityId?: string | null;
   relatedEntityLabel?: string | null;
   pinned?: boolean;
+  photoUrl?: string | null;
+  photoPath?: string | null;
+  workspaceId?: string | null;
+  workspaceLabel?: string | null;
 }
 
 interface CreateAiNoteResult {
@@ -69,6 +74,10 @@ export const createAiNote = onCall<
     120,
   );
   const pinned = request.data.pinned === true;
+  const photoUrl = sanitizeOptionalUrl(request.data.photoUrl);
+  const photoPath = sanitizeOptionalUrl(request.data.photoPath, 512);
+  const workspaceId = sanitizeText(request.data.workspaceId, 128);
+  const workspaceLabel = sanitizeText(request.data.workspaceLabel, 120);
 
   if (!content) {
     throwInvalidArgument('Note content is required.');
@@ -91,6 +100,11 @@ export const createAiNote = onCall<
     relatedEntityId: relatedEntityId || null,
     relatedEntityLabel: relatedEntityLabel || null,
     pinned,
+    photoUrl,
+    photoPath,
+    workspaceId: workspaceId || null,
+    workspaceLabel: workspaceLabel || null,
+    mergedIntoNoteId: null,
     createdBy: uid,
     createdByEmail: email,
     createdAt: ts,

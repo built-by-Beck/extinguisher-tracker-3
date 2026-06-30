@@ -26,10 +26,11 @@ import {
   type AiMessage,
 } from '../../services/aiService.ts';
 import {
-  createAiNoteCall,
+  createAiNoteOfflineAware,
   subscribeToAiNotes,
   updateAiNoteStatusCall,
 } from '../../services/aiNotesService.ts';
+import { useOffline } from '../../hooks/useOffline.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { db } from '../../lib/firebase.ts';
@@ -159,6 +160,7 @@ export function AiAssistantPanel({
 }: AiAssistantPanelProps) {
   const { org, hasRole } = useOrg();
   const { user, userProfile } = useAuth();
+  const { isOnline } = useOffline();
   const { open, draftMessage, openAssistant, closeAssistant, setDraftMessage } =
     useAiAssistant();
   const orgId = userProfile?.activeOrgId ?? '';
@@ -279,18 +281,26 @@ export function AiAssistantPanel({
     if (!orgId) return;
     const classification = classifyNoteContent(content);
     try {
-      await createAiNoteCall({
-        orgId,
-        content,
-        source,
-        category: classification.category,
-        priority: classification.priority,
-        tags: classification.tags,
-        relatedEntityLabel: classification.relatedEntityLabel,
-        relatedEntityType: classification.relatedEntityLabel
-          ? 'extinguisher'
-          : null,
-      });
+      const result = await createAiNoteOfflineAware(
+        {
+          orgId,
+          content,
+          source,
+          category: classification.category,
+          priority: classification.priority,
+          tags: classification.tags,
+          relatedEntityLabel: classification.relatedEntityLabel,
+          relatedEntityType: classification.relatedEntityLabel
+            ? 'extinguisher'
+            : null,
+          workspaceId: activeWorkspace?.id ?? null,
+          workspaceLabel: activeWorkspace?.label ?? null,
+        },
+        isOnline,
+      );
+      if (!result.synced) {
+        setError('Note saved locally and will sync when you are back online.');
+      }
       return classification;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save note';
