@@ -7,6 +7,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Bot,
   X,
@@ -42,6 +43,11 @@ import {
 } from '../../services/inspectionService.ts';
 import { subscribeToSectionNotes } from '../../services/sectionNotesService.ts';
 import type { SectionNotesMap } from '../../services/workspaceService.ts';
+import { useAiAssistant } from '../../contexts/AiAssistantContext.tsx';
+import {
+  classifyNoteContent,
+  formatClassificationSummary,
+} from '../../services/aiNoteClassifier.ts';
 
 interface AiAssistantPanelProps {
   extinguishers?: Extinguisher[];
@@ -73,9 +79,12 @@ function formatNfpaReference(
 
 function buildSuggestedPrompts(nfpaReference: string): string[] {
   return [
+    'Take a note that ',
+    'Organize my open notes',
     `What does ${nfpaReference} require for monthly inspections?`,
     `Compare ${nfpaReference} to our local AHJ notes for annual requirements.`,
     'Show all notes from this month',
+    'Show safety notes',
     'Show extinguishers expiring next year',
     'Show marked expired extinguishers',
     'Show possible expired candidates',
@@ -150,9 +159,10 @@ export function AiAssistantPanel({
 }: AiAssistantPanelProps) {
   const { org, hasRole } = useOrg();
   const { user, userProfile } = useAuth();
+  const { open, draftMessage, openAssistant, closeAssistant, setDraftMessage } =
+    useAiAssistant();
   const orgId = userProfile?.activeOrgId ?? '';
 
-  const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -267,11 +277,25 @@ export function AiAssistantPanel({
     source: 'manual' | 'ai_suggested' = 'manual',
   ) {
     if (!orgId) return;
+    const classification = classifyNoteContent(content);
     try {
-      await createAiNoteCall({ orgId, content, source });
+      await createAiNoteCall({
+        orgId,
+        content,
+        source,
+        category: classification.category,
+        priority: classification.priority,
+        tags: classification.tags,
+        relatedEntityLabel: classification.relatedEntityLabel,
+        relatedEntityType: classification.relatedEntityLabel
+          ? 'extinguisher'
+          : null,
+      });
+      return classification;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save note';
       setError(msg);
+      return null;
     }
   }
 
@@ -294,12 +318,16 @@ export function AiAssistantPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Focus input when panel opens
+  // Focus input when panel opens and apply any draft message from context
   useEffect(() => {
     if (open) {
+      if (draftMessage) {
+        setInput(draftMessage);
+        setDraftMessage('');
+      }
       setTimeout(() => inputRef.current?.focus(), 200);
     }
-  }, [open]);
+  }, [open, draftMessage, setDraftMessage]);
 
   useEffect(() => {
     return () => {
@@ -481,12 +509,15 @@ export function AiAssistantPanel({
     try {
       const noteContent = extractNoteContent(messageText);
       if (noteContent && canManageNotes && !imageForMessage) {
-        await saveNoteFromText(noteContent, 'ai_suggested');
+        const classification = await saveNoteFromText(noteContent, 'ai_suggested');
+        const summary = classification
+          ? formatClassificationSummary(classification)
+          : 'open';
         setMessages([
           ...updatedMessages,
           {
             role: 'assistant',
-            content: `Saved note: "${noteContent}"\n\nI added it to your org notes with status **open**.`,
+            content: `Saved note: "${noteContent}"\n\nI added it to your org notes with status **open** (${summary}). View all notes on the Notes tab.`,
           },
         ]);
         return;
@@ -528,7 +559,7 @@ export function AiAssistantPanel({
       {/* Floating button */}
       {!open && (
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => openAssistant()}
           className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-white shadow-lg hover:bg-red-700 transition-transform hover:scale-105"
           aria-label="Open AI Assistant"
         >
@@ -567,7 +598,7 @@ export function AiAssistantPanel({
                 </button>
               )}
               <button
-                onClick={() => setOpen(false)}
+                onClick={closeAssistant}
                 className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                 aria-label="Close assistant"
               >
@@ -580,9 +611,18 @@ export function AiAssistantPanel({
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {notes.length > 0 && (
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-600">
-                  <NotebookPen className="h-3.5 w-3.5" />
-                  Recent notes
+                <div className="mb-2 flex items-center justify-between gap-2 text-xs font-semibold text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <NotebookPen className="h-3.5 w-3.5" />
+                    Recent notes
+                  </div>
+                  <Link
+                    to="/dashboard/notes"
+                    onClick={closeAssistant}
+                    className="text-[10px] font-medium text-red-600 hover:underline"
+                  >
+                    View all notes →
+                  </Link>
                 </div>
                 <div className="space-y-2">
                   {notes.slice(0, 3).map((note) => (

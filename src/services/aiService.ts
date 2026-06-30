@@ -100,6 +100,18 @@ export async function askAssistant(
   const latestImageAttachments = lastMessage.imageAttachments ?? [];
   const hasImageAttachment = latestImageAttachments.length > 0;
 
+  if (
+    !hasImageAttachment &&
+    /\borganize\b/.test(lastMessage.content.toLowerCase()) &&
+    /\bnotes?\b/.test(lastMessage.content.toLowerCase())
+  ) {
+    return [
+      'Open the **Notes** tab to review all floor-walk notes.',
+      'Click **Analyze notes** for AI recommendations on categorizing, grouping, and closing related notes.',
+      'You can also say **Take a note that ...** anytime while walking the floor.',
+    ].join('\n\n');
+  }
+
   const orgIdForStatus =
     context?.orgId && context?.canMutateInventory && !hasImageAttachment
       ? context.orgId
@@ -304,6 +316,12 @@ function formatDeterministicMemoryResponse(
     .join('\n');
 
   if (result.intentType === 'list_notes_by_month') {
+    return formatNotesResult(result.count, filters, result.notes ?? []);
+  }
+  if (
+    result.intentType === 'list_notes_by_category' ||
+    result.intentType === 'list_notes_by_asset'
+  ) {
     return formatNotesResult(result.count, filters, result.notes ?? []);
   }
   if (result.intentType === 'list_expiring_by_year') {

@@ -11,6 +11,7 @@ import { Sidebar } from './Sidebar.tsx';
 import { Topbar } from './Topbar.tsx';
 import { OfflineBanner } from '../offline/OfflineBanner.tsx';
 import { AiAssistantPanel } from '../ai/AiAssistantPanel.tsx';
+import { AiAssistantProvider } from '../../contexts/AiAssistantContext.tsx';
 import { DashboardAdBanner } from '../ads/DashboardAdBanner.tsx';
 import { AdSlot } from '../ads/AdSlot.tsx';
 import { SectionTimerProvider } from '../../contexts/SectionTimerContext.tsx';
@@ -43,6 +44,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/faq': 'FAQ',
   '/dashboard/import-guide': 'Import Guide',
   '/dashboard/time-tracking': 'Time Tracking',
+  '/dashboard/notes': 'Notes',
 };
 
 /** Per-page header colors — fire-protection palette with blue/green accents */
@@ -75,6 +77,7 @@ const PAGE_COLORS: Record<string, { bg: string; bgHidden: string }> = {
   '/dashboard/faq': { bg: 'bg-orange-900', bgHidden: 'bg-orange-800' },
   '/dashboard/import-guide': { bg: 'bg-cyan-800', bgHidden: 'bg-cyan-700' },
   '/dashboard/time-tracking': { bg: 'bg-teal-900', bgHidden: 'bg-teal-800' },
+  '/dashboard/notes': { bg: 'bg-rose-900', bgHidden: 'bg-rose-800' },
 };
 
 function getPageColors(pathname: string): { bg: string; bgHidden: string } {
@@ -214,6 +217,7 @@ export function DashboardLayout() {
     msToTrialEnd <= 3 * 24 * 60 * 60 * 1000;
 
   return (
+    <AiAssistantProvider>
     <SectionTimerProvider>
       <div className="flex h-screen overflow-hidden bg-gray-50">
       {/* Sidebar */}
@@ -355,5 +359,6 @@ export function DashboardLayout() {
       </div>
     </div>
     </SectionTimerProvider>
+    </AiAssistantProvider>
   );
 }
