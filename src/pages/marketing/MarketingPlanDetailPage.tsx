@@ -175,7 +175,11 @@ export default function MarketingPlanDetailPage() {
   const planConfig = PLANS.find((p) => p.name === id);
   const priceDisplay =
     planConfig?.monthlyPrice != null
-      ? marketingPriceForInterval(planConfig.monthlyPrice, interval)
+      ? marketingPriceForInterval(
+          planConfig.monthlyPrice,
+          interval,
+          id as 'basic' | 'pro' | 'elite',
+        )
       : {
           priceLabel: plan.priceLabel,
           priceDetail: plan.priceDetail,
