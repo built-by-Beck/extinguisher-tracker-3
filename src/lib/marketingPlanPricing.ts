@@ -68,7 +68,7 @@ export function marketingPriceForInterval(
       regularPriceLabel: yearlyMonthlyEquivDisplay(monthlyPrice),
       promoBadge: '50% off year 1',
       promoCode: getLaunchPromoCode(planId) ?? undefined,
-      footnote: `First year billed at ${formatUsd(displayYearlyTotal)} (50% launch promo) — then ${formatUsd(yearlyTotal)}/yr.`,
+      footnote: `first year billed at ${formatUsd(displayYearlyTotal)} (50% launch promo) — then ${formatUsd(yearlyTotal)}/yr.`,
     };
   }
 
