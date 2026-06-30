@@ -13,7 +13,6 @@ import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPref
 import { MarketingSignupLink } from './MarketingSignupLink.tsx';
 import { MarketingTrialHero } from './MarketingTrialHero.tsx';
 import { MarketingSavingsCallout } from './MarketingSavingsCallout.tsx';
-import { MarketingPlanPriceDisplay } from './MarketingPlanPriceDisplay.tsx';
 import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 
 const monthlyPriceById: Record<MarketingPlanId, number | null> = {
@@ -113,8 +112,7 @@ export function MarketingPricingPlans({
                     regularPriceLabel: plan.regularPriceLabel,
                   };
 
-            const showTrialBullet =
-              plan.id === 'pro' && interval === 'month';
+            const showTrialBullet = plan.id === 'pro' && interval === 'month';
             const offerProTrialCta = plan.id === 'pro' && interval === 'month';
 
             return (

@@ -7,7 +7,11 @@
 import {
   applyLaunchPromoDiscount,
   formatUsd,
+  getLaunchPromoCode,
+  getLaunchPromoPriceDisclaimer,
   LAUNCH_PROMO_ENABLED,
+  launchPromoMonthlyPrice,
+  type LaunchPromoPlanId,
 } from './billingConfig.ts';
 import {
   YEARLY_DISCOUNT_FRACTION,
@@ -21,6 +25,7 @@ export type MarketingPriceDisplay = {
   priceDetail: string;
   /** Full price before launch promo (shown struck-through when promo active). */
   regularPriceLabel?: string;
+  promoBadge?: string;
   footnote?: string;
   /** Small print: first year only, then regular rate. */
   promoDisclaimer?: string;
@@ -33,34 +38,43 @@ export function marketingPriceForInterval(
   planId?: LaunchPromoPlanId,
 ): MarketingPriceDisplay {
   const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
-  const promoActive = LAUNCH_PROMO_ENABLED;
-  const regularPriceLabel = promoActive ? formatUsd(monthlyPrice) : undefined;
+  const promoActive = LAUNCH_PROMO_ENABLED && planId !== undefined;
 
   if (interval === 'month') {
-    const displayMonthly = promoActive
-      ? applyLaunchPromoDiscount(monthlyPrice)
-      : monthlyPrice;
+    if (promoActive) {
+      return {
+        priceLabel: formatUsd(launchPromoMonthlyPrice(monthlyPrice)),
+        priceDetail: 'per month · first year',
+        regularPriceLabel: formatUsd(monthlyPrice),
+        promoBadge: '50% off year 1',
+        promoCode: getLaunchPromoCode(planId) ?? undefined,
+        promoDisclaimer:
+          getLaunchPromoPriceDisclaimer(monthlyPrice, planId) ?? undefined,
+      };
+    }
+
     return {
-      priceLabel: formatUsd(displayMonthly),
-      priceDetail: promoActive ? 'per month · first year' : 'per month',
-      regularPriceLabel,
+      priceLabel: formatUsd(monthlyPrice),
+      priceDetail: 'per month',
     };
   }
 
   const yearlyTotal = yearlyTotalFromMonthly(monthlyPrice);
-  const displayYearlyTotal = promoActive
-    ? applyLaunchPromoDiscount(yearlyTotal)
-    : yearlyTotal;
-  const priceLabel = promoActive
-    ? formatUsd(Math.round((displayYearlyTotal / 12) * 100) / 100)
-    : yearlyMonthlyEquivDisplay(monthlyPrice);
+  if (promoActive) {
+    const displayYearlyTotal = applyLaunchPromoDiscount(yearlyTotal);
+    return {
+      priceLabel: formatUsd(Math.round((displayYearlyTotal / 12) * 100) / 100),
+      priceDetail: 'per month · first year',
+      regularPriceLabel: yearlyMonthlyEquivDisplay(monthlyPrice),
+      promoBadge: '50% off year 1',
+      promoCode: getLaunchPromoCode(planId) ?? undefined,
+      footnote: `first year billed at ${formatUsd(displayYearlyTotal)} (50% launch promo) — then ${formatUsd(yearlyTotal)}/yr.`,
+    };
+  }
 
   return {
-    priceLabel,
-    priceDetail: promoActive ? 'per month · first year' : 'per month',
-    regularPriceLabel,
-    footnote: promoActive
-      ? `First year billed at ${formatUsd(displayYearlyTotal)} (50% launch promo) — then ${formatUsd(yearlyTotal)}/yr.`
-      : `Billed yearly at ${formatUsd(yearlyTotal)} — save ${discountPct}% vs monthly.`,
+    priceLabel: yearlyMonthlyEquivDisplay(monthlyPrice),
+    priceDetail: 'per month',
+    footnote: `Billed yearly at ${formatUsd(yearlyTotal)} — save ${discountPct}% vs monthly.`,
   };
 }

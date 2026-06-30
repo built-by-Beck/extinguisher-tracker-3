@@ -14,9 +14,6 @@ export const LAUNCH_PROMO_ENABLED =
 export const LAUNCH_PROMO_MAX_CUSTOMERS =
   Number(import.meta.env.VITE_LAUNCH_PROMO_MAX_CUSTOMERS) || 100;
 
-/** Matches Stripe launch coupons (50% off, repeating 12 months). */
-export const LAUNCH_PROMO_DISCOUNT_FRACTION = 0.5;
-
 export const LAUNCH_PROMO = {
   headline: '50% off your first year',
   description: `50% off your first year — limited to the first ${LAUNCH_PROMO_MAX_CUSTOMERS} customers`,
@@ -32,9 +29,11 @@ export const LAUNCH_PROMO = {
 export const LAUNCH_PROMO_DISCOUNT_FRACTION = 0.5;
 
 export function applyLaunchPromoDiscount(amount: number): number {
-  return (
-    Math.round(amount * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION) * 100) / 100
-  );
+  return Math.round(amount * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION) * 100) / 100;
+}
+
+export function launchPromoMonthlyPrice(monthlyPrice: number): number {
+  return applyLaunchPromoDiscount(monthlyPrice);
 }
 
 export function formatUsd(amount: number): string {
@@ -55,10 +54,26 @@ export function getLaunchPromoBannerCopy(): string | null {
   return `Limited time for the first ${LAUNCH_PROMO_MAX_CUSTOMERS} customers: ${LAUNCH_PROMO.headline}. Use EX3PRO50 (Pro), EX3BASIC50 (Basic), or EX3ELITE50 (Elite) at checkout — applies after your ${TRIAL_DAYS}-day free trial.`;
 }
 
-export function getLaunchPromoPlanNote(planId: LaunchPromoPlanId): string | null {
+export function getLaunchPromoPlanNote(
+  planId: LaunchPromoPlanId,
+): string | null {
   if (!LAUNCH_PROMO_ENABLED) return null;
   const code = LAUNCH_PROMO.codes[planId];
   return `Limited time — first ${LAUNCH_PROMO_MAX_CUSTOMERS} customers: ${LAUNCH_PROMO.headline} with code ${code}.`;
+}
+
+export function getLaunchPromoCode(planId: LaunchPromoPlanId): string | null {
+  if (!LAUNCH_PROMO_ENABLED) return null;
+  return LAUNCH_PROMO.codes[planId];
+}
+
+export function getLaunchPromoPriceDisclaimer(
+  monthlyPrice: number,
+  planId: LaunchPromoPlanId,
+): string | null {
+  const code = getLaunchPromoCode(planId);
+  if (!code) return null;
+  return `${LAUNCH_PROMO.headline} with code ${code} at checkout. After 12 months, billing returns to ${formatUsd(monthlyPrice)}/mo.`;
 }
 
 export function getLaunchPromoFaqItem(): { q: string; a: string } | null {

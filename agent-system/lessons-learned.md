@@ -242,3 +242,9 @@ Each entry follows this structure:
 - **Issue**: A test fixture used `manufactureYear: 3000` to guarantee a unit was not older than 6 years.
 - **Resolution**: Replaced the impossible sentinel with the current UTC year so the fixture remains realistic and future-safe.
 - **Rule**: Test fixtures for real-world domain data should use plausible dynamic dates or named constants instead of impossible values that look like product data.
+
+### 2026-06-30 -- Keep launch-promo display helpers, types, and tests in sync
+- **Context**: Daily Review Bot found frontend lint/build failures in launch-promo pricing display files.
+- **Issue**: A pricing UI refactor left a duplicate exported promo discount constant, an unused/stale promo helper, imports for a replaced price component, a helper parameter typed with an unimported `LaunchPromoPlanId`, and a `MarketingPriceDisplay` type missing fields already read by the old price display component/tests.
+- **Resolution**: Removed the duplicate constant and dead helper/imports, exported the missing display-only promo helpers from `billingConfig`, made `marketingPriceForInterval` use a paid plan id before showing promo fields, added `promoBadge` to the display type, and updated the Vitest mock to include every mocked module export imported by the helper.
+- **Rule**: When refactoring billing/marketing price display code, update the shared helper contract, component imports, and tests in the same pass; run `pnpm lint`, `pnpm build`, and `pnpm test` before handoff.
