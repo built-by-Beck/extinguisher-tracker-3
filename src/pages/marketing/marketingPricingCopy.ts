@@ -15,6 +15,7 @@ import {
   getLaunchPromoFaqItem,
   getLaunchPromoPlanNote,
   LAUNCH_PROMO_ENABLED,
+  launchPromoMonthlyPrice,
   TRIAL_DAYS,
 } from '../../lib/billingConfig.ts';
 
@@ -25,7 +26,7 @@ function formatPrice(price: number | null): string {
 
 function headlineMonthlyPrice(monthly: number): string {
   if (LAUNCH_PROMO_ENABLED) {
-    return formatPrice(applyLaunchPromoDiscount(monthly));
+    return formatPrice(launchPromoMonthlyPrice(monthly));
   }
   return formatPrice(monthly);
 }

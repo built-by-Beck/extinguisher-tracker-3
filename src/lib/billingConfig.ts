@@ -38,7 +38,7 @@ export function formatUsd(amount: number): string {
 
 /** Headline monthly price shown on pricing/settings when launch promo is active. */
 export function launchPromoMonthlyDisplay(monthlyPrice: number): string {
-  return formatUsd(applyLaunchPromoDiscount(monthlyPrice));
+  return formatUsd(launchPromoMonthlyPrice(monthlyPrice));
 }
 
 /** Headline launch price snapped to common .99 pricing when the exact half is within a cent. */
