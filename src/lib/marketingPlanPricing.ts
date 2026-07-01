@@ -7,8 +7,12 @@
 import {
   applyLaunchPromoDiscount,
   formatUsd,
+  getLaunchPromoCode,
+  getLaunchPromoPriceDisclaimer,
   LAUNCH_PROMO_ENABLED,
+  launchPromoMonthlyPrice,
 } from './billingConfig.ts';
+import type { LaunchPromoPlanId } from './billingConfig.ts';
 import {
   YEARLY_DISCOUNT_FRACTION,
   yearlyMonthlyEquivDisplay,
@@ -24,6 +28,7 @@ export type MarketingPriceDisplay = {
   footnote?: string;
   /** Small print: first year only, then regular rate. */
   promoDisclaimer?: string;
+  promoBadge?: string;
   promoCode?: string;
 };
 
@@ -33,17 +38,29 @@ export function marketingPriceForInterval(
   planId?: LaunchPromoPlanId,
 ): MarketingPriceDisplay {
   const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
-  const promoActive = LAUNCH_PROMO_ENABLED;
-  const regularPriceLabel = promoActive ? formatUsd(monthlyPrice) : undefined;
+  const promoActive = LAUNCH_PROMO_ENABLED && planId !== undefined;
+  const promoCode = planId ? getLaunchPromoCode(planId) : null;
+  const regularPriceLabel = promoActive
+    ? interval === 'month'
+      ? formatUsd(monthlyPrice)
+      : yearlyMonthlyEquivDisplay(monthlyPrice)
+    : undefined;
 
   if (interval === 'month') {
     const displayMonthly = promoActive
-      ? applyLaunchPromoDiscount(monthlyPrice)
+      ? launchPromoMonthlyPrice(monthlyPrice)
       : monthlyPrice;
     return {
       priceLabel: formatUsd(displayMonthly),
       priceDetail: promoActive ? 'per month · first year' : 'per month',
       regularPriceLabel,
+      promoBadge: promoActive ? '50% off year 1' : undefined,
+      promoCode: promoCode ?? undefined,
+      promoDisclaimer:
+        planId && promoActive
+          ? (getLaunchPromoPriceDisclaimer(monthlyPrice, planId, 'month') ??
+            undefined)
+          : undefined,
     };
   }
 

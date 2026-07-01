@@ -18,7 +18,6 @@ import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { BillingIntervalToggle } from '../../components/billing/BillingIntervalToggle.tsx';
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
-import { MarketingPlanPriceDisplay } from '../../components/marketing/MarketingPlanPriceDisplay.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { PLANS } from '../../lib/planConfig.ts';
@@ -218,7 +217,10 @@ export default function MarketingPlanDetailPage() {
                 <p className="mt-3 text-lg text-gray-600">{plan.blurb}</p>
               </div>
               <div className="shrink-0 sm:text-right">
-                <PlanHeadlinePrice price={priceDisplay} className="sm:items-end" />
+                <PlanHeadlinePrice
+                  price={priceDisplay}
+                  className="sm:items-end"
+                />
                 {priceDisplay.footnote ? (
                   <p className="mt-1 text-xs text-gray-500">
                     {priceDisplay.footnote}
