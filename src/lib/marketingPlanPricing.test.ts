@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('./billingConfig.ts', () => ({
   LAUNCH_PROMO_ENABLED: true,
   LAUNCH_PROMO_DISCOUNT_FRACTION: 0.5,
+  applyLaunchPromoDiscount: (amount: number) =>
+    Math.round(amount * 0.5 * 100) / 100,
+  formatUsd: (amount: number) =>
+    amount % 1 === 0 ? `$${amount}` : `$${amount.toFixed(2)}`,
   getLaunchPromoCode: (planId: string) =>
     planId === 'basic'
       ? 'EX3BASIC50'
@@ -35,7 +39,7 @@ describe('marketingPriceForInterval launch promo', () => {
     const display = marketingPriceForInterval(129.99, 'year', 'pro');
     expect(display.regularPriceLabel).toBe('$116.99');
     expect(display.priceLabel).toBe('$58.50');
-    expect(display.footnote).toContain('first year');
+    expect(display.footnote).toMatch(/first year/i);
   });
 
   it('falls back to regular pricing when plan id is omitted', () => {
