@@ -1,4 +1,5 @@
 import { YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
+import { TRIAL_DAYS } from '../../lib/billingConfig.ts';
 import { MarketingSavingsCallout } from '../marketing/MarketingSavingsCallout.tsx';
 
 export type BillingIntervalUi = 'month' | 'year';
@@ -38,7 +39,7 @@ export function BillingIntervalToggle({
               <p className="text-base text-gray-700">
                 Monthly billing — eligible orgs can{' '}
                 <strong className="font-semibold text-gray-900">
-                  start a 7-day Pro trial with no card
+                  start a {TRIAL_DAYS}-day Pro trial with no card
                 </strong>{' '}
                 at checkout.
               </p>
@@ -108,8 +109,8 @@ export function BillingIntervalToggle({
             Billing frequency
           </p>
           <p className="mt-0.5 text-xs text-gray-500">
-            Choose monthly or yearly before you select a plan. Yearly prepay saves{' '}
-            {discountPct}%.
+            Choose monthly or yearly before you select a plan. Yearly prepay
+            saves {discountPct}%.
           </p>
           {value === 'year' && (
             <p className="mt-1 text-xs font-medium text-green-700">
@@ -118,8 +119,8 @@ export function BillingIntervalToggle({
           )}
           {value === 'month' && (
             <p className="mt-1 text-xs text-gray-600">
-              Monthly billing — eligible orgs can start a 7-day Pro trial with no
-              card at checkout.
+              Monthly billing — eligible orgs can start a {TRIAL_DAYS}-day Pro
+              trial with no card at checkout.
             </p>
           )}
         </div>

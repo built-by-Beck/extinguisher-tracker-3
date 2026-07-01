@@ -18,12 +18,12 @@ import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { BillingIntervalToggle } from '../../components/billing/BillingIntervalToggle.tsx';
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
-import { MarketingPlanPriceDisplay } from '../../components/marketing/MarketingPlanPriceDisplay.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { PLANS } from '../../lib/planConfig.ts';
 import { marketingPriceForInterval } from '../../lib/marketingPlanPricing.ts';
 import { PlanHeadlinePrice } from '../../components/billing/PlanHeadlinePrice.tsx';
+import { TRIAL_DAYS } from '../../lib/billingConfig.ts';
 import {
   CONTACT_SALES_MAILTO,
   marketingPlans,
@@ -176,7 +176,11 @@ export default function MarketingPlanDetailPage() {
   const planConfig = PLANS.find((p) => p.name === id);
   const priceDisplay =
     planConfig?.monthlyPrice != null
-      ? marketingPriceForInterval(planConfig.monthlyPrice, interval)
+      ? marketingPriceForInterval(
+          planConfig.monthlyPrice,
+          interval,
+          id === 'enterprise' ? undefined : id,
+        )
       : {
           priceLabel: plan.priceLabel,
           priceDetail: plan.priceDetail,
@@ -218,7 +222,10 @@ export default function MarketingPlanDetailPage() {
                 <p className="mt-3 text-lg text-gray-600">{plan.blurb}</p>
               </div>
               <div className="shrink-0 sm:text-right">
-                <PlanHeadlinePrice price={priceDisplay} className="sm:items-end" />
+                <PlanHeadlinePrice
+                  price={priceDisplay}
+                  className="sm:items-end"
+                />
                 {priceDisplay.footnote ? (
                   <p className="mt-1 text-xs text-gray-500">
                     {priceDisplay.footnote}
@@ -226,7 +233,7 @@ export default function MarketingPlanDetailPage() {
                 ) : null}
                 {id === 'pro' && interval === 'year' ? (
                   <p className="mt-2 text-xs text-blue-800">
-                    Switch to monthly above for the 7-day Pro trial.
+                    Switch to monthly above for the {TRIAL_DAYS}-day Pro trial.
                   </p>
                 ) : null}
               </div>

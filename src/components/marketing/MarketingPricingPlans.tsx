@@ -13,8 +13,8 @@ import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPref
 import { MarketingSignupLink } from './MarketingSignupLink.tsx';
 import { MarketingTrialHero } from './MarketingTrialHero.tsx';
 import { MarketingSavingsCallout } from './MarketingSavingsCallout.tsx';
-import { MarketingPlanPriceDisplay } from './MarketingPlanPriceDisplay.tsx';
 import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
+import { TRIAL_DAYS } from '../../lib/billingConfig.ts';
 
 const monthlyPriceById: Record<MarketingPlanId, number | null> = {
   basic: PLANS.find((p) => p.name === 'basic')!.monthlyPrice,
@@ -113,8 +113,7 @@ export function MarketingPricingPlans({
                     regularPriceLabel: plan.regularPriceLabel,
                   };
 
-            const showTrialBullet =
-              plan.id === 'pro' && interval === 'month';
+            const showTrialBullet = plan.id === 'pro' && interval === 'month';
             const offerProTrialCta = plan.id === 'pro' && interval === 'month';
 
             return (
@@ -142,8 +141,8 @@ export function MarketingPricingPlans({
                 ) : null}
                 {plan.id === 'pro' && interval === 'year' ? (
                   <p className="mt-2 text-xs text-blue-800">
-                    Switch to <strong>Monthly</strong> above for the 7-day Pro
-                    trial (no card at checkout).
+                    Switch to <strong>Monthly</strong> above for the{' '}
+                    {TRIAL_DAYS}-day Pro trial (no card at checkout).
                   </p>
                 ) : null}
                 <p className="mt-3 text-sm text-gray-600">{plan.blurb}</p>
@@ -152,7 +151,7 @@ export function MarketingPricingPlans({
                     .filter(
                       (b) =>
                         showTrialBullet ||
-                        !b.toLowerCase().includes('7-day free trial'),
+                        !b.toLowerCase().includes('free trial'),
                     )
                     .map((b) => (
                       <li key={b} className="flex gap-2">
