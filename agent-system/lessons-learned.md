@@ -248,3 +248,9 @@ Each entry follows this structure:
 - **Issue**: `pnpm lint` failed before the app could ship; the stale test mock then failed once the implementation imported the restored helper functions.
 - **Resolution**: Restored the promo helper API in `billingConfig.ts`, made `marketingPriceForInterval` require a plan id before applying promo pricing, removed orphaned imports/dead helper code, and updated the test mock to include every imported billing helper.
 - **Rule**: When refactoring pricing or billing display helpers, update all consumers and tests in the same pass. For fully mocked modules, the mock must export every symbol imported by the unit under test.
+
+### 2026-07-01 -- Trial-duration copy must use `TRIAL_DAYS`
+- **Context**: Video review of the corrected launch-promo pricing flow showed the Pro plan page mixing "7-day Pro trial" copy with the configured/default `TRIAL_DAYS=14` copy.
+- **Issue**: Hardcoded trial durations in marketing, signup, and billing-selection UI can drift from the actual configured checkout trial length and mislead customers.
+- **Resolution**: Replaced hardcoded trial-duration strings across pricing cards, plan details, signup, org creation, billing toggles, the public trial bar, and trial hero with the shared `TRIAL_DAYS` constant; rescanned `src` for `7-day`/`14-day` literals.
+- **Rule**: Any public or in-app trial duration copy must interpolate `TRIAL_DAYS` from `billingConfig.ts`; do not hardcode numeric trial lengths in UI strings.
