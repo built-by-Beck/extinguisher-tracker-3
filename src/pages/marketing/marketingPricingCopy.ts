@@ -104,7 +104,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     blurb:
       'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
     bullets: [
-      '7-day free trial on monthly billing — no credit card at signup (then paid monthly)',
+      `${TRIAL_DAYS}-day free trial on monthly billing — no credit card at signup (then paid monthly)`,
       'Everything in Basic',
       'Fast phone camera scanning',
       'AI Maintenance helper with configurable NFPA reference',

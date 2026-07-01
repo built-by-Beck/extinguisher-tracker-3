@@ -5,6 +5,7 @@ import {
   billingIntervalFromSearchParams,
   writeBillingIntervalPreference,
 } from '../lib/billingIntervalPreference.ts';
+import { TRIAL_DAYS } from '../lib/billingConfig.ts';
 
 function signupQuerySuffix(searchParams: URLSearchParams): string {
   const interval = billingIntervalFromSearchParams(searchParams);
@@ -37,8 +38,7 @@ export default function Signup() {
   const [searchParams] = useSearchParams();
   const billingInterval = billingIntervalFromSearchParams(searchParams);
   const preferredPlan = searchParams.get('plan');
-  const isTrialSignup =
-    preferredPlan === 'pro' && billingInterval === 'month';
+  const isTrialSignup = preferredPlan === 'pro' && billingInterval === 'month';
 
   useEffect(() => {
     if (billingInterval) {
@@ -121,29 +121,32 @@ export default function Signup() {
           </h2>
           {isTrialSignup ? (
             <p className="mb-4 text-sm font-medium text-red-800">
-              7-day Pro trial · monthly billing · no credit card at checkout
+              {TRIAL_DAYS}-day Pro trial · monthly billing · no credit card at
+              checkout
             </p>
           ) : null}
           <p className="mb-6 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
             {isTrialSignup ? (
               <>
                 Create your account first, then set up your organization. After
-                that, choose <strong className="text-gray-900">Pro (monthly)</strong>{' '}
-                under Settings → Billing to start your trial — no card required
-                at Stripe Checkout.
+                that, choose{' '}
+                <strong className="text-gray-900">Pro (monthly)</strong> under
+                Settings → Billing to start your trial — no card required at
+                Stripe Checkout.
               </>
             ) : billingInterval === 'year' ? (
               <>
                 You chose <strong className="text-gray-900">yearly</strong>{' '}
                 billing on our pricing page. After you create your organization,
-                pick a plan under Settings → Billing (annual prepay at checkout).
+                pick a plan under Settings → Billing (annual prepay at
+                checkout).
               </>
             ) : billingInterval === 'month' ? (
               <>
                 You chose <strong className="text-gray-900">monthly</strong>{' '}
                 billing. Eligible orgs can start a{' '}
                 <strong className="font-semibold text-gray-900">
-                  7-day Pro trial
+                  {TRIAL_DAYS}-day Pro trial
                 </strong>{' '}
                 with no credit card at checkout — choose Pro (monthly) under
                 Billing after setup.
@@ -152,7 +155,7 @@ export default function Signup() {
               <>
                 New organizations can start a{' '}
                 <strong className="font-semibold text-gray-900">
-                  7-day Pro trial
+                  {TRIAL_DAYS}-day Pro trial
                 </strong>{' '}
                 on monthly billing with no credit card at checkout. Choose
                 monthly or yearly on{' '}
