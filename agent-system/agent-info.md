@@ -2378,3 +2378,10 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-07-01 — Daily Review Bot launch promo build-health fix — built_by_Beck
+
+- Review found `pnpm lint` failing on stale launch-promo pricing symbols/imports after the pricing display refactor.
+- Fixed the helper surface in `billingConfig.ts`/`marketingPlanPricing.ts`, removed orphaned marketing price-display imports/dead helper code, and updated the settings plan selector to pass plan IDs for promo pricing/code display.
+- Updated `marketingPlanPricing.test.ts` so the mocked billing config exports match the implementation imports.
+- Validation: `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` all pass. Functions tests still emit existing ts-jest TS151002 configuration warnings.
