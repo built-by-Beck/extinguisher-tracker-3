@@ -5,33 +5,24 @@
  * Change .env → rebuild → marketing page updates automatically.
  */
 
-import { PLANS, yearlyTotalFromMonthly, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
 import {
-  applyLaunchPromoDiscount,
+  PLANS,
+  yearlyTotalFromMonthly,
+  YEARLY_DISCOUNT_FRACTION,
+} from '../../lib/planConfig.ts';
+import {
   getLaunchPromoFaqItem,
   getLaunchPromoPlanNote,
+  getLaunchPromoPriceDisclaimer,
+  LAUNCH_PROMO_DISCOUNT_FRACTION,
   LAUNCH_PROMO_ENABLED,
+  launchPromoMonthlyPrice,
   TRIAL_DAYS,
 } from '../../lib/billingConfig.ts';
 
 function formatPrice(price: number | null): string {
   if (price === null) return 'Custom';
   return price % 1 === 0 ? `$${price}` : `$${price.toFixed(2)}`;
-}
-
-function headlineMonthlyPrice(monthly: number): string {
-  if (LAUNCH_PROMO_ENABLED) {
-    return formatPrice(applyLaunchPromoDiscount(monthly));
-  }
-  return formatPrice(monthly);
-}
-
-function annualBillingNote(monthly: number): string {
-  const yearlyTotal = yearlyTotalFromMonthly(monthly);
-  if (LAUNCH_PROMO_ENABLED) {
-    return `Or ${formatPrice(applyLaunchPromoDiscount(yearlyTotal))} first year if prepaid (50% launch promo).`;
-  }
-  return `Or ${formatPrice(yearlyTotal)} per year if prepaid (${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% off vs 12× monthly).`;
 }
 
 const basicPlan = PLANS.find((p) => p.name === 'basic')!;
@@ -50,8 +41,14 @@ export type MarketingPlanCard = {
   name: string;
   priceLabel: string;
   priceDetail: string;
-  /** Full monthly price before launch promo (marketing pricing page). */
+  /** Regular monthly price before launch promo (shown struck through). */
   regularPriceLabel?: string;
+  /** Short promo badge when launch promo is active. */
+  promoBadge?: string;
+  /** Promo code for checkout. */
+  promoCode?: string;
+  /** Small print: first year only, then regular rate. */
+  promoDisclaimer?: string;
   /** Shown under the headline price for paid tiers (yearly prepay). */
   annualBillingNote?: string;
   /** Launch promo footnote (hidden when VITE_LAUNCH_PROMO_ENABLED=false). */
@@ -76,14 +73,20 @@ function paidPlanPriceFields(
   }
 
   const promoMonthly = launchPromoMonthlyPrice(monthlyPrice);
-  const promoYearly = yearlyTotalFromMonthly(monthlyPrice) * 0.5;
+  const promoYearly =
+    yearlyTotalFromMonthly(monthlyPrice) * LAUNCH_PROMO_DISCOUNT_FRACTION;
 
   return {
     priceLabel: formatPrice(promoMonthly),
     priceDetail: 'per month',
     regularPriceLabel: formatPrice(monthlyPrice),
     promoBadge: '50% off year 1',
-    promoCode: planId === 'basic' ? 'EX3BASIC50' : planId === 'pro' ? 'EX3PRO50' : 'EX3ELITE50',
+    promoCode:
+      planId === 'basic'
+        ? 'EX3BASIC50'
+        : planId === 'pro'
+          ? 'EX3PRO50'
+          : 'EX3ELITE50',
     promoDisclaimer:
       getLaunchPromoPriceDisclaimer(monthlyPrice, planId, 'month') ?? undefined,
     annualBillingNote: `Or ${formatPrice(Math.round(promoYearly * 100) / 100)} for your first year if prepaid (50% off + ${Math.round(YEARLY_DISCOUNT_FRACTION * 100)}% annual savings vs monthly).`,
@@ -94,14 +97,10 @@ export const marketingPlans: MarketingPlanCard[] = [
   {
     id: 'basic',
     name: 'Basic',
-    priceLabel: headlineMonthlyPrice(basicPlan.monthlyPrice!),
-    priceDetail: LAUNCH_PROMO_ENABLED ? 'per month · first year' : 'per month',
-    regularPriceLabel: LAUNCH_PROMO_ENABLED
-      ? formatPrice(basicPlan.monthlyPrice!)
-      : undefined,
-    annualBillingNote: annualBillingNote(basicPlan.monthlyPrice!),
+    ...paidPlanPriceFields('basic', basicPlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('basic') ?? undefined,
-    blurb: 'Small sites that want to ditch paper, speed up checks, and build a reliable workflow baseline.',
+    blurb:
+      'Small sites that want to ditch paper, speed up checks, and build a reliable workflow baseline.',
     bullets: [
       'Fast search by barcode',
       'Section auto timer for route pace',
@@ -115,14 +114,10 @@ export const marketingPlans: MarketingPlanCard[] = [
   {
     id: 'pro',
     name: 'Pro',
-    priceLabel: headlineMonthlyPrice(proPlan.monthlyPrice!),
-    priceDetail: LAUNCH_PROMO_ENABLED ? 'per month · first year' : 'per month',
-    regularPriceLabel: LAUNCH_PROMO_ENABLED
-      ? formatPrice(proPlan.monthlyPrice!)
-      : undefined,
-    annualBillingNote: annualBillingNote(proPlan.monthlyPrice!),
+    ...paidPlanPriceFields('pro', proPlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('pro') ?? undefined,
-    blurb: 'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
+    blurb:
+      'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
     bullets: [
       '7-day free trial on monthly billing — no credit card at signup (then paid monthly)',
       'Everything in Basic',
@@ -139,14 +134,10 @@ export const marketingPlans: MarketingPlanCard[] = [
   {
     id: 'elite',
     name: 'Elite',
-    priceLabel: headlineMonthlyPrice(elitePlan.monthlyPrice!),
-    priceDetail: LAUNCH_PROMO_ENABLED ? 'per month · first year' : 'per month',
-    regularPriceLabel: LAUNCH_PROMO_ENABLED
-      ? formatPrice(elitePlan.monthlyPrice!)
-      : undefined,
-    annualBillingNote: annualBillingNote(elitePlan.monthlyPrice!),
+    ...paidPlanPriceFields('elite', elitePlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('elite') ?? undefined,
-    blurb: 'Large programs that need advanced data tools, AI-supported operations, and priority help.',
+    blurb:
+      'Large programs that need advanced data tools, AI-supported operations, and priority help.',
     bullets: [
       'Everything in Pro',
       'Team member invites and role management',
@@ -225,7 +216,9 @@ const BASE_MARKETING_FAQ: MarketingFaqItem[] = [
 export function getMarketingFaq(): MarketingFaqItem[] {
   const launchFaq = getLaunchPromoFaqItem();
   if (!launchFaq) return BASE_MARKETING_FAQ;
-  const trialIdx = BASE_MARKETING_FAQ.findIndex((item) => item.q.includes('try it'));
+  const trialIdx = BASE_MARKETING_FAQ.findIndex((item) =>
+    item.q.includes('try it'),
+  );
   if (trialIdx === -1) return [...BASE_MARKETING_FAQ, launchFaq];
   return [
     ...BASE_MARKETING_FAQ.slice(0, trialIdx + 1),
