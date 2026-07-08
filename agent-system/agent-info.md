@@ -2378,3 +2378,10 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-07-08 — Daily review launch-promo pricing fix — built_by_Beck
+
+- Review bot found root `pnpm lint` failing after the plan-card price display refactor: unused `MarketingPlanPriceDisplay` imports, unused `promoPrice`, unused `paidPlanPriceFields`, and unused `planId` in `marketingPriceForInterval`.
+- Related build risk: `billingConfig.ts` had a duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION` export and missing launch-promo helper exports used by pricing tests/plan cards.
+- Fix commit `c3f21a8`: restored `launchPromoMonthlyPrice`, `getLaunchPromoCode`, and `getLaunchPromoPriceDisclaimer`; restored `marketingPriceForInterval` to require a paid plan id before showing promo pricing; reconnected public paid-plan cards to `paidPlanPriceFields`; removed stale imports/unused variable.
+- Validation: prettier on changed files, `pnpm lint`, `pnpm test` (13 files / 104 tests), `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run test` (14 suites / 58 tests, existing ts-jest warnings), and `npm --prefix functions run build` all pass.

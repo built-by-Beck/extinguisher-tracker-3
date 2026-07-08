@@ -357,3 +357,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Destructure `const { user, userProfile } = useAuth();` and use `user.uid` (guard `if (!user?.uid) return;`). This matches `Locations.tsx` which already uses `user.uid` for `createLocation`.
 
 **Prevention rule:** For any privileged write needing the actor's uid, read it from `useAuth().user.uid`, never from `userProfile`. Use `userProfile` only for org/profile metadata like `activeOrgId`.
+
+## 2026-07-08 - Launch promo display refactors must preserve helper/test contracts
+
+**What happened:** Daily review found `pnpm lint` broken after plan-card pricing UI changed from `MarketingPlanPriceDisplay` to `PlanHeadlinePrice`. The refactor left stale unused imports/variables, duplicated `LAUNCH_PROMO_DISCOUNT_FRACTION` in `billingConfig.ts`, and removed/ignored launch-promo helper exports that `marketingPlanPricing.test.ts` expects.
+
+**Fix used:** Restored `launchPromoMonthlyPrice`, `getLaunchPromoCode`, and `getLaunchPromoPriceDisclaimer`; restored `marketingPriceForInterval` so promo pricing only appears when a paid `planId` is supplied; reconnected paid marketing cards to `paidPlanPriceFields`; removed stale imports/unused variables.
+
+**Prevention rule:** When changing plan-card price rendering, keep `billingConfig.ts`, `marketingPlanPricing.ts`, `marketingPricingCopy.ts`, and `marketingPlanPricing.test.ts` in sync. Do not remove promo helper exports or make `marketingPriceForInterval()` apply launch promo pricing without a concrete paid plan id.

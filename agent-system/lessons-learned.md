@@ -242,3 +242,9 @@ Each entry follows this structure:
 - **Issue**: A test fixture used `manufactureYear: 3000` to guarantee a unit was not older than 6 years.
 - **Resolution**: Replaced the impossible sentinel with the current UTC year so the fixture remains realistic and future-safe.
 - **Rule**: Test fixtures for real-world domain data should use plausible dynamic dates or named constants instead of impossible values that look like product data.
+
+### 2026-07-08 -- Launch promo display refactors must preserve helper/test contracts
+- **Context**: Daily review after plan-card pricing UI changed from `MarketingPlanPriceDisplay` to `PlanHeadlinePrice`.
+- **Issue**: The refactor left unused imports/variables that broke `pnpm lint`, duplicated `LAUNCH_PROMO_DISCOUNT_FRACTION` in `billingConfig.ts`, and removed/ignored launch-promo helper exports that `marketingPlanPricing.test.ts` expects (`launchPromoMonthlyPrice`, `getLaunchPromoCode`, `getLaunchPromoPriceDisclaimer`).
+- **Resolution**: Restored the promo helper API, restored `marketingPriceForInterval` so promo pricing only appears when a paid `planId` is supplied, reconnected paid marketing cards to `paidPlanPriceFields`, and removed stale imports/unused variables.
+- **Rule**: When changing plan-card price rendering, keep `billingConfig.ts`, `marketingPlanPricing.ts`, `marketingPricingCopy.ts`, and `marketingPlanPricing.test.ts` in sync. Do not remove promo helper exports or make `marketingPriceForInterval()` apply launch promo pricing without a concrete paid plan id.
