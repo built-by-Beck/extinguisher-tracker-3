@@ -38,6 +38,8 @@ const ExtinguisherDetail = lazy(
 );
 const Notifications = lazy(() => import('../pages/Notifications.tsx'));
 const Notes = lazy(() => import('../pages/Notes.tsx'));
+const FieldWork = lazy(() => import('../pages/FieldWork.tsx'));
+const FieldWorkDocument = lazy(() => import('../pages/FieldWorkDocument.tsx'));
 const SyncQueue = lazy(() => import('../pages/SyncQueue.tsx'));
 const Reports = lazy(() => import('../pages/Reports.tsx'));
 const AuditLogs = lazy(() => import('../pages/AuditLogs.tsx'));
@@ -175,6 +177,11 @@ export function AppRoutes() {
             />
             <Route path="notifications" element={<Notifications />} />
             <Route path="notes" element={<Notes />} />
+            <Route path="field-work" element={<FieldWork />} />
+            <Route
+              path="field-work/:documentId"
+              element={<FieldWorkDocument />}
+            />
             <Route path="sync-queue" element={<SyncQueue />} />
             <Route path="reports" element={<Reports />} />
             <Route path="time-tracking" element={<TimeTracking />} />

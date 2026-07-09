@@ -30,6 +30,15 @@ import {
   subscribeToAiNotes,
   updateAiNoteStatusCall,
 } from '../../services/aiNotesService.ts';
+import { createWorkDocumentCall } from '../../services/workDocumentService.ts';
+import {
+  generateEgressStairwellSheet,
+  parseWorkDocumentIntent,
+} from '../../services/workDocumentGenerator.ts';
+import {
+  subscribeToLocations,
+  type Location,
+} from '../../services/locationService.ts';
 import { useOffline } from '../../hooks/useOffline.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
@@ -81,6 +90,7 @@ function formatNfpaReference(
 function buildSuggestedPrompts(nfpaReference: string): string[] {
   return [
     'Take a note that ',
+    'Create a checksheet for stairwell egress lights in Building B',
     'Organize my open notes',
     `What does ${nfpaReference} require for monthly inspections?`,
     `Compare ${nfpaReference} to our local AHJ notes for annual requirements.`,
@@ -178,6 +188,7 @@ export function AiAssistantPanel({
   >([]);
   const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
   const [notes, setNotes] = useState<AiNote[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [noteBusyId, setNoteBusyId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<SelectedAiImage | null>(
     null,
@@ -225,6 +236,15 @@ export function AiAssistantPanel({
     }
 
     return subscribeToAiNotes(orgId, setNotes, 8);
+  }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId) {
+      setLocations([]);
+      return;
+    }
+
+    return subscribeToLocations(orgId, setLocations);
   }, [orgId]);
 
   useEffect(() => {
@@ -528,6 +548,46 @@ export function AiAssistantPanel({
           {
             role: 'assistant',
             content: `Saved note: "${noteContent}"\n\nI added it to your org notes with status **open** (${summary}). View all notes on the Notes tab.`,
+          },
+        ]);
+        return;
+      }
+
+      const workDocIntent = parseWorkDocumentIntent(messageText);
+      if (workDocIntent && canManageNotes && !imageForMessage && orgId) {
+        const draft = generateEgressStairwellSheet({
+          locations,
+          buildingHint: workDocIntent.buildingHint ?? undefined,
+        });
+        const { documentId } = await createWorkDocumentCall({
+          orgId,
+          title: draft.title,
+          description: draft.description,
+          type: 'checksheet',
+          category: draft.category,
+          status: 'active',
+          schema: draft.schema,
+          source: 'ai_generated',
+          relatedLocationId: draft.relatedLocationId,
+          relatedLocationLabel: draft.relatedLocationLabel,
+        });
+        const sectionCount = draft.schema.sections.length;
+        const itemCount = draft.schema.sections.reduce(
+          (sum, section) => sum + section.items.length,
+          0,
+        );
+        setMessages([
+          ...updatedMessages,
+          {
+            role: 'assistant',
+            content: [
+              `Created **${draft.title}** with ${sectionCount} section(s) and ${itemCount} row(s) from your location tree.`,
+              draft.relatedLocationLabel
+                ? `Linked to: ${draft.relatedLocationLabel}`
+                : 'No building match found — edit rows manually or tag stairwells in Locations.',
+              `Open it on the **Field Work** tab to edit or print: /dashboard/field-work/${documentId}`,
+              'Pass/fail columns are on the printable sheet for now; in-app walk completion will come later.',
+            ].join('\n\n'),
           },
         ]);
         return;

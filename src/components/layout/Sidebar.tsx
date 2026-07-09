@@ -29,6 +29,7 @@ import {
   ClipboardCheck,
   Clock,
   NotebookPen,
+  ListChecks,
 } from 'lucide-react';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useOffline } from '../../hooks/useOffline.ts';
@@ -65,6 +66,13 @@ const navItems: NavItem[] = [
     to: '/dashboard/notes',
     label: 'Notes',
     icon: NotebookPen,
+    end: false,
+    requiredFeature: 'aiAssistant',
+  },
+  {
+    to: '/dashboard/field-work',
+    label: 'Field Work',
+    icon: ListChecks,
     end: false,
     requiredFeature: 'aiAssistant',
   },

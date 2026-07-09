@@ -44,3 +44,17 @@ export type {
   NoteRelatedEntityType,
   AiNoteClassification,
 } from './aiNote.ts';
+
+// Field work documents
+export type {
+  WorkDocument,
+  WorkDocumentCategory,
+  WorkDocumentField,
+  WorkDocumentFieldType,
+  WorkDocumentItem,
+  WorkDocumentItemResultStatus,
+  WorkDocumentSchema,
+  WorkDocumentSection,
+  WorkDocumentStatus,
+  WorkDocumentType,
+} from './workDocument.ts';
