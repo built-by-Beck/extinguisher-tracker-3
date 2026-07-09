@@ -2378,3 +2378,12 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-07-09 — Daily review pricing gate fix — built_by_Beck
+
+Review Bot found launch-promo pricing drift that broke `pnpm lint`, `pnpm build`, and the pricing test suite:
+
+- Removed dead pricing imports/helpers and the no-op `planId` argument from `marketingPriceForInterval`.
+- Restored a read-only `getLaunchPromoCode()` helper for display code and removed a duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION` export.
+- Aligned `MarketingPlanPriceDisplay` and `marketingPlanPricing.test.ts` with the current `MarketingPriceDisplay` contract.
+- Validation: targeted Prettier, `pnpm lint`, `pnpm build`, `pnpm test`, functions lint/build/test, final `pnpm lint && pnpm build`, `git diff --check`, and targeted risky-pattern/secret scans all pass.

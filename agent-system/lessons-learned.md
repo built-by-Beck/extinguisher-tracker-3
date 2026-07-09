@@ -20,6 +20,12 @@ Each entry follows this structure:
 
 ## Entries
 
+### 2026-07-09 -- Keep Pricing Promo Types, Helpers, and Tests in Lockstep
+- **Context**: Daily Review Bot ran lint/build/tests after launch-promo pricing display edits.
+- **Issue**: Stale pricing artifacts diverged: unused imports/helpers broke lint, `PlanSelector` referenced a missing `getLaunchPromoCode`, `billingConfig` redeclared `LAUNCH_PROMO_DISCOUNT_FRACTION`, and `marketingPlanPricing.test.ts` still expected removed per-plan promo fields.
+- **Resolution**: Removed dead pricing code, restored a read-only promo-code helper, kept one discount constant, and updated the display component/tests to the current global-promo `MarketingPriceDisplay` contract.
+- **Rule**: When changing launch-promo pricing helpers or display types, update every caller, display component, and pricing test in the same change; run both lint and build because unused/stale promo code can pass one gate while failing the other.
+
 ### 2026-05-07 -- Full `firebase deploy` aborts when cloud has extra functions
 - **Context**: Running `firebase deploy` (all targets) after commit/push; project `extinguisher-tracker-3` had legacy callable functions in GCP that are not exported from local `functions/src/index.ts`.
 - **Issue**: CLI exits with “functions are found in your project but do not exist in your local source code” and refuses deletion in non-interactive mode, so nothing deploys if you only ran the full command once.

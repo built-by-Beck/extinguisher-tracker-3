@@ -19,12 +19,6 @@ export function MarketingPlanPriceDisplay({
 
   return (
     <div className={className}>
-      {price.promoBadge ? (
-        <p className="mb-2 inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-extrabold uppercase tracking-wide text-amber-900">
-          {price.promoBadge}
-        </p>
-      ) : null}
-
       <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         {price.regularPriceLabel ? (
           <span className="text-lg font-semibold text-gray-400 line-through">

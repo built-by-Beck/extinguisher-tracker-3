@@ -30,7 +30,6 @@ export type MarketingPriceDisplay = {
 export function marketingPriceForInterval(
   monthlyPrice: number,
   interval: BillingIntervalPreference,
-  planId?: LaunchPromoPlanId,
 ): MarketingPriceDisplay {
   const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
   const promoActive = LAUNCH_PROMO_ENABLED;
