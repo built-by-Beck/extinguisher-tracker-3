@@ -28,13 +28,41 @@ export const LAUNCH_PROMO = {
   bannerImage: '/launch-promo-banner.png',
 } as const;
 
-/** Launch promo discount — 50% off first-year charges at checkout with promo code. */
-export const LAUNCH_PROMO_DISCOUNT_FRACTION = 0.5;
-
 export function applyLaunchPromoDiscount(amount: number): number {
   return (
     Math.round(amount * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION) * 100) / 100
   );
+}
+
+/** Promo monthly display price with .99 snapping when close. */
+export function launchPromoMonthlyPrice(monthly: number): number {
+  const halfExact = monthly * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION);
+  const snapped = Math.floor(halfExact) + 0.99;
+  if (Math.abs(halfExact - snapped) <= 0.01) return snapped;
+  return Math.round(halfExact * 100) / 100;
+}
+
+export function getLaunchPromoCode(planId: LaunchPromoPlanId): string {
+  return LAUNCH_PROMO.codes[planId];
+}
+
+export function getLaunchPromoPriceDisclaimer(
+  monthlyPrice: number,
+  planId: LaunchPromoPlanId,
+  interval: 'month' | 'year' = 'month',
+): string | null {
+  if (!LAUNCH_PROMO_ENABLED) return null;
+  const code = getLaunchPromoCode(planId);
+  const promoMonthly = launchPromoMonthlyPrice(monthlyPrice);
+  const regularLabel = formatUsd(monthlyPrice);
+  const promoLabel = formatUsd(promoMonthly);
+  if (interval === 'year') {
+    const yearlyTotal = applyLaunchPromoDiscount(
+      Math.round(monthlyPrice * 12 * (1 - 0.1) * 100) / 100,
+    );
+    return `50% off your first year with code ${code} at checkout. First year billed at ${formatUsd(yearlyTotal)} — then regular annual pricing applies.`;
+  }
+  return `50% off your first year with code ${code} at checkout. After 12 months, billing returns to ${regularLabel}/mo (currently ${promoLabel}/mo with promo).`;
 }
 
 export function formatUsd(amount: number): string {

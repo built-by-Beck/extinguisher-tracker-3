@@ -5,6 +5,7 @@ import { functions } from '../../lib/firebase.ts';
 import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
 import {
   getLaunchPromoCheckoutHint,
+  getLaunchPromoCode,
   LAUNCH_PROMO_ENABLED,
   TRIAL_DAYS,
 } from '../../lib/billingConfig.ts';
@@ -162,10 +163,6 @@ export function PlanSelector({
           const showTrialHint = trialEligible && billingInterval === 'year';
           const priceDisplay =
             plan.monthlyPrice !== null
-              ? marketingPriceForInterval(plan.monthlyPrice, billingInterval)
-              : null;
-          const promoPrice =
-            plan.monthlyPrice !== null && plan.name !== 'enterprise'
               ? marketingPriceForInterval(
                   plan.monthlyPrice,
                   billingInterval,
