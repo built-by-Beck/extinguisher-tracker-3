@@ -7,7 +7,6 @@ import {
   marketingPlans,
 } from './marketingPricingCopy.ts';
 import { LAUNCH_PROMO, LAUNCH_PROMO_ENABLED } from '../../lib/billingConfig.ts';
-import { LaunchPromoBanner } from '../../components/marketing/LaunchPromoBanner.tsx';
 import { LimitedTimeOfferBanner } from '../../components/marketing/LimitedTimeOfferBanner.tsx';
 import { PlanHeadlinePrice } from '../../components/billing/PlanHeadlinePrice.tsx';
 import { marketingSeo } from './marketingSeo.ts';
@@ -50,7 +49,6 @@ export default function MarketingPricingPage() {
         <div className="border-b border-gray-200 bg-gray-100 px-4 py-8 sm:px-6 sm:py-10">
           <div className="mx-auto max-w-6xl space-y-6">
             <LimitedTimeOfferBanner variant="inline" />
-            <LaunchPromoBanner variant="compact" />
           </div>
         </div>
 
