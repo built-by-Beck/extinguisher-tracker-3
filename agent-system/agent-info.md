@@ -2378,3 +2378,14 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-07-10 — Document pass: frontend launch-promo pricing lint fix — built_by_Beck
+
+- Documented change: accepted-with-minor-concerns fix for root ESLint blockers from half-applied frontend marketing pricing refactor (`bc6bb5e`, `5492922`); scope stayed display-only (`marketingPriceForInterval`, launch promo helpers, pricing cards/tests), with no Stripe checkout/webhook, backend, security rules, or gating changes.
+- Files inspected: recent `agent-system/agent-info.md`, relevant lessons, target commit diffs, `src/lib/marketingPlanPricing.ts`, `src/lib/billingConfig.ts`, `src/lib/marketingPlanPricing.test.ts`, `src/components/billing/PlanSelector.tsx`, `src/components/billing/PlanHeadlinePrice.tsx`, `src/components/marketing/MarketingPricingPlans.tsx`, `src/pages/marketing/MarketingPricingPage.tsx`, `src/pages/marketing/MarketingPlanDetailPage.tsx`, `src/pages/marketing/marketingPricingCopy.ts`, `README.md`, and `src/lib/planConfig.ts`.
+- Files updated: `agent-system/lessons-learned.md` with a concise prevention rule for launch-promo pricing-helper drift; this `agent-system/agent-info.md` entry.
+- README status: considered; not changed because these commits did not alter shipped setup, billing behavior, or public docs.
+- TODO status: no root `TODO.md` present; no roadmap change needed.
+- Website/marketing page status: considered; not changed because public pricing/FAQ copy is already driven by the updated helpers and no new capability/value prop shipped.
+- FAQ/getting started status: no change needed.
+- Remaining documentation needed: none for this lint/display-helper fix. Note: `functions/package-lock.json` was already modified in the worktree and was not touched.

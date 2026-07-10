@@ -220,6 +220,11 @@ Each entry follows this structure:
   5. Fixed webhook to sync subscription status from Stripe instead of forcing `active`.
 - **Rule**: When billing behavior is Stripe-driven, verify checkout session params, webhook cache updates, and marketing copy stay in sync. Use env flags for time-limited public promos.
 
+### 2026-07-10 -- Launch promo pricing helpers must stay wired through shared display helpers
+- **Context**: Daily Review Bot found root ESLint blocked after a half-applied frontend-only marketing pricing refactor.
+- **Issue**: Dead imports/helpers and callsites that omitted the plan id drifted from `marketingPriceForInterval`, so launch promo symbols became unused or lost promo-code context.
+- **Rule**: When changing launch-promo pricing UI, route public and settings plan cards through `marketingPriceForInterval(monthlyPrice, interval, planId)` plus `PlanHeadlinePrice`, remove obsolete display components/imports in the same change, and run root lint/tests before handoff.
+
 ## 2026-06-21 — Live launch: Stripe webhook pointed at wrong Firebase project
 
 - **Issue**: After launch, checkout could complete in Stripe but orgs stayed on "No active subscription". Stripe Dashboard had only one webhook URL targeting `extinguishertracker` (legacy project), not EX3's `stripeWebhook` Cloud Run URL. Promo codes had no `max_redemptions`; Stripe API rejects patching that field on existing codes.
