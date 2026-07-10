@@ -15,7 +15,7 @@ Reference source: turn2file1
 
 Price:
 
-$29.99 per month
+$39.99 per month
 
 Designed for:
 
@@ -43,19 +43,13 @@ Features:
 - manual barcode entry
 - helps small teams stay on schedule and reduce paperwork
 
-Optional Add-On:
-
-Barcode scanning module
-
-+$25/month
-
 ---
 
 ### Pro Plan
 
 Price:
 
-$99 per month
+$129.99 per month
 
 Designed for:
 
@@ -89,7 +83,7 @@ Features:
 
 Price:
 
-$199 per month
+$229.99 per month
 
 Designed for:
 
@@ -179,11 +173,13 @@ Firestore stores **billing state cache only**.
 
 ---
 
-## Pro free trial (monthly billing)
+## Free trial
 
-- Organizations may be offered a **7-day** Pro trial when subscribing to **monthly** Pro through Stripe Checkout **without** a payment method up front (Stripe collects a payment method before the first paid charge when configured).
-- Eligibility is enforced server-side in Cloud Functions (not the client): typically **one trial per organization**, tracked with **`proTrialConsumed`** once the subscription enters **`trialing`**, and **no trial** when an organization already has an active Stripe subscription (for example upgrading from Basic).
-- Optional env **`PRO_TRIAL_DAYS`** on Functions overrides the default trial length (default **7**).
+- Organizations may be offered a **14-day** checkout trial. The checkout trial length is controlled by Functions env **`STRIPE_TRIAL_DAYS`** and defaults to **14**.
+- Frontend trial copy is controlled by **`VITE_TRIAL_DAYS`** and should stay aligned with `STRIPE_TRIAL_DAYS`.
+- Eligibility is enforced server-side in Cloud Functions (not the client): typically **one trial per organization**, tracked with **`trialUsedAt`** once the subscription enters **`trialing`**, and **no trial** when an organization already has an active Stripe subscription (for example upgrading from Basic).
+- The Pro monthly trial funnel also tracks **`proTrialConsumed`** once a Pro subscription enters **`trialing`**.
+- Follow-up: the legacy **`PRO_TRIAL_DAYS`** helper currently falls back to **7** if unset, while env examples set it to **14** for alignment. Reconcile that backend helper before removing the explicit env value.
 
 ---
 

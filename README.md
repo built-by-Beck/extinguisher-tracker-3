@@ -117,12 +117,12 @@ extinguisher-tracker-3/
 
 ## Plans & Pricing
 
-| Plan           | Price     | Extinguishers                      | Target Audience                                     |
-| -------------- | --------- | ---------------------------------- | --------------------------------------------------- |
-| **Basic**      | $29.99/mo | 50 included (+$10/50 additional)   | Small businesses, restaurants, retail stores        |
-| **Pro**        | $99/mo    | 250 included (+$10/100 additional) | Schools, small hospitals, property managers         |
-| **Elite**      | $199/mo   | 500 included (+$10/200 additional) | Large facilities, universities, industrial campuses |
-| **Enterprise** | Custom    | Unlimited                          | Custom compliance workflows, SLA support            |
+| Plan           | Price      | Extinguishers                      | Target Audience                                     |
+| -------------- | ---------- | ---------------------------------- | --------------------------------------------------- |
+| **Basic**      | $39.99/mo  | 50 included (+$10/50 additional)   | Small businesses, restaurants, retail stores        |
+| **Pro**        | $129.99/mo | 250 included (+$10/100 additional) | Schools, small hospitals, property managers         |
+| **Elite**      | $229.99/mo | 500 included (+$10/200 additional) | Large facilities, universities, industrial campuses |
+| **Enterprise** | Custom     | Unlimited                          | Custom compliance workflows, SLA support            |
 
 All plans include core inventory, inspection features, and preset user avatars. Higher tiers unlock barcode scanning, GPS capture, inspection photos, AI assistant, organization logo branding, route optimization, advanced analytics, lifecycle compliance tracking, and priority support.
 
@@ -164,6 +164,7 @@ VITE_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 VITE_STRIPE_PUBLISHABLE_KEY=pk_live_or_test_xxx
+VITE_TRIAL_DAYS=14
 ```
 
 Set Cloud Functions secrets via Firebase:
@@ -180,13 +181,15 @@ Set **monthly and yearly** Stripe price IDs in `functions/.env` (deploy-time par
 
 See [`functions/.env.example`](functions/.env.example) for amounts (yearly = monthly × 12 × 0.9).
 
-### Billing (Stripe) and Pro trial
+### Billing (Stripe) and free trial
 
 - **Source of truth:** Stripe subscriptions and webhooks update cached fields on `org/{orgId}` (`subscriptionStatus`, `trialEnd`, `proTrialConsumed`, etc.). Clients never write billing fields; see [`firestore.rules`](firestore.rules).
-- **Pro 7-day trial (monthly only):** New organizations with **no existing Stripe subscription** can start Checkout with a **7-day** Pro trial and **`payment_method_collection: if_required`** (no card until needed). Configurable via **`PRO_TRIAL_DAYS`** in Functions runtime env (`functions/.env` / deploy env); default **7**.
-- **One trial per org:** `proTrialConsumed` is set when the subscription enters **`trialing`** for Pro (webhook). Orgs that already have **`stripeSubscriptionId`** (e.g. Basic) upgrade via paid Checkout without this trial path.
+- **14-day trial display:** Frontend trial copy is driven by **`VITE_TRIAL_DAYS`** and defaults to **14**. Keep it aligned with the Functions checkout trial length.
+- **Checkout trial length:** `createCheckoutSession` uses **`STRIPE_TRIAL_DAYS`** for `trial_period_days`; the Functions param default is **14**. Set `STRIPE_TRIAL_DAYS=14` in `functions/.env` / deploy env unless intentionally changing the offer.
+- **One trial per org:** `trialUsedAt` prevents another checkout trial after the first trialing subscription. `proTrialConsumed` is also set when a Pro subscription enters **`trialing`** for the Pro-specific trial funnel. Orgs that already have **`stripeSubscriptionId`** upgrade via paid Checkout without this trial path.
+- **Known follow-up:** The legacy `proTrialDaysFromEnv()` helper still falls back to **7** if `PRO_TRIAL_DAYS` is unset. Keep `PRO_TRIAL_DAYS=14` in Functions env examples/deploy env until that backend helper is reconciled with `STRIPE_TRIAL_DAYS`.
 - **Stripe webhook events:** Ensure your Stripe Dashboard endpoint receives at least: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `invoice.payment_failed`, and optionally **`customer.subscription.trial_will_end`** (audit log only today). Use the **live** signing secret in production (`STRIPE_WEBHOOK_SECRET`).
-- **Annual billing:** Yearly checkout uses the `*_YEARLY` price IDs above. The no-card Pro trial applies to **monthly** Pro only.
+- **Annual billing:** Yearly checkout uses the `*_YEARLY` price IDs above.
 
 ### Development
 

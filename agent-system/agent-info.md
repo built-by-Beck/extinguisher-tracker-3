@@ -2389,3 +2389,16 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Website/marketing page status: considered; not changed because public pricing/FAQ copy is already driven by the updated helpers and no new capability/value prop shipped.
 - FAQ/getting started status: no change needed.
 - Remaining documentation needed: none for this lint/display-helper fix. Note: `functions/package-lock.json` was already modified in the worktree and was not touched.
+
+## 2026-07-10 — Document pass: accepted daily-review pricing/trial copy follow-up — built_by_Beck
+
+- Documented change: accepted-with-minor-concerns daily-review follow-up for frontend launch-promo pricing/copy fixes. Aligned safe docs/env examples to the verified 14-day trial display/checkout defaults, current configured plan prices, and current Basic plan feature shape; no backend code, Firestore rules, Stripe settings, or production settings changed.
+- Files inspected: recent `agent-system/agent-info.md`, relevant `agent-system/agents-info.md`, `agent-system/plan.md`, `agent-system/lessons-learned.md`, `agent-system/error_log.jsonl`, `README.md`, `.env.example`, `functions/.env.example`, `BUILD-SPECS/09-PLANS-PRICING_UPDATED.md`, `CODEX.md`, root guidance from `AGENTS.md`/`CLAUDE.md`, `src/lib/billingConfig.ts`, `src/lib/planConfig.ts`, `functions/src/config/params.ts`, `functions/src/billing/createCheckoutSession.ts`, `functions/src/billing/proTrialEligibility.ts`, `functions/src/billing/trialEligibility.ts`, `functions/src/billing/planConfig.ts`, and relevant pricing/signup/terms components.
+- Files updated: `.env.example`, `README.md`, `BUILD-SPECS/09-PLANS-PRICING_UPDATED.md`, `functions/.env.example`, and this `agent-system/agent-info.md` entry.
+- README status: updated to current $39.99 / $129.99 / $229.99 configured defaults, `VITE_TRIAL_DAYS=14`, `STRIPE_TRIAL_DAYS=14`, and the deferred `PRO_TRIAL_DAYS` fallback mismatch.
+- TODO status: no root `TODO.md` exists; did not create one for this narrow follow-up because the deferred backend cleanup is captured in README/spec/env comments and this memory entry.
+- Website/marketing page status: inspected; no public copy changed because frontend trial/promo copy already uses `TRIAL_DAYS` and was accepted in review.
+- FAQ/getting started status: marketing FAQ uses `TRIAL_DAYS`; README setup/env notes updated.
+- Pricing/plan copy status: README and BUILD-SPECS/09 aligned to current plan config/env example prices; removed the stale spec-only Basic barcode-scanning add-on claim; no pricing numbers changed in source or Stripe settings.
+- Remaining documentation/follow-up: reconcile `functions/src/billing/proTrialEligibility.ts` / tests so `PRO_TRIAL_DAYS` does not silently default to 7 when unset, or remove the legacy helper if `STRIPE_TRIAL_DAYS` remains the checkout source of truth. Also verify whether "no card at checkout" copy is still backed by `createCheckoutSession`, since the inspected function does not currently set `payment_method_collection`.
+- Worktree note: pre-existing uncommitted `functions/package-lock.json` was not touched.
