@@ -59,17 +59,25 @@ const MARKETING_PAGE_TITLES: Record<
 
 type PublicMarketingLayoutProps = {
   children: ReactNode;
+  heroTitle?: string;
+  heroSubtitle?: string;
 };
 
 export function PublicMarketingLayout({
   children,
+  heroTitle,
+  heroSubtitle,
 }: PublicMarketingLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [trialBarHidden, setTrialBarHidden] = useState(true);
   const location = useLocation();
-  const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? {
-    title: 'ExtinguisherTracker',
-    subtitle: '',
+  const pageInfo = {
+    ...(MARKETING_PAGE_TITLES[location.pathname] ?? {
+      title: 'ExtinguisherTracker',
+      subtitle: '',
+    }),
+    ...(heroTitle ? { title: heroTitle } : {}),
+    ...(heroSubtitle ? { subtitle: heroSubtitle } : {}),
   };
   const showLayoutMegaOffer = location.pathname !== '/pricing';
 
@@ -177,7 +185,11 @@ export function PublicMarketingLayout({
             aria-controls="marketing-mobile-nav"
             onClick={() => setMobileOpen((o) => !o)}
           >
-            {mobileOpen ? <X className="h-6 w-6" aria-hidden /> : <Menu className="h-6 w-6" aria-hidden />}
+            {mobileOpen ? (
+              <X className="h-6 w-6" aria-hidden />
+            ) : (
+              <Menu className="h-6 w-6" aria-hidden />
+            )}
             <span className="sr-only">Menu</span>
           </button>
         </div>

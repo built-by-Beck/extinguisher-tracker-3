@@ -197,7 +197,10 @@ export default function MarketingPlanDetailPage() {
         description={plan.blurb}
         path={`/plans/${id}`}
       />
-      <PublicMarketingLayout>
+      <PublicMarketingLayout
+        heroTitle={`${plan.name} Plan`}
+        heroSubtitle={plan.blurb}
+      >
         <div className="border-b border-gray-200 bg-white">
           <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6 sm:py-16">
             <Link
