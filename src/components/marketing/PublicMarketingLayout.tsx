@@ -6,6 +6,7 @@ import { MarketingSignupLink } from './MarketingSignupLink.tsx';
 import { TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { LaunchPromoBanner } from './LaunchPromoBanner.tsx';
 import { LimitedTimeOfferBanner } from './LimitedTimeOfferBanner.tsx';
+import { getProTrialShortLabel } from '../../lib/billingConfig.ts';
 
 const TRIAL_BAR_DISMISS_KEY = 'ex3-hide-trial-bar';
 
@@ -104,8 +105,8 @@ export function PublicMarketingLayout({
     <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
       {!trialBarHidden ? (
         <div className="bg-red-700 px-4 py-2.5 text-center text-sm text-white">
-          <span className="font-semibold">7-day Pro trial</span> — no credit
-          card required.{' '}
+          <span className="font-semibold">{getProTrialShortLabel()}</span> — no
+          credit card required.{' '}
           <MarketingSignupLink
             proTrial
             className="font-bold underline decoration-white/50 underline-offset-2 hover:text-red-100"

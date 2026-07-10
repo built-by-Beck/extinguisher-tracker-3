@@ -14,6 +14,7 @@ import {
   applyLaunchPromoDiscount,
   getLaunchPromoFaqItem,
   getLaunchPromoPlanNote,
+  getProMonthlyTrialBullet,
   LAUNCH_PROMO_ENABLED,
   launchPromoMonthlyPrice,
   TRIAL_DAYS,
@@ -104,7 +105,7 @@ export const marketingPlans: MarketingPlanCard[] = [
     blurb:
       'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
     bullets: [
-      '7-day free trial on monthly billing — no credit card at signup (then paid monthly)',
+      getProMonthlyTrialBullet(),
       'Everything in Basic',
       'Fast phone camera scanning',
       'AI Maintenance helper with configurable NFPA reference',

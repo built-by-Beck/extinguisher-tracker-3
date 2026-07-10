@@ -53,6 +53,18 @@ export function getPermanentSavingsLine(): string {
   return `${TRIAL_DAYS}-day free trial · 10% off annual prepay`;
 }
 
+export function getProTrialShortLabel(): string {
+  return `${TRIAL_DAYS}-day Pro trial`;
+}
+
+export function getProMonthlyTrialBullet(): string {
+  return `${TRIAL_DAYS}-day free trial on monthly billing — no credit card at signup (then paid monthly)`;
+}
+
+export function getStartProTrialCta(): string {
+  return `Start ${TRIAL_DAYS}-day trial`;
+}
+
 export function getLaunchPromoBannerCopy(): string | null {
   if (!LAUNCH_PROMO_ENABLED) return null;
   return `Limited time for the first ${LAUNCH_PROMO_MAX_CUSTOMERS} customers: ${LAUNCH_PROMO.headline}. Use EX3PRO50 (Pro), EX3BASIC50 (Basic), or EX3ELITE50 (Elite) at checkout — applies after your ${TRIAL_DAYS}-day free trial.`;
