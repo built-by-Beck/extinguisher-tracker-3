@@ -242,3 +242,15 @@ Each entry follows this structure:
 - **Issue**: A test fixture used `manufactureYear: 3000` to guarantee a unit was not older than 6 years.
 - **Resolution**: Replaced the impossible sentinel with the current UTC year so the fixture remains realistic and future-safe.
 - **Rule**: Test fixtures for real-world domain data should use plausible dynamic dates or named constants instead of impossible values that look like product data.
+
+### 2026-07-11 -- Launch promo pricing helpers, display copy, and tests must move together
+- **Context**: Daily Review Bot found launch-promo pricing edits left the app unable to lint, typecheck/build, or pass pricing tests.
+- **Issue**: Cleanup removed or bypassed helper surfaces inconsistently: `getLaunchPromoCode` was still called but not exported, `MarketingPriceDisplay` lacked fields used by its display component/tests, dead pricing-copy helper code referenced removed functions, and tests mocked old `.99` snapping behavior.
+- **Resolution**: Restored a small display-only promo-code helper backed by `LAUNCH_PROMO.codes`, made `marketingPriceForInterval` plan-id aware, removed stale unused helper/imports, and updated tests to the current 50% rounding behavior.
+- **Rule**: When changing launch-promo pricing copy, update `billingConfig`, `marketingPlanPricing`, display components, marketing copy, and pricing tests in one pass. Run `pnpm lint`, `pnpm build`, and `pnpm test` before considering the pricing cleanup complete.
+
+### 2026-07-11 -- Case-sensitive assertions should match intentional copy exactly
+- **Context**: During the launch-promo repair, validation failed because a test asserted lowercase `first year` while the actual footnote intentionally starts with `First year`.
+- **Issue**: The implementation was correct, but the assertion was too loosely aligned with the exact copy and failed due to case.
+- **Resolution**: Tightened the assertion to the intended phrase and amount: `First year billed at $701.95`.
+- **Rule**: For user-facing copy tests, assert the exact meaningful phrase/currency output that matters instead of a case-mismatched substring.
