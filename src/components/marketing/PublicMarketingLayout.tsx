@@ -67,13 +67,13 @@ export function PublicMarketingLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [trialBarHidden, setTrialBarHidden] = useState(true);
   const location = useLocation();
-  const pageInfo = MARKETING_PAGE_TITLES[location.pathname] ?? {
+  const currentPath = location.pathname.replace(/\/+$/, '') || '/';
+  const pageInfo = MARKETING_PAGE_TITLES[currentPath] ?? {
     title: 'ExtinguisherTracker',
     subtitle: '',
   };
   const showLayoutPromoBanners =
-    location.pathname !== '/pricing' &&
-    !location.pathname.startsWith('/plans/');
+    currentPath !== '/pricing' && !currentPath.startsWith('/plans/');
 
   useEffect(() => {
     try {
