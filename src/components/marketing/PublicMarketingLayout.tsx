@@ -71,7 +71,9 @@ export function PublicMarketingLayout({
     title: 'ExtinguisherTracker',
     subtitle: '',
   };
-  const showLayoutMegaOffer = location.pathname !== '/pricing';
+  const showLayoutPromoBanners =
+    location.pathname !== '/pricing' &&
+    !location.pathname.startsWith('/plans/');
 
   useEffect(() => {
     try {
@@ -177,7 +179,11 @@ export function PublicMarketingLayout({
             aria-controls="marketing-mobile-nav"
             onClick={() => setMobileOpen((o) => !o)}
           >
-            {mobileOpen ? <X className="h-6 w-6" aria-hidden /> : <Menu className="h-6 w-6" aria-hidden />}
+            {mobileOpen ? (
+              <X className="h-6 w-6" aria-hidden />
+            ) : (
+              <Menu className="h-6 w-6" aria-hidden />
+            )}
             <span className="sr-only">Menu</span>
           </button>
         </div>
@@ -250,8 +256,12 @@ export function PublicMarketingLayout({
         ) : null}
       </header>
 
-      {showLayoutMegaOffer ? <LimitedTimeOfferBanner /> : null}
-      <LaunchPromoBanner />
+      {showLayoutPromoBanners ? (
+        <>
+          <LimitedTimeOfferBanner />
+          <LaunchPromoBanner />
+        </>
+      ) : null}
 
       {/* Hero banner with page title overlay */}
       <div className="relative border-t border-gray-800 bg-gray-900 pt-1 sm:pt-2">
