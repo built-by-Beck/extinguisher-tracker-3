@@ -30,7 +30,7 @@ describe('marketingPriceForInterval launch promo', () => {
     const display = marketingPriceForInterval(129.99, 'year', 'pro');
     expect(display.regularPriceLabel).toBe('$116.99');
     expect(display.priceLabel).toBe('$58.50');
-    expect(display.footnote).toContain('first year');
+    expect(display.footnote).toContain('First year billed at $701.95');
   });
 
   it('falls back to regular pricing when plan id is omitted', () => {
