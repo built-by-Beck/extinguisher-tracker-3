@@ -2378,3 +2378,10 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-07-12 — Daily review launch-promo compile fix — built_by_Beck
+
+- Review bot found frontend lint/build failures in launch-promo pricing display code: duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION`, missing promo helper exports/imports, an unused `promoPrice`, stale unused `MarketingPlanPriceDisplay` imports, and an unused dead `paidPlanPriceFields` helper.
+- Fixed display-only pricing helpers so `marketingPriceForInterval(monthly, interval, planId)` is the plan-aware promo path, includes `promoBadge`/code/disclaimer fields expected by tests/components, and falls back to regular pricing when `planId` is omitted.
+- Validation: `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` passed. `pnpm format:check` still fails on 38 pre-existing files not touched by this fix.
+- Manual verification: `/pricing` and `/plans/pro` rendered in the browser with launch-promo prices and no visible React errors; only external analytics/extension 403s appeared in console.

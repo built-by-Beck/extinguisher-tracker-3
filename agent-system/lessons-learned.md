@@ -242,3 +242,9 @@ Each entry follows this structure:
 - **Issue**: A test fixture used `manufactureYear: 3000` to guarantee a unit was not older than 6 years.
 - **Resolution**: Replaced the impossible sentinel with the current UTC year so the fixture remains realistic and future-safe.
 - **Rule**: Test fixtures for real-world domain data should use plausible dynamic dates or named constants instead of impossible values that look like product data.
+
+### 2026-07-12 -- Plan-aware promo pricing helpers need matching exports, types, and tests
+- **Context**: Daily review of launch-promo pricing display code after marketing/billing copy changes.
+- **Issue**: The frontend build failed because the display helper accepted `planId` but did not import/use `LaunchPromoPlanId`, did not expose the `promoBadge` field expected by UI/tests, and related copy files referenced missing promo helpers or left dead unused imports/variables behind.
+- **Resolution**: Added the missing display-only promo helper exports, made `marketingPriceForInterval` apply promo pricing only when a plan id is supplied, removed dead unused pricing copy, and updated the Vitest mock to preserve actual billing helper exports.
+- **Rule**: When adding display-only billing/promo fields, keep the shared type, helper exports, call sites, and tests in the same change. If a helper behavior depends on plan-specific promo codes, require a typed plan id and test both the plan-aware promo path and the no-plan regular-pricing fallback.
