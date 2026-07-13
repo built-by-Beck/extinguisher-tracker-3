@@ -357,3 +357,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Destructure `const { user, userProfile } = useAuth();` and use `user.uid` (guard `if (!user?.uid) return;`). This matches `Locations.tsx` which already uses `user.uid` for `createLocation`.
 
 **Prevention rule:** For any privileged write needing the actor's uid, read it from `useAuth().user.uid`, never from `userProfile`. Use `userProfile` only for org/profile metadata like `activeOrgId`.
+
+## 2026-07-13 - Launch Promo Cleanup Must Keep Helper, Callers, And Tests In Sync
+
+**What happened:** Daily Review Bot found root lint/build broken after launch-promo cleanup drift: unused pricing imports/helpers remained, `marketingPriceForInterval` callers/tests still passed a removed plan id, `MarketingPlanPriceDisplay` still referenced `promoBadge`, `PlanSelector` called missing `getLaunchPromoCode`, and `billingConfig` declared `LAUNCH_PROMO_DISCOUNT_FRACTION` twice.
+
+**Fix used:** Removed dead imports/helper code and stale third arguments, restored read-only `getLaunchPromoCode`, removed the duplicate discount constant, deleted stale `promoBadge` rendering, corrected yearly promo regular-price display, and updated `marketingPlanPricing.test.ts` for the current shared promo behavior.
+
+**Prevention rule:** Pricing/promo edits must update `billingConfig`, `marketingPlanPricing`, all pricing display callers, and `marketingPlanPricing.test.ts` together. Always run both `pnpm lint` and `pnpm build`; lint alone will not catch missing exported helpers or stale type expectations.

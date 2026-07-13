@@ -15,7 +15,7 @@ export function MarketingSavingsCallout({
 }: MarketingSavingsCalloutProps) {
   const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
   const proMonthly = PLANS.find((p) => p.name === 'pro')!.monthlyPrice!;
-  const proDisplay = marketingPriceForInterval(proMonthly, interval, 'pro');
+  const proDisplay = marketingPriceForInterval(proMonthly, interval);
 
   if (LAUNCH_PROMO_ENABLED) {
     return (
@@ -64,8 +64,8 @@ export function MarketingSavingsCallout({
           }
         >
           Pro as low as {proDisplay.priceLabel}
-          {proDisplay.priceDetail ? ` ${proDisplay.priceDetail}` : ''}{' '}
-          billed yearly
+          {proDisplay.priceDetail ? ` ${proDisplay.priceDetail}` : ''} billed
+          yearly
         </p>
       </div>
     );

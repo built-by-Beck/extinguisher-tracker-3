@@ -2378,3 +2378,13 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-07-13 — Daily Review Bot pricing cleanup — built_by_Beck
+
+Review run found launch-promo pricing cleanup drift blocking root lint/build:
+
+- Removed unused marketing price imports/dead helper code and stale 3-argument `marketingPriceForInterval` call sites.
+- Restored read-only `getLaunchPromoCode`, removed duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION`, and aligned yearly promo strike-through pricing to the regular yearly monthly-equivalent.
+- Updated `marketingPlanPricing.test.ts` for the current shared promo helper behavior (no `promoBadge`/per-plan helper arg).
+- Validation passed: touched-file Prettier, `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test`.
+- Note: `functions/package-lock.json` already had an unstaged one-line `dev: true` diff before this review and was not included in the fix.

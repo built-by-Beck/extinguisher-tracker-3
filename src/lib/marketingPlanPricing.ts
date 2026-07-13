@@ -30,11 +30,9 @@ export type MarketingPriceDisplay = {
 export function marketingPriceForInterval(
   monthlyPrice: number,
   interval: BillingIntervalPreference,
-  planId?: LaunchPromoPlanId,
 ): MarketingPriceDisplay {
   const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
   const promoActive = LAUNCH_PROMO_ENABLED;
-  const regularPriceLabel = promoActive ? formatUsd(monthlyPrice) : undefined;
 
   if (interval === 'month') {
     const displayMonthly = promoActive
@@ -43,7 +41,7 @@ export function marketingPriceForInterval(
     return {
       priceLabel: formatUsd(displayMonthly),
       priceDetail: promoActive ? 'per month · first year' : 'per month',
-      regularPriceLabel,
+      regularPriceLabel: promoActive ? formatUsd(monthlyPrice) : undefined,
     };
   }
 
@@ -58,7 +56,9 @@ export function marketingPriceForInterval(
   return {
     priceLabel,
     priceDetail: promoActive ? 'per month · first year' : 'per month',
-    regularPriceLabel,
+    regularPriceLabel: promoActive
+      ? yearlyMonthlyEquivDisplay(monthlyPrice)
+      : undefined,
     footnote: promoActive
       ? `First year billed at ${formatUsd(displayYearlyTotal)} (50% launch promo) — then ${formatUsd(yearlyTotal)}/yr.`
       : `Billed yearly at ${formatUsd(yearlyTotal)} — save ${discountPct}% vs monthly.`,

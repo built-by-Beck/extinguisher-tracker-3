@@ -242,3 +242,9 @@ Each entry follows this structure:
 - **Issue**: A test fixture used `manufactureYear: 3000` to guarantee a unit was not older than 6 years.
 - **Resolution**: Replaced the impossible sentinel with the current UTC year so the fixture remains realistic and future-safe.
 - **Rule**: Test fixtures for real-world domain data should use plausible dynamic dates or named constants instead of impossible values that look like product data.
+
+### 2026-07-13 -- Launch promo cleanup must keep helper, callers, and tests in sync
+- **Context**: Daily Review Bot run for pricing/promo code health.
+- **Issue**: Root lint/build were broken after launch-promo cleanup drift: unused pricing imports/helpers remained, `marketingPriceForInterval` callers/tests still passed a removed plan id, `MarketingPlanPriceDisplay` still referenced `promoBadge`, `PlanSelector` called missing `getLaunchPromoCode`, and `billingConfig` declared `LAUNCH_PROMO_DISCOUNT_FRACTION` twice.
+- **Resolution**: Removed dead imports/helper code and stale third arguments, restored read-only `getLaunchPromoCode`, removed the duplicate discount constant, deleted stale `promoBadge` rendering, corrected yearly promo regular-price display, and updated `marketingPlanPricing.test.ts` for the current shared promo behavior.
+- **Rule**: Pricing/promo edits must update `billingConfig`, `marketingPlanPricing`, all pricing display callers, and `marketingPlanPricing.test.ts` together. Always run both `pnpm lint` and `pnpm build`; lint alone will not catch missing exported helpers or stale type expectations.
