@@ -2378,3 +2378,10 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-07-14 — Daily Review Bot launch-promo pricing build fix — built_by_Beck
+
+- Review found `pnpm lint` and `pnpm build` failing from an incomplete launch-promo pricing display refactor: unused `MarketingPlanPriceDisplay` imports, unused `promoPrice`, duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION`, missing `getLaunchPromoCode`, stale dead helper code in `marketingPricingCopy`, and `MarketingPriceDisplay` missing `promoBadge`.
+- Fixed only display-layer code/tests: restored promo code/disclaimer helpers in `billingConfig`, made `marketingPriceForInterval` require a concrete paid plan id for promo metadata, passed plan ids from pricing UI call sites, removed dead imports/helper code, and aligned the unit test to actual 50% discount math.
+- Validation: changed-file Prettier check passed; `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` passed. Full `pnpm format:check` still fails on 38 pre-existing unrelated files.
+- Manual smoke: Vite `/pricing` and `/plans/pro` rendered correctly with promo pricing, regular prices, FAQ, and no visible app runtime crash. Console showed only third-party font/analytics 403s.
