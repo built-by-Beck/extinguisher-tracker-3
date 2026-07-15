@@ -32,6 +32,7 @@ export function marketingPriceForInterval(
   interval: BillingIntervalPreference,
   planId?: LaunchPromoPlanId,
 ): MarketingPriceDisplay {
+  void planId;
   const discountPct = Math.round(YEARLY_DISCOUNT_FRACTION * 100);
   const promoActive = LAUNCH_PROMO_ENABLED;
   const regularPriceLabel = promoActive ? formatUsd(monthlyPrice) : undefined;
