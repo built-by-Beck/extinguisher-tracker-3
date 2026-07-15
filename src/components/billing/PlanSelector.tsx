@@ -250,8 +250,9 @@ export function PlanSelector({
 
               {offerProTrialUi && (
                 <p className="mt-2 rounded-md bg-blue-50 px-2 py-1.5 text-xs font-medium text-blue-800">
-                  7-day Pro trial — no credit card at checkout. Add a payment
-                  method before the trial ends to keep Pro access (see Terms).
+                  {TRIAL_DAYS}-day Pro trial — no credit card at checkout. Add a
+                  payment method before the trial ends to keep Pro access (see
+                  Terms).
                 </p>
               )}
 
@@ -263,7 +264,7 @@ export function PlanSelector({
                     onClick={() => setBillingInterval('month')}
                     className="font-medium text-blue-600 hover:underline underline-offset-2"
                   >
-                    Switch to Monthly for a free 7-day trial.
+                    Switch to Monthly for a free {TRIAL_DAYS}-day trial.
                   </button>
                 </p>
               )}
@@ -319,7 +320,7 @@ export function PlanSelector({
                 ) : isCurrent ? (
                   'Current Plan'
                 ) : offerProTrialUi ? (
-                  'Start 7-day trial'
+                  `Start ${TRIAL_DAYS}-day trial`
                 ) : currentPlan ? (
                   'Switch Plan'
                 ) : (

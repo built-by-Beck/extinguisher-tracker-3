@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { CreditCard, Sparkles } from 'lucide-react';
 import { MarketingSignupLink } from './MarketingSignupLink.tsx';
 import { TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
+import { TRIAL_DAYS } from '../../lib/billingConfig.ts';
 
 type MarketingTrialHeroProps = {
   size?: 'hero' | 'band';
@@ -29,7 +30,7 @@ export function MarketingTrialHero({
         <div className="max-w-2xl">
           <p className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-50">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            7-day Pro trial
+            {TRIAL_DAYS}-day Pro trial
           </p>
           <h2
             className={
@@ -38,7 +39,7 @@ export function MarketingTrialHero({
                 : 'mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl'
             }
           >
-            Start your 7-day Pro trial
+            Start your {TRIAL_DAYS}-day Pro trial
           </h2>
           <ul className="mt-4 space-y-2 text-sm text-red-50 sm:text-base">
             <li className="flex items-start gap-2">
@@ -53,7 +54,9 @@ export function MarketingTrialHero({
             <li className="flex items-start gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-200" />
               <span>
-                <strong className="font-semibold text-white">Monthly Pro</strong>{' '}
+                <strong className="font-semibold text-white">
+                  Monthly Pro
+                </strong>{' '}
                 only — add a payment method before the trial ends to keep access
               </span>
             </li>

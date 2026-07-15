@@ -365,3 +365,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Removed dead pricing helpers/imports, restored the read-only promo code lookup, removed stale badge rendering, aligned yearly promo regular-price display to the annual monthly-equivalent, and updated `marketingPlanPricing.test.ts` to match the current headline-price-plus-code-hint model.
 
 **Prevention rule:** For launch-promo/pricing edits, run `pnpm lint`, `pnpm build`, and `pnpm test` together. Check `PlanSelector`, `MarketingPricingPlans`, `MarketingPlanDetailPage`, `MarketingPricingPage`, `marketingPricingCopy`, `billingConfig`, `marketingPlanPricing`, and `marketingPlanPricing.test.ts` for stale promo fields (`promoBadge`, old disclaimer helpers, duplicate discount constants, or missing read-only code lookup).
+
+## 2026-07-15 - Trial Duration Copy Must Use `TRIAL_DAYS`
+
+**What happened:** Manual video review of `/pricing` found the promo banner advertised the configured 14-day trial while Pro plan copy still said "7-day free trial." A search showed the stale literal appeared across marketing, signup, org creation, and billing toggle surfaces.
+
+**Fix used:** Replaced subscription-trial `7-day` literals with the shared frontend `TRIAL_DAYS` constant everywhere the copy described the billing trial. Left unrelated invite-expiration "7 days" copy unchanged.
+
+**Prevention rule:** Subscription trial copy must import/use `TRIAL_DAYS` from `billingConfig`; do not hardcode a day count in marketing, signup, org setup, or billing UI.

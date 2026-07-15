@@ -20,6 +20,7 @@ import { BillingIntervalToggle } from '../../components/billing/BillingIntervalT
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
+import { TRIAL_DAYS } from '../../lib/billingConfig.ts';
 import { PLANS } from '../../lib/planConfig.ts';
 import { marketingPriceForInterval } from '../../lib/marketingPlanPricing.ts';
 import { PlanHeadlinePrice } from '../../components/billing/PlanHeadlinePrice.tsx';
@@ -228,7 +229,7 @@ export default function MarketingPlanDetailPage() {
                 ) : null}
                 {id === 'pro' && interval === 'year' ? (
                   <p className="mt-2 text-xs text-blue-800">
-                    Switch to monthly above for the 7-day Pro trial.
+                    Switch to monthly above for the {TRIAL_DAYS}-day Pro trial.
                   </p>
                 ) : null}
               </div>

@@ -2386,3 +2386,5 @@ Review Bot fixed recurring launch-promo pricing drift across billing/marketing U
 Validation passed: `pnpm lint`, `pnpm build`, `pnpm test` (13 files / 104 tests), `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test` (14 suites / 58 tests). Manual pricing-page walkthrough verified Basic `$20` reg `$39.99`, Pro `$65` reg `$129.99`, Elite `$115` reg `$229.99`, Enterprise Custom.
 
 Remaining pre-existing note: workspace still had an unstaged `functions/package-lock.json` one-line `dev: true` metadata diff before review edits; Review Bot left it untouched.
+
+Follow-up in same review: video review caught stale "7-day" subscription-trial copy conflicting with configured `TRIAL_DAYS=14`. Updated marketing/signup/org setup/billing UI subscription-trial strings to use `TRIAL_DAYS`; left invite expiration "7 days" copy alone. Reran root validation and pricing walkthrough after the copy fix.
