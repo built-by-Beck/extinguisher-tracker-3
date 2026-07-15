@@ -357,3 +357,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Destructure `const { user, userProfile } = useAuth();` and use `user.uid` (guard `if (!user?.uid) return;`). This matches `Locations.tsx` which already uses `user.uid` for `createLocation`.
 
 **Prevention rule:** For any privileged write needing the actor's uid, read it from `useAuth().user.uid`, never from `userProfile`. Use `userProfile` only for org/profile metadata like `activeOrgId`.
+
+## 2026-07-15 - Launch Promo Pricing Cleanup Must Pass Lint, Build, And Tests
+
+**What happened:** Daily Review found recurring launch-promo drift: unused pricing imports/helpers passed into stale code paths, TypeScript failed on a missing `getLaunchPromoCode`, duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION`, obsolete `promoBadge` display expectations, and pricing tests still expected removed per-plan promo fields.
+
+**Fix used:** Removed dead pricing helpers/imports, restored the read-only promo code lookup, removed stale badge rendering, aligned yearly promo regular-price display to the annual monthly-equivalent, and updated `marketingPlanPricing.test.ts` to match the current headline-price-plus-code-hint model.
+
+**Prevention rule:** For launch-promo/pricing edits, run `pnpm lint`, `pnpm build`, and `pnpm test` together. Check `PlanSelector`, `MarketingPricingPlans`, `MarketingPlanDetailPage`, `MarketingPricingPage`, `marketingPricingCopy`, `billingConfig`, `marketingPlanPricing`, and `marketingPlanPricing.test.ts` for stale promo fields (`promoBadge`, old disclaimer helpers, duplicate discount constants, or missing read-only code lookup).

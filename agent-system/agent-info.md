@@ -2378,3 +2378,11 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-07-15 — Daily Review launch promo pricing cleanup — built_by_Beck
+
+Review Bot fixed recurring launch-promo pricing drift across billing/marketing UI helpers. Scope stayed SMALL: removed stale unused imports/helpers, restored read-only `getLaunchPromoCode`, removed duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION`, removed obsolete `promoBadge` rendering, aligned yearly promo regular-price display with annual monthly-equivalent, and updated `marketingPlanPricing.test.ts`.
+
+Validation passed: `pnpm lint`, `pnpm build`, `pnpm test` (13 files / 104 tests), `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test` (14 suites / 58 tests). Manual pricing-page walkthrough verified Basic `$20` reg `$39.99`, Pro `$65` reg `$129.99`, Elite `$115` reg `$229.99`, Enterprise Custom.
+
+Remaining pre-existing note: workspace still had an unstaged `functions/package-lock.json` one-line `dev: true` metadata diff before review edits; Review Bot left it untouched.
