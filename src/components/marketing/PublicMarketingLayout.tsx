@@ -72,7 +72,7 @@ export function PublicMarketingLayout({
     title: 'ExtinguisherTracker',
     subtitle: '',
   };
-  const showLayoutMegaOffer = location.pathname !== '/pricing';
+  const showLayoutPromoBanners = location.pathname !== '/pricing';
 
   useEffect(() => {
     try {
@@ -255,8 +255,12 @@ export function PublicMarketingLayout({
         ) : null}
       </header>
 
-      {showLayoutMegaOffer ? <LimitedTimeOfferBanner /> : null}
-      <LaunchPromoBanner />
+      {showLayoutPromoBanners ? (
+        <>
+          <LimitedTimeOfferBanner />
+          <LaunchPromoBanner />
+        </>
+      ) : null}
 
       {/* Hero banner with page title overlay */}
       <div className="relative border-t border-gray-800 bg-gray-900 pt-1 sm:pt-2">

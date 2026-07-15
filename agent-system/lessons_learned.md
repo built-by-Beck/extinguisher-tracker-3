@@ -373,3 +373,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Replaced subscription-trial `7-day` literals with the shared frontend `TRIAL_DAYS` constant everywhere the copy described the billing trial. Left unrelated invite-expiration "7 days" copy unchanged.
 
 **Prevention rule:** Subscription trial copy must import/use `TRIAL_DAYS` from `billingConfig`; do not hardcode a day count in marketing, signup, org setup, or billing UI.
+
+## 2026-07-15 - Page-Specific Promo Blocks Must Not Duplicate Layout Promo Blocks
+
+**What happened:** Video review of `/pricing` showed the launch promo image/banner twice: once from `PublicMarketingLayout` and again from the pricing page's in-page promo section.
+
+**Fix used:** Suppressed both layout-level promo banners on `/pricing`, where the page already renders its own compact launch promo block.
+
+**Prevention rule:** When a public marketing page renders a page-specific promo/hero block, check `PublicMarketingLayout` for global promo banners and gate one source so the same offer does not appear twice.
