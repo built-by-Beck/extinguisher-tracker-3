@@ -378,6 +378,6 @@ When lifting data into parent components to remove duplicate listeners, preserve
 
 **What happened:** Video review of `/pricing` showed the launch promo image/banner twice: once from `PublicMarketingLayout` and again from the pricing page's in-page promo section.
 
-**Fix used:** Suppressed both layout-level promo banners on `/pricing`, where the page already renders its own compact launch promo block.
+**Fix used:** Suppressed layout-level promo banners on `/pricing` and removed the pricing page's extra compact image banner, leaving one in-page limited-time promo section before the cards.
 
 **Prevention rule:** When a public marketing page renders a page-specific promo/hero block, check `PublicMarketingLayout` for global promo banners and gate one source so the same offer does not appear twice.

@@ -2389,4 +2389,4 @@ Remaining pre-existing note: workspace still had an unstaged `functions/package-
 
 Follow-up in same review: video review caught stale "7-day" subscription-trial copy conflicting with configured `TRIAL_DAYS=14`. Updated marketing/signup/org setup/billing UI subscription-trial strings to use `TRIAL_DAYS`; left invite expiration "7 days" copy alone. Reran root validation and pricing walkthrough after the copy fix.
 
-Second video-review follow-up: `/pricing` duplicated the launch promo image/banner because `PublicMarketingLayout` rendered global promo banners and `MarketingPricingPage` rendered its own compact promo block. Fixed by suppressing layout-level promo banners on `/pricing`.
+Second video-review follow-up: `/pricing` duplicated launch promo blocks because `PublicMarketingLayout` rendered global promo banners and `MarketingPricingPage` rendered both an inline limited-time block and a compact image banner. Fixed by suppressing layout-level promo banners on `/pricing` and removing the pricing page's extra compact image banner so only one in-page promo section remains.
