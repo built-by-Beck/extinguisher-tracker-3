@@ -8,6 +8,7 @@ import {
   YEARLY_DISCOUNT_FRACTION,
 } from '../../lib/planConfig.ts';
 import {
+  getLaunchPromoCode,
   getLaunchPromoCheckoutHint,
   LAUNCH_PROMO_ENABLED,
   TRIAL_DAYS,
