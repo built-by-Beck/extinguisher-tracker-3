@@ -136,7 +136,9 @@ export function InspectionPanel({
   }
 
   async function handleSave(status: 'pass' | 'fail', overrideNotes?: string) {
-    if (!orgId || !inspectionId || !extId || !workspaceId) return;
+    if (!orgId || !inspectionId || !extId || !workspaceId) {
+      return;
+    }
     setSaving(true);
     setActionError('');
     setSuccessMsg('');

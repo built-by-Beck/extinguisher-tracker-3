@@ -6,10 +6,7 @@ import {
   getMarketingFaq,
   marketingPlans,
 } from './marketingPricingCopy.ts';
-import {
-  LAUNCH_PROMO,
-  LAUNCH_PROMO_ENABLED,
-} from '../../lib/billingConfig.ts';
+import { LAUNCH_PROMO, LAUNCH_PROMO_ENABLED } from '../../lib/billingConfig.ts';
 import { LaunchPromoBanner } from '../../components/marketing/LaunchPromoBanner.tsx';
 import { LimitedTimeOfferBanner } from '../../components/marketing/LimitedTimeOfferBanner.tsx';
 import { PlanHeadlinePrice } from '../../components/billing/PlanHeadlinePrice.tsx';

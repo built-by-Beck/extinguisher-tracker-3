@@ -5,7 +5,6 @@ import { functions } from '../../lib/firebase.ts';
 import { PLANS, type PlanName, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
 import {
   getLaunchPromoCheckoutHint,
-  getLaunchPromoCode,
   LAUNCH_PROMO_ENABLED,
   TRIAL_DAYS,
 } from '../../lib/billingConfig.ts';
@@ -166,7 +165,9 @@ export function PlanSelector({
               ? marketingPriceForInterval(
                   plan.monthlyPrice,
                   billingInterval,
-                  plan.name as 'basic' | 'pro' | 'elite',
+                  plan.name !== 'enterprise'
+                    ? (plan.name as 'basic' | 'pro' | 'elite')
+                    : undefined,
                 )
               : null;
 
@@ -219,13 +220,9 @@ export function PlanSelector({
                 </>
               ) : null}
 
-              {LAUNCH_PROMO_ENABLED &&
-              plan.name !== 'enterprise' &&
-              getLaunchPromoCode(plan.name as 'basic' | 'pro' | 'elite') ? (
+              {priceDisplay?.promoCode ? (
                 <p className="mt-2 text-xs font-semibold text-amber-800">
-                  Code{' '}
-                  {getLaunchPromoCode(plan.name as 'basic' | 'pro' | 'elite')}{' '}
-                  at checkout
+                  Code {priceDisplay.promoCode} at checkout
                 </p>
               ) : null}
 

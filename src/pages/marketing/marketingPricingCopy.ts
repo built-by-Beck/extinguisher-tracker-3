@@ -63,7 +63,6 @@ export type MarketingPlanCard = {
   recommended?: boolean;
 };
 
-
 export const marketingPlans: MarketingPlanCard[] = [
   {
     id: 'basic',
