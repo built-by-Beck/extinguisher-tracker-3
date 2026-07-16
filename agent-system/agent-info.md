@@ -2378,3 +2378,13 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Legacy `sectionTimes_{orgId}_{workspaceId}` localStorage migrated on first persist
 - Validation: eslint, pnpm build, functions build, vitest `workTimeUtils.test.ts` pass
 - Deploy note: run `firebase deploy --only firestore:rules,firestore:indexes,functions` before relying on team time sync
+
+## 2026-07-16 — Daily Review Bot launch-promo build health — built_by_Beck
+
+PBRD stage: MEDIUM review with small safe Build fix.
+
+- Initial review checks failed at root: `pnpm lint`, `pnpm build`, and `pnpm test` all broke on recurring launch-promo pricing drift (duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION`, missing read-only `getLaunchPromoCode`, stale 3-argument `marketingPriceForInterval` callers/tests, stale `promoBadge` rendering, and dead `paidPlanPriceFields` references to deleted helpers).
+- Fix commits on `cursor/daily-project-review-71a0`: `63806d7` restored build health and `e61d881` corrected a case-sensitive test expectation from the first fix pass.
+- Final validation passed: `pnpm lint`, `pnpm build`, `pnpm test` (13 files / 104 tests), `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` (14 suites / 58 tests).
+- Focused follow-up left for a larger billing-copy cleanup: many user-facing surfaces still hardcode `7-day` trial text while `TRIAL_DAYS` defaults to 14; use `TRIAL_DAYS` instead of widening a daily review build fix across billing/signup/marketing files.
+- Workspace note: pre-existing unstaged `functions/package-lock.json` drift (`@pkgjs/parseargs` gained `"dev": true`) was left untouched.

@@ -242,3 +242,15 @@ Each entry follows this structure:
 - **Issue**: A test fixture used `manufactureYear: 3000` to guarantee a unit was not older than 6 years.
 - **Resolution**: Replaced the impossible sentinel with the current UTC year so the fixture remains realistic and future-safe.
 - **Rule**: Test fixtures for real-world domain data should use plausible dynamic dates or named constants instead of impossible values that look like product data.
+
+### 2026-07-16 -- Launch promo pricing drift must be fixed across helper, callers, UI, and tests
+- **Context**: Daily Review Bot found root lint/build/test failures after launch-promo pricing cleanup drift recurred.
+- **Issue**: The codebase mixed old and current promo contracts: duplicate `LAUNCH_PROMO_DISCOUNT_FRACTION`, missing `getLaunchPromoCode`, stale 3-argument `marketingPriceForInterval` callers/tests, stale `promoBadge` rendering, and a dead `paidPlanPriceFields` helper referencing deleted functions.
+- **Resolution**: Restored the read-only promo-code helper, removed dead promo fields/helpers/imports, updated callers/tests to the current two-argument pricing helper, and kept yearly promo regular price tied to yearly monthly-equivalent display.
+- **Rule**: When changing launch-promo pricing behavior, update `billingConfig`, `marketingPlanPricing`, all callers, display components, and tests together. Run `pnpm lint`, `pnpm build`, and `pnpm test`; lint alone will not catch stale API/test drift.
+
+### 2026-07-16 -- Copy assertions must match exact casing or normalize intentionally
+- **Context**: The first Daily Review Bot fix updated `marketingPlanPricing.test.ts` but `pnpm test` still failed.
+- **Issue**: The test asserted `first year` while the actual footnote starts `First year`; the implementation was correct but the test expectation was case-sensitive.
+- **Resolution**: Changed the assertion to match the exact current product copy and reran full root and Functions checks successfully.
+- **Rule**: When asserting user-facing copy, either match the exact current string (including casing) or intentionally normalize/regex if casing is not part of the behavior under test.
