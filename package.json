@@ -34,6 +34,11 @@
     "tailwindcss": "^4.2.4"
   },
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@firebase/util",
+      "protobufjs"
+    ],
     "overrides": {
       "postcss": "^8.5.10",
       "protobufjs": "^8.2.0",
