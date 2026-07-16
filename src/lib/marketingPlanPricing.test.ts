@@ -1,23 +1,26 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('./billingConfig.ts', () => ({
-  LAUNCH_PROMO_ENABLED: true,
-  LAUNCH_PROMO_DISCOUNT_FRACTION: 0.5,
-  getLaunchPromoCode: (planId: string) =>
-    planId === 'basic'
-      ? 'EX3BASIC50'
-      : planId === 'pro'
-        ? 'EX3PRO50'
-        : 'EX3ELITE50',
-  getLaunchPromoPriceDisclaimer: () =>
-    '50% off your first year with code EX3PRO50 at checkout. After 12 months, billing returns to $99/mo.',
-  launchPromoMonthlyPrice: (monthly: number) => {
-    const halfExact = monthly * 0.5;
-    const snapped = Math.floor(halfExact) + 0.99;
-    if (Math.abs(halfExact - snapped) <= 0.01) return snapped;
-    return Math.round(halfExact * 100) / 100;
-  },
-}));
+vi.mock(import('./billingConfig.ts'), async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    LAUNCH_PROMO_ENABLED: true,
+    getLaunchPromoCode: (planId: string) =>
+      planId === 'basic'
+        ? 'EX3BASIC50'
+        : planId === 'pro'
+          ? 'EX3PRO50'
+          : 'EX3ELITE50',
+    getLaunchPromoPriceDisclaimer: () =>
+      '50% off your first year with code EX3PRO50 at checkout. After 12 months, billing returns to $99/mo.',
+    launchPromoMonthlyPrice: (monthly: number) => {
+      const halfExact = monthly * 0.5;
+      const snapped = Math.floor(halfExact) + 0.99;
+      if (Math.abs(halfExact - snapped) <= 0.01) return snapped;
+      return Math.round(halfExact * 100) / 100;
+    },
+  };
+});
 
 import { marketingPriceForInterval } from './marketingPlanPricing.ts';
 

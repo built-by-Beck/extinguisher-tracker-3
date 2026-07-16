@@ -28,9 +28,6 @@ export const LAUNCH_PROMO = {
   bannerImage: '/launch-promo-banner.png',
 } as const;
 
-/** Launch promo discount — 50% off first-year charges at checkout with promo code. */
-export const LAUNCH_PROMO_DISCOUNT_FRACTION = 0.5;
-
 export function applyLaunchPromoDiscount(amount: number): number {
   return (
     Math.round(amount * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION) * 100) / 100
@@ -72,4 +69,32 @@ export function getLaunchPromoFaqItem(): { q: string; a: string } | null {
 export function getLaunchPromoCheckoutHint(): string | null {
   if (!LAUNCH_PROMO_ENABLED) return null;
   return `First ${LAUNCH_PROMO_MAX_CUSTOMERS} customers: EX3BASIC50 · EX3PRO50 · EX3ELITE50 (${LAUNCH_PROMO.headline}, after trial)`;
+}
+
+export function getLaunchPromoCode(planId: LaunchPromoPlanId): string | null {
+  if (!LAUNCH_PROMO_ENABLED) return null;
+  return LAUNCH_PROMO.codes[planId];
+}
+
+/**
+ * Discounted monthly headline price, snapped to .99 pricing.
+ * e.g. $129.99 → 64.995 → "64.99" (not the plain-rounded "65").
+ */
+export function launchPromoMonthlyPrice(monthly: number): number {
+  const halfExact = monthly * (1 - LAUNCH_PROMO_DISCOUNT_FRACTION);
+  const snapped = Math.floor(halfExact) + 0.99;
+  if (Math.abs(halfExact - snapped) <= 0.01) return snapped;
+  return Math.round(halfExact * 100) / 100;
+}
+
+export function getLaunchPromoPriceDisclaimer(
+  monthlyPrice: number,
+  planId: LaunchPromoPlanId,
+  interval: 'month' | 'year',
+): string | null {
+  if (!LAUNCH_PROMO_ENABLED) return null;
+  const code = LAUNCH_PROMO.codes[planId];
+  return interval === 'year'
+    ? `50% off your first year with code ${code} at checkout. After year one, annual billing returns to the standard rate.`
+    : `50% off your first year with code ${code} at checkout. After 12 months, billing returns to ${formatUsd(monthlyPrice)}/mo.`;
 }
