@@ -254,3 +254,9 @@ Each entry follows this structure:
 - **Issue**: The test asserted `first year` while the actual footnote starts `First year`; the implementation was correct but the test expectation was case-sensitive.
 - **Resolution**: Changed the assertion to match the exact current product copy and reran full root and Functions checks successfully.
 - **Rule**: When asserting user-facing copy, either match the exact current string (including casing) or intentionally normalize/regex if casing is not part of the behavior under test.
+
+### 2026-07-16 -- Pricing UI copy drift can hide in shared toggle components
+- **Context**: Manual video review of `/pricing` after restoring the Monthly/Yearly toggle caught one remaining visible contradiction.
+- **Issue**: Plan-card copy used `TRIAL_DAYS=14`, but `BillingIntervalToggle` still hardcoded "7-day Pro trial" in the shared Monthly subtitle. Automated lint/build/tests passed because no test covered that rendered copy.
+- **Resolution**: Updated `BillingIntervalToggle` to interpolate `TRIAL_DAYS` in both marketing and settings variants, then rerecorded the pricing walkthrough and verified the video.
+- **Rule**: After changing trial duration or pricing copy, search shared UI primitives (`BillingIntervalToggle`, layout banners, signup/create-org pages) as well as plan cards; use manual/video review to catch visible copy drift that automated tests do not assert.
