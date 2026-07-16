@@ -18,7 +18,6 @@ import { MarketingPageMeta } from '../../components/marketing/MarketingPageMeta.
 import { PublicMarketingLayout } from '../../components/marketing/PublicMarketingLayout.tsx';
 import { BillingIntervalToggle } from '../../components/billing/BillingIntervalToggle.tsx';
 import { MarketingSignupLink } from '../../components/marketing/MarketingSignupLink.tsx';
-import { MarketingPlanPriceDisplay } from '../../components/marketing/MarketingPlanPriceDisplay.tsx';
 import { useBillingIntervalPreference } from '../../hooks/useBillingIntervalPreference.ts';
 import { PLAN_CTA_LABEL, TRIAL_CTA_LABEL } from '../../lib/marketingCtaCopy.ts';
 import { PLANS } from '../../lib/planConfig.ts';
@@ -176,7 +175,11 @@ export default function MarketingPlanDetailPage() {
   const planConfig = PLANS.find((p) => p.name === id);
   const priceDisplay =
     planConfig?.monthlyPrice != null
-      ? marketingPriceForInterval(planConfig.monthlyPrice, interval)
+      ? marketingPriceForInterval(
+          planConfig.monthlyPrice,
+          interval,
+          id !== 'enterprise' ? id : undefined,
+        )
       : {
           priceLabel: plan.priceLabel,
           priceDetail: plan.priceDetail,

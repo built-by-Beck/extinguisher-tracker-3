@@ -162,14 +162,12 @@ export function PlanSelector({
           const showTrialHint = trialEligible && billingInterval === 'year';
           const priceDisplay =
             plan.monthlyPrice !== null
-              ? marketingPriceForInterval(plan.monthlyPrice, billingInterval)
-              : null;
-          const promoPrice =
-            plan.monthlyPrice !== null && plan.name !== 'enterprise'
               ? marketingPriceForInterval(
                   plan.monthlyPrice,
                   billingInterval,
-                  plan.name as 'basic' | 'pro' | 'elite',
+                  plan.name !== 'enterprise'
+                    ? (plan.name as 'basic' | 'pro' | 'elite')
+                    : undefined,
                 )
               : null;
 
@@ -222,13 +220,9 @@ export function PlanSelector({
                 </>
               ) : null}
 
-              {LAUNCH_PROMO_ENABLED &&
-              plan.name !== 'enterprise' &&
-              getLaunchPromoCode(plan.name as 'basic' | 'pro' | 'elite') ? (
+              {priceDisplay?.promoCode ? (
                 <p className="mt-2 text-xs font-semibold text-amber-800">
-                  Code{' '}
-                  {getLaunchPromoCode(plan.name as 'basic' | 'pro' | 'elite')}{' '}
-                  at checkout
+                  Code {priceDisplay.promoCode} at checkout
                 </p>
               ) : null}
 

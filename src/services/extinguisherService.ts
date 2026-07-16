@@ -15,11 +15,11 @@ import {
   serverTimestamp,
   type DocumentSnapshot,
   type QueryConstraint,
-  type QueryDocumentSnapshot,
   type QuerySnapshot,
   getCountFromServer,
 } from 'firebase/firestore';
-import { db } from '../lib/firebase.ts';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../lib/firebase.ts';
 
 /** Dev server, or set localStorage EX3_DEBUG_SEARCH=1 and reload for production traces. */
 function isExSearchDebugEnabled(): boolean {
@@ -38,6 +38,133 @@ const EXTINGUISHER_LOOKUP_FIELDS = [
   'serial',
   'qrCodeValue',
 ] as const;
+
+type ExtinguisherLookupField = (typeof EXTINGUISHER_LOOKUP_FIELDS)[number];
+type LookupQueryType = 'strict-active' | 'legacy-deletedAt-only';
+
+/** Max docs read per field on identifier equality lookups (exact barcode/serial/asset/QR). */
+const IDENTIFIER_LOOKUP_PER_FIELD_LIMIT = 8;
+
+const LOOKUP_SESSION_CACHE_TTL_MS = 5 * 60 * 1000;
+const LOOKUP_SESSION_CACHE_MAX = 200;
+const lookupSessionCache = new Map<
+  string,
+  { at: number; value: Extinguisher | null }
+>();
+
+function lookupSessionCacheKey(orgId: string, code: string): string {
+  return `${orgId}::${code}`;
+}
+
+function readLookupSessionCache(
+  orgId: string,
+  code: string,
+): Extinguisher | null | undefined {
+  const entry = lookupSessionCache.get(lookupSessionCacheKey(orgId, code));
+  if (!entry) return undefined;
+  if (Date.now() - entry.at > LOOKUP_SESSION_CACHE_TTL_MS) {
+    lookupSessionCache.delete(lookupSessionCacheKey(orgId, code));
+    return undefined;
+  }
+  return entry.value;
+}
+
+function writeLookupSessionCache(
+  orgId: string,
+  code: string,
+  value: Extinguisher | null,
+): void {
+  if (lookupSessionCache.size >= LOOKUP_SESSION_CACHE_MAX) {
+    const oldest = lookupSessionCache.keys().next().value;
+    if (oldest) lookupSessionCache.delete(oldest);
+  }
+  lookupSessionCache.set(lookupSessionCacheKey(orgId, code), {
+    at: Date.now(),
+    value,
+  });
+}
+
+function totalDocsInSnaps(snaps: QuerySnapshot[]): number {
+  return snaps.reduce((n, s) => n + s.size, 0);
+}
+
+/**
+ * Shared identifier lookup for scan + type paths. One strict wave (4 parallel queries),
+ * legacy wave only when strict returns zero docs (legacy rows missing lifecycleStatus).
+ */
+async function lookupActiveExtinguisherByIdentifier(
+  orgId: string,
+  rawCode: string,
+  maxResults: number,
+  options: { useSessionCache?: boolean } = {},
+): Promise<Extinguisher[]> {
+  const code = rawCode.trim();
+  if (!code) return [];
+
+  if (options.useSessionCache && maxResults === 1) {
+    const cached = readLookupSessionCache(orgId, code);
+    if (cached !== undefined) {
+      exSearchLog('session lookup cache hit', { searchInput: code, found: !!cached });
+      return cached ? [cached] : [];
+    }
+  }
+
+  const strictWave = await runStrictLookupWave(
+    orgId,
+    code,
+    IDENTIFIER_LOOKUP_PER_FIELD_LIMIT,
+  );
+  let out = collectActiveMatchesFromOrderedSnaps(strictWave.snaps, maxResults);
+
+  if (out.length === 0 && totalDocsInSnaps(strictWave.snaps) === 0) {
+    exSearchLog(
+      'Strict lookup returned no docs; trying legacy wave (rows may lack lifecycleStatus)',
+      { searchInput: code },
+    );
+    const legacyWave = await runLegacyLookupWave(
+      orgId,
+      code,
+      IDENTIFIER_LOOKUP_PER_FIELD_LIMIT,
+    );
+    out = collectActiveMatchesFromOrderedSnaps(legacyWave.snaps, maxResults);
+  }
+
+  if (options.useSessionCache && maxResults === 1) {
+    writeLookupSessionCache(orgId, code, out[0] ?? null);
+  }
+
+  return out.slice(0, maxResults);
+}
+
+export interface ExtinguisherLookupQueryDiagnostic {
+  field: ExtinguisherLookupField;
+  queryType: LookupQueryType;
+  durationMs: number;
+  fromCache: boolean;
+  docCount: number;
+  docIds: string[];
+  filters: string[];
+  limit: number;
+}
+
+export interface ExtinguisherSearchDiagnosticReport {
+  searchInput: string;
+  orgId: string;
+  clientLookups: ExtinguisherLookupQueryDiagnostic[];
+  summary: {
+    totalDurationMs: number;
+    slowestQueryMs: number;
+    allFromCache: boolean;
+    anyNetworkFetch: boolean;
+    likelyBottleneck:
+      | 'local-cache'
+      | 'network-latency'
+      | 'firestore-server'
+      | 'mixed';
+    interpretation: string;
+  };
+  serverExplain?: unknown;
+}
 
 function exSearchLog(message: string, detail?: Record<string, unknown>): void {
   if (!isExSearchDebugEnabled()) return;
@@ -66,86 +193,217 @@ export function isLikelyFirestoreIdentifierQuery(raw: string): boolean {
   return /^[A-Za-z0-9][A-Za-z0-9\-_.:/#]*$/.test(q);
 }
 
+function summarizeLookupDiagnostics(
+  lookups: ExtinguisherLookupQueryDiagnostic[],
+): ExtinguisherSearchDiagnosticReport['summary'] {
+  const totalDurationMs = lookups.reduce((n, q) => n + q.durationMs, 0);
+  const slowestQueryMs = lookups.reduce(
+    (max, q) => Math.max(max, q.durationMs),
+    0,
+  );
+  const allFromCache =
+    lookups.length > 0 && lookups.every((q) => q.fromCache);
+  const anyNetworkFetch = lookups.some((q) => !q.fromCache);
+  const slowNetworkFetch = lookups.some(
+    (q) => !q.fromCache && q.durationMs >= 250,
+  );
+  const fastNetworkFetch = lookups.some(
+    (q) => !q.fromCache && q.durationMs < 250,
+  );
+
+  let likelyBottleneck: ExtinguisherSearchDiagnosticReport['summary']['likelyBottleneck'];
+  let interpretation: string;
+
+  if (allFromCache) {
+    likelyBottleneck = 'local-cache';
+    interpretation =
+      'All identifier queries were served from the local Firestore cache. Slowness is unlikely to be Firestore index cost; check UI debounce (280ms), client filtering, or loading the full inventory snapshot.';
+  } else if (slowNetworkFetch && !fastNetworkFetch) {
+    likelyBottleneck = 'network-latency';
+    interpretation =
+      'Queries waited on the network (fromCache=false, high duration). This often points to connection quality or geographic latency rather than missing indexes.';
+  } else if (fastNetworkFetch && !slowNetworkFetch) {
+    likelyBottleneck = 'firestore-server';
+    interpretation =
+      'Network round-trips were quick. If search still feels slow, check sequential lookup waves, legacy fallback (8 extra queries), or substring search over the full local inventory list.';
+  } else {
+    likelyBottleneck = 'mixed';
+    interpretation =
+      'Some queries hit cache and others hit the network. Re-run after a warm cache, or use server Query Explain (includeServerExplain) to inspect index scans.';
+  }
+
+  return {
+    totalDurationMs,
+    slowestQueryMs,
+    allFromCache,
+    anyNetworkFetch,
+    likelyBottleneck,
+    interpretation,
+  };
+}
+
+async function runLookupFieldQuery(
+  orgId: string,
+  field: ExtinguisherLookupField,
+  code: string,
+  perFieldLimit: number,
+  queryType: LookupQueryType,
+): Promise<{ snap: QuerySnapshot; diagnostic: ExtinguisherLookupQueryDiagnostic }> {
+  const colRef = collection(db, 'org', orgId, 'extinguishers');
+  const constraints: QueryConstraint[] = [where('deletedAt', '==', null)];
+  const filters = ['deletedAt==null'];
+  if (queryType === 'strict-active') {
+    constraints.push(where('lifecycleStatus', '==', 'active'));
+    filters.push('lifecycleStatus==active');
+  }
+  constraints.push(where(field, '==', code));
+  filters.push(`${field}==…`);
+  constraints.push(limit(perFieldLimit));
+
+  const t0 = performance.now();
+  const snap = await getDocs(query(colRef, ...constraints));
+  const diagnostic: ExtinguisherLookupQueryDiagnostic = {
+    field,
+    queryType,
+    durationMs: Math.round(performance.now() - t0),
+    fromCache: snap.metadata.fromCache,
+    docCount: snap.size,
+    docIds: snap.docs.map((d) => d.id),
+    filters,
+    limit: perFieldLimit,
+  };
+  exSearchLog(`${queryType} field=${field}`, {
+    collectionPath: collectionPathExtinguishers(orgId),
+    ...diagnostic,
+  });
+  return { snap, diagnostic };
+}
+
 async function runStrictLookupWave(
   orgId: string,
   code: string,
   perFieldLimit: number,
-): Promise<QuerySnapshot[]> {
-  const colRef = collection(db, 'org', orgId, 'extinguishers');
-  const snaps = await Promise.all(
+  collectDiagnostics = false,
+): Promise<{
+  snaps: QuerySnapshot[];
+  diagnostics: ExtinguisherLookupQueryDiagnostic[];
+}> {
+  const results = await Promise.all(
     EXTINGUISHER_LOOKUP_FIELDS.map((field) =>
-      getDocs(
-        query(
-          colRef,
-          where('deletedAt', '==', null),
-          where('lifecycleStatus', '==', 'active'),
-          where(field, '==', code),
-          limit(perFieldLimit),
-        ),
-      ),
+      runLookupFieldQuery(orgId, field, code, perFieldLimit, 'strict-active'),
     ),
   );
-  EXTINGUISHER_LOOKUP_FIELDS.forEach((field, i) => {
-    const snap = snaps[i];
-    exSearchLog(`strict wave field=${field}`, {
-      queryType: 'strict-active',
-      collectionPath: collectionPathExtinguishers(orgId),
-      filters: ['deletedAt==null', 'lifecycleStatus==active', `${field}==…`],
-      limit: perFieldLimit,
-      docCount: snap.size,
-      docIds: snap.docs.map((d) => d.id),
-    });
-  });
-  return snaps;
+  return {
+    snaps: results.map((r) => r.snap),
+    diagnostics: collectDiagnostics ? results.map((r) => r.diagnostic) : [],
+  };
 }
 
 async function runLegacyLookupWave(
   orgId: string,
   code: string,
   perFieldLimit: number,
-): Promise<QuerySnapshot[]> {
-  const colRef = collection(db, 'org', orgId, 'extinguishers');
+  collectDiagnostics = false,
+): Promise<{
+  snaps: QuerySnapshot[];
+  diagnostics: ExtinguisherLookupQueryDiagnostic[];
+}> {
   exSearchWarn(
     'Running legacy identifier lookup (lifecycle not in query). Still only org/.../extinguishers — no inspections/workspaces loaded.',
     { perFieldLimit },
   );
-  const snaps = await Promise.all(
+  const results = await Promise.all(
     EXTINGUISHER_LOOKUP_FIELDS.map((field) =>
-      getDocs(
-        query(
-          colRef,
-          where('deletedAt', '==', null),
-          where(field, '==', code),
-          limit(perFieldLimit),
-        ),
+      runLookupFieldQuery(
+        orgId,
+        field,
+        code,
+        perFieldLimit,
+        'legacy-deletedAt-only',
       ),
     ),
   );
-  EXTINGUISHER_LOOKUP_FIELDS.forEach((field, i) => {
-    const snap = snaps[i];
-    exSearchLog(`legacy wave field=${field}`, {
-      queryType: 'legacy-deletedAt-only',
-      collectionPath: collectionPathExtinguishers(orgId),
-      filters: ['deletedAt==null', `${field}==…`],
-      limit: perFieldLimit,
-      docCount: snap.size,
-      docIds: snap.docs.map((d) => d.id),
-    });
-  });
-  return snaps;
+  return {
+    snaps: results.map((r) => r.snap),
+    diagnostics: collectDiagnostics ? results.map((r) => r.diagnostic) : [],
+  };
 }
 
-function firstActiveHitFromOrderedSnaps(
-  snaps: QuerySnapshot[],
-): QueryDocumentSnapshot | null {
-  for (let i = 0; i < EXTINGUISHER_LOOKUP_FIELDS.length; i++) {
-    const snap = snaps[i];
-    const hit = snap.docs.find((d) =>
-      isInventoryActiveRecord(d.data() as Record<string, unknown>),
-    );
-    if (hit) return hit;
+/**
+ * Run client-side identifier lookup diagnostics. Enable `localStorage EX3_DEBUG_SEARCH=1`
+ * (or use Vite dev) for console logs. Pass `{ includeServerExplain: true }` for Admin
+ * Query Explain via the explainExtinguisherSearch callable (owner/admin, analyze=false
+ * by default).
+ */
+export async function diagnoseExtinguisherIdentifierSearch(
+  orgId: string,
+  rawQuery: string,
+  options: {
+    includeServerExplain?: boolean;
+    /** When true with includeServerExplain, executes queries server-side (billed reads). */
+    analyze?: boolean;
+    includeInventoryListExplain?: boolean;
+  } = {},
+): Promise<ExtinguisherSearchDiagnosticReport> {
+  const code = rawQuery.trim();
+  if (!code) {
+    throw new Error('searchInput is required.');
   }
-  return null;
+
+  const strict = await runStrictLookupWave(orgId, code, IDENTIFIER_LOOKUP_PER_FIELD_LIMIT, true);
+  let clientLookups = strict.diagnostics;
+  const strictHits = collectActiveMatchesFromOrderedSnaps(strict.snaps, 1);
+  if (
+    strictHits.length === 0 &&
+    totalDocsInSnaps(strict.snaps) === 0
+  ) {
+    const legacy = await runLegacyLookupWave(
+      orgId,
+      code,
+      IDENTIFIER_LOOKUP_PER_FIELD_LIMIT,
+      true,
+    );
+    clientLookups = clientLookups.concat(legacy.diagnostics);
+  }
+
+  const report: ExtinguisherSearchDiagnosticReport = {
+    searchInput: code,
+    orgId,
+    clientLookups,
+    summary: summarizeLookupDiagnostics(clientLookups),
+  };
+
+  if (options.includeServerExplain) {
+    const fn = httpsCallable(functions, 'explainExtinguisherSearch');
+    const { data } = await fn({
+      orgId,
+      searchInput: code,
+      analyze: options.analyze ?? false,
+      includeInventoryList: options.includeInventoryListExplain ?? true,
+    });
+    report.serverExplain = data;
+  }
+
+  if (isExSearchDebugEnabled()) {
+    console.info('[EX3 extinguisher search] diagnose report', report);
+  }
+  return report;
+}
+
+declare global {
+  interface Window {
+    __EX3_diagnoseExtinguisherSearch?: typeof diagnoseExtinguisherIdentifierSearch;
+  }
+}
+
+if (typeof window !== 'undefined' && isExSearchDebugEnabled()) {
+  window.__EX3_diagnoseExtinguisherSearch = diagnoseExtinguisherIdentifierSearch;
+  exSearchLog(
+    'Debug enabled. In console: await __EX3_diagnoseExtinguisherSearch(orgId, "SERIAL123")',
+  );
+  exSearchLog(
+    'For Firestore Query Explain indexes: await __EX3_diagnoseExtinguisherSearch(orgId, "SERIAL123", { includeServerExplain: true, analyze: true })',
+  );
 }
 
 function collectActiveMatchesFromOrderedSnaps(
@@ -187,12 +445,9 @@ export async function fetchActiveExtinguisherIdentifierMatches(
       maxResults,
       collectionPath: collectionPathExtinguishers(orgId),
     });
-    const strictSnaps = await runStrictLookupWave(orgId, code, 8);
-    let out = collectActiveMatchesFromOrderedSnaps(strictSnaps, maxResults);
-    if (out.length === 0) {
-      const legacySnaps = await runLegacyLookupWave(orgId, code, 50);
-      out = collectActiveMatchesFromOrderedSnaps(legacySnaps, maxResults);
-    }
+    const out = await lookupActiveExtinguisherByIdentifier(orgId, code, maxResults, {
+      useSessionCache: false,
+    });
     exSearchLog('fetchActiveExtinguisherIdentifierMatches result', {
       count: out.length,
       ids: out.map((e) => e.id),
@@ -746,50 +1001,22 @@ export async function findExtinguisherByCode(
       orgId,
       collectionPath: collectionPathExtinguishers(orgId),
       phases: [
-        'strict limit 1 (parallel)',
-        'strict limit 8 (parallel)',
-        'legacy limit 50 (parallel)',
+        'strict limit 8 (4 fields parallel)',
+        'legacy limit 8 only if strict returned zero docs',
       ],
-      note: 'No extra Firestore collections (inspections, workspaces, reports, photos, notes, history).',
+      note: 'Session cache reused for repeat scans of the same code within 5 minutes.',
     });
 
-    const strict1 = await runStrictLookupWave(orgId, trimmed, 1);
-    let hit = firstActiveHitFromOrderedSnaps(strict1);
-    if (hit) {
-      exSearchLog('findExtinguisherByCode hit', {
-        phase: 'strict-active-limit-1-parallel',
-        totalDocsAcrossFields: strict1.reduce((n, s) => n + s.size, 0),
-        pickedDocId: hit.id,
-      });
-      return { id: hit.id, ...hit.data() } as Extinguisher;
-    }
-
-    const strict8 = await runStrictLookupWave(orgId, trimmed, 8);
-    hit = firstActiveHitFromOrderedSnaps(strict8);
-    if (hit) {
-      exSearchLog('findExtinguisherByCode hit', {
-        phase: 'strict-active-limit-8-parallel',
-        totalDocsAcrossFields: strict8.reduce((n, s) => n + s.size, 0),
-        pickedDocId: hit.id,
-      });
-      return { id: hit.id, ...hit.data() } as Extinguisher;
-    }
-
-    const legacy = await runLegacyLookupWave(orgId, trimmed, 50);
-    hit = firstActiveHitFromOrderedSnaps(legacy);
-    if (hit) {
-      exSearchLog('findExtinguisherByCode hit', {
-        phase: 'legacy-deletedAt-limit-50-parallel',
-        totalDocsAcrossFields: legacy.reduce((n, s) => n + s.size, 0),
-        pickedDocId: hit.id,
-      });
-      return { id: hit.id, ...hit.data() } as Extinguisher;
-    }
-
-    exSearchLog('findExtinguisherByCode miss', {
-      searchInput: trimmed,
-      totalDocsLastWave: legacy.reduce((n, s) => n + s.size, 0),
+    const hits = await lookupActiveExtinguisherByIdentifier(orgId, trimmed, 1, {
+      useSessionCache: true,
     });
+    const hit = hits[0] ?? null;
+    if (hit) {
+      exSearchLog('findExtinguisherByCode hit', { pickedDocId: hit.id });
+      return hit;
+    }
+
+    exSearchLog('findExtinguisherByCode miss', { searchInput: trimmed });
     return null;
   } finally {
     if (isExSearchDebugEnabled()) console.timeEnd(timer);
@@ -968,8 +1195,21 @@ export function subscribeToExtinguishers(
   }
 
   const q = query(extinguishersRef(orgId), ...constraints);
+  let loggedInitialSnapshot = false;
 
   return onSnapshot(q, (snap) => {
+    if (isExSearchDebugEnabled() && !loggedInitialSnapshot) {
+      loggedInitialSnapshot = true;
+      exSearchLog('subscribeToExtinguishers initial snapshot', {
+        orgId,
+        docCount: snap.size,
+        fromCache: snap.metadata.fromCache,
+        showDeleted: options.showDeleted ?? false,
+        limit: options.limit ?? null,
+        note:
+          'Inventory loads the full active list (no limit). Large orgs: substring/location search filters this snapshot client-side.',
+      });
+    }
     const items: Extinguisher[] = snap.docs.map((d) => ({
       id: d.id,
       ...d.data(),
