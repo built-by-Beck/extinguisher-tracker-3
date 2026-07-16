@@ -78,8 +78,15 @@ export { generateReport } from './reports/generateReport.js';
 
 // AI assistant
 export { createAiNote } from './ai/createAiNote.js';
+export { updateAiNote } from './ai/updateAiNote.js';
 export { updateAiNoteStatus } from './ai/updateAiNoteStatus.js';
+export { mergeAiNotes } from './ai/mergeAiNotes.js';
+export { convertNoteToInspection } from './ai/convertNoteToInspection.js';
 export { queryAiMemory } from './ai/queryAiMemory.js';
+
+// Field work documents
+export { createWorkDocument } from './workDocuments/createWorkDocument.js';
+export { updateWorkDocument } from './workDocuments/updateWorkDocument.js';
 
 // Guest access
 export { toggleGuestAccess } from './guest/toggleGuestAccess.js';

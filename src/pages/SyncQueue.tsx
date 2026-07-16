@@ -20,9 +20,10 @@ import { useAuth } from '../hooks/useAuth.ts';
 import { useOffline } from '../hooks/useOffline.ts';
 import {
   getQueuedInspections,
+  getQueuedNotes,
   clearSyncedItems,
 } from '../services/offlineSyncService.ts';
-import type { QueuedInspection } from '../lib/offlineDb.ts';
+import type { QueuedAiNote, QueuedInspection } from '../lib/offlineDb.ts';
 
 function formatTimestamp(ms: number): string {
   return new Date(ms).toLocaleString();
@@ -93,7 +94,11 @@ export default function SyncQueue() {
 
   const orgId = userProfile?.activeOrgId ?? '';
 
-  const [items, setItems] = useState<QueuedInspection[]>([]);
+  const [inspectionItems, setInspectionItems] = useState<QueuedInspection[]>([]);
+  const [noteItems, setNoteItems] = useState<QueuedAiNote[]>([]);
+  const [activeTab, setActiveTab] = useState<'inspections' | 'notes'>(
+    'inspections',
+  );
   const [loading, setLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
   const [error, setError] = useState('');
@@ -101,8 +106,12 @@ export default function SyncQueue() {
   const loadItems = useCallback(async () => {
     if (!orgId) return;
     try {
-      const queue = await getQueuedInspections(orgId);
-      setItems(queue);
+      const [inspections, notes] = await Promise.all([
+        getQueuedInspections(orgId),
+        getQueuedNotes(orgId),
+      ]);
+      setInspectionItems(inspections);
+      setNoteItems(notes);
     } catch {
       setError('Failed to load sync queue.');
     } finally {
@@ -133,7 +142,10 @@ export default function SyncQueue() {
     }
   }
 
-  const hasSynced = items.some((i) => i.syncStatus === 'synced');
+  const hasSynced =
+    inspectionItems.some((i) => i.syncStatus === 'synced') ||
+    noteItems.some((i) => i.syncStatus === 'synced');
+  const items = activeTab === 'inspections' ? inspectionItems : noteItems;
 
   return (
     <div className="p-6">
@@ -142,7 +154,7 @@ export default function SyncQueue() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Sync Queue</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Offline inspection writes waiting to sync to the server.
+            Offline inspection and note writes waiting to sync to the server.
           </p>
         </div>
 
@@ -192,6 +204,31 @@ export default function SyncQueue() {
         </p>
       )}
 
+      <div className="mb-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('inspections')}
+          className={`rounded-lg px-3 py-1.5 text-sm ${
+            activeTab === 'inspections'
+              ? 'bg-red-600 text-white'
+              : 'border border-gray-300 text-gray-700'
+          }`}
+        >
+          Inspections ({inspectionItems.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('notes')}
+          className={`rounded-lg px-3 py-1.5 text-sm ${
+            activeTab === 'notes'
+              ? 'bg-red-600 text-white'
+              : 'border border-gray-300 text-gray-700'
+          }`}
+        >
+          Notes ({noteItems.length})
+        </button>
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center p-12">
           <Loader2 className="h-8 w-8 animate-spin text-red-600" />
@@ -200,10 +237,12 @@ export default function SyncQueue() {
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-green-400" />
           <p className="text-sm text-gray-500">
-            No pending offline inspections.
+            {activeTab === 'inspections'
+              ? 'No pending offline inspections.'
+              : 'No pending offline notes.'}
           </p>
         </div>
-      ) : (
+      ) : activeTab === 'inspections' ? (
         <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -229,7 +268,7 @@ export default function SyncQueue() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {items.map((item) => (
+              {inspectionItems.map((item) => (
                 <tr key={item.queueId} className="hover:bg-gray-50">
                   <td className="whitespace-nowrap px-4 py-3">
                     <SyncStatusBadge status={item.syncStatus} />
@@ -263,6 +302,71 @@ export default function SyncQueue() {
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Operation
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Preview
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Queued At
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Attempts
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Details
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {noteItems.map((item) => {
+                const content =
+                  typeof item.payload.content === 'string'
+                    ? item.payload.content
+                    : '';
+                return (
+                  <tr key={item.queueId} className="hover:bg-gray-50">
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <SyncStatusBadge status={item.syncStatus} />
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-700">
+                      {item.operation}
+                    </td>
+                    <td className="max-w-xs truncate px-4 py-3 text-xs text-gray-600">
+                      {content.slice(0, 80)}
+                      {item.photoDataUrl ? ' (photo attached)' : ''}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">
+                      {formatTimestamp(item.queuedAt)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">
+                      {item.attempts}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {item.syncStatus === 'conflict' && (
+                        <span className="text-red-700">
+                          {conflictLabel(item.conflictReason)}
+                        </span>
+                      )}
+                      {item.syncStatus === 'failed' && item.error && (
+                        <span className="text-red-600">{item.error}</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

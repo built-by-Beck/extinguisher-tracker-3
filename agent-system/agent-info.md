@@ -2402,3 +2402,21 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 **Fix:** Single shared `lookupActiveExtinguisherByIdentifier`: one strict wave (limit 8 × 4 fields), legacy only when strict returns **zero** docs (missing `lifecycleStatus`), 5‑min session cache for scan/type single-hit lookups, Inventory identifier debounce 280ms → 100ms.
 
 **Validation:** `pnpm lint`, `pnpm build` pass.
+
+## 2026-06-30 — Notes tab (floor-walk notes) — built_by_Beck
+
+- Extended `org/{orgId}/aiNotes` with category, tags, priority, relatedEntity*, pinned
+- New `updateAiNote` CF; extended `createAiNote`; Firestore indexes for category/status/createdBy/pinned
+- New `/dashboard/notes` page: filters, manual create/edit, pin, AI Analyze panel
+- `AiAssistantContext` for opening AI panel with draft from Notes page
+- AI capture auto-classifies via `aiNoteClassifier.ts`; organizer via `aiNoteOrganizer.ts`
+- Sidebar Notes tab gated `aiAssistant` (Pro+); PR #85
+- Validation: functions build pass, vitest `aiNoteClassifier.test.ts` pass, eslint on changed files pass; full `pnpm build` blocked by pre-existing billing/marketing TS errors on base
+
+### Phase 3 (2026-06-30)
+- Voice input + 8 note templates on Notes page modal
+- Photo attachments (`photoUrl`/`photoPath`) + Storage rules for `org/{orgId}/notes/`
+- Offline note queue (`noteQueue` IndexedDB v2) + Sync Queue Notes tab
+- CSV export, workspace auto-tag on create (active workspace label/id)
+- `convertNoteToInspection` CF — flags linked asset inspection as fail with note text
+- `mergeAiNotes` CF + organizer merge suggestions for duplicate notes

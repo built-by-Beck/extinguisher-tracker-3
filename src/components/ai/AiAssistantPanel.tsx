@@ -7,6 +7,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Bot,
   X,
@@ -25,10 +26,20 @@ import {
   type AiMessage,
 } from '../../services/aiService.ts';
 import {
-  createAiNoteCall,
+  createAiNoteOfflineAware,
   subscribeToAiNotes,
   updateAiNoteStatusCall,
 } from '../../services/aiNotesService.ts';
+import { createWorkDocumentCall } from '../../services/workDocumentService.ts';
+import {
+  generateEgressStairwellSheet,
+  parseWorkDocumentIntent,
+} from '../../services/workDocumentGenerator.ts';
+import {
+  subscribeToLocations,
+  type Location,
+} from '../../services/locationService.ts';
+import { useOffline } from '../../hooks/useOffline.ts';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { db } from '../../lib/firebase.ts';
@@ -42,6 +53,11 @@ import {
 } from '../../services/inspectionService.ts';
 import { subscribeToSectionNotes } from '../../services/sectionNotesService.ts';
 import type { SectionNotesMap } from '../../services/workspaceService.ts';
+import { useAiAssistant } from '../../contexts/AiAssistantContext.tsx';
+import {
+  classifyNoteContent,
+  formatClassificationSummary,
+} from '../../services/aiNoteClassifier.ts';
 
 interface AiAssistantPanelProps {
   extinguishers?: Extinguisher[];
@@ -73,9 +89,13 @@ function formatNfpaReference(
 
 function buildSuggestedPrompts(nfpaReference: string): string[] {
   return [
+    'Take a note that ',
+    'Create a checksheet for stairwell egress lights in Building B',
+    'Organize my open notes',
     `What does ${nfpaReference} require for monthly inspections?`,
     `Compare ${nfpaReference} to our local AHJ notes for annual requirements.`,
     'Show all notes from this month',
+    'Show safety notes',
     'Show extinguishers expiring next year',
     'Show marked expired extinguishers',
     'Show possible expired candidates',
@@ -150,9 +170,11 @@ export function AiAssistantPanel({
 }: AiAssistantPanelProps) {
   const { org, hasRole } = useOrg();
   const { user, userProfile } = useAuth();
+  const { isOnline } = useOffline();
+  const { open, draftMessage, openAssistant, closeAssistant, setDraftMessage } =
+    useAiAssistant();
   const orgId = userProfile?.activeOrgId ?? '';
 
-  const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -166,6 +188,7 @@ export function AiAssistantPanel({
   >([]);
   const [sectionNotes, setSectionNotes] = useState<SectionNotesMap>({});
   const [notes, setNotes] = useState<AiNote[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [noteBusyId, setNoteBusyId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<SelectedAiImage | null>(
     null,
@@ -213,6 +236,15 @@ export function AiAssistantPanel({
     }
 
     return subscribeToAiNotes(orgId, setNotes, 8);
+  }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId) {
+      setLocations([]);
+      return;
+    }
+
+    return subscribeToLocations(orgId, setLocations);
   }, [orgId]);
 
   useEffect(() => {
@@ -267,11 +299,33 @@ export function AiAssistantPanel({
     source: 'manual' | 'ai_suggested' = 'manual',
   ) {
     if (!orgId) return;
+    const classification = classifyNoteContent(content);
     try {
-      await createAiNoteCall({ orgId, content, source });
+      const result = await createAiNoteOfflineAware(
+        {
+          orgId,
+          content,
+          source,
+          category: classification.category,
+          priority: classification.priority,
+          tags: classification.tags,
+          relatedEntityLabel: classification.relatedEntityLabel,
+          relatedEntityType: classification.relatedEntityLabel
+            ? 'extinguisher'
+            : null,
+          workspaceId: activeWorkspace?.id ?? null,
+          workspaceLabel: activeWorkspace?.label ?? null,
+        },
+        isOnline,
+      );
+      if (!result.synced) {
+        setError('Note saved locally and will sync when you are back online.');
+      }
+      return classification;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save note';
       setError(msg);
+      return null;
     }
   }
 
@@ -294,12 +348,16 @@ export function AiAssistantPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Focus input when panel opens
+  // Focus input when panel opens and apply any draft message from context
   useEffect(() => {
     if (open) {
+      if (draftMessage) {
+        setInput(draftMessage);
+        setDraftMessage('');
+      }
       setTimeout(() => inputRef.current?.focus(), 200);
     }
-  }, [open]);
+  }, [open, draftMessage, setDraftMessage]);
 
   useEffect(() => {
     return () => {
@@ -481,12 +539,55 @@ export function AiAssistantPanel({
     try {
       const noteContent = extractNoteContent(messageText);
       if (noteContent && canManageNotes && !imageForMessage) {
-        await saveNoteFromText(noteContent, 'ai_suggested');
+        const classification = await saveNoteFromText(noteContent, 'ai_suggested');
+        const summary = classification
+          ? formatClassificationSummary(classification)
+          : 'open';
         setMessages([
           ...updatedMessages,
           {
             role: 'assistant',
-            content: `Saved note: "${noteContent}"\n\nI added it to your org notes with status **open**.`,
+            content: `Saved note: "${noteContent}"\n\nI added it to your org notes with status **open** (${summary}). View all notes on the Notes tab.`,
+          },
+        ]);
+        return;
+      }
+
+      const workDocIntent = parseWorkDocumentIntent(messageText);
+      if (workDocIntent && canManageNotes && !imageForMessage && orgId) {
+        const draft = generateEgressStairwellSheet({
+          locations,
+          buildingHint: workDocIntent.buildingHint ?? undefined,
+        });
+        const { documentId } = await createWorkDocumentCall({
+          orgId,
+          title: draft.title,
+          description: draft.description,
+          type: 'checksheet',
+          category: draft.category,
+          status: 'active',
+          schema: draft.schema,
+          source: 'ai_generated',
+          relatedLocationId: draft.relatedLocationId,
+          relatedLocationLabel: draft.relatedLocationLabel,
+        });
+        const sectionCount = draft.schema.sections.length;
+        const itemCount = draft.schema.sections.reduce(
+          (sum, section) => sum + section.items.length,
+          0,
+        );
+        setMessages([
+          ...updatedMessages,
+          {
+            role: 'assistant',
+            content: [
+              `Created **${draft.title}** with ${sectionCount} section(s) and ${itemCount} row(s) from your location tree.`,
+              draft.relatedLocationLabel
+                ? `Linked to: ${draft.relatedLocationLabel}`
+                : 'No building match found — edit rows manually or tag stairwells in Locations.',
+              `Open it on the **Field Work** tab to edit or print: /dashboard/field-work/${documentId}`,
+              'Pass/fail columns are on the printable sheet for now; in-app walk completion will come later.',
+            ].join('\n\n'),
           },
         ]);
         return;
@@ -528,7 +629,7 @@ export function AiAssistantPanel({
       {/* Floating button */}
       {!open && (
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => openAssistant()}
           className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-white shadow-lg hover:bg-red-700 transition-transform hover:scale-105"
           aria-label="Open AI Assistant"
         >
@@ -567,7 +668,7 @@ export function AiAssistantPanel({
                 </button>
               )}
               <button
-                onClick={() => setOpen(false)}
+                onClick={closeAssistant}
                 className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                 aria-label="Close assistant"
               >
@@ -580,9 +681,18 @@ export function AiAssistantPanel({
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {notes.length > 0 && (
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-600">
-                  <NotebookPen className="h-3.5 w-3.5" />
-                  Recent notes
+                <div className="mb-2 flex items-center justify-between gap-2 text-xs font-semibold text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <NotebookPen className="h-3.5 w-3.5" />
+                    Recent notes
+                  </div>
+                  <Link
+                    to="/dashboard/notes"
+                    onClick={closeAssistant}
+                    className="text-[10px] font-medium text-red-600 hover:underline"
+                  >
+                    View all notes →
+                  </Link>
                 </div>
                 <div className="space-y-2">
                   {notes.slice(0, 3).map((note) => (

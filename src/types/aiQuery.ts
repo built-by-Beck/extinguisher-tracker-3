@@ -1,5 +1,7 @@
 export type AiMemoryIntentType =
   | 'list_notes_by_month'
+  | 'list_notes_by_category'
+  | 'list_notes_by_asset'
   | 'list_expiring_by_year'
   | 'list_marked_expired'
   | 'list_expired_candidates'
@@ -17,9 +19,10 @@ export interface MonthWindow {
 export interface AiMemoryQueryIntent {
   type: AiMemoryIntentType;
   noteStatus?: 'open' | 'in_progress' | 'resolved';
+  noteCategory?: string;
+  assetQuery?: string;
   monthWindow?: MonthWindow;
   targetYear?: number;
-  assetQuery?: string;
 }
 
 export interface AiMemoryNoteResult {
