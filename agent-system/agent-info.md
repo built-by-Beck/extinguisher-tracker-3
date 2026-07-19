@@ -2420,3 +2420,11 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - CSV export, workspace auto-tag on create (active workspace label/id)
 - `convertNoteToInspection` CF — flags linked asset inspection as fail with note text
 - `mergeAiNotes` CF + organizer merge suggestions for duplicate notes
+
+## 2026-07-19 — Daily Review Bot package-manager config fix — built_by_Beck
+
+**Finding:** `package.json` had duplicate `pnpm.onlyBuiltDependencies` keys. JSON parsers keep the latter key, silently dropping documented `protobufjs` from the effective built-dependencies allowlist.
+
+**Fix:** Removed the duplicate trailing key so the single allowlist remains `esbuild`, `@firebase/util`, and `protobufjs`.
+
+**Validation:** `pnpm exec prettier --check package.json`, `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` pass. Commit: `407f982`.

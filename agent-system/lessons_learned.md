@@ -357,3 +357,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Destructure `const { user, userProfile } = useAuth();` and use `user.uid` (guard `if (!user?.uid) return;`). This matches `Locations.tsx` which already uses `user.uid` for `createLocation`.
 
 **Prevention rule:** For any privileged write needing the actor's uid, read it from `useAuth().user.uid`, never from `userProfile`. Use `userProfile` only for org/profile metadata like `activeOrgId`.
+
+## 2026-07-19 - Duplicate JSON Keys Can Break Package Manager Config
+
+**What happened:** Daily Review Bot found two `pnpm.onlyBuiltDependencies` keys in root `package.json`. The file looked like it allowed `esbuild`, `@firebase/util`, and `protobufjs`, but normal JSON parsing kept only the second key and silently dropped `protobufjs`.
+
+**Fix used:** Removed the duplicate trailing key and kept one `onlyBuiltDependencies` allowlist with all three required packages. Validation passed for package formatting, frontend lint/build/tests, and Functions lint/build/tests.
+
+**Prevention rule:** When reviewing `package.json` config, check for duplicate keys in nested package-manager settings. Treat duplicate JSON keys as real config drift even when lint/build currently pass.
