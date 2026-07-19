@@ -1,20 +1,26 @@
 /**
  * Offline sync engine for ExtinguisherTracker.
  *
- * Manages the write queue for offline inspection saves.
- * When connectivity returns, processQueue() sends queued inspections
- * to the backend via saveInspectionCall().
+ * Manages write queues for offline inspection saves and AI note writes.
  *
  * Author: built_by_Beck
  */
 
-import { getOfflineDb, type QueuedInspection } from '../lib/offlineDb.ts';
+import {
+  getOfflineDb,
+  type QueuedAiNote,
+  type QueuedInspection,
+} from '../lib/offlineDb.ts';
 import { saveInspectionCall } from './inspectionService.ts';
+import {
+  createAiNoteCall,
+  updateAiNoteCall,
+} from './aiNotesService.ts';
+import {
+  dataUrlToBlob,
+  uploadNotePhoto,
+} from './notePhotoService.ts';
 
-/**
- * Queue an inspection for later sync.
- * Returns the generated queueId.
- */
 export async function queueInspection(
   data: Omit<
     QueuedInspection,
@@ -35,17 +41,30 @@ export async function queueInspection(
   return queueId;
 }
 
-/**
- * Process all pending/failed queue items for the given org.
- * Attempts to sync each one via saveInspectionCall().
- * Categorizes errors as conflicts or retryable failures.
- */
-export async function processQueue(
+export async function queueAiNote(
+  data: Omit<
+    QueuedAiNote,
+    'queueId' | 'attempts' | 'lastAttemptAt' | 'error' | 'syncStatus'
+  >,
+): Promise<string> {
+  const db = await getOfflineDb();
+  const queueId = crypto.randomUUID();
+  const record: QueuedAiNote = {
+    ...data,
+    queueId,
+    attempts: 0,
+    lastAttemptAt: null,
+    error: null,
+    syncStatus: 'pending',
+  };
+  await db.put('noteQueue', record);
+  return queueId;
+}
+
+async function processInspectionQueue(
   orgId: string,
 ): Promise<{ synced: number; failed: number }> {
   const db = await getOfflineDb();
-
-  // Get all pending or failed records for this org, ordered by queuedAt ASC
   const allRecords = await db.getAllFromIndex(
     'inspectionQueue',
     'by-orgId',
@@ -59,7 +78,6 @@ export async function processQueue(
   let failed = 0;
 
   for (const record of eligible) {
-    // Mark as syncing
     const syncing: QueuedInspection = {
       ...record,
       syncStatus: 'syncing',
@@ -77,38 +95,21 @@ export async function processQueue(
         attestation: record.attestation,
       });
 
-      // Success
-      const done: QueuedInspection = {
+      await db.put('inspectionQueue', {
         ...syncing,
         syncStatus: 'synced',
         error: null,
-      };
-      await db.put('inspectionQueue', done);
+      });
       synced++;
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-
-      // Categorize error
       const conflictReason = detectConflictReason(errMsg);
-      if (conflictReason !== null) {
-        // Permanent conflict — do not retry
-        const conflict: QueuedInspection = {
-          ...syncing,
-          syncStatus: 'conflict',
-          error: errMsg,
-          conflictReason,
-        };
-        await db.put('inspectionQueue', conflict);
-      } else {
-        // Retryable failure
-        // If too many attempts, leave as failed (admin review needed)
-        const failedRecord: QueuedInspection = {
-          ...syncing,
-          syncStatus: 'failed',
-          error: errMsg,
-        };
-        await db.put('inspectionQueue', failedRecord);
-      }
+      await db.put('inspectionQueue', {
+        ...syncing,
+        syncStatus: conflictReason ? 'conflict' : 'failed',
+        error: errMsg,
+        conflictReason: conflictReason ?? undefined,
+      });
       failed++;
     }
   }
@@ -116,9 +117,88 @@ export async function processQueue(
   return { synced, failed };
 }
 
-/**
- * Returns the reason if the error is a permanent conflict, or null for retryable errors.
- */
+async function processNoteQueue(
+  orgId: string,
+): Promise<{ synced: number; failed: number }> {
+  const db = await getOfflineDb();
+  const allRecords = await db.getAllFromIndex('noteQueue', 'by-orgId', orgId);
+  const eligible = allRecords
+    .filter((r) => r.syncStatus === 'pending' || r.syncStatus === 'failed')
+    .sort((a, b) => a.queuedAt - b.queuedAt);
+
+  let synced = 0;
+  let failed = 0;
+
+  for (const record of eligible) {
+    const syncing: QueuedAiNote = {
+      ...record,
+      syncStatus: 'syncing',
+      attempts: record.attempts + 1,
+      lastAttemptAt: Date.now(),
+    };
+    await db.put('noteQueue', syncing);
+
+    try {
+      if (record.operation === 'create') {
+        const payload = record.payload as Parameters<typeof createAiNoteCall>[0];
+        const { noteId } = await createAiNoteCall(payload);
+
+        if (record.photoDataUrl) {
+          const blob = await dataUrlToBlob(record.photoDataUrl);
+          const { photoUrl, photoPath } = await uploadNotePhoto(
+            orgId,
+            noteId,
+            blob,
+          );
+          await updateAiNoteCall({
+            orgId,
+            noteId,
+            photoUrl,
+            photoPath,
+          });
+        }
+      } else if (record.operation === 'update' && record.noteId) {
+        const payload = record.payload as Parameters<typeof updateAiNoteCall>[0];
+        await updateAiNoteCall({
+          ...payload,
+          orgId: record.orgId,
+          noteId: record.noteId,
+        });
+      }
+
+      await db.put('noteQueue', {
+        ...syncing,
+        syncStatus: 'synced',
+        error: null,
+      });
+      synced++;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const conflictReason = detectConflictReason(errMsg);
+      await db.put('noteQueue', {
+        ...syncing,
+        syncStatus: conflictReason ? 'conflict' : 'failed',
+        error: errMsg,
+        conflictReason: conflictReason ?? undefined,
+      });
+      failed++;
+    }
+  }
+
+  return { synced, failed };
+}
+
+export async function processQueue(
+  orgId: string,
+): Promise<{ synced: number; failed: number }> {
+  const inspections = await processInspectionQueue(orgId);
+  const notes = await processNoteQueue(orgId);
+  return {
+    synced: inspections.synced + notes.synced,
+    failed: inspections.failed + notes.failed,
+  };
+}
+
 function detectConflictReason(errorMessage: string): string | null {
   const lower = errorMessage.toLowerCase();
 
@@ -141,24 +221,23 @@ function detectConflictReason(errorMessage: string): string | null {
   return null;
 }
 
-/**
- * Count pending or failed records for the given org.
- */
 export async function getPendingCount(orgId: string): Promise<number> {
   const db = await getOfflineDb();
-  const allRecords = await db.getAllFromIndex(
+  const inspectionRecords = await db.getAllFromIndex(
     'inspectionQueue',
     'by-orgId',
     orgId,
   );
-  return allRecords.filter(
+  const noteRecords = await db.getAllFromIndex('noteQueue', 'by-orgId', orgId);
+  const inspectionPending = inspectionRecords.filter(
     (r) => r.syncStatus === 'pending' || r.syncStatus === 'failed',
   ).length;
+  const notePending = noteRecords.filter(
+    (r) => r.syncStatus === 'pending' || r.syncStatus === 'failed',
+  ).length;
+  return inspectionPending + notePending;
 }
 
-/**
- * Get all queued inspections for the given org, ordered by queuedAt ASC.
- */
 export async function getQueuedInspections(
   orgId: string,
 ): Promise<QueuedInspection[]> {
@@ -171,38 +250,56 @@ export async function getQueuedInspections(
   return allRecords.sort((a, b) => a.queuedAt - b.queuedAt);
 }
 
-/**
- * Delete all synced records for the given org.
- */
-export async function clearSyncedItems(orgId: string): Promise<void> {
+export async function getQueuedNotes(orgId: string): Promise<QueuedAiNote[]> {
   const db = await getOfflineDb();
-  const allRecords = await db.getAllFromIndex(
-    'inspectionQueue',
-    'by-orgId',
-    orgId,
-  );
-  const tx = db.transaction('inspectionQueue', 'readwrite');
-  for (const record of allRecords) {
-    if (record.syncStatus === 'synced') {
-      await tx.store.delete(record.queueId);
-    }
-  }
-  await tx.done;
+  const allRecords = await db.getAllFromIndex('noteQueue', 'by-orgId', orgId);
+  return allRecords.sort((a, b) => a.queuedAt - b.queuedAt);
 }
 
-/**
- * Delete ALL records for the given org (used on org switch to prevent cross-org contamination).
- */
-export async function clearOrgQueue(orgId: string): Promise<void> {
+export async function clearSyncedItems(orgId: string): Promise<void> {
   const db = await getOfflineDb();
-  const allRecords = await db.getAllFromIndex(
+  const inspectionRecords = await db.getAllFromIndex(
     'inspectionQueue',
     'by-orgId',
     orgId,
   );
-  const tx = db.transaction('inspectionQueue', 'readwrite');
-  for (const record of allRecords) {
-    await tx.store.delete(record.queueId);
+  const noteRecords = await db.getAllFromIndex('noteQueue', 'by-orgId', orgId);
+
+  const inspectionTx = db.transaction('inspectionQueue', 'readwrite');
+  for (const record of inspectionRecords) {
+    if (record.syncStatus === 'synced') {
+      await inspectionTx.store.delete(record.queueId);
+    }
   }
-  await tx.done;
+  await inspectionTx.done;
+
+  const noteTx = db.transaction('noteQueue', 'readwrite');
+  for (const record of noteRecords) {
+    if (record.syncStatus === 'synced') {
+      await noteTx.store.delete(record.queueId);
+    }
+  }
+  await noteTx.done;
+}
+
+export async function clearOrgQueue(orgId: string): Promise<void> {
+  const db = await getOfflineDb();
+  const inspectionRecords = await db.getAllFromIndex(
+    'inspectionQueue',
+    'by-orgId',
+    orgId,
+  );
+  const noteRecords = await db.getAllFromIndex('noteQueue', 'by-orgId', orgId);
+
+  const inspectionTx = db.transaction('inspectionQueue', 'readwrite');
+  for (const record of inspectionRecords) {
+    await inspectionTx.store.delete(record.queueId);
+  }
+  await inspectionTx.done;
+
+  const noteTx = db.transaction('noteQueue', 'readwrite');
+  for (const record of noteRecords) {
+    await noteTx.store.delete(record.queueId);
+  }
+  await noteTx.done;
 }

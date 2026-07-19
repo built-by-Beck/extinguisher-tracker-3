@@ -16,6 +16,8 @@ import {
 type AiNoteStatus = 'open' | 'in_progress' | 'resolved';
 type AiMemoryIntentType =
   | 'list_notes_by_month'
+  | 'list_notes_by_category'
+  | 'list_notes_by_asset'
   | 'list_expiring_by_year'
   | 'list_marked_expired'
   | 'list_expired_candidates'
@@ -33,6 +35,7 @@ interface MonthWindow {
 interface AiMemoryQueryIntent {
   type: AiMemoryIntentType;
   noteStatus?: AiNoteStatus;
+  noteCategory?: string;
   monthWindow?: MonthWindow;
   targetYear?: number;
   assetQuery?: string;
@@ -219,6 +222,95 @@ export const queryAiMemory = onCall<QueryAiMemoryInput>(async (request) => {
         monthLabel: intent.monthWindow?.label ?? '',
         startIso: start.toISOString(),
         endIso: end.toISOString(),
+        status: intent.noteStatus ?? null,
+      },
+      count: notes.length,
+      notes,
+    };
+  }
+
+  if (intent.type === 'list_notes_by_category') {
+    const category = intent.noteCategory?.trim();
+    if (!category) {
+      throwInvalidArgument('Note category is required.');
+    }
+    const snap = await adminDb
+      .collection(`org/${orgId}/aiNotes`)
+      .where('category', '==', category)
+      .orderBy('updatedAt', 'desc')
+      .limit(200)
+      .get();
+
+    const notes = snap.docs
+      .map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          title: (data.title as string | null) ?? null,
+          content: (data.content as string) ?? '',
+          status: (data.status as AiNoteStatus) ?? 'open',
+          source: (data.source as 'manual' | 'ai_suggested') ?? 'manual',
+          createdAt: toIso(data.createdAt),
+          updatedAt: toIso(data.updatedAt),
+          createdByEmail: (data.createdByEmail as string | null) ?? null,
+        };
+      })
+      .filter((note) => {
+        if (!intent.noteStatus) return true;
+        return note.status === intent.noteStatus;
+      });
+
+    return {
+      intentType: intent.type,
+      appliedFilters: {
+        category,
+        status: intent.noteStatus ?? null,
+      },
+      count: notes.length,
+      notes,
+    };
+  }
+
+  if (intent.type === 'list_notes_by_asset') {
+    const assetQuery = intent.assetQuery?.trim().toUpperCase();
+    if (!assetQuery) {
+      throwInvalidArgument('Asset query is required.');
+    }
+    const snap = await adminDb
+      .collection(`org/${orgId}/aiNotes`)
+      .orderBy('updatedAt', 'desc')
+      .limit(200)
+      .get();
+
+    const notes = snap.docs
+      .map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          title: (data.title as string | null) ?? null,
+          content: (data.content as string) ?? '',
+          status: (data.status as AiNoteStatus) ?? 'open',
+          source: (data.source as 'manual' | 'ai_suggested') ?? 'manual',
+          createdAt: toIso(data.createdAt),
+          updatedAt: toIso(data.updatedAt),
+          createdByEmail: (data.createdByEmail as string | null) ?? null,
+          relatedEntityLabel:
+            (data.relatedEntityLabel as string | null) ?? null,
+        };
+      })
+      .filter((note) => {
+        if (note.relatedEntityLabel?.toUpperCase() === assetQuery) return true;
+        return note.content.toUpperCase().includes(assetQuery);
+      })
+      .filter((note) => {
+        if (!intent.noteStatus) return true;
+        return note.status === intent.noteStatus;
+      });
+
+    return {
+      intentType: intent.type,
+      appliedFilters: {
+        assetQuery,
         status: intent.noteStatus ?? null,
       },
       count: notes.length,

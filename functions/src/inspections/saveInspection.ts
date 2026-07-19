@@ -9,6 +9,21 @@ import {
   throwFailedPrecondition,
 } from '../utils/errors.js';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+
+/** Safely coerce an unknown Firestore field value to Timestamp | null. */
+function safeTimestamp(value: unknown): Timestamp | null {
+  if (value == null) return null;
+  if (value instanceof Timestamp) return value;
+  if (
+    typeof value === 'object' &&
+    'seconds' in (value as object) &&
+    'nanoseconds' in (value as object)
+  ) {
+    const v = value as { seconds: number; nanoseconds: number };
+    return new Timestamp(v.seconds, v.nanoseconds);
+  }
+  return null;
+}
 import {
   calculateNextMonthlyInspection,
   calculateComplianceStatus,
@@ -110,6 +125,7 @@ export const saveInspection = onCall(async (request) => {
         ? null
         : adminDb.doc(`org/${orgId}/extinguishers/${inspData.extinguisherId}`);
     const extSnap = extRef ? await tx.get(extRef) : null;
+
     const orgSnap = await tx.get(adminDb.doc(`org/${orgId}`));
     const orgData = orgSnap.data() ?? {};
     const orgSettings =
@@ -224,53 +240,68 @@ export const saveInspection = onCall(async (request) => {
       tx.update(wsRef, statsUpdate);
     }
 
-    // Update extinguisher lifecycle after inspection
+    // Update extinguisher lifecycle after inspection.
+    // Any calculation error here must NOT block the inspection save — the
+    // pass/fail record is primary data; lifecycle fields are derived/cached.
     if (targetType !== 'asset' && extRef && extSnap?.exists) {
       const extData = extSnap.data()!;
 
-      const nextMonthlyInspection = calculateNextMonthlyInspection(
-        now,
-        monthlySchedule,
-        orgTimezone,
-      );
+      try {
+        const nextMonthlyInspection = calculateNextMonthlyInspection(
+          now,
+          monthlySchedule,
+          orgTimezone,
+        );
 
-      // Build calc input with the freshly updated monthly date
-      const extType = (extData.extinguisherType as string | null) ?? '';
-      const hydroInterval =
-        (extData.hydroTestIntervalYears as number | null) ??
-        getHydroIntervalByType(extType);
-      const needsSixYear =
-        (extData.requiresSixYearMaintenance as boolean | null) ??
-        requiresSixYear(extType);
+        const extType = (extData.extinguisherType as string | null) ?? '';
+        const hydroIntervalRaw = extData.hydroTestIntervalYears;
+        const hydroInterval =
+          typeof hydroIntervalRaw === 'number'
+            ? hydroIntervalRaw
+            : getHydroIntervalByType(extType);
+        const needsSixYear =
+          typeof extData.requiresSixYearMaintenance === 'boolean'
+            ? extData.requiresSixYearMaintenance
+            : requiresSixYear(extType);
 
-      const calcInput: ExtinguisherForCalc = {
-        lifecycleStatus: extData.lifecycleStatus as string | null,
-        extinguisherType: extData.extinguisherType as string | null,
-        requiresSixYearMaintenance: needsSixYear,
-        lastMonthlyInspection: now,
-        lastAnnualInspection: extData.lastAnnualInspection as Timestamp | null,
-        lastSixYearMaintenance:
-          extData.lastSixYearMaintenance as Timestamp | null,
-        lastHydroTest: extData.lastHydroTest as Timestamp | null,
-        hydroTestIntervalYears: hydroInterval,
-        nextMonthlyInspection,
-        nextAnnualInspection: extData.nextAnnualInspection as Timestamp | null,
-        nextSixYearMaintenance:
-          extData.nextSixYearMaintenance as Timestamp | null,
-        nextHydroTest: extData.nextHydroTest as Timestamp | null,
-      };
+        const calcInput: ExtinguisherForCalc = {
+          lifecycleStatus: extData.lifecycleStatus as string | null,
+          extinguisherType: extData.extinguisherType as string | null,
+          requiresSixYearMaintenance: needsSixYear,
+          lastMonthlyInspection: now,
+          lastAnnualInspection: safeTimestamp(extData.lastAnnualInspection),
+          lastSixYearMaintenance: safeTimestamp(extData.lastSixYearMaintenance),
+          lastHydroTest: safeTimestamp(extData.lastHydroTest),
+          hydroTestIntervalYears: hydroInterval,
+          nextMonthlyInspection,
+          nextAnnualInspection: safeTimestamp(extData.nextAnnualInspection),
+          nextSixYearMaintenance: safeTimestamp(extData.nextSixYearMaintenance),
+          nextHydroTest: safeTimestamp(extData.nextHydroTest),
+        };
 
-      const { complianceStatus, overdueFlags } =
-        calculateComplianceStatus(calcInput);
+        const { complianceStatus, overdueFlags } =
+          calculateComplianceStatus(calcInput);
 
-      tx.update(extRef, {
-        isExpired: data.isExpired ?? false,
-        lastMonthlyInspection: now,
-        nextMonthlyInspection,
-        complianceStatus,
-        overdueFlags,
-        updatedAt: serverTimestamp,
-      });
+        tx.update(extRef, {
+          isExpired: data.isExpired ?? false,
+          lastMonthlyInspection: now,
+          nextMonthlyInspection,
+          complianceStatus,
+          overdueFlags,
+          updatedAt: serverTimestamp,
+        });
+      } catch (lifecycleErr: unknown) {
+        // Log but do not rethrow — the inspection record is already written.
+        // The lifecycle fields will be stale until the next recalculate run.
+        console.error('[saveInspection] lifecycle update failed', {
+          inspectionId,
+          extinguisherId: inspData.extinguisherId as string | undefined,
+          error:
+            lifecycleErr instanceof Error
+              ? lifecycleErr.message
+              : String(lifecycleErr),
+        });
+      }
     }
 
     return { inspectionId, status, previousStatus };
