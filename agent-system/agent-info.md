@@ -2420,3 +2420,10 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - CSV export, workspace auto-tag on create (active workspace label/id)
 - `convertNoteToInspection` CF — flags linked asset inspection as fail with note text
 - `mergeAiNotes` CF + organizer merge suggestions for duplicate notes
+
+## 2026-07-20 — Daily review bot — built_by_Beck
+
+- Found duplicate `pnpm.onlyBuiltDependencies` keys in root `package.json`; normal JSON parsing kept only the second key and dropped intended `protobufjs` build approval.
+- Fixed by keeping one allowlist with `esbuild`, `@firebase/util`, and `protobufjs`; PR #102.
+- Validation: `pnpm lint`, `pnpm test`, `pnpm build`, functions `npm run lint`, functions `npm run build`, functions `npm test` all passed. Changed-file Prettier check for `package.json` passed.
+- Known follow-up: full `pnpm format:check` still fails on 68 pre-existing unrelated files; pre-existing unstaged `functions/package-lock.json` diff remains outside the review fix.

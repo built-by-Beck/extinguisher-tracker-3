@@ -242,3 +242,9 @@ Each entry follows this structure:
 - **Issue**: A test fixture used `manufactureYear: 3000` to guarantee a unit was not older than 6 years.
 - **Resolution**: Replaced the impossible sentinel with the current UTC year so the fixture remains realistic and future-safe.
 - **Rule**: Test fixtures for real-world domain data should use plausible dynamic dates or named constants instead of impossible values that look like product data.
+
+### 2026-07-20 -- Duplicate JSON keys hide pnpm config entries
+- **Context**: Daily review bot checked dependency/build configuration after recent CI and package-manager changes.
+- **Issue**: Root `package.json` declared `pnpm.onlyBuiltDependencies` twice. JSON parsing kept only the second declaration, silently dropping `protobufjs` from the intended build-script allowlist.
+- **Resolution**: Removed the duplicate key and kept one allowlist containing `esbuild`, `@firebase/util`, and `protobufjs`.
+- **Rule**: When reviewing package manager config, search for duplicate JSON keys and confirm the parsed value with Node or the package manager, not just the visual file contents.
