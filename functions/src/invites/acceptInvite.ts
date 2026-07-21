@@ -1,6 +1,11 @@
+/**
+ * acceptInvite — Accept a pending organization invite by raw token.
+ *
+ * Author: built_by_Beck
+ */
+
 import { onCall } from 'firebase-functions/v2/https';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import crypto from 'crypto';
 import { adminDb, adminAuth } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import {
@@ -9,6 +14,7 @@ import {
   throwFailedPrecondition,
   throwPermissionDenied,
 } from '../utils/errors.js';
+import { hashToken, isInviteExpired } from './inviteHelpers.js';
 
 interface AcceptInviteInput {
   token: string;
@@ -17,13 +23,6 @@ interface AcceptInviteInput {
 interface AcceptInviteOutput {
   orgId: string;
   orgName: string;
-}
-
-/**
- * Hashes a token with SHA-256.
- */
-function hashToken(token: string): string {
-  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 export const acceptInvite = onCall<
@@ -60,9 +59,7 @@ export const acceptInvite = onCall<
   const inviteId = inviteDoc.id;
 
   // 5. Validate invite not expired
-  const expiresAt = inviteData.expiresAt as Timestamp;
-  if (expiresAt.toDate() < new Date()) {
-    // Mark as expired
+  if (isInviteExpired(inviteData.expiresAt as Timestamp)) {
     await inviteDoc.ref.update({
       status: 'expired',
     });

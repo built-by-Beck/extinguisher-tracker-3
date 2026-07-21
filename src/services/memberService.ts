@@ -46,6 +46,23 @@ export async function callAcceptInvite(
   return result.data;
 }
 
+// --- revokeInvite ---
+interface RevokeInviteInput {
+  orgId: string;
+  inviteId: string;
+}
+
+export async function callRevokeInvite(
+  input: RevokeInviteInput,
+): Promise<{ success: boolean }> {
+  const fn = httpsCallable<RevokeInviteInput, { success: boolean }>(
+    functions,
+    'revokeInvite',
+  );
+  const result = await fn(input);
+  return result.data;
+}
+
 // --- changeMemberRole ---
 interface ChangeMemberRoleInput {
   orgId: string;

@@ -1,3 +1,9 @@
+/**
+ * createInvite — Create a pending organization invite.
+ *
+ * Author: built_by_Beck
+ */
+
 import { onCall } from 'firebase-functions/v2/https';
 import { FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
@@ -8,6 +14,13 @@ import {
   throwInvalidArgument,
   throwFailedPrecondition,
 } from '../utils/errors.js';
+import {
+  INVITE_EXPIRY_DAYS,
+  assertOrgSupportsTeamMembers,
+  hashToken,
+  markInvitesExpired,
+  partitionPendingInvitesByExpiry,
+} from './inviteHelpers.js';
 
 interface CreateInviteInput {
   orgId: string;
@@ -21,14 +34,6 @@ interface CreateInviteOutput {
 }
 
 const VALID_INVITE_ROLES = ['admin', 'inspector', 'viewer'] as const;
-const INVITE_EXPIRY_DAYS = 7;
-
-/**
- * Hashes a token with SHA-256.
- */
-function hashToken(token: string): string {
-  return crypto.createHash('sha256').update(token).digest('hex');
-}
 
 export const createInvite = onCall<
   CreateInviteInput,
@@ -61,49 +66,56 @@ export const createInvite = onCall<
   await validateMembership(orgId, uid, ['owner', 'admin']);
 
   // 4. Verify org plan supports team members (Elite/Enterprise only)
-  const orgSnap = await adminDb.doc(`org/${orgId}`).get();
-  if (!orgSnap.exists) {
-    throwInvalidArgument('Organization not found.');
-  }
-  const orgData = orgSnap.data()!;
-  const featureFlags = orgData.featureFlags as
-    | Record<string, boolean>
-    | undefined;
-  const plan = orgData.plan as string | undefined;
-  const hasTeamMembers =
-    featureFlags?.teamMembers === true ||
-    plan === 'elite' ||
-    plan === 'enterprise';
-  if (!hasTeamMembers) {
+  const orgData = await assertOrgSupportsTeamMembers(orgId);
+
+  // 5. Reject if an active member already uses this email
+  const existingMemberQuery = await adminDb
+    .collection(`org/${orgId}/members`)
+    .where('email', '==', trimmedEmail)
+    .where('status', '==', 'active')
+    .limit(1)
+    .get();
+
+  if (!existingMemberQuery.empty) {
     throwFailedPrecondition(
-      'Team members are only available on Elite and Enterprise plans.',
+      'An active member with this email already exists in this organization.',
     );
   }
 
-  // 5. Check for duplicate pending invites (same org + email)
-  const duplicateQuery = await adminDb
+  // 6. Check pending invites; auto-expire stale ones so they no longer block
+  const pendingQuery = await adminDb
     .collection('invite')
     .where('orgId', '==', orgId)
     .where('email', '==', trimmedEmail)
     .where('status', '==', 'pending')
-    .limit(1)
+    .limit(25)
     .get();
 
-  if (!duplicateQuery.empty) {
+  const now = new Date();
+  const { expired, active } = partitionPendingInvitesByExpiry(
+    pendingQuery.docs,
+    now,
+  );
+
+  if (expired.length > 0) {
+    await markInvitesExpired(expired);
+  }
+
+  if (active.length > 0) {
     throwFailedPrecondition(
-      'A pending invite already exists for this email in this organization.',
+      'A pending invite already exists for this email in this organization. Revoke it first or wait until it expires.',
     );
   }
 
-  // 6. Get org name for the invite record (already fetched in step 4)
+  // 7. Get org name for the invite record
   const orgName = (orgData?.name as string) || 'Unknown Organization';
 
-  // 7. Generate secure token and hash it
+  // 8. Generate secure token and hash it
   const rawToken = crypto.randomBytes(32).toString('hex');
   const tokenHash = hashToken(rawToken);
 
-  // 8. Create invite document
-  const now = FieldValue.serverTimestamp();
+  // 9. Create invite document
+  const serverNow = FieldValue.serverTimestamp();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + INVITE_EXPIRY_DAYS);
 
@@ -121,13 +133,13 @@ export const createInvite = onCall<
     invitedByEmail: callerEmail,
     status: 'pending',
     tokenHash,
-    createdAt: now,
+    createdAt: serverNow,
     expiresAt: expiresAt,
     acceptedAt: null,
     revokedAt: null,
   });
 
-  // 9. Write audit log
+  // 10. Write audit log
   const auditLogRef = adminDb.doc(`org/${orgId}`).collection('auditLogs').doc();
   batch.set(auditLogRef, {
     action: 'member.invited',
@@ -139,12 +151,12 @@ export const createInvite = onCall<
     },
     performedBy: uid,
     performedByEmail: callerEmail,
-    performedAt: now,
+    performedAt: serverNow,
   });
 
   await batch.commit();
 
-  // 10. Build and return invite URL
+  // 11. Build and return invite URL (email delivery is not configured; share link manually)
   const appUrl = process.env.APP_URL || 'https://extinguishertracker.com';
   const inviteUrl = `${appUrl}/invite/${rawToken}`;
 
