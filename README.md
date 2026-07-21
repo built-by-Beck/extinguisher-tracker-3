@@ -270,8 +270,15 @@ org/{orgId}                           # Tenant root document
   └── settings/{settingId}            # Org-level settings
 
 usr/{uid}                             # User profile metadata only
-invite/{inviteId}                     # Pending organization invitations
+invite/{inviteId}                     # Organization invitations (pending / accepted / expired / revoked)
 ```
+
+### Team invites (Elite / Enterprise)
+
+- Owners and admins invite members from **Members** (`/dashboard/members`). Invites are **link-based** (copy and share); email delivery is not configured yet.
+- Invite links expire after **7 days**. Creating a new invite for the same email auto-expires any overdue pending invite so re-invite is not blocked.
+- Pending invites appear on the Members page and can be **revoked**. Terminal invite docs are cleaned up by `expireInvitesJob` (daily): overdue pending → `expired`, then hard-delete expired/revoked/accepted invites **30 days** after their original `expiresAt`.
+- Roles: Admin (manage org), Inspector (field inspections), Viewer (read-only). Multiple inspectors can work the same org concurrently.
 
 ## Development Workflow
 

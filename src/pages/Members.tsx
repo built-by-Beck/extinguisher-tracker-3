@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
 import { UserPlus, Users, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/firebase.ts';
@@ -8,6 +14,8 @@ import { useOrg } from '../hooks/useOrg.ts';
 import { hasFeature } from '../lib/planConfig.ts';
 import { InviteModal } from '../components/members/InviteModal.tsx';
 import { MemberRow } from '../components/members/MemberRow.tsx';
+import { PendingInviteRow } from '../components/members/PendingInviteRow.tsx';
+import type { Invite } from '../types/invite.ts';
 import type { OrgMember } from '../types/index.ts';
 
 interface MemberEntry {
@@ -15,11 +23,17 @@ interface MemberEntry {
   data: OrgMember;
 }
 
+interface InviteEntry {
+  id: string;
+  data: Invite;
+}
+
 export default function Members() {
   const { user, userProfile } = useAuth();
   const { org, hasRole } = useOrg();
   const navigate = useNavigate();
   const [members, setMembers] = useState<MemberEntry[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<InviteEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
 
@@ -72,6 +86,45 @@ export default function Members() {
     return () => unsub();
   }, [canAccessMembers, user, orgId]);
 
+  // Real-time listener for pending invites (owner/admin readable via rules)
+  useEffect(() => {
+    if (!canAccessMembers || !canManage || !user || !orgId) {
+      setPendingInvites([]);
+      return;
+    }
+
+    const invitesQuery = query(
+      collection(db, 'invite'),
+      where('orgId', '==', orgId),
+      where('status', '==', 'pending'),
+    );
+
+    const unsub = onSnapshot(
+      invitesQuery,
+      (snapshot) => {
+        const entries: InviteEntry[] = [];
+        const now = Date.now();
+        snapshot.forEach((inviteDoc) => {
+          const data = inviteDoc.data() as Invite;
+          // Hide client-side any that are past expiresAt (job may not have run yet)
+          const expiresMs =
+            typeof data.expiresAt?.toMillis === 'function'
+              ? data.expiresAt.toMillis()
+              : 0;
+          if (expiresMs > 0 && expiresMs < now) return;
+          entries.push({ id: inviteDoc.id, data });
+        });
+        entries.sort((a, b) => a.data.email.localeCompare(b.data.email));
+        setPendingInvites(entries);
+      },
+      () => {
+        setPendingInvites([]);
+      },
+    );
+
+    return () => unsub();
+  }, [canAccessMembers, canManage, user, orgId]);
+
   if (!canAccessMembers) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -114,6 +167,9 @@ export default function Members() {
             <p className="text-sm text-gray-500">
               {members.length} member{members.length !== 1 ? 's' : ''} in{' '}
               {org?.name ?? 'this organization'}
+              {canManage && pendingInvites.length > 0
+                ? ` · ${pendingInvites.length} pending invite${pendingInvites.length !== 1 ? 's' : ''}`
+                : ''}
             </p>
           </div>
         </div>
@@ -134,11 +190,69 @@ export default function Members() {
           Manage who has access to your organization. Invite team members by
           email and assign them a role — Owners and Admins can manage settings
           and data, Inspectors can perform inspections in the field, and Viewers
-          have read-only access for audits or oversight.
+          have read-only access for audits or oversight. Invites are shared via
+          a copyable link (expires in 7 days).
         </p>
       </div>
 
+      {/* Pending invites */}
+      {canManage && (
+        <div className="mb-8">
+          <h2 className="mb-3 text-lg font-semibold text-gray-900">
+            Pending Invites
+          </h2>
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+            <table className="w-full min-w-[640px]">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Email
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Role
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Expiry
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingInvites.map((entry) => (
+                  <PendingInviteRow
+                    key={entry.id}
+                    inviteId={entry.id}
+                    invite={entry.data}
+                    orgId={orgId}
+                    canManage={canManage}
+                  />
+                ))}
+                {pendingInvites.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-6 text-center text-sm text-gray-500"
+                    >
+                      No pending invites. Create an invite and share the link
+                      with your teammate.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Members table */}
+      <h2 className="mb-3 text-lg font-semibold text-gray-900">
+        Active Members
+      </h2>
       <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
         <table className="w-full min-w-[640px]">
           <thead>
@@ -191,7 +305,7 @@ export default function Members() {
           orgId={orgId}
           onClose={() => setShowInvite(false)}
           onSuccess={() => {
-            // Keep modal open to show invite URL
+            // Keep modal open to show invite URL; pending list updates via snapshot
           }}
         />
       )}

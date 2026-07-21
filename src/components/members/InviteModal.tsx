@@ -122,7 +122,8 @@ export function InviteModal({ orgId, onClose, onSuccess }: InviteModalProps) {
               </p>
               <p className="mt-1 text-xs text-green-700">
                 Copy this link and send it to{' '}
-                <span className="font-medium">{email}</span>. The link expires
+                <span className="font-medium">{email}</span>. Invites are not
+                emailed automatically yet — share the link yourself. It expires
                 in 7 days.
               </p>
               <div className="mt-2 flex items-center gap-2">
