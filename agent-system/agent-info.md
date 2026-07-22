@@ -2420,3 +2420,52 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - CSV export, workspace auto-tag on create (active workspace label/id)
 - `convertNoteToInspection` CF — flags linked asset inspection as fail with note text
 - `mergeAiNotes` CF + organizer merge suggestions for duplicate notes
+
+## 2026-07-21 — REVIEW: Fix invite & member system — built_by_Beck
+
+**Reviewer:** review-agent · **Branch:** `cursor/fix-invite-member-system-5095` · **Classification:** LARGE (auth, permissions, customer data, data deletion) · **PBRD Gate B (Review): PASS.**
+
+**Scope reviewed:** `inviteHelpers.ts` (new), `createInvite.ts`, `acceptInvite.ts`, `revokeInvite.ts` (new), `expireInvitesJob.ts` (new), `index.ts`, `firestore.indexes.json`, `Members.tsx`, `PendingInviteRow.tsx` (new), `InviteModal.tsx`, `memberService.ts`, `inviteHelpers.test.ts` (new), README.
+
+**Verdict: ACCEPTED WITH MINOR CONCERNS.** No must-fix items before merge.
+
+**Plan compliance:** Full. All 16 implementation-map items delivered — shared helpers, createInvite auto-expires stale pending (unblocks re-invite) + active-member-by-email guard, revokeInvite callable, daily expireInvitesJob (mark overdue pending → delete terminal past retention), 4 new `invite` indexes + `members` email/status index, pending-invite list with revoke UI, clearer copy-link modal copy, helper unit tests, README note.
+
+**Security (all pass):**
+- Invite writes Functions-only — `firestore.rules` `match /invite/{inviteId}` still `allow write: if false`; read gated to invitee email OR org owner/admin (tenant-isolated).
+- createInvite/revokeInvite gated `validateMembership(owner/admin)` + `assertOrgSupportsTeamMembers` (Elite/Enterprise/flag).
+- Token hash only (`hashToken` SHA-256); raw token returned in URL, never stored.
+- revokeInvite verifies `inviteData.orgId === input.orgId` → cross-org revoke returns not-found; idempotent on already-revoked; rejects non-pending.
+- Cleanup deletes only `expired|revoked|accepted` with `expiresAt < now-30d`; live pending is only ever marked expired, never deleted.
+- acceptInvite keeps email match + lazy expire; no client-trusted role elevation.
+
+**Validation evidence:** `npm --prefix functions run build` clean; `functions npm test` 15 suites / 67 tests pass; `pnpm lint` clean; `pnpm build` succeeds.
+
+**Minor concerns (non-blocking):**
+1. Retention anchor for `accepted`/`revoked` invites is the original `expiresAt` (7-day window), not `acceptedAt`/`revokedAt` — deletion timing is approximate but always ≥ retention and safe; documented in code comment.
+2. `expireInvitesJob` processes `limit(500)` per status per daily run; a >500 backlog clears over successive days (fine at current scale; revisit if invite volume grows).
+3. Coverage is helper-level unit tests only; no integration test exercises the createInvite expired-pending-unblocks path end-to-end (acceptable per plan, which permitted extending helper tests).
+
+**Notes for document-agent:** README invite-lifecycle note added (copy-link UX, 7-day expiry, 30-day cleanup) — verify it reads clearly and mentions revoke + no-auto-email. No pricing/gating changes. Consider a short admin-facing note that invites are shared via manual copy-link until SMTP is wired (explicit non-goal this cycle).
+
+## 2026-07-21 — DOCUMENT: Invite & member system fix — built_by_Beck
+
+**Agent:** document-agent · **Branch:** `cursor/fix-invite-member-system-5095` · **After:** Review ACCEPTED WITH MINOR CONCERNS
+
+**Feature/change documented:** Invite lifecycle (copy-link, 7-day expiry, re-invite after expiry, revoke, daily expire/cleanup job, Elite/Enterprise). No email delivery invented.
+
+**Files inspected:** `agent-system/agent-info.md` (last 40), `agent-system/plan.md`, `README.md` Team invites section, `functions/src/invites/{inviteHelpers,createInvite,revokeInvite,expireInvitesJob,acceptInvite}.ts`, `src/pages/Members.tsx`, `src/components/members/{InviteModal,PendingInviteRow}.tsx`
+
+**Files updated:**
+- `README.md` — clarified copy-link / no-auto-email wording; confirmed revoke, 7-day expiry, 30-day cleanup, Elite/Enterprise accurate
+- `agent-system/lessons_learned.md` — expired-pending blocked re-invite (status without time check)
+- `agent-system/agent-info.md` — this entry
+
+**Status:**
+- README: updated (wording only)
+- TODO: not changed (no roadmap delta)
+- Website/marketing: not changed (no public marketing pages for invites; in-app Members/InviteModal already accurate)
+- FAQ / getting started: not changed (no dedicated FAQ for invites; Members page copy covers admins)
+- Pricing/plan: not changed (still Elite/Enterprise `teamMembers`; no number or gating edits)
+
+**Still needed:** Optional future FAQ when SMTP invite email ships; integration test for expired-pending-unblocks path (review minor concern, not a docs gap).

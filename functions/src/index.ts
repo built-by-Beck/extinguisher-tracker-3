@@ -11,6 +11,8 @@ export { createOrganization } from './orgs/createOrganization.js';
 // Invite management
 export { createInvite } from './invites/createInvite.js';
 export { acceptInvite } from './invites/acceptInvite.js';
+export { revokeInvite } from './invites/revokeInvite.js';
+export { expireInvitesJob } from './invites/expireInvitesJob.js';
 
 // Member management
 export { changeMemberRole } from './members/changeMemberRole.js';
