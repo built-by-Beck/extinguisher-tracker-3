@@ -2469,3 +2469,15 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Pricing/plan: not changed (still Elite/Enterprise `teamMembers`; no number or gating edits)
 
 **Still needed:** Optional future FAQ when SMTP invite email ships; integration test for expired-pending-unblocks path (review minor concern, not a docs gap).
+
+## 2026-07-22 — REVIEW: Daily review bot package config check — built_by_Beck
+
+**Agent:** Review Bot · **Branch:** `cursor/daily-project-review-2a78` · **Verdict:** FIXED SMALL ISSUE
+
+**Required context read:** last 40 lines of `agent-system/agent-info.md`, `agent-system/lessons_learned.md`, root `package.json`, `functions/package.json`, recent `git status`, `git diff --stat`, and `git log --oneline -5`.
+
+**Issue found/fixed:** Latest dependency-update merge introduced duplicate root `package.json` `pnpm.onlyBuiltDependencies` keys. The later duplicate dropped `protobufjs`, silently overriding the intended allowlist. Removed the duplicate later key so the resolved list remains `["esbuild","@firebase/util","protobufjs"]`.
+
+**Validation evidence:** `pnpm exec prettier --write package.json`; `pnpm lint`; `pnpm test` (15 files / 110 tests); `pnpm build`; `npm --prefix functions run lint`; `npm --prefix functions test` (15 suites / 67 tests); `npm --prefix functions run build`; Node check confirmed `package.json#pnpm.onlyBuiltDependencies` includes `protobufjs`; `rg '"onlyBuiltDependencies"' package.json` shows one key.
+
+**Warnings not fixed:** Existing functions Jest VM Modules warning remains; several existing backend test files still use file-level `@ts-nocheck`; root `test-types.ts` appears to be a tracked manual type probe with `console.log` but is outside app/build tsconfig scope. No production auth, billing, Firestore rules, or data workflow changes were made.
