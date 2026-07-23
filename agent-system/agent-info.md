@@ -2469,3 +2469,20 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Pricing/plan: not changed (still Elite/Enterprise `teamMembers`; no number or gating edits)
 
 **Still needed:** Optional future FAQ when SMTP invite email ships; integration test for expired-pending-unblocks path (review minor concern, not a docs gap).
+
+## 2026-07-23 — REVIEW: Daily Review Bot package config fix — built_by_Beck
+
+**Agent:** Daily Review Bot · **Branch:** `cursor/daily-project-review-d225` · **PBRD:** Plan → Build small fix → Review ACCEPTED → Document memory.
+
+**What was reviewed:** Recent dependency merge, `package.json`, `functions/package.json`, git status/diff/log, targeted risky patterns (`TODO/FIXME`, debug logs, suppressions, exposed key patterns, empty catches, Firestore lookup paths), frontend and functions validation gates.
+
+**Issue fixed:** `package.json` had duplicate sibling `pnpm.onlyBuiltDependencies` keys. JSON parsing kept the later key and silently dropped `protobufjs`, conflicting with setup guidance that requires `esbuild`, `@firebase/util`, and `protobufjs` in the allowlist.
+
+**Files updated:**
+- `package.json` — collapsed duplicate `pnpm.onlyBuiltDependencies` into one array preserving all required entries.
+- `agent-system/lessons_learned.md` and `agent-system/lessons-learned.md` — added duplicate JSON-key prevention lesson.
+- `agent-system/agent-info.md` — this entry.
+
+**Validation evidence:** Duplicate-key assertion passed; `pnpm install --frozen-lockfile` passed; `pnpm lint` passed; `pnpm test` passed (15 suites / 110 tests); `pnpm build` passed; `npm --prefix functions run lint` passed; `npm --prefix functions run build` passed; `npm --prefix functions test` passed (15 suites / 67 tests).
+
+**Review verdict:** ACCEPTED. Diff is minimal, no dependency version/lockfile/security-surface changes, commit `8b78a58` pushed before validation per cloud branch rule.
