@@ -2469,3 +2469,15 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Pricing/plan: not changed (still Elite/Enterprise `teamMembers`; no number or gating edits)
 
 **Still needed:** Optional future FAQ when SMTP invite email ships; integration test for expired-pending-unblocks path (review minor concern, not a docs gap).
+
+## 2026-07-24 — DAILY REVIEW: pnpm allowlist duplicate-key fix — built_by_Beck
+
+**Agent:** Daily Review Bot · **Branch:** `cursor/daily-project-review-c890` · **Classification:** SMALL (package metadata/config hygiene)
+
+**Issue found:** Root `package.json` had duplicate `pnpm.onlyBuiltDependencies` keys. JSON parsing keeps the later key, so the intended first list containing `protobufjs` was shadowed by a shorter second list.
+
+**Fix made:** Removed the duplicate later key so the single allowlist remains `esbuild`, `@firebase/util`, `protobufjs`.
+
+**Validation:** `pnpm exec prettier --check package.json`, package parse assertion for `protobufjs`, `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` all passed. Backend Jest still prints the existing ts-jest TS151002 warning but exits successfully.
+
+**Review verdict:** ACCEPTED. No high-risk auth/billing/Firestore/code behavior was changed.

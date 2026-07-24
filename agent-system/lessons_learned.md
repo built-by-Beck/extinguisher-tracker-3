@@ -365,3 +365,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** On create, auto-expire overdue pending invites for that email before the duplicate check; add `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past 30-day retention.
 
 **Prevention rule:** Any time-bounded status (e.g. `pending` with `expiresAt`) must either be updated by a scheduled job when the deadline passes **or** be treated as expired in business logic (duplicate checks, UI lists, accept paths) when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+## 2026-07-24 - Duplicate JSON Keys Shadow Package Manager Config
+
+**What happened:** Daily Review Bot found two `pnpm.onlyBuiltDependencies` keys in root `package.json`. The later key omitted `protobufjs`, so normal JSON parsing shadowed the intended earlier allowlist even though lint/build/tests passed in the warm workspace.
+
+**Fix used:** Removed the duplicate later key so the parsed allowlist remains `esbuild`, `@firebase/util`, and `protobufjs`; verified via `node -e` package parse assertion plus formatter/lint/build/test checks.
+
+**Prevention rule:** When reviewing package metadata, inspect nested config blocks for duplicate JSON keys. Warm-workspace builds do not prove install-time allowlists or overrides are parsed as intended.
