@@ -365,3 +365,13 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** On create, auto-expire overdue pending invites for that email before the duplicate check; add `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past 30-day retention.
 
 **Prevention rule:** Any time-bounded status (e.g. `pending` with `expiresAt`) must either be updated by a scheduled job when the deadline passes **or** be treated as expired in business logic (duplicate checks, UI lists, accept paths) when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+## 2026-07-26 — Universal Custom Assets: do not commit repo-wide Prettier sweeps
+
+**Error:** Build ran `pnpm format` across the whole tree and committed ~70 unrelated files (Members, Privacy, FieldWork, billing, AI services, etc.) alongside the Custom Assets feature.
+
+**What happened:** First feature commit looked huge and mixed format-only churn with real work, making Review harder and risking accidental semantic diffs.
+
+**Fix used:** Soft-reset the commit, restore unrelated paths from `main`, keep only plan/memory + Custom Assets libs/page + Sidebar/DashboardLayout title + routes redirect, then recommit. Re-ran Vitest/lint/build on the scoped tree.
+
+**Prevention rule:** After `pnpm format` / Prettier, inspect `git status` / `git diff --stat` before commit. For feature branches, stage only task-related paths (or run Prettier on touched files). Never ship an unrelated repo-wide format sweep inside a product feature commit.
