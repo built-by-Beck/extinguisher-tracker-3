@@ -85,9 +85,7 @@ export function SectionTimerProvider({ children }: { children: ReactNode }) {
   const [activeWorkspaceLabel, setActiveWorkspaceLabel] = useState<
     string | null
   >(null);
-  const [activeLocationId, setActiveLocationId] = useState<string | null>(
-    null,
-  );
+  const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [currentElapsed, setCurrentElapsed] = useState(0);
   const [idlePromptSection, setIdlePromptSection] = useState<string | null>(
     null,
@@ -113,8 +111,7 @@ export function SectionTimerProvider({ children }: { children: ReactNode }) {
     locationId: string | null;
   } | null>(null);
 
-  const activeKey =
-    orgId && userId ? makeActiveTimerKey(orgId, userId) : '';
+  const activeKey = orgId && userId ? makeActiveTimerKey(orgId, userId) : '';
 
   useEffect(() => {
     activeSectionRef.current = activeSection;
@@ -421,8 +418,12 @@ export function SectionTimerProvider({ children }: { children: ReactNode }) {
 
   const startTimer = useCallback(
     (params: StartTimerParams) => {
-      const { section, workspaceId, workspaceLabel, locationId = null } =
-        params;
+      const {
+        section,
+        workspaceId,
+        workspaceLabel,
+        locationId = null,
+      } = params;
 
       if (
         activeSectionRef.current === section &&

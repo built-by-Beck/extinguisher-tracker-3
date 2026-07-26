@@ -1,121 +1,132 @@
-# Plan — Fix Invite & Member System
+# Plan — Universal Custom Assets
 
-**Classification:** LARGE (auth, permissions, customer data, data deletion)
-**Last Updated:** 2026-07-21
+**Classification:** LARGE (major user-facing workflow; Pro+ feature gating; org-scoped customer data; Firestore assets/templates writes — Full PBRD)
+**Last Updated:** 2026-07-26
 **Author:** built_by_Beck
-**PBRD Stage:** Review complete (Gate B — PASS, ACCEPTED WITH MINOR CONCERNS; hand off to document-agent)
-**Branch:** `cursor/fix-invite-member-system-5095`
+**PBRD Stage:** COMPLETE — Document done (2026-07-26)
+**Branch:** `cursor/universal-custom-assets-dffe`
 
 ---
 
 ## Problem
 
-1. Expired invites stay `status: 'pending'` until someone hits `acceptInvite`, so `createInvite` blocks re-invite with "A pending invite already exists…"
-2. No scheduled expire/cleanup job — stale invite docs accumulate forever.
-3. No `revokeInvite` — owners/admins cannot cancel or clear a stuck pending invite.
-4. Members page has no pending-invite list (spec requires it).
-5. No "already an active member by email" check on create.
-6. Invite email is not sent (manual copy-link only) — out of scope for SMTP; UX must stay clear.
+Custom Assets exist as a generic list + create form, but teams need a **universal recurring checklist system** for elevators, exit signs, stairwells, egress lighting, egress paths, fire doors, sprinklers, and custom types. Users must enter names/locations/checklist items **once**; assets persist under `org/{orgId}/assets`; each month they only mark Pass/Fail/N/A (workspace seeding already handles monthly active assets).
 
-## Root Cause
+Today there is no starter catalog, no CSV bulk create, no generate-from-locations, and no type-based in-page tabs.
 
-`createInvite` duplicate check is only `orgId + email + status=='pending'` and ignores `expiresAt`. Expiration is applied lazily on accept only. Spec’d `expireInvitesJob` and revoke UI were never implemented.
+## Goals
 
-## Goals (this cycle)
-
-Enable reliable multi-inspector + admin workflows by making invite lifecycle correct:
-
-- Re-invite after expiry works without manual accept-of-dead-link.
-- Pending invites are visible and revocable.
-- Expired/terminal invites are marked, then deleted after retention.
-- Still: token hash only, Functions-only writes, owner/admin gates, Elite/Enterprise `teamMembers` gate.
+1. Sidebar/layout label: **"Custom Assets"** (keep route `/dashboard/custom-asset-inspections`; optional redirect from `/dashboard/custom-assets`).
+2. In-page tabs: **All / Setup** + one tab per distinct active `assetType` in the org (bookmark `?type=Elevator`).
+3. Elevators (and other type) tabs: filtered list; Elevators show this month’s Fire recall + Communications phone status; row opens existing CustomAssetDetail.
+4. Starter catalog + improved create UX (chips, paste columns, persistence copy).
+5. Client-only CSV bulk create + Vitest helpers.
+6. Generate from Locations (stairwell/floor pattern from workDocumentGenerator).
+7. Do **not** change extinguisher workspace stats source of truth; reuse existing monthly seed.
 
 ## Non-Goals
 
-- Transactional email (SendGrid/SES) — keep copy-link UX; document clearly.
-- Route/location assignment of inspectors.
-- Ownership transfer / leave-org.
-- Changing plan gating for `teamMembers`.
+- Field Work Phase 2 / workDocumentRuns
+- Per-type sidebar entries
+- Server-side CSV import callable
+- Changing extinguisher inspection/stats logic
+- Seeding starters into Firestore for every new org
+- Firestore rules changes unless a real gap appears (prefer existing gates)
+
+## Locked product decisions
+
+1. Label "Custom Assets"; route stays; optional `/dashboard/custom-assets` redirect.
+2. NO per-type sidebar; tabs are org-driven.
+3. Reuse pass/fail + `createWorkspace` seed; leave extinguisher stats alone.
 
 ## Implementation Map
 
-### Backend
+### A. Starters catalog — `src/lib/customAssetStarters.ts` (new)
 
-1. **`functions/src/invites/inviteHelpers.ts`** (new)
-   - Shared `hashToken`, `INVITE_EXPIRY_DAYS=7`, `INVITE_RETENTION_DAYS=30`
-   - `isInviteExpired(expiresAt, now)`
-   - `expirePendingInviteDocs(docs)` — batch mark `status: 'expired'`
+Client constant catalog:
 
-2. **`createInvite.ts`** — fix duplicate path
-   - Query pending invites for org+email (limit small, e.g. 10)
-   - Mark any with `expiresAt < now` as `expired`
-   - If any still-valid pending remains → `failed-precondition` (unchanged message)
-   - Else proceed to create
-   - Also reject if an **active** member already has that email (collection query `org/{orgId}/members` where email== and status==active)
-   - Use shared helpers
+| Starter id / assetType | Default checklist items |
+|---|---|
+| Elevator | Fire recall system; Elevator communications phone |
+| Egress lighting | (sensible default checklist labels) |
+| Exit sign | … |
+| Egress path | … |
+| Fire door | … |
+| Sprinkler | … |
+| Custom / blank | empty or single blank item |
 
-3. **`acceptInvite.ts`**
-   - Use shared helpers; keep lazy expire on accept
-   - If invite already `revoked`/`expired`/`accepted` (not found as pending) → existing not-found / clear errors
+Exports: starter list, lookup by id/type, helpers to produce `CustomAssetInspectionItem[]` via `createInspectionItem`.
 
-4. **`revokeInvite.ts`** (new callable)
-   - Input: `{ orgId, inviteId }`
-   - Owner/admin + teamMembers plan gate
-   - Only revoke if `status === 'pending'` and `orgId` matches
-   - Set `status: 'revoked'`, `revokedAt`, audit `member.invite_revoked`
+### B. CSV helpers — `src/lib/customAssetCsv.ts` (+ Vitest)
 
-5. **`expireInvitesJob.ts`** (new scheduled, daily)
-   - Query `invite` where `status=='pending'` and `expiresAt < now` → mark `expired` (batched)
-   - Query terminal statuses (`expired`/`revoked`/`accepted`) older than retention:
-     - Prefer `expiresAt < now - 30d` for expired, or `revokedAt`/`acceptedAt`/`expiresAt` heuristics
-     - Simplest safe rule: delete docs where `status in ['expired','revoked','accepted']` AND `expiresAt < (now - 30 days)` (expiresAt always set at create)
-   - Log counts
+- Columns: `name`, `assetType`, `locationName`, `recurrence` (default monthly), `items` (pipe-separated), optional `assetCode`
+- Pure parse + validate; map locationName → locationId when possible
+- No Cloud Function
 
-6. **`index.ts`** — export `revokeInvite`, `expireInvitesJob`
+### C. Generate from Locations — helper module (e.g. `src/lib/generateAssetsFromLocations.ts`)
 
-7. **`firestore.indexes.json`**
-   - `invite`: `orgId ASC, email ASC, status ASC`
-   - `invite`: `tokenHash ASC, status ASC` (accept path)
-   - `invite`: `status ASC, expiresAt ASC` (expire job)
-   - Members email check: may need `email ASC, status ASC` under `org/{orgId}/members` if missing
+- Pick starter → all stairwells or under a building → one asset per floor under stairwell (or stairwell if no floors)
+- Skip duplicate `name + locationId`
+- Monthly + starter items
+- Reuse stairwell/floor patterns from `workDocumentGenerator` / `getAllDescendantIds`
 
-### Frontend
+### D. UI — `CustomAssetInspections.tsx`
 
-8. **`memberService.ts`** — `callRevokeInvite`
-9. **`Members.tsx`** — pending invites section (realtime query `invite` where `orgId==` and `status=='pending'`), revoke button for owner/admin
-10. **`InviteModal.tsx`** — clearer copy that invite is link-based (no email send yet); onSuccess refresh pending list via parent callback
-11. Optional small `PendingInviteRow` component
+- Tabs: Setup/All + dynamic type tabs; sync with `?type=`
+- Setup: full list, create (starter picker, chips, paste-one-label-per-line, persistence copy), CSV import, generate-from-locations, templates Apply/Save
+- Type tabs: filtered assets; Elevator shows Fire recall + Communications phone status from this month’s inspection answers; navigate to detail on row click
+- Keep existing gating: owner/admin writes; Pro+ `canUseCustomAssetInspections` + writable subscription
 
-### Tests
+### E. Nav / routes
 
-12. **`functions/src/__tests__/inviteHelpers.test.ts`** — expiry detection, retention cutoff
-13. **`functions/src/__tests__/createInviteLogic.test.ts`** or extend helpers tests for “expired pending does not block”
-14. Keep `membership.test.ts` untouched unless needed
+- `Sidebar.tsx` + `DashboardLayout.tsx`: label/title → "Custom Assets"
+- `routes/index.tsx`: optional Navigate from `custom-assets` → `custom-asset-inspections`
 
-### Docs / memory
+### F. Detail page
 
-15. README short note on invite lifecycle + copy-link + cleanup job
-16. Append `agent-info.md` + `lessons_learned.md` after review
+- Minimal: back-link/title consistency if needed; pass/fail flow unchanged
+
+### G. Docs (Document agent after Review accept)
+
+- Brief FAQ + Getting Started: Custom Assets, type tabs, setup-once / monthly Pass-Fail
+
+### H. Memory
+
+- Append `agent-system/agent-info.md` when build/review done
+- Lessons only if preventable mistakes
 
 ## Security Checklist
 
-- [ ] Invite writes only via Admin SDK / Functions (`allow write: if false` unchanged)
-- [ ] Revoke/create gated to owner/admin + plan feature
-- [ ] Token never stored raw; only hash
-- [ ] Accept still requires email match
-- [ ] Org-scoped: revoke verifies invite.orgId === input.orgId
-- [ ] Cleanup job deletes only terminal invites past retention (not live pending)
-- [ ] No client-trusted role elevation
+- [x] Org-scoped queries only (`org/{orgId}/assets`, templates, inspections)
+- [x] Owner/admin for asset create/update/retire/CSV/generate; inspector may inspect
+- [x] `hasCustomAssetInspections` + writable subscription unchanged
+- [x] No client trust of plan/featureFlags for server seed (already Functions-gated)
+- [x] No overpromised compliance copy (starters are operational guidance, not certified NFPA checklists)
+- [x] Firestore rules / extinguisher stats untouched (confirmed by diff)
 
-## Verification
+## Validation
 
-- `npm --prefix functions run build`
-- `cd functions && npm test` (new + existing)
-- `pnpm lint` (changed paths / repo)
-- `pnpm build` (or `tsc` on app)
-- Manual reasoning: re-invite after expired pending succeeds; revoke clears block; job would delete old terminal docs
+1. `pnpm format` (or format:check after write)
+2. `pnpm lint`
+3. `pnpm build` (typecheck)
+4. Vitest for `customAssetCsv` (+ generate helpers if pure)
+5. Manual smoke: tabs, `?type=`, create from starter, CSV, generate-from-locations
 
-## Build Handoff
+## Review gates
 
-**Status:** APPROVED for Build  
-**Priority order:** helpers → createInvite fix → revokeInvite → expireInvitesJob → indexes → frontend pending list → tests → docs
+- Plan compliance vs this file
+- Security / tenant isolation
+- Simplicity (no per-type sidebar, no new CF)
+- Extinguisher stats untouched
+- Explicit verdict required
+
+## Document (after ACCEPTED / ACCEPTED WITH MINOR CONCERNS)
+
+- `src/pages/FaqPage.tsx` + `GettingStarted.tsx` (and marketing FAQ if one-liner needed)
+- Defer broad marketing rewrite unless inaccurate
+
+---
+
+## Handoff to Build
+
+Gate A: **APPROVED** (user-approved plan). Build may edit code on `cursor/universal-custom-assets-dffe`. Prefer one coherent sequential implementation sharing the same pages/services. Include `built_by_Beck` in commits. **Do not push** unless user asks.

@@ -177,7 +177,11 @@ export function PublicMarketingLayout({
             aria-controls="marketing-mobile-nav"
             onClick={() => setMobileOpen((o) => !o)}
           >
-            {mobileOpen ? <X className="h-6 w-6" aria-hidden /> : <Menu className="h-6 w-6" aria-hidden />}
+            {mobileOpen ? (
+              <X className="h-6 w-6" aria-hidden />
+            ) : (
+              <Menu className="h-6 w-6" aria-hidden />
+            )}
             <span className="sr-only">Menu</span>
           </button>
         </div>

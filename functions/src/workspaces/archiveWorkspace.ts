@@ -83,9 +83,7 @@ async function aggregateWorkTimeByMember(
   });
 
   const sectionTimes =
-    sectionTotals.size > 0
-      ? Object.fromEntries(sectionTotals.entries())
-      : null;
+    sectionTotals.size > 0 ? Object.fromEntries(sectionTotals.entries()) : null;
 
   return { workTimeByMember, sectionTimes };
 }

@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ClipboardList,
+  Info,
   Loader2,
   Plus,
   Printer,
@@ -29,7 +30,10 @@ import {
   subscribeToLocations,
   type Location,
 } from '../services/locationService.ts';
-import type { WorkDocument, WorkDocumentStatus } from '../types/workDocument.ts';
+import type {
+  WorkDocument,
+  WorkDocumentStatus,
+} from '../types/workDocument.ts';
 
 const CATEGORY_LABELS: Record<string, string> = {
   egress_lighting: 'Egress lighting',
@@ -129,7 +133,9 @@ export default function FieldWork() {
       });
       navigate(`/dashboard/field-work/${documentId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create document');
+      setError(
+        err instanceof Error ? err.message : 'Failed to create document',
+      );
     } finally {
       setBusy(false);
     }
@@ -166,10 +172,13 @@ export default function FieldWork() {
   if (!hasAi) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-10">
-        <h1 className="text-2xl font-semibold text-gray-900">Field Work</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Forms & Walkthroughs
+        </h1>
         <p className="mt-3 text-gray-600">
-          Personalized checksheets and printable field documents are available on
-          Pro plans with AI assistant enabled.
+          Reusable forms and printable checksheets for area, route, building,
+          and process inspections are available on Pro plans with AI assistant
+          enabled.
         </p>
       </div>
     );
@@ -178,15 +187,15 @@ export default function FieldWork() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="max-w-3xl">
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-gray-900">
             <ClipboardList className="h-7 w-7 text-red-600" />
-            Field Work
+            Forms & Walkthroughs
           </h1>
-          <p className="mt-1 max-w-2xl text-sm text-gray-600">
-            AI-generated or hand-built checksheets for egress lighting, stairwell
-            walks, and other org-specific field work. Printable now — in-app
-            pass/fail tracking comes later.
+          <p className="mt-2 text-sm leading-6 text-gray-600">
+            Create reusable forms and checksheets for inspecting an area, route,
+            building, process, or temporary project. Build a form yourself,
+            start from a template, or use the AI assistant to help create one.
           </p>
         </div>
         {canManage && (
@@ -202,7 +211,7 @@ export default function FieldWork() {
               ) : (
                 <Plus className="h-4 w-4" />
               )}
-              Blank sheet
+              Create Blank Form
             </button>
             <button
               type="button"
@@ -211,7 +220,7 @@ export default function FieldWork() {
               className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
             >
               <Printer className="h-4 w-4" />
-              Egress stairwell template
+              Start with Egress Template
             </button>
             <button
               type="button"
@@ -223,10 +232,55 @@ export default function FieldWork() {
               className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
             >
               <Sparkles className="h-4 w-4" />
-              Ask AI
+              Create with AI
             </button>
           </div>
         )}
+      </div>
+
+      <div className="mb-5 space-y-3">
+        <div className="flex gap-3 rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3">
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+          <div className="text-sm text-amber-950">
+            <p className="font-semibold">
+              Everything on this page is customizable.
+            </p>
+            <p className="mt-1 leading-6 text-amber-900/90">
+              The stairwell and egress examples are optional starting points.
+              You can rename, add, reorder, or remove every section, item, and
+              field. Printable forms are available now.
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm">
+          <p className="font-semibold text-gray-900">Use this page when</p>
+          <p className="mt-1 leading-6">
+            you are inspecting an area, route, building, process, or project
+            rather than maintaining a permanent record for one specific piece of
+            equipment.
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-gray-600">
+            <li>Building-wide egress walkthrough</li>
+            <li>Stairwell obstruction check</li>
+            <li>Mechanical-room walkthrough</li>
+            <li>Construction safety survey</li>
+            <li>Exit-route inspection</li>
+            <li>Temporary project checklist</li>
+            <li>Organization-specific safety form</li>
+          </ul>
+          <p className="mt-3 text-gray-600">
+            Need a permanent record and recurring inspection history for a
+            specific piece of equipment?{' '}
+            <Link
+              to="/dashboard/custom-asset-inspections"
+              className="font-medium text-red-700 hover:text-red-900"
+            >
+              Use Equipment & Asset Inspections
+            </Link>
+            .
+          </p>
+        </div>
       </div>
 
       {error && (
@@ -242,7 +296,7 @@ export default function FieldWork() {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search documents..."
+            placeholder="Search forms and walkthroughs..."
             className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm"
           />
         </div>
@@ -264,11 +318,11 @@ export default function FieldWork() {
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
           <ClipboardList className="mx-auto h-10 w-10 text-gray-400" />
           <h2 className="mt-3 text-lg font-medium text-gray-900">
-            No field work documents yet
+            No forms or walkthroughs yet
           </h2>
           <p className="mt-1 text-sm text-gray-600">
-            Start with the egress stairwell template or ask AI to build a sheet
-            from your location tree.
+            Create a blank form, start with the optional egress template, or use
+            Create with AI to build a checksheet from your location tree.
           </p>
         </div>
       ) : (

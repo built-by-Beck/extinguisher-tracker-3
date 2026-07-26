@@ -12,14 +12,8 @@ import {
   type QueuedInspection,
 } from '../lib/offlineDb.ts';
 import { saveInspectionCall } from './inspectionService.ts';
-import {
-  createAiNoteCall,
-  updateAiNoteCall,
-} from './aiNotesService.ts';
-import {
-  dataUrlToBlob,
-  uploadNotePhoto,
-} from './notePhotoService.ts';
+import { createAiNoteCall, updateAiNoteCall } from './aiNotesService.ts';
+import { dataUrlToBlob, uploadNotePhoto } from './notePhotoService.ts';
 
 export async function queueInspection(
   data: Omit<
@@ -140,7 +134,9 @@ async function processNoteQueue(
 
     try {
       if (record.operation === 'create') {
-        const payload = record.payload as Parameters<typeof createAiNoteCall>[0];
+        const payload = record.payload as Parameters<
+          typeof createAiNoteCall
+        >[0];
         const { noteId } = await createAiNoteCall(payload);
 
         if (record.photoDataUrl) {
@@ -158,7 +154,9 @@ async function processNoteQueue(
           });
         }
       } else if (record.operation === 'update' && record.noteId) {
-        const payload = record.payload as Parameters<typeof updateAiNoteCall>[0];
+        const payload = record.payload as Parameters<
+          typeof updateAiNoteCall
+        >[0];
         await updateAiNoteCall({
           ...payload,
           orgId: record.orgId,

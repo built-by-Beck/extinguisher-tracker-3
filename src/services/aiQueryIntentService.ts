@@ -82,7 +82,8 @@ function parseNoteCategory(text: string): string | undefined {
   const lower = text.toLowerCase();
   if (lower.includes('safety')) return 'safety';
   if (lower.includes('maintenance')) return 'maintenance';
-  if (lower.includes('compliance') || lower.includes('nfpa')) return 'compliance';
+  if (lower.includes('compliance') || lower.includes('nfpa'))
+    return 'compliance';
   if (lower.includes('tag')) return 'tagging';
   if (lower.includes('replacement') || lower.includes('replace'))
     return 'replacement';

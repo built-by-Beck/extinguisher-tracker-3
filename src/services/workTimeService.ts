@@ -72,7 +72,7 @@ export async function addWorkTimeDuration(
 
   const existing = await getDoc(ref);
   const currentMs = existing.exists()
-    ? (existing.data().durationMs as number) ?? 0
+    ? ((existing.data().durationMs as number) ?? 0)
     : 0;
   const remaining = Math.max(0, MAX_DAILY_MS - currentMs);
   const toAdd = Math.min(durationMs, remaining);
@@ -101,10 +101,7 @@ export function subscribeToWorkTimeForWorkspace(
   workspaceId: string,
   callback: (rows: WorkTimeDaily[]) => void,
 ): Unsubscribe {
-  const q = query(
-    workTimeRef(orgId),
-    where('workspaceId', '==', workspaceId),
-  );
+  const q = query(workTimeRef(orgId), where('workspaceId', '==', workspaceId));
 
   return onSnapshot(q, (snap) => {
     const rows: WorkTimeDaily[] = snap.docs.map((d) => ({

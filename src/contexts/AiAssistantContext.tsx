@@ -17,11 +17,7 @@ interface AiAssistantContextValue {
 
 const AiAssistantContext = createContext<AiAssistantContextValue | null>(null);
 
-export function AiAssistantProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function AiAssistantProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [draftMessage, setDraftMessage] = useState('');
 

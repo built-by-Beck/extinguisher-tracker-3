@@ -112,8 +112,7 @@ export function MarketingPricingPlans({
                     regularPriceLabel: plan.regularPriceLabel,
                   };
 
-            const showTrialBullet =
-              plan.id === 'pro' && interval === 'month';
+            const showTrialBullet = plan.id === 'pro' && interval === 'month';
             const offerProTrialCta = plan.id === 'pro' && interval === 'month';
 
             return (

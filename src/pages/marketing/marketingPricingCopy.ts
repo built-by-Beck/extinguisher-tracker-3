@@ -5,7 +5,11 @@
  * Change .env → rebuild → marketing page updates automatically.
  */
 
-import { PLANS, yearlyTotalFromMonthly, YEARLY_DISCOUNT_FRACTION } from '../../lib/planConfig.ts';
+import {
+  PLANS,
+  yearlyTotalFromMonthly,
+  YEARLY_DISCOUNT_FRACTION,
+} from '../../lib/planConfig.ts';
 import {
   applyLaunchPromoDiscount,
   getLaunchPromoFaqItem,
@@ -74,7 +78,8 @@ export const marketingPlans: MarketingPlanCard[] = [
       : undefined,
     annualBillingNote: annualBillingNote(basicPlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('basic') ?? undefined,
-    blurb: 'Small sites that want to ditch paper, speed up checks, and build a reliable workflow baseline.',
+    blurb:
+      'Small sites that want to ditch paper, speed up checks, and build a reliable workflow baseline.',
     bullets: [
       'Fast search by barcode',
       'Section auto timer for route pace',
@@ -95,14 +100,15 @@ export const marketingPlans: MarketingPlanCard[] = [
       : undefined,
     annualBillingNote: annualBillingNote(proPlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('pro') ?? undefined,
-    blurb: 'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
+    blurb:
+      'Growing teams that need lightning-fast scanning and in-app AI guidance while work is happening.',
     bullets: [
       '7-day free trial on monthly billing — no credit card at signup (then paid monthly)',
       'Everything in Basic',
       'Fast phone camera scanning',
       'AI Maintenance helper with configurable NFPA reference',
       'GPS & photo proof of work',
-      'Custom asset inspections',
+      'Equipment & Asset Inspections',
       'Organization logo branding',
     ],
     ctaLabel: 'Get started',
@@ -119,7 +125,8 @@ export const marketingPlans: MarketingPlanCard[] = [
       : undefined,
     annualBillingNote: annualBillingNote(elitePlan.monthlyPrice!),
     launchPromoNote: getLaunchPromoPlanNote('elite') ?? undefined,
-    blurb: 'Large programs that need advanced data tools, AI-supported operations, and priority help.',
+    blurb:
+      'Large programs that need advanced data tools, AI-supported operations, and priority help.',
     bullets: [
       'Everything in Pro',
       'Team member invites and role management',
@@ -198,7 +205,9 @@ const BASE_MARKETING_FAQ: MarketingFaqItem[] = [
 export function getMarketingFaq(): MarketingFaqItem[] {
   const launchFaq = getLaunchPromoFaqItem();
   if (!launchFaq) return BASE_MARKETING_FAQ;
-  const trialIdx = BASE_MARKETING_FAQ.findIndex((item) => item.q.includes('try it'));
+  const trialIdx = BASE_MARKETING_FAQ.findIndex((item) =>
+    item.q.includes('try it'),
+  );
   if (trialIdx === -1) return [...BASE_MARKETING_FAQ, launchFaq];
   return [
     ...BASE_MARKETING_FAQ.slice(0, trialIdx + 1),

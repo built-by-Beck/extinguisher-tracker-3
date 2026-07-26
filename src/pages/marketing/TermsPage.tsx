@@ -143,9 +143,7 @@ export default function TermsPage() {
                 Payments are processed securely by Stripe. We do not store your
                 payment card details.
               </p>
-              <p className="mt-4 font-medium text-gray-800">
-                Annual billing
-              </p>
+              <p className="mt-4 font-medium text-gray-800">Annual billing</p>
               <p className="mt-2">
                 When you choose yearly billing, you prepay for twelve months at
                 the annual rate shown at checkout (typically 10% less than
@@ -159,26 +157,31 @@ export default function TermsPage() {
               </p>
               <p className="mt-2">
                 We may offer a limited-time free trial of the Pro plan on{' '}
-                <strong>monthly</strong> billing that allows you to begin without
-                providing a payment card at checkout. The trial length and
-                eligibility are determined at signup and processed by Stripe.{' '}
-                <strong>Each qualifying organization may receive this Pro trial
-                only once.</strong> If you already subscribe to another plan
-                (for example Basic), upgrading to Pro follows normal paid checkout
-                without this no-card trial.
+                <strong>monthly</strong> billing that allows you to begin
+                without providing a payment card at checkout. The trial length
+                and eligibility are determined at signup and processed by
+                Stripe.{' '}
+                <strong>
+                  Each qualifying organization may receive this Pro trial only
+                  once.
+                </strong>{' '}
+                If you already subscribe to another plan (for example Basic),
+                upgrading to Pro follows normal paid checkout without this
+                no-card trial.
               </p>
               <p className="mt-2">
                 Before the trial ends, you must add a valid default payment
                 method if you wish to continue billed Pro access. If no valid
-                payment method is available when the trial ends, your subscription
-                may be canceled or restricted according to Stripe&apos;s behavior
-                and our access rules until you complete billing setup.
+                payment method is available when the trial ends, your
+                subscription may be canceled or restricted according to
+                Stripe&apos;s behavior and our access rules until you complete
+                billing setup.
               </p>
               <p className="mt-2">
                 We may modify or discontinue trial offers, decline trial access
-                when we detect abuse, and require standard billing verification at
-                any time. This summary does not override Stripe&apos;s terms or
-                processing agreements for payments you authorize.
+                when we detect abuse, and require standard billing verification
+                at any time. This summary does not override Stripe&apos;s terms
+                or processing agreements for payments you authorize.
               </p>
             </Section>
 

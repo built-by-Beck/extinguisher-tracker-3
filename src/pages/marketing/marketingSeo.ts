@@ -5,8 +5,7 @@ export const marketingSeo = {
   home: {
     title:
       'ExtinguisherTracker — AI fire extinguisher inspections & compliance',
-    description:
-      `Start a ${TRIAL_DAYS}-day free trial, save 10% on yearly billing, or use launch codes EX3PRO50 for 50% off year one. Field-built extinguisher inventory, AI inspections, offline sync, reports, and compliance tracking.`,
+    description: `Start a ${TRIAL_DAYS}-day free trial, save 10% on yearly billing, or use launch codes EX3PRO50 for 50% off year one. Field-built extinguisher inventory, AI inspections, offline sync, reports, and compliance tracking.`,
     path: '/',
   },
   features: {
@@ -17,8 +16,7 @@ export const marketingSeo = {
   },
   pricing: {
     title: 'Pricing — ExtinguisherTracker',
-    description:
-      `Basic, Pro, Elite, and Enterprise plans. ${TRIAL_DAYS}-day free trial, 10% off yearly prepay, and limited launch promo: EX3BASIC50 / EX3PRO50 / EX3ELITE50 for 50% off year one.`,
+    description: `Basic, Pro, Elite, and Enterprise plans. ${TRIAL_DAYS}-day free trial, 10% off yearly prepay, and limited launch promo: EX3BASIC50 / EX3PRO50 / EX3ELITE50 for 50% off year one.`,
     path: '/pricing',
   },
   howItWorks: {

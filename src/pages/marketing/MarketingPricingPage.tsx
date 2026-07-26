@@ -32,9 +32,9 @@ export default function MarketingPricingPage() {
             <p className="mt-4 max-w-3xl text-lg text-gray-600">
               {LAUNCH_PROMO_ENABLED ? (
                 <>
-                  Lock in <strong>{LAUNCH_PROMO.headline}</strong> on Basic, Pro,
-                  or Elite — then compare features. Every paid plan also includes
-                  a free trial before your first charge.
+                  Lock in <strong>{LAUNCH_PROMO.headline}</strong> on Basic,
+                  Pro, or Elite — then compare features. Every paid plan also
+                  includes a free trial before your first charge.
                 </>
               ) : (
                 <>

@@ -97,8 +97,10 @@ describe('generateEgressStairwellSheet', () => {
     expect(draft.relatedLocationId).toBe('b1');
     expect(draft.schema.sections).toHaveLength(1);
     expect(draft.schema.sections[0]?.items).toHaveLength(2);
-    expect(draft.schema.sections[0]?.items[0]?.fields.some(
-      (field) => field.type === 'pass_fail',
-    )).toBe(true);
+    expect(
+      draft.schema.sections[0]?.items[0]?.fields.some(
+        (field) => field.type === 'pass_fail',
+      ),
+    ).toBe(true);
   });
 });

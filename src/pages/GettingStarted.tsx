@@ -102,14 +102,18 @@ const steps = [
     ],
   },
   {
-    title: 'Expand access and inspection scope',
-    body: 'Invite users by role, use guest access when limited visibility is enough, and add custom asset inspections for other recurring safety checks.',
+    title: 'Expand access and set up Equipment & Asset Inspections',
+    body: 'Invite users by role and use guest access for limited visibility. For equipment beyond extinguishers — elevators, emergency lights, exit signs, fire doors, AEDs, generators, and any other physical asset — use Equipment & Asset Inspections (Pro+). Optional starter templates save time; Custom / Blank lets you invent any type. Define each asset once with a name, location, and checklist, then inspect it monthly with Pass, Fail, or N/A. Use CSV import for bulk creation, or Generate from Locations for stairwell/floor trees. For area or route checksheets, use Forms & Walkthroughs instead.',
     icon: Share2,
     links: [
       { to: '/dashboard/members', label: 'Manage members' },
       {
         to: '/dashboard/custom-asset-inspections',
-        label: 'Open custom assets',
+        label: 'Open Equipment & Asset Inspections',
+      },
+      {
+        to: '/dashboard/field-work',
+        label: 'Open Forms & Walkthroughs',
       },
     ],
   },

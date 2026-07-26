@@ -94,7 +94,9 @@ export default function SyncQueue() {
 
   const orgId = userProfile?.activeOrgId ?? '';
 
-  const [inspectionItems, setInspectionItems] = useState<QueuedInspection[]>([]);
+  const [inspectionItems, setInspectionItems] = useState<QueuedInspection[]>(
+    [],
+  );
   const [noteItems, setNoteItems] = useState<QueuedAiNote[]>([]);
   const [activeTab, setActiveTab] = useState<'inspections' | 'notes'>(
     'inspections',

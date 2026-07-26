@@ -121,10 +121,9 @@ export default function CreateOrg() {
         slug: slug || undefined,
         timezone,
       });
-      navigate(
-        settingsBillingPath(billingInterval ?? undefined),
-        { replace: true },
-      );
+      navigate(settingsBillingPath(billingInterval ?? undefined), {
+        replace: true,
+      });
     } catch (err: unknown) {
       const fbErr = err as { message?: string };
       setError(
@@ -249,7 +248,8 @@ export default function CreateOrg() {
               <strong className="text-gray-800">
                 {billingInterval === 'month' ? 'monthly' : 'yearly'}
               </strong>{' '}
-              billing under <strong className="text-gray-800">Settings → Billing</strong>.
+              billing under{' '}
+              <strong className="text-gray-800">Settings → Billing</strong>.
               {billingInterval === 'month' ? (
                 <>
                   {' '}

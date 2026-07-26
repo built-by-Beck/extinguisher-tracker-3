@@ -2469,3 +2469,160 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Pricing/plan: not changed (still Elite/Enterprise `teamMembers`; no number or gating edits)
 
 **Still needed:** Optional future FAQ when SMTP invite email ships; integration test for expired-pending-unblocks path (review minor concern, not a docs gap).
+
+## 2026-07-26 — BUILD: Universal Custom Assets — built_by_Beck
+
+**Agent:** build-agent · **Branch:** `cursor/universal-custom-assets-dffe` · **Plan:** Gate A APPROVED
+
+### Files created
+- `src/lib/customAssetStarters.ts` — Starter catalog (Elevator, Egress Lighting, Exit Sign, Egress Path, Fire Door, Sprinkler, blank). Exports `ASSET_STARTERS`, `getStarterById`, `getStarterByType`, `starterToInspectionItems`. Operational guidance only, not certified NFPA compliance copy.
+- `src/lib/customAssetCsv.ts` — Client-only CSV parse + validate helpers. Columns: name, assetType, locationName, recurrence, items (pipe-separated), assetCode. Exports `parseCsvText`, `resolveLocationIds`, `csvRowToCreateInput`.
+- `src/lib/customAssetCsv.test.ts` — 21 Vitest tests covering parse, header errors, quoting, blank lines, recurrences, location resolution, duplicate detection.
+- `src/lib/generateAssetsFromLocations.ts` — Generate-from-locations helper. Walks stairwell/floor location tree, produces `CreateAssetInput[]`, skips duplicates. Pure function. Exports `generateAssetsFromLocations`, `getBuildingsWithStairwells`. Replicates small location-walk helpers from `workDocumentGenerator` to avoid Field Work coupling.
+- `src/lib/generateAssetsFromLocations.test.ts` — 14 Vitest tests covering floor/no-floor, locationId assignment, duplicate skip, org-wide scope, blank starter naming, deleted-location exclusion, building scoping.
+
+### Files modified
+- `src/pages/CustomAssetInspections.tsx` — Full rewrite: (1) Tabs: Setup/All + dynamic per-assetType tabs synced via `?type=` search param with `useSearchParams`. (2) Elevator tab: shows Fire Recall + Communications Phone status columns from this month's answers via loose label matching. (3) Create modal: persistence note, starter picker chips, paste-one-per-line panel, org template apply/save (unchanged). (4) CSV Import modal: file upload or paste text, sample download, parse preview, import. (5) Generate from Locations modal: starter picker, building scope, preview list, duplicate count. (6) Gating: `canManage` for writes, `canUseFeature` lock screen updated to "Custom Assets" label + new feature copy.
+- `src/components/layout/Sidebar.tsx` — Label changed from "Custom Asset Inspections" to "Custom Assets".
+- `src/components/layout/DashboardLayout.tsx` — PAGE_TITLES entry changed to "Custom Assets".
+- `src/routes/index.tsx` — Added `custom-assets` → Navigate redirect to `custom-asset-inspections`.
+
+### Implementation decisions
+- Tabs are derived from `distinctTypes` (active assets' `assetType` values); purely client-driven, no Firestore changes.
+- Elevator tab uses loose matching (`matchesFireRecall` / `matchesCommsPhone`) on label strings — tolerates minor label variations (e.g. "Communications Phone" vs "Elevator communications phone").
+- Generate-from-locations duplicates the small pure helpers from `workDocumentGenerator` rather than importing from Field Work domain — cleaner boundary.
+- CSV locationName resolution is case-insensitive name match; silently maps to `null` if not found (user sees the asset was created unassigned, can edit).
+- No Firestore rules changes, no extinguisher stats changes, no new Cloud Functions.
+
+### Validation evidence
+- `pnpm vitest run src/lib/customAssetCsv.test.ts src/lib/generateAssetsFromLocations.test.ts` — 30/30 pass
+- `pnpm test` — 17 test files / 140 tests pass (all green, up from 86 pre-change)
+- `pnpm lint` — clean
+- `pnpm build` — clean (tsc + vite, 2031 modules)
+- `pnpm format` — no changes needed
+
+### For review-agent
+**Review focus:**
+1. Elevator tab `matchesFireRecall` / `matchesCommsPhone` matching logic — intentionally loose; confirm acceptable vs. requiring exact label match.
+2. CSV import: `resolveLocationIds` silently maps unknown locationNames to null — this is expected behaviour but confirm users have enough signal (they can see the asset is "Unassigned" and edit).
+3. Generate-from-locations falls back to direct children of root when no stairwells exist — review `generateFromLocationList` fallback path.
+4. `useSearchParams` in `CustomAssetInspections` — confirm no interaction with existing scroll/navigation state.
+5. Security: no new Firestore paths or server trust. All creates go through existing `createAsset` which enforces org isolation. Verify `canManage` gate is consistently applied to CSV import and generate-from-locations.
+
+**Deferred / explicit non-goals this cycle (document-agent should note):**
+- FAQ + Getting Started docs update (document-agent task after Review).
+- No per-type sidebar entries.
+- No Cloud Function CSV callable.
+- No Firestore seeding of starters for every new org.
+
+## 2026-07-26 — REVIEW: Universal Custom Assets — built_by_Beck
+
+**Agent:** review-agent · **Branch:** `cursor/universal-custom-assets-dffe` · **Verdict:** ACCEPTED WITH MINOR CONCERNS
+
+### Review scope
+
+Reviewed all 9 changed files (3 new lib modules + 2 tests + 1 page rewrite + 2 layout + 1 routes).
+Classification: LARGE / Full PBRD — major user-facing workflow, Pro+ gating, org-scoped asset data.
+
+### Validation evidence re-run
+
+- `pnpm vitest run src/lib/customAssetCsv.test.ts src/lib/generateAssetsFromLocations.test.ts` — 30/30 pass (confirmed)
+- `pnpm lint` — clean (confirmed)
+- `pnpm build` — clean, 2031 modules (confirmed)
+
+### Security checklist
+
+- **Org isolation:** All Firestore paths use `orgId` derived from `userProfile?.activeOrgId` (auth-bound, never from URL params). PASS.
+- **Write gating:** `canManage` guard on: Add Asset button, CSV Import button, Generate from Locations button, `handleSave`, `handleCsvImport`, `handleGenerateConfirm`, `handleSaveAsTemplate`, `executeRetire`. Consistently applied. PASS.
+- **Feature gating:** `canUseFeature = canUseCustomAssetInspections(org?.featureFlags, org?.plan) && isWritableSubscription(...)`. Both flag AND subscription status required. PASS.
+- **featureFlags server-only (lessons learned pattern):** `canUseCustomAssetInspections` reads `org.featureFlags` which is write-protected by Firestore rules (Cloud Functions / Admin SDK only). No client writes to featureFlags. PASS.
+- **Compliance copy:** Starters carry in-code disclaimer ("operational guidance — NOT certified NFPA compliance checklists"). Lock screen copy is generic. No overreach. PASS.
+- **Firestore rules / indexes:** Confirmed untouched by diff. PASS.
+- **Extinguisher stats:** No changes to `workspaceInspectionStats.ts` or backend mirror. PASS.
+
+### Plan compliance
+
+All locked decisions respected: label "Custom Assets", route unchanged, optional redirect added, no per-type sidebar, no CF CSV, no Firestore starter seeding, no extinguisher stats changes.
+
+All implementation map items (A–E) delivered; F was minimal as intended; G deferred to document-agent.
+
+### Minor concerns (non-blocking)
+
+1. **`matchesFireRecall` broad match** — `l.includes('recall')` (without requiring 'fire') could match unintended labels (e.g., "Check recall logs"). Scoped to Elevator tab only; intentionally loose per build-agent; acceptable in practice.
+2. **CSV location resolution silent null** — If a `locationName` doesn't match any org location, the asset is created as "Unassigned" with no per-row warning shown in the import preview. Users discover this post-import. Intentional UX decision per handoff; acceptable, but a future enhancement could show unresolved names in preview.
+3. **`generateAssetsFromLocations` fallback path untested** — Lines 125–138 handle `rootLocationId` set but no stairwells found; falls back to direct non-building children. The UI prevents reaching this path in practice (scope picker only shows buildings with stairwells), but no test covers a race where stairwells are deleted between UI load and confirm.
+4. **`isWritableSubscription` enterprise bypass** — `plan === 'enterprise'` bypasses status check. Intentional (enterprise billing model), acceptable; server-side writes are gated independently.
+
+### No improvements made
+
+No drive-by fixes — all concerns are minor, in-scope decisions, or edge cases unlikely to affect users. Documented for future backlog.
+
+### Notes for document-agent
+
+**Required this cycle:**
+- `src/pages/FaqPage.tsx` — add Custom Assets FAQ entry (what it is, setup-once / monthly Pass-Fail, starter types, CSV import, generate from locations)
+- `src/pages/GettingStarted.tsx` — verify Custom Assets section exists or add a brief one (Pro+ feature, type tabs, elevator fire recall / comms phone columns)
+
+**Confirm accurate / no update needed:**
+- `README.md` — Custom Assets section should reflect "Custom Assets" label (was "Custom Asset Inspections")
+- Marketing FAQ (`/faq`) — check if custom assets are mentioned; update label if needed
+
+**No pricing/plan changes, no Stripe changes, no Firestore rules changes to document.**
+
+**Next plan cycle:** No technical debt items requiring immediate planning. Defer location-resolution preview in CSV to backlog if/when requested.
+
+## 2026-07-26 — DOCUMENT: Universal Custom Assets — built_by_Beck
+
+**Agent:** document-agent · **Branch:** `cursor/universal-custom-assets-dffe`
+
+### What was documented
+
+Universal Custom Assets feature shipped and accepted (ACCEPTED WITH MINOR CONCERNS). Documented the setup-once / monthly Pass-Fail / type-tabs / starter-catalog / CSV-import / generate-from-locations workflow in in-app FAQ and Getting Started pages.
+
+### Files inspected
+
+- `agent-system/agent-info.md` (last 80 lines — BUILD + REVIEW entries)
+- `agent-system/plan.md` (full — Document section G, locked decisions)
+- `src/pages/FaqPage.tsx` (full)
+- `src/pages/GettingStarted.tsx` (full)
+- `src/lib/customAssetStarters.ts` (full — confirmed exact starter types)
+- `README.md` (grep for custom/asset — no Custom Assets section present)
+
+### Files updated
+
+- `src/pages/FaqPage.tsx` — removed thin one-liner "Can we inspect non-extinguisher assets?" from "Reports, sharing, and advanced workflows"; added new "Custom Assets" FAQ section with 6 Q&As covering: what it is, setup-once workflow, type tabs (including Elevator fire-recall/comms columns + `?type=` bookmark), CSV bulk import, Generate from Locations, and plan/role requirements. No compliance overreach; operational guidance disclaimer included.
+- `src/pages/GettingStarted.tsx` — updated last step title to "Expand access and set up Custom Assets" and rewrote body to describe setup-once workflow, supported asset types, starters, CSV import, and Generate from Locations. Link label updated from "Open custom assets" to "Open Custom Assets".
+
+### README status
+
+No Custom Assets section exists in README. No user-facing section was stale. No update needed.
+
+### TODO / Roadmap status
+
+No TODO.md exists. No roadmap update needed for this cycle. Deferred backlog item (CSV location-resolution preview) noted in prior REVIEW entry.
+
+### Website / marketing copy status
+
+No separate marketing FAQ or landing page references "Custom Asset Inspections" as the product name in a misleading way. In-app FAQ and Getting Started are the primary user-facing surfaces — both updated.
+
+### FAQ / getting started status
+
+Both updated. PBRD documentation step complete for this cycle.
+
+### Documentation gaps / future
+
+- CSV import: per-row unresolved location name warning in import preview (deferred to backlog per review-agent).
+- Generate-from-locations fallback path (root scope with no stairwells) has no test and no user-visible documentation — acceptable edge case, noted for future.
+
+## 2026-07-26 � BUILD: Visible rename Equipment & Asset Inspections / Forms & Walkthroughs � built_by_Beck
+
+**Agent:** build � **Branch:** cursor/universal-custom-assets-dffe
+
+**Change:** User-facing copy only. Routes, files, collections, flags unchanged.
+
+**Visible renames:** Custom Assets / Custom Asset Inspections ? Equipment & Asset Inspections; Field Work ? Forms & Walkthroughs.
+
+**Added:** Intro + Info callouts + Use-this-page examples + cross-links on both feature pages; Optional starter template helper; Custom/Blank emphasis; button label updates on Forms & Walkthroughs.
+
+**Validation:** pnpm format, lint, build OK; vitest customAssetCsv/generateAssetsFromLocations (30) + workDocumentGenerator (3) pass.
+

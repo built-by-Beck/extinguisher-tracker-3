@@ -21,8 +21,9 @@ function subscriptionPeriodEnd(subscription: Stripe.Subscription): Date | null {
   if (itemEnd) {
     return new Date(itemEnd * 1000);
   }
-  const legacyEnd = (subscription as Stripe.Subscription & { current_period_end?: number })
-    .current_period_end;
+  const legacyEnd = (
+    subscription as Stripe.Subscription & { current_period_end?: number }
+  ).current_period_end;
   return legacyEnd ? new Date(legacyEnd * 1000) : null;
 }
 
@@ -36,7 +37,9 @@ function buildOrgUpdate(plan: PlanName, subscription: Stripe.Subscription) {
     subscriptionStatus: subscription.status,
     subscriptionPriceId: subscription.items.data[0]?.price?.id ?? null,
     subscriptionCurrentPeriodEnd: subscriptionPeriodEnd(subscription),
-    trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
+    trialEnd: subscription.trial_end
+      ? new Date(subscription.trial_end * 1000)
+      : null,
     featureFlags: config.featureFlags,
     updatedAt: new Date(),
   };
@@ -108,13 +111,18 @@ function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
   if (parentSub) {
     return typeof parentSub === 'string' ? parentSub : parentSub.id;
   }
-  const legacySub = (invoice as Stripe.Invoice & { subscription?: string | Stripe.Subscription | null })
-    .subscription;
+  const legacySub = (
+    invoice as Stripe.Invoice & {
+      subscription?: string | Stripe.Subscription | null;
+    }
+  ).subscription;
   if (!legacySub) return null;
   return typeof legacySub === 'string' ? legacySub : legacySub.id;
 }
 
-async function getSubscriptionFromInvoice(invoice: Stripe.Invoice): Promise<{ subscription: Stripe.Subscription; orgId?: string } | null> {
+async function getSubscriptionFromInvoice(
+  invoice: Stripe.Invoice,
+): Promise<{ subscription: Stripe.Subscription; orgId?: string } | null> {
   const subId = getInvoiceSubscriptionId(invoice);
   if (!subId) return null;
 

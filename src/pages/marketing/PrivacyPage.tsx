@@ -31,7 +31,13 @@ function Section({
   );
 }
 
-function Subsection({ title, children }: { title: string; children: ReactNode }) {
+function Subsection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   return (
     <div className="space-y-2">
       <h3 className="font-semibold text-gray-800">{title}</h3>
@@ -55,7 +61,9 @@ export default function PrivacyPage() {
           <h1 className="text-4xl font-bold tracking-tight text-gray-900">
             Privacy Policy for ExtinguisherTracker.com
           </h1>
-          <p className="mt-2 text-sm text-gray-500">Last Updated: June 24, 2026</p>
+          <p className="mt-2 text-sm text-gray-500">
+            Last Updated: June 24, 2026
+          </p>
 
           <div className="mt-8 space-y-3 text-sm leading-relaxed text-gray-600">
             <p>
@@ -66,8 +74,8 @@ export default function PrivacyPage() {
               services.
             </p>
             <p>
-              By using Extinguisher Tracker, you agree to the practices described
-              in this Privacy Policy.
+              By using Extinguisher Tracker, you agree to the practices
+              described in this Privacy Policy.
             </p>
           </div>
 
@@ -91,7 +99,10 @@ export default function PrivacyPage() {
               </Subsection>
 
               <Subsection title="Fire Extinguisher and Inspection Data">
-                <p>When you use the service, you may enter or upload information such as:</p>
+                <p>
+                  When you use the service, you may enter or upload information
+                  such as:
+                </p>
                 <ul className="list-disc space-y-1 pl-6">
                   <li>Fire extinguisher asset numbers</li>
                   <li>Serial numbers</li>
@@ -117,7 +128,10 @@ export default function PrivacyPage() {
               </Subsection>
 
               <Subsection title="Technical Information">
-                <p>We may automatically collect certain technical information, including:</p>
+                <p>
+                  We may automatically collect certain technical information,
+                  including:
+                </p>
                 <ul className="list-disc space-y-1 pl-6">
                   <li>IP address</li>
                   <li>Browser type</li>
@@ -158,7 +172,9 @@ export default function PrivacyPage() {
                 <li>Market our services, when allowed by law</li>
               </ul>
               <p>
-                <strong>We do not sell your fire extinguisher inspection records.</strong>
+                <strong>
+                  We do not sell your fire extinguisher inspection records.
+                </strong>
               </p>
             </Section>
 
@@ -169,11 +185,11 @@ export default function PrivacyPage() {
                 organize information.
               </p>
               <p>
-                If you upload photos, notes, or inspection details to use with AI
-                features, that information may be processed to provide a response
-                or service. You should not upload private, sensitive, or
-                confidential information unless it is necessary for your use of
-                the service.
+                If you upload photos, notes, or inspection details to use with
+                AI features, that information may be processed to provide a
+                response or service. You should not upload private, sensitive,
+                or confidential information unless it is necessary for your use
+                of the service.
               </p>
               <p>
                 AI responses are provided for convenience and should not replace
@@ -185,8 +201,8 @@ export default function PrivacyPage() {
 
             <Section num={4} title="How We Share Information">
               <p>
-                We may share information with trusted service providers only when
-                needed to operate the service. These may include:
+                We may share information with trusted service providers only
+                when needed to operate the service. These may include:
               </p>
               <ul className="list-disc space-y-1 pl-6">
                 <li>Website hosting providers</li>
@@ -233,8 +249,8 @@ export default function PrivacyPage() {
 
             <Section num={5} title="Cookies and Tracking Technologies">
               <p>
-                ExtinguisherTracker.com may use cookies, local storage, analytics
-                tools, pixels, or similar technologies to:
+                ExtinguisherTracker.com may use cookies, local storage,
+                analytics tools, pixels, or similar technologies to:
               </p>
               <ul className="list-disc space-y-1 pl-6">
                 <li>Keep users logged in</li>
@@ -245,17 +261,17 @@ export default function PrivacyPage() {
                 <li>Improve marketing campaigns</li>
               </ul>
               <p>
-                You may be able to disable cookies through your browser settings,
-                but some features may not work correctly.
+                You may be able to disable cookies through your browser
+                settings, but some features may not work correctly.
               </p>
             </Section>
 
             <Section num={6} title="Facebook and Advertising">
               <p>
-                If you interact with our Facebook ads, submit a form, click an ad,
-                or visit our website from an ad, we may receive information such
-                as your name, email address, phone number, company information,
-                or other details you choose to provide.
+                If you interact with our Facebook ads, submit a form, click an
+                ad, or visit our website from an ad, we may receive information
+                such as your name, email address, phone number, company
+                information, or other details you choose to provide.
               </p>
               <p>We may use this information to:</p>
               <ul className="list-disc space-y-1 pl-6">
@@ -320,11 +336,14 @@ export default function PrivacyPage() {
                 <li>Limit certain uses of your information</li>
               </ul>
               <p>
-                California residents may have additional privacy rights under the
-                CCPA, which gives California consumers more control over personal
-                information collected by businesses.
+                California residents may have additional privacy rights under
+                the CCPA, which gives California consumers more control over
+                personal information collected by businesses.
               </p>
-              <p>To make a privacy request, contact us using the information below.</p>
+              <p>
+                To make a privacy request, contact us using the information
+                below.
+              </p>
             </Section>
 
             <Section num={10} title="Email and Marketing Communications">
@@ -362,15 +381,16 @@ export default function PrivacyPage() {
                 policies, or content of third-party websites.
               </p>
               <p>
-                You should review the privacy policies of any third-party services
-                you use.
+                You should review the privacy policies of any third-party
+                services you use.
               </p>
             </Section>
 
             <Section num={13} title="Changes to This Privacy Policy">
               <p>
-                We may update this Privacy Policy from time to time. When we make
-                changes, we will update the &quot;Last Updated&quot; date above.
+                We may update this Privacy Policy from time to time. When we
+                make changes, we will update the &quot;Last Updated&quot; date
+                above.
               </p>
               <p>
                 Continued use of ExtinguisherTracker.com after changes means you

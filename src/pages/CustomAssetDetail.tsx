@@ -231,7 +231,7 @@ export default function CustomAssetDetail() {
           inspectorName: user?.displayName ?? user?.email ?? 'Unknown',
         },
       });
-      setSuccess('Custom asset inspection saved.');
+      setSuccess('Asset inspection saved.');
       setPhotoFile(null);
       setPhotoPreview('');
       await load();
@@ -251,7 +251,7 @@ export default function CustomAssetDetail() {
       <div className="p-6">
         <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-6">
           <h1 className="text-xl font-bold text-gray-900">
-            Custom Asset Inspections
+            Equipment & Asset Inspections
           </h1>
           <p className="mt-2 text-sm text-gray-600">
             This Pro feature is locked for your current organization.
@@ -271,7 +271,7 @@ export default function CustomAssetDetail() {
     return (
       <div className="flex items-center gap-2 p-6 text-sm text-gray-500">
         <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
-        Loading custom asset...
+        Loading asset...
       </div>
     );
   }
@@ -287,7 +287,7 @@ export default function CustomAssetDetail() {
           Back
         </button>
         <p className="rounded-lg border border-gray-200 bg-white p-5 text-sm text-gray-600">
-          Custom asset not found.
+          Asset not found.
         </p>
       </div>
     );
@@ -300,7 +300,7 @@ export default function CustomAssetDetail() {
         className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to Custom Asset Inspections
+        Back to Equipment & Asset Inspections
       </button>
 
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">

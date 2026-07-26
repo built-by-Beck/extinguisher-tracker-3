@@ -127,7 +127,8 @@ export default function OrgSettings() {
   const orgId = userProfile?.activeOrgId ?? '';
   const canEdit = hasRole(['owner', 'admin']);
   const isOwner = membership?.role === 'owner';
-  const showChoosePlanBanner = billingParam === 'choose' && isOwner && !org?.plan;
+  const showChoosePlanBanner =
+    billingParam === 'choose' && isOwner && !org?.plan;
   const showCanceledBanner = billingParam === 'canceled';
   const [checkoutInterval, setCheckoutInterval] =
     useState<BillingIntervalPreference | null>(null);
@@ -145,7 +146,9 @@ export default function OrgSettings() {
 
   useEffect(() => {
     if (billingParam === 'choose' || billingParam === 'canceled') {
-      document.getElementById('subscription')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document
+        .getElementById('subscription')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [billingParam]);
 
@@ -154,7 +157,9 @@ export default function OrgSettings() {
     : showCanceledBanner
       ? 'Checkout was canceled. Select a plan below when you are ready — your promo code still works at Stripe checkout.'
       : null;
-  const billingNoticeTone: 'success' | 'info' = showCanceledBanner ? 'info' : 'success';
+  const billingNoticeTone: 'success' | 'info' = showCanceledBanner
+    ? 'info'
+    : 'success';
 
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('');

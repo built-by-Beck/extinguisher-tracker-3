@@ -83,8 +83,8 @@ const highlights: Record<MarketingPlanId, PlanHighlight[]> = {
     },
     {
       icon: ClipboardCheck,
-      title: 'Custom asset inspections',
-      body: 'Build recurring inspection programs for other life safety assets beyond extinguishers — same workflow, tracked separately.',
+      title: 'Equipment & Asset Inspections',
+      body: 'Build recurring inspection programs for other life safety assets beyond extinguishers — optional starters, fully customizable checklists, tracked separately.',
     },
     {
       icon: Users,
@@ -221,7 +221,10 @@ export default function MarketingPlanDetailPage() {
                 <p className="mt-3 text-lg text-gray-600">{plan.blurb}</p>
               </div>
               <div className="shrink-0 sm:text-right">
-                <PlanHeadlinePrice price={priceDisplay} className="sm:items-end" />
+                <PlanHeadlinePrice
+                  price={priceDisplay}
+                  className="sm:items-end"
+                />
                 {priceDisplay.footnote ? (
                   <p className="mt-1 text-xs text-gray-500">
                     {priceDisplay.footnote}

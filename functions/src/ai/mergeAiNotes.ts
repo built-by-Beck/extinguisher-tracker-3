@@ -4,10 +4,7 @@ import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { validateSubscriptionTx } from '../utils/subscription.js';
-import {
-  throwInvalidArgument,
-  throwNotFound,
-} from '../utils/errors.js';
+import { throwInvalidArgument, throwNotFound } from '../utils/errors.js';
 import { writeAuditLogTx } from '../utils/auditLog.js';
 import { assertAiAssistantEnabled, sanitizeText } from './aiNoteValidation.js';
 

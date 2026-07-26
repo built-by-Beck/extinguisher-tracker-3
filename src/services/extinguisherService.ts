@@ -104,7 +104,10 @@ async function lookupActiveExtinguisherByIdentifier(
   if (options.useSessionCache && maxResults === 1) {
     const cached = readLookupSessionCache(orgId, code);
     if (cached !== undefined) {
-      exSearchLog('session lookup cache hit', { searchInput: code, found: !!cached });
+      exSearchLog('session lookup cache hit', {
+        searchInput: code,
+        found: !!cached,
+      });
       return cached ? [cached] : [];
     }
   }
@@ -201,8 +204,7 @@ function summarizeLookupDiagnostics(
     (max, q) => Math.max(max, q.durationMs),
     0,
   );
-  const allFromCache =
-    lookups.length > 0 && lookups.every((q) => q.fromCache);
+  const allFromCache = lookups.length > 0 && lookups.every((q) => q.fromCache);
   const anyNetworkFetch = lookups.some((q) => !q.fromCache);
   const slowNetworkFetch = lookups.some(
     (q) => !q.fromCache && q.durationMs >= 250,
@@ -248,7 +250,10 @@ async function runLookupFieldQuery(
   code: string,
   perFieldLimit: number,
   queryType: LookupQueryType,
-): Promise<{ snap: QuerySnapshot; diagnostic: ExtinguisherLookupQueryDiagnostic }> {
+): Promise<{
+  snap: QuerySnapshot;
+  diagnostic: ExtinguisherLookupQueryDiagnostic;
+}> {
   const colRef = collection(db, 'org', orgId, 'extinguishers');
   const constraints: QueryConstraint[] = [where('deletedAt', '==', null)];
   const filters = ['deletedAt==null'];
@@ -350,13 +355,15 @@ export async function diagnoseExtinguisherIdentifierSearch(
     throw new Error('searchInput is required.');
   }
 
-  const strict = await runStrictLookupWave(orgId, code, IDENTIFIER_LOOKUP_PER_FIELD_LIMIT, true);
+  const strict = await runStrictLookupWave(
+    orgId,
+    code,
+    IDENTIFIER_LOOKUP_PER_FIELD_LIMIT,
+    true,
+  );
   let clientLookups = strict.diagnostics;
   const strictHits = collectActiveMatchesFromOrderedSnaps(strict.snaps, 1);
-  if (
-    strictHits.length === 0 &&
-    totalDocsInSnaps(strict.snaps) === 0
-  ) {
+  if (strictHits.length === 0 && totalDocsInSnaps(strict.snaps) === 0) {
     const legacy = await runLegacyLookupWave(
       orgId,
       code,
@@ -397,7 +404,8 @@ declare global {
 }
 
 if (typeof window !== 'undefined' && isExSearchDebugEnabled()) {
-  window.__EX3_diagnoseExtinguisherSearch = diagnoseExtinguisherIdentifierSearch;
+  window.__EX3_diagnoseExtinguisherSearch =
+    diagnoseExtinguisherIdentifierSearch;
   exSearchLog(
     'Debug enabled. In console: await __EX3_diagnoseExtinguisherSearch(orgId, "SERIAL123")',
   );
@@ -445,9 +453,14 @@ export async function fetchActiveExtinguisherIdentifierMatches(
       maxResults,
       collectionPath: collectionPathExtinguishers(orgId),
     });
-    const out = await lookupActiveExtinguisherByIdentifier(orgId, code, maxResults, {
-      useSessionCache: false,
-    });
+    const out = await lookupActiveExtinguisherByIdentifier(
+      orgId,
+      code,
+      maxResults,
+      {
+        useSessionCache: false,
+      },
+    );
     exSearchLog('fetchActiveExtinguisherIdentifierMatches result', {
       count: out.length,
       ids: out.map((e) => e.id),
@@ -1206,8 +1219,7 @@ export function subscribeToExtinguishers(
         fromCache: snap.metadata.fromCache,
         showDeleted: options.showDeleted ?? false,
         limit: options.limit ?? null,
-        note:
-          'Inventory loads the full active list (no limit). Large orgs: substring/location search filters this snapshot client-side.',
+        note: 'Inventory loads the full active list (no limit). Large orgs: substring/location search filters this snapshot client-side.',
       });
     }
     const items: Extinguisher[] = snap.docs.map((d) => ({
