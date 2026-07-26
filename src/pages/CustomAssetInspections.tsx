@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowDown,
   ArrowUp,
@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Download,
   Edit2,
+  Info,
   Layers,
   Lock,
   MapPin,
@@ -70,6 +71,7 @@ import {
   generateAssetsFromLocations,
   getBuildingsWithStairwells,
 } from '../lib/generateAssetsFromLocations.ts';
+import { collectDistinctAssetTypes } from '../lib/customAssetTypes.ts';
 
 const RECURRENCE_OPTIONS: CustomAssetRecurrence[] = [
   'monthly',
@@ -315,13 +317,10 @@ export default function CustomAssetInspections() {
     [assets],
   );
 
-  const distinctTypes = useMemo(() => {
-    const seen = new Set<string>();
-    for (const asset of activeAssets) {
-      if (asset.assetType?.trim()) seen.add(asset.assetType.trim());
-    }
-    return Array.from(seen).sort();
-  }, [activeAssets]);
+  const distinctTypes = useMemo(
+    () => collectDistinctAssetTypes(activeAssets),
+    [activeAssets],
+  );
 
   const filteredAssets = useMemo(() => {
     const base =
@@ -429,8 +428,8 @@ export default function CustomAssetInspections() {
       items.length === 1
         ? emptyFormItems()
         : items
-            .filter((_, i) => i !== index)
-            .map((item, order) => ({ ...item, order })),
+          .filter((_, i) => i !== index)
+          .map((item, order) => ({ ...item, order })),
     );
   }
 
@@ -459,6 +458,32 @@ export default function CustomAssetInspections() {
     );
     setPasteText('');
     setPasteMode(false);
+  }
+
+  function isStarterItemSelected(label: string): boolean {
+    const normalized = label.trim().toLowerCase();
+    return inspectionItems.some(
+      (item) => item.label.trim().toLowerCase() === normalized,
+    );
+  }
+
+  function toggleStarterChecklistItem(label: string) {
+    const normalized = label.trim().toLowerCase();
+    setInspectionItems((items) => {
+      const hasItem = items.some(
+        (item) => item.label.trim().toLowerCase() === normalized,
+      );
+      if (hasItem) {
+        const next = items.filter(
+          (item) => item.label.trim().toLowerCase() !== normalized,
+        );
+        return next.length > 0 ? next : emptyFormItems();
+      }
+      const clean = items.filter((item) => item.label.trim());
+      return [...clean, createInspectionItem(label, clean.length)].map(
+        (item, order) => ({ ...item, order }),
+      );
+    });
   }
 
   function applyTemplate(templateId: string) {
@@ -782,19 +807,20 @@ export default function CustomAssetInspections() {
             Pro feature
           </p>
           <h1 className="mt-2 text-3xl font-bold text-gray-900">
-            Custom Assets
+            Equipment & Asset Inspections
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-            Track monthly inspections for elevators, exit signs, fire doors, and
-            any other recurring asset. Set up once — every month you only mark
-            Pass, Fail, or N/A. Requires Pro or higher.
+            Track and inspect any type of equipment or physical asset your
+            organization manages. Set up each item once with a customizable
+            checklist — every month you only mark Pass, Fail, or N/A. Requires
+            Pro or higher.
           </p>
           <div className="mt-6 rounded-xl border border-indigo-100 bg-white p-5">
             <p className="font-medium text-gray-900">What this unlocks</p>
             <div className="mt-3 grid gap-3 text-sm text-gray-600 md:grid-cols-3">
-              <div>Custom asset rows tied to your locations</div>
-              <div>Starter checklists for elevators, egress, fire doors</div>
-              <div>Monthly history with original column snapshots</div>
+              <div>Named assets with locations, IDs, and schedules</div>
+              <div>Optional starter templates you can fully customize</div>
+              <div>Monthly history with original checklist snapshots</div>
             </div>
           </div>
         </div>
@@ -808,11 +834,16 @@ export default function CustomAssetInspections() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Custom Assets</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Set up assets once — each month just mark Pass, Fail, or N/A.
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-3xl">
+          <h1 className="text-2xl font-bold text-gray-900">
+            Equipment & Asset Inspections
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-gray-600">
+            Track and inspect any type of equipment or physical asset your
+            organization manages. Each asset can have its own name, ID, barcode,
+            serial number, location, inspection schedule, and fully customizable
+            checklist.
           </p>
         </div>
         {canManage && activeTab === 'setup' && (
@@ -845,6 +876,51 @@ export default function CustomAssetInspections() {
         )}
       </div>
 
+      <div className="mb-5 space-y-3">
+        <div className="flex gap-3 rounded-xl border border-indigo-100 bg-indigo-50/70 px-4 py-3">
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
+          <div className="text-sm text-indigo-950">
+            <p className="font-semibold">
+              Starter templates are optional—not hardcoded limitations.
+            </p>
+            <p className="mt-1 leading-6 text-indigo-900/90">
+              The equipment types shown below are examples designed to save
+              time. Choose a starter template, customize every inspection item,
+              or select Custom / Blank to create any type of asset your
+              organization needs.
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm">
+          <p className="font-semibold text-gray-900">Use this page when</p>
+          <p className="mt-1 leading-6">
+            you need to track a specific physical item over time and maintain a
+            recurring inspection history for that item.
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-gray-600">
+            <li>Elevator 20</li>
+            <li>Emergency Light EL-104</li>
+            <li>Exit Sign ES-117</li>
+            <li>Fire Door WMC-214</li>
+            <li>AED 008</li>
+            <li>Generator 2</li>
+            <li>Any other equipment created by the organization</li>
+          </ul>
+          <p className="mt-3 text-gray-600">
+            Inspecting an area, route, building, or process instead of one
+            specific physical asset?{' '}
+            <Link
+              to="/dashboard/field-work"
+              className="font-medium text-indigo-700 hover:text-indigo-900"
+            >
+              Use Forms & Walkthroughs
+            </Link>
+            .
+          </p>
+        </div>
+      </div>
+
       {error && (
         <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
@@ -855,11 +931,10 @@ export default function CustomAssetInspections() {
       <div className="mb-4 flex flex-wrap gap-1 border-b border-gray-200">
         <button
           onClick={() => setTab('setup')}
-          className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'setup'
+          className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'setup'
               ? 'border-b-2 border-indigo-600 text-indigo-700'
               : 'text-gray-500 hover:text-gray-800'
-          }`}
+            }`}
         >
           Setup / All
         </button>
@@ -867,11 +942,10 @@ export default function CustomAssetInspections() {
           <button
             key={type}
             onClick={() => setTab(type)}
-            className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === type
+            className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === type
                 ? 'border-b-2 border-indigo-600 text-indigo-700'
                 : 'text-gray-500 hover:text-gray-800'
-            }`}
+              }`}
           >
             {type}
           </button>
@@ -932,7 +1006,7 @@ export default function CustomAssetInspections() {
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
-                  {editingAsset ? 'Edit Custom Asset' : 'Add Custom Asset'}
+                  {editingAsset ? 'Edit Asset' : 'Add Asset'}
                 </h2>
                 <p className="text-sm text-gray-500">
                   {editingAsset
@@ -968,8 +1042,15 @@ export default function CustomAssetInspections() {
               {/* Starter picker (create only) */}
               {!editingAsset && (
                 <div>
-                  <p className="mb-2 text-sm font-medium text-gray-700">
-                    Start from a preset (optional)
+                  <p className="mb-1 text-sm font-medium text-gray-700">
+                    Optional starter template
+                  </p>
+                  <p className="mb-2 text-xs text-gray-500">
+                    Templates only provide suggested starting fields. You can
+                    change, add, reorder, or remove every inspection item.
+                    Starter checklists are editable operational examples and
+                    should be reviewed for your organization&apos;s
+                    requirements.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {ASSET_STARTERS.map((starter) => (
@@ -977,21 +1058,62 @@ export default function CustomAssetInspections() {
                         key={starter.id}
                         type="button"
                         onClick={() => applyStarter(starter.id)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                          selectedStarterId === starter.id
-                            ? 'border-indigo-600 bg-indigo-600 text-white'
-                            : 'border-gray-300 bg-white text-gray-700 hover:border-indigo-400 hover:text-indigo-700'
-                        }`}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${selectedStarterId === starter.id
+                            ? starter.id === 'blank'
+                              ? 'border-emerald-600 bg-emerald-600 text-white'
+                              : 'border-indigo-600 bg-indigo-600 text-white'
+                            : starter.id === 'blank'
+                              ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:border-emerald-500'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-indigo-400 hover:text-indigo-700'
+                          }`}
                       >
                         {starter.label}
                       </button>
                     ))}
                   </div>
-                  {selectedStarterId && selectedStarterId !== 'blank' && (
+                  {selectedStarterId === 'blank' ? (
+                    <p className="mt-2 text-xs text-emerald-800">
+                      Custom / Blank lets you create any asset type with your
+                      own inspection items — nothing is limited to the example
+                      templates above.
+                    </p>
+                  ) : selectedStarterId ? (
                     <p className="mt-2 text-xs text-gray-500">
                       {getStarterById(selectedStarterId)?.description}
                     </p>
-                  )}
+                  ) : null}
+                  {selectedStarterId &&
+                    selectedStarterId !== 'blank' &&
+                    (getStarterById(selectedStarterId)?.defaultItems.length ??
+                      0) > 0 && (
+                      <div className="mt-3">
+                        <p className="mb-2 text-xs font-medium text-gray-700">
+                          Suggested checklist items — tap to add or remove
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {getStarterById(selectedStarterId)!.defaultItems.map(
+                            (itemLabel) => {
+                              const selected = isStarterItemSelected(itemLabel);
+                              return (
+                                <button
+                                  key={itemLabel}
+                                  type="button"
+                                  onClick={() =>
+                                    toggleStarterChecklistItem(itemLabel)
+                                  }
+                                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${selected
+                                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                                      : 'border-gray-300 bg-white text-gray-600 hover:border-indigo-400 hover:text-indigo-700'
+                                    }`}
+                                >
+                                  {itemLabel}
+                                </button>
+                              );
+                            },
+                          )}
+                        </div>
+                      </div>
+                    )}
                 </div>
               )}
 
@@ -1005,7 +1127,7 @@ export default function CustomAssetInspections() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    placeholder="Building D elevator"
+                    placeholder="Enter an asset name, such as Emergency Light EL-104"
                   />
                 </label>
                 <label className="block">
@@ -1019,7 +1141,7 @@ export default function CustomAssetInspections() {
                       setTemplateMessage('');
                     }}
                     className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    placeholder="e.g. Elevator, Exit Sign"
+                    placeholder="Enter an asset type, such as AED, Generator, Fire Door, or Custom Equipment"
                   />
                 </label>
                 <label className="block">
@@ -1233,7 +1355,7 @@ export default function CustomAssetInspections() {
                       onChange={(e) => setPasteText(e.target.value)}
                       rows={5}
                       placeholder={
-                        'Fire recall system\nElevator communications phone\n...'
+                        'Enter an inspection item\nOne label per line\n...'
                       }
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
@@ -1254,7 +1376,7 @@ export default function CustomAssetInspections() {
                         value={item.label}
                         onChange={(e) => updateItem(index, e.target.value)}
                         className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        placeholder="Inspection column name"
+                        placeholder="Enter an inspection item"
                       />
                       <button
                         type="button"
@@ -1298,7 +1420,7 @@ export default function CustomAssetInspections() {
                 disabled={saving}
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
               >
-                {saving ? 'Saving...' : 'Save Custom Asset'}
+                {saving ? 'Saving...' : 'Save Asset'}
               </button>
             </div>
           </div>
@@ -1312,7 +1434,7 @@ export default function CustomAssetInspections() {
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
-                  Import Custom Assets via CSV
+                  Import Assets via CSV
                 </h2>
                 <p className="text-sm text-gray-500">
                   Columns: name, assetType, locationName, recurrence, items
@@ -1459,7 +1581,7 @@ export default function CustomAssetInspections() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Asset starter
+                  Optional starter template
                 </label>
                 <select
                   value={genStarterId}
@@ -1550,7 +1672,7 @@ export default function CustomAssetInspections() {
       {/* ── Retire Confirm ── */}
       <ConfirmModal
         open={!!retireTarget}
-        title="Retire Custom Asset"
+        title="Retire Asset"
         message={`Retire ${retireTarget?.name ?? 'this asset'}? It will no longer be seeded into active monthly inspections.`}
         confirmLabel="Retire"
         variant="warning"
@@ -1608,10 +1730,12 @@ function AssetTable({
         <div className="px-4 py-12 text-center">
           <ClipboardCheck className="mx-auto h-10 w-10 text-gray-300" />
           <p className="mt-3 text-sm font-medium text-gray-900">
-            No custom assets
+            No assets yet
           </p>
           <p className="mt-1 text-sm text-gray-500">
             Add your first asset and define what you inspect on it each month.
+            Starter templates are optional examples — use Custom / Blank for any
+            equipment type.
           </p>
         </div>
       </div>
@@ -1643,7 +1767,7 @@ function AssetTable({
             {asset.locationName || 'Unassigned'}
           </span>
           <span className="text-gray-600">
-            {asset.assetType || asset.assetCode || 'Custom asset'}
+            {asset.assetType || asset.assetCode || 'Asset'}
           </span>
           <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
             {!activeWorkspace ? (
@@ -1685,19 +1809,18 @@ function AssetTable({
                               disabled={
                                 !canInspect ||
                                 inspectionsByAsset[asset.id ?? '']?.status ===
-                                  'pass' ||
+                                'pass' ||
                                 inspectionsByAsset[asset.id ?? '']?.status ===
-                                  'fail'
+                                'fail'
                               }
-                              className={`rounded px-2.5 py-1 text-xs font-semibold ${
-                                answer?.result === result
+                              className={`rounded px-2.5 py-1 text-xs font-semibold ${answer?.result === result
                                   ? result === 'pass'
                                     ? 'bg-green-600 text-white'
                                     : result === 'fail'
                                       ? 'bg-red-600 text-white'
                                       : 'bg-gray-700 text-white'
                                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              } disabled:cursor-not-allowed disabled:opacity-50`}
+                                } disabled:cursor-not-allowed disabled:opacity-50`}
                             >
                               {result === 'na'
                                 ? 'N/A'
@@ -1721,7 +1844,7 @@ function AssetTable({
                         disabled={
                           !canInspect ||
                           inspectionsByAsset[asset.id ?? '']?.status ===
-                            'pass' ||
+                          'pass' ||
                           inspectionsByAsset[asset.id ?? '']?.status === 'fail'
                         }
                         className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"

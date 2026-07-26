@@ -71,7 +71,7 @@ const navItems: NavItem[] = [
   },
   {
     to: '/dashboard/field-work',
-    label: 'Field Work',
+    label: 'Forms & Walkthroughs',
     icon: ListChecks,
     end: false,
     requiredFeature: 'aiAssistant',
@@ -79,7 +79,7 @@ const navItems: NavItem[] = [
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
   {
     to: '/dashboard/custom-asset-inspections',
-    label: 'Custom Assets',
+    label: 'Equipment & Asset Inspections',
     icon: ClipboardCheck,
     end: false,
     requiredFeature: 'customAssetInspections',

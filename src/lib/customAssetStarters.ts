@@ -95,7 +95,8 @@ export const ASSET_STARTERS: AssetStarter[] = [
     id: 'blank',
     assetType: '',
     label: 'Custom / Blank',
-    description: 'Start with a blank checklist',
+    description:
+      'Create any asset type — start with an empty checklist and add your own inspection items',
     defaultItems: [],
   },
 ];

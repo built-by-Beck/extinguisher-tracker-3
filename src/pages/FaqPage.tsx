@@ -132,31 +132,35 @@ const faqSections = [
     ],
   },
   {
-    title: 'Custom Assets',
+    title: 'Equipment & Asset Inspections',
     items: [
       {
-        q: 'What are Custom Assets?',
-        a: 'Custom Assets is a recurring Pass/Fail/N/A checklist system for non-extinguisher safety equipment. Supported starter types include Elevator, Egress Lighting, Exit Sign, Egress Path, Fire Door, Sprinkler Head, and Custom/Blank. Define each asset once — name, location, and checklist items — and it persists under your organization. Each month you open the asset and mark each checklist item Pass, Fail, or N/A. These are operational guidance checklists and should not be treated as a substitute for certified compliance sign-off.',
+        q: 'What are Equipment & Asset Inspections?',
+        a: 'Equipment & Asset Inspections is a recurring Pass/Fail/N/A checklist system for any physical equipment your organization manages — not only extinguishers. Optional starter templates (Elevator, Egress Lighting, Exit Sign, Egress Path, Fire Door, Sprinkler, and Custom/Blank) are examples to save time; they are not hardcoded limits. Define each asset once — name, location, identifiers, and checklist items — and it persists under your organization. Each month you mark Pass, Fail, or N/A. Starter checklists are editable operational examples and should be reviewed for your organization’s requirements — not treated as certified compliance sign-off.',
       },
       {
-        q: 'How do I set up a Custom Asset?',
-        a: 'Open Custom Assets from the sidebar (Pro+ required). On the Setup tab, click Add Asset and pick a starter. The starter pre-fills a default checklist you can adjust. Add a name, assign a location, and save. The asset and its checklist persist for all future months — you only set it up once.',
+        q: 'How do I set up an asset?',
+        a: 'Open Equipment & Asset Inspections from the sidebar (Pro+ required). On the Setup tab, click Add Asset and optionally pick a starter template. Templates only suggest starting fields — you can change every item, or choose Custom / Blank to create any type. Add a name, assign a location, and save. The asset and its checklist persist for all future months.',
       },
       {
-        q: 'What are the type tabs inside Custom Assets?',
-        a: 'The page shows an All tab, a Setup tab for creating and managing assets, and one tab for each asset type active in your org (e.g. Elevator, Fire Door). The Elevator tab also shows this month\'s Fire recall system and Communications phone status at a glance. You can bookmark a specific tab with the ?type= URL parameter.',
+        q: 'What are the type tabs?',
+        a: 'The page shows a Setup / All tab for creating and managing assets, plus one tab for each asset type active in your org (for example Elevator or Fire Door). The Elevator tab can show this month’s Fire recall system and Communications phone status at a glance when you use that starter. Bookmark a tab with the ?type= URL parameter.',
       },
       {
-        q: 'Can I bulk-create Custom Assets from a spreadsheet?',
-        a: 'Yes. Owners and Admins can import a CSV with columns for name, assetType, locationName, recurrence, items (pipe-separated), and optional assetCode. If a locationName matches one in your org, the asset is assigned to that location automatically. Unmatched names create unassigned assets you can edit afterward.',
+        q: 'Can I bulk-create assets from a spreadsheet?',
+        a: 'Yes. Owners and Admins can import a CSV with columns for name, assetType, locationName, recurrence, items (pipe-separated), and optional assetCode. If a locationName matches one in your org, the asset is assigned automatically. Unmatched names create unassigned assets you can edit afterward.',
       },
       {
         q: 'What is Generate from Locations?',
-        a: 'Generate from Locations creates one asset per stairwell — or per floor under a stairwell — from your location tree for a selected starter type. It is useful when a building has many stairwells that each need the same checklist without entering them one by one. Owner/Admin access and a Pro+ plan are required.',
+        a: 'Generate from Locations creates one asset per stairwell — or per floor under a stairwell — from your location tree for a selected optional starter. Useful when many stairwells need the same checklist without entering them one by one. Owner/Admin and Pro+ required.',
       },
       {
-        q: 'What plan is required for Custom Assets?',
-        a: 'Custom Assets are available on Pro, Elite, and Enterprise plans with an active or trial subscription. Inspectors can inspect; Owner/Admin role is required to create, edit, retire, import, or generate assets.',
+        q: 'When should I use Forms & Walkthroughs instead?',
+        a: 'Use Forms & Walkthroughs when you are inspecting an area, route, building, process, or temporary project rather than keeping a permanent recurring record for one specific piece of equipment. Printable forms are available now.',
+      },
+      {
+        q: 'What plan is required?',
+        a: 'Equipment & Asset Inspections are available on Pro, Elite, and Enterprise plans with an active or trial subscription. Inspectors can inspect; Owner/Admin is required to create, edit, retire, import, or generate assets.',
       },
     ],
   },

@@ -26,7 +26,7 @@ const extraFaq = [
   },
   {
     q: 'Can we track more than extinguishers?',
-    a: 'Yes. Custom asset inspections let teams build recurring inspection workflows for other assets that need structured checks, notes, and follow-up visibility.',
+    a: 'Yes. Equipment & Asset Inspections let teams build recurring inspection workflows for other physical assets with structured checks, notes, and follow-up visibility. Optional starter templates are examples you can customize.',
   },
   {
     q: 'Can we add profile pictures or organization branding?',

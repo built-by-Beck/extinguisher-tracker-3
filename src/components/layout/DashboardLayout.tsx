@@ -20,7 +20,10 @@ import { IdleTimerModal } from '../timeTracking/IdleTimerModal.tsx';
 import { useSectionTimerContext } from '../../contexts/SectionTimerContext.tsx';
 import { useOrg } from '../../hooks/useOrg.ts';
 import { hasFeature } from '../../lib/planConfig.ts';
-import { readBillingIntervalPreference, settingsBillingPath } from '../../lib/billingIntervalPreference.ts';
+import {
+  readBillingIntervalPreference,
+  settingsBillingPath,
+} from '../../lib/billingIntervalPreference.ts';
 
 const BANNER_PREF_KEY = 'ex3-hide-banner';
 
@@ -29,7 +32,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/profile': 'Profile',
   '/dashboard/inventory': 'Inventory',
   '/dashboard/replaced-extinguishers': 'Replaced Extinguishers',
-  '/dashboard/custom-asset-inspections': 'Custom Assets',
+  '/dashboard/custom-asset-inspections': 'Equipment & Asset Inspections',
+  '/dashboard/field-work': 'Forms & Walkthroughs',
   '/dashboard/members': 'Members',
   '/dashboard/workspaces': 'Inspections',
   '/dashboard/locations': 'Locations',
@@ -59,6 +63,10 @@ const PAGE_COLORS: Record<string, { bg: string; bgHidden: string }> = {
   '/dashboard/custom-asset-inspections': {
     bg: 'bg-indigo-900',
     bgHidden: 'bg-indigo-800',
+  },
+  '/dashboard/field-work': {
+    bg: 'bg-rose-900',
+    bgHidden: 'bg-rose-800',
   },
   '/dashboard/workspaces': { bg: 'bg-red-800', bgHidden: 'bg-red-700' },
   '/dashboard/locations': { bg: 'bg-blue-800', bgHidden: 'bg-blue-700' },
@@ -207,8 +215,7 @@ export function DashboardLayout() {
     return () => window.clearInterval(id);
   }, []);
 
-  const msToTrialEnd =
-    trialEndMs !== null ? trialEndMs - nowMs : null;
+  const msToTrialEnd = trialEndMs !== null ? trialEndMs - nowMs : null;
   const trialEndsSoon =
     !isEnterprise &&
     subStatus === 'trialing' &&
@@ -218,147 +225,155 @@ export function DashboardLayout() {
 
   return (
     <AiAssistantProvider>
-    <SectionTimerProvider>
-      <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <SectionTimerProvider>
+        <div className="flex h-screen overflow-hidden bg-gray-50">
+          {/* Sidebar */}
+          <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Topbar */}
-        <Topbar onMenuClick={() => setSidebarOpen(true)} />
+          {/* Main area */}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {/* Topbar */}
+            <Topbar onMenuClick={() => setSidebarOpen(true)} />
 
-        {/* Offline / sync status banner */}
-        <OfflineBanner />
+            {/* Offline / sync status banner */}
+            <OfflineBanner />
 
-        <DashboardTimerChrome />
+            <DashboardTimerChrome />
 
-        {/* Plan-based ad banner (only on publisher content pages) */}
-        <DashboardAdBanner />
+            {/* Plan-based ad banner (only on publisher content pages) */}
+            <DashboardAdBanner />
 
-        {/* Subscription past-due banner — shown on every page */}
-        {subscriptionPastDue && (
-          <div className="flex shrink-0 items-center gap-3 border-b border-orange-200 bg-orange-50 px-4 py-2.5">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-orange-600" />
-            <p className="flex-1 text-sm font-medium text-orange-800">
-              Payment past due — please update your payment method to avoid
-              losing access.
-            </p>
-            <button
-              onClick={() =>
-                navigate(settingsBillingPath(readBillingIntervalPreference()))
-              }
-              className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-700"
-            >
-              Manage Billing
-            </button>
-          </div>
-        )}
-
-        {trialEndsSoon && (
-          <div className="flex shrink-0 items-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2.5">
-            <Clock className="h-4 w-4 shrink-0 text-amber-700" />
-            <p className="flex-1 text-sm font-medium text-amber-900">
-              Your Pro trial ends soon — add a payment method in Billing to keep
-              full access.
-            </p>
-            <button
-              type="button"
-              onClick={() =>
-                navigate(settingsBillingPath(readBillingIntervalPreference()))
-              }
-              className="rounded-md bg-amber-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800"
-            >
-              Billing
-            </button>
-          </div>
-        )}
-
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto">
-          {!isCalculatorPage && !bannerHidden && (
-            <div
-              className={`relative ${pageColors.bg} transition-colors duration-300`}
-            >
-              <img
-                src="/extinguisherTracker2.png"
-                alt="ExtinguisherTracker"
-                className="mx-auto block w-[96%] object-contain py-1"
-              />
-              <div className="absolute inset-0 flex items-end justify-center pb-3 sm:pb-5">
-                <h2 className="text-xl font-extrabold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] sm:text-2xl md:text-3xl">
-                  {pageTitle}
-                </h2>
-              </div>
-              <button
-                onClick={toggleBanner}
-                className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-black/50 px-2 py-1 text-xs font-medium text-white/80 backdrop-blur hover:bg-black/70 hover:text-white"
-              >
-                <ChevronUp className="h-3.5 w-3.5" />
-                Hide
-              </button>
-            </div>
-          )}
-          {!isCalculatorPage && bannerHidden && (
-            <div
-              className={`flex items-center justify-between ${pageColors.bgHidden} px-6 py-2.5 transition-colors duration-300`}
-            >
-              <h2 className="text-lg font-bold text-white">{pageTitle}</h2>
-              <button
-                onClick={toggleBanner}
-                className="flex items-center gap-1 rounded-md border border-white/20 px-2 py-1 text-xs font-medium text-white/70 hover:bg-white/10 hover:text-white"
-              >
-                <ChevronDown className="h-3.5 w-3.5" />
-                Show banner
-              </button>
-            </div>
-          )}
-          {!isCalculatorPage && bannerHidden && (
-            <AdSlot
-              format="banner"
-              minTier="minimal"
-              className="border-b border-gray-200 bg-gray-50 px-4 py-2"
-            />
-          )}
-          {isCalculatorPage && (
-            <div className="border-b border-gray-200 bg-white px-6 py-3">
-              <h2 className="text-lg font-bold text-gray-900">{pageTitle}</h2>
-            </div>
-          )}
-          {blockContent ? (
-            <div className="flex flex-1 items-center justify-center p-12">
-              <div className="max-w-md text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-                  <XCircle className="h-8 w-8 text-red-500" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  Subscription Ended
-                </h2>
-                <p className="mt-2 text-sm text-gray-600">
-                  Your subscription is no longer active. Renew your plan to
-                  continue using ExtinguisherTracker. Your data is preserved and
-                  will be fully accessible once you resubscribe.
+            {/* Subscription past-due banner — shown on every page */}
+            {subscriptionPastDue && (
+              <div className="flex shrink-0 items-center gap-3 border-b border-orange-200 bg-orange-50 px-4 py-2.5">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-orange-600" />
+                <p className="flex-1 text-sm font-medium text-orange-800">
+                  Payment past due — please update your payment method to avoid
+                  losing access.
                 </p>
                 <button
                   onClick={() =>
-                navigate(settingsBillingPath(readBillingIntervalPreference()))
-              }
-                  className="mt-6 rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-red-700"
+                    navigate(
+                      settingsBillingPath(readBillingIntervalPreference()),
+                    )
+                  }
+                  className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-700"
                 >
-                  Resubscribe
+                  Manage Billing
                 </button>
               </div>
-            </div>
-          ) : (
-            <Outlet />
-          )}
-        </main>
+            )}
 
-        {/* Global AI assistant for Pro, Elite, and Enterprise */}
-        {hasAiAccess && <AiAssistantPanel />}
-      </div>
-    </div>
-    </SectionTimerProvider>
+            {trialEndsSoon && (
+              <div className="flex shrink-0 items-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2.5">
+                <Clock className="h-4 w-4 shrink-0 text-amber-700" />
+                <p className="flex-1 text-sm font-medium text-amber-900">
+                  Your Pro trial ends soon — add a payment method in Billing to
+                  keep full access.
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      settingsBillingPath(readBillingIntervalPreference()),
+                    )
+                  }
+                  className="rounded-md bg-amber-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800"
+                >
+                  Billing
+                </button>
+              </div>
+            )}
+
+            {/* Content */}
+            <main className="flex-1 overflow-y-auto">
+              {!isCalculatorPage && !bannerHidden && (
+                <div
+                  className={`relative ${pageColors.bg} transition-colors duration-300`}
+                >
+                  <img
+                    src="/extinguisherTracker2.png"
+                    alt="ExtinguisherTracker"
+                    className="mx-auto block w-[96%] object-contain py-1"
+                  />
+                  <div className="absolute inset-0 flex items-end justify-center pb-3 sm:pb-5">
+                    <h2 className="text-xl font-extrabold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] sm:text-2xl md:text-3xl">
+                      {pageTitle}
+                    </h2>
+                  </div>
+                  <button
+                    onClick={toggleBanner}
+                    className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-black/50 px-2 py-1 text-xs font-medium text-white/80 backdrop-blur hover:bg-black/70 hover:text-white"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                    Hide
+                  </button>
+                </div>
+              )}
+              {!isCalculatorPage && bannerHidden && (
+                <div
+                  className={`flex items-center justify-between ${pageColors.bgHidden} px-6 py-2.5 transition-colors duration-300`}
+                >
+                  <h2 className="text-lg font-bold text-white">{pageTitle}</h2>
+                  <button
+                    onClick={toggleBanner}
+                    className="flex items-center gap-1 rounded-md border border-white/20 px-2 py-1 text-xs font-medium text-white/70 hover:bg-white/10 hover:text-white"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                    Show banner
+                  </button>
+                </div>
+              )}
+              {!isCalculatorPage && bannerHidden && (
+                <AdSlot
+                  format="banner"
+                  minTier="minimal"
+                  className="border-b border-gray-200 bg-gray-50 px-4 py-2"
+                />
+              )}
+              {isCalculatorPage && (
+                <div className="border-b border-gray-200 bg-white px-6 py-3">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    {pageTitle}
+                  </h2>
+                </div>
+              )}
+              {blockContent ? (
+                <div className="flex flex-1 items-center justify-center p-12">
+                  <div className="max-w-md text-center">
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+                      <XCircle className="h-8 w-8 text-red-500" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Subscription Ended
+                    </h2>
+                    <p className="mt-2 text-sm text-gray-600">
+                      Your subscription is no longer active. Renew your plan to
+                      continue using ExtinguisherTracker. Your data is preserved
+                      and will be fully accessible once you resubscribe.
+                    </p>
+                    <button
+                      onClick={() =>
+                        navigate(
+                          settingsBillingPath(readBillingIntervalPreference()),
+                        )
+                      }
+                      className="mt-6 rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-red-700"
+                    >
+                      Resubscribe
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <Outlet />
+              )}
+            </main>
+
+            {/* Global AI assistant for Pro, Elite, and Enterprise */}
+            {hasAiAccess && <AiAssistantPanel />}
+          </div>
+        </div>
+      </SectionTimerProvider>
     </AiAssistantProvider>
   );
 }
