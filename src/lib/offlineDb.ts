@@ -165,43 +165,46 @@ export function getOfflineDb(): Promise<IDBPDatabase<Ex3OfflineSchema>> {
     dbPromise = openDB<Ex3OfflineSchema>('ex3-offline', 2, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
-        // inspectionQueue store
-        const queueStore = db.createObjectStore('inspectionQueue', {
-          keyPath: 'queueId',
-        });
-        queueStore.createIndex('by-orgId', 'orgId');
-        queueStore.createIndex('by-inspectionId', 'inspectionId');
-        queueStore.createIndex('by-queuedAt', 'queuedAt');
+          // inspectionQueue store
+          const queueStore = db.createObjectStore('inspectionQueue', {
+            keyPath: 'queueId',
+          });
+          queueStore.createIndex('by-orgId', 'orgId');
+          queueStore.createIndex('by-inspectionId', 'inspectionId');
+          queueStore.createIndex('by-queuedAt', 'queuedAt');
 
-        // cachedExtinguishers store
-        const extStore = db.createObjectStore('cachedExtinguishers', {
-          keyPath: 'cacheKey',
-        });
-        extStore.createIndex('by-orgId', 'orgId');
+          // cachedExtinguishers store
+          const extStore = db.createObjectStore('cachedExtinguishers', {
+            keyPath: 'cacheKey',
+          });
+          extStore.createIndex('by-orgId', 'orgId');
 
-        // cachedInspections store
-        const inspStore = db.createObjectStore('cachedInspections', {
-          keyPath: 'cacheKey',
-        });
-        inspStore.createIndex('by-orgId', 'orgId');
-        inspStore.createIndex('by-orgId-workspaceId', ['orgId', 'workspaceId']);
+          // cachedInspections store
+          const inspStore = db.createObjectStore('cachedInspections', {
+            keyPath: 'cacheKey',
+          });
+          inspStore.createIndex('by-orgId', 'orgId');
+          inspStore.createIndex('by-orgId-workspaceId', [
+            'orgId',
+            'workspaceId',
+          ]);
 
-        // cachedWorkspaces store
-        const wsStore = db.createObjectStore('cachedWorkspaces', {
-          keyPath: 'cacheKey',
-        });
-        wsStore.createIndex('by-orgId', 'orgId');
+          // cachedWorkspaces store
+          const wsStore = db.createObjectStore('cachedWorkspaces', {
+            keyPath: 'cacheKey',
+          });
+          wsStore.createIndex('by-orgId', 'orgId');
 
-        // cachedLocations store
-        const locStore = db.createObjectStore('cachedLocations', {
-          keyPath: 'cacheKey',
-        });
-        locStore.createIndex('by-orgId', 'orgId');
+          // cachedLocations store
+          const locStore = db.createObjectStore('cachedLocations', {
+            keyPath: 'cacheKey',
+          });
+          locStore.createIndex('by-orgId', 'orgId');
 
-        // syncMeta store
-        db.createObjectStore('syncMeta', {
-          keyPath: 'key',
-        });
+          // syncMeta store
+          db.createObjectStore('syncMeta', {
+            keyPath: 'key',
+          });
         }
 
         if (oldVersion < 2 && !db.objectStoreNames.contains('noteQueue')) {

@@ -71,9 +71,11 @@ export const onExtinguisherCreated = onDocumentCreated(
         currentExtData.lastSixYearMaintenance as Timestamp | null;
       const lastHydro = currentExtData.lastHydroTest as Timestamp | null;
 
-      const clientNextSix = currentExtData.nextSixYearMaintenance as Timestamp | null;
+      const clientNextSix =
+        currentExtData.nextSixYearMaintenance as Timestamp | null;
       const clientNextHydro = currentExtData.nextHydroTest as Timestamp | null;
-      const userSetServiceDue = clientNextSix != null || clientNextHydro != null;
+      const userSetServiceDue =
+        clientNextSix != null || clientNextHydro != null;
 
       const nextMonthlyInspection = calculateNextMonthlyInspection(
         lastMonthly,
@@ -82,7 +84,10 @@ export const onExtinguisherCreated = onDocumentCreated(
       );
       const nextAnnualInspection = calculateNextAnnualInspection(lastAnnual);
 
-      const calculatedNextHydroTest = calculateNextHydroTest(lastHydro, hydroInterval);
+      const calculatedNextHydroTest = calculateNextHydroTest(
+        lastHydro,
+        hydroInterval,
+      );
       const calculatedNextSixYearMaintenance = needsSixYear
         ? calculateNextSixYearMaintenance(lastSixYear)
         : null;

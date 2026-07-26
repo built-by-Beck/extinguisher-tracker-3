@@ -12,7 +12,10 @@ import type {
   Timestamp,
 } from 'firebase-admin/firestore';
 import { adminDb } from '../utils/admin.js';
-import { throwFailedPrecondition, throwInvalidArgument } from '../utils/errors.js';
+import {
+  throwFailedPrecondition,
+  throwInvalidArgument,
+} from '../utils/errors.js';
 
 /** Days until a newly created invite expires. */
 export const INVITE_EXPIRY_DAYS = 7;
@@ -40,8 +43,7 @@ export function isInviteExpired(
   now: Date = new Date(),
 ): boolean {
   if (!expiresAt) return false;
-  const expiryDate =
-    expiresAt instanceof Date ? expiresAt : expiresAt.toDate();
+  const expiryDate = expiresAt instanceof Date ? expiresAt : expiresAt.toDate();
   return expiryDate.getTime() < now.getTime();
 }
 

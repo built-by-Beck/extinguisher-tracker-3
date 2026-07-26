@@ -15,13 +15,21 @@ type LaunchPromoBannerProps = {
 /**
  * Launch promo banner — hidden when VITE_LAUNCH_PROMO_ENABLED=false at build time.
  */
-export function LaunchPromoBanner({ variant = 'hero' }: LaunchPromoBannerProps) {
+export function LaunchPromoBanner({
+  variant = 'hero',
+}: LaunchPromoBannerProps) {
   if (!LAUNCH_PROMO_ENABLED) return null;
 
   if (variant === 'compact') {
     return (
-      <section aria-label="Launch promotion" className="mx-auto max-w-6xl px-4 sm:px-6">
-        <Link to="/signup" className="group block overflow-hidden rounded-2xl shadow-xl ring-2 ring-amber-400/80">
+      <section
+        aria-label="Launch promotion"
+        className="mx-auto max-w-6xl px-4 sm:px-6"
+      >
+        <Link
+          to="/signup"
+          className="group block overflow-hidden rounded-2xl shadow-xl ring-2 ring-amber-400/80"
+        >
           <img
             src={LAUNCH_PROMO.bannerImage}
             alt={`Limited time: first ${LAUNCH_PROMO_MAX_CUSTOMERS} customers get 50% off their first year`}
@@ -49,8 +57,8 @@ export function LaunchPromoBanner({ variant = 'hero' }: LaunchPromoBannerProps) 
         <div className="border-t border-white/10 bg-gradient-to-r from-red-950 via-gray-950 to-red-950 px-4 py-4 sm:px-6">
           <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 lg:flex-row lg:justify-between">
             <p className="text-center text-sm font-semibold text-amber-100 sm:text-base lg:text-left">
-              Limited time — first {LAUNCH_PROMO_MAX_CUSTOMERS} customers · {LAUNCH_PROMO.headline} ·{' '}
-              {TRIAL_DAYS}-day free trial first
+              Limited time — first {LAUNCH_PROMO_MAX_CUSTOMERS} customers ·{' '}
+              {LAUNCH_PROMO.headline} · {TRIAL_DAYS}-day free trial first
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
               {(

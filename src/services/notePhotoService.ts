@@ -1,4 +1,8 @@
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import {
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+} from 'firebase/storage';
 import { storage } from '../lib/firebase.ts';
 
 const NOTE_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
@@ -16,7 +20,12 @@ export async function uploadNotePhoto(
     throw new Error('Photo must be 10 MB or smaller.');
   }
 
-  const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+  const extension =
+    file.type === 'image/png'
+      ? 'png'
+      : file.type === 'image/webp'
+        ? 'webp'
+        : 'jpg';
   const path = `org/${orgId}/notes/${noteId}/photo_${Date.now()}.${extension}`;
   const fileRef = storageRef(storage, path);
   await uploadBytes(fileRef, file);

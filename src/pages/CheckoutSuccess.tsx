@@ -79,8 +79,10 @@ export default function CheckoutSuccess() {
                 'Setting up your subscription…'
               ) : planLabel ? (
                 <>
-                  <span className="font-semibold text-white">{org?.name}</span> is on the{' '}
-                  <span className="font-semibold text-white">{planLabel}</span> plan
+                  <span className="font-semibold text-white">{org?.name}</span>{' '}
+                  is on the{' '}
+                  <span className="font-semibold text-white">{planLabel}</span>{' '}
+                  plan
                   {isTrialing ? (
                     <> — your {TRIAL_DAYS}-day free trial starts now.</>
                   ) : (
@@ -89,16 +91,19 @@ export default function CheckoutSuccess() {
                 </>
               ) : (
                 <>
-                  Your subscription is activating now. Head to the dashboard to add locations, load
-                  inventory, and run your first inspection.
+                  Your subscription is activating now. Head to the dashboard to
+                  add locations, load inventory, and run your first inspection.
                 </>
               )}
             </p>
 
             <p className="mt-4 flex items-start gap-2 text-sm text-gray-400">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden />
-              NFPA-ready workflows, AI guidance on Pro and Elite, and audit trails that hold up
-              when the fire marshal asks questions.
+              <ShieldCheck
+                className="mt-0.5 h-4 w-4 shrink-0 text-red-400"
+                aria-hidden
+              />
+              NFPA-ready workflows, AI guidance on Pro and Elite, and audit
+              trails that hold up when the fire marshal asks questions.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">

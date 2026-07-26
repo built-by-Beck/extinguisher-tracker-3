@@ -102,13 +102,16 @@ export function subscribeToWorkDocument(
   documentId: string,
   callback: (document: WorkDocument | null) => void,
 ): () => void {
-  return onSnapshot(doc(db, 'org', orgId, 'workDocuments', documentId), (snap) => {
-    if (!snap.exists()) {
-      callback(null);
-      return;
-    }
-    callback(normalizeWorkDocument(snap));
-  });
+  return onSnapshot(
+    doc(db, 'org', orgId, 'workDocuments', documentId),
+    (snap) => {
+      if (!snap.exists()) {
+        callback(null);
+        return;
+      }
+      callback(normalizeWorkDocument(snap));
+    },
+  );
 }
 
 export async function createWorkDocumentCall(

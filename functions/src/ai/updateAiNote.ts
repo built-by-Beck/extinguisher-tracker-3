@@ -117,7 +117,9 @@ export const updateAiNote = onCall<
     if (request.data.status !== undefined) {
       const status = sanitizeStatus(request.data.status);
       if (!status) {
-        throwInvalidArgument('Status must be one of: open, in_progress, resolved.');
+        throwInvalidArgument(
+          'Status must be one of: open, in_progress, resolved.',
+        );
       }
       updates.status = status;
       details.status = status;
@@ -205,7 +207,8 @@ export const updateAiNote = onCall<
       noteId,
       action: 'updated',
       fromStatus: (noteSnap.get('status') as AiNoteStatus | undefined) ?? null,
-      toStatus: (updates.status as AiNoteStatus | undefined) ??
+      toStatus:
+        (updates.status as AiNoteStatus | undefined) ??
         (noteSnap.get('status') as AiNoteStatus | undefined) ??
         null,
       performedBy: uid,

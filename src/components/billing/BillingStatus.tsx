@@ -37,7 +37,9 @@ const statusConfig: Record<
   },
 };
 
-function formatTrialEnd(trialEnd: { toDate?: () => Date } | Date | null | undefined): string | null {
+function formatTrialEnd(
+  trialEnd: { toDate?: () => Date } | Date | null | undefined,
+): string | null {
   if (!trialEnd) return null;
   const date =
     trialEnd instanceof Date
@@ -46,7 +48,11 @@ function formatTrialEnd(trialEnd: { toDate?: () => Date } | Date | null | undefi
         ? trialEnd.toDate()
         : null;
   if (!date) return null;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export function BillingStatus() {
@@ -67,7 +73,9 @@ export function BillingStatus() {
   const Icon = config.icon;
   const trialEndLabel =
     org.subscriptionStatus === 'trialing' ? formatTrialEnd(org.trialEnd) : null;
-  const label = trialEndLabel ? `${config.label} · ends ${trialEndLabel}` : config.label;
+  const label = trialEndLabel
+    ? `${config.label} · ends ${trialEndLabel}`
+    : config.label;
 
   return (
     <span

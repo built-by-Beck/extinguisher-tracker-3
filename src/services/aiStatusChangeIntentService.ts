@@ -13,7 +13,9 @@ export interface AiExtinguisherStatusChangeIntent {
   newStatus: ExtinguisherLifecycleStatusValue;
 }
 
-function normalizeStatusToken(raw: string): ExtinguisherLifecycleStatusValue | null {
+function normalizeStatusToken(
+  raw: string,
+): ExtinguisherLifecycleStatusValue | null {
   const s = raw.trim().toLowerCase().replace(/\s+/g, ' ');
   if (s === 'active') return 'active';
   if (s === 'spare') return 'spare';

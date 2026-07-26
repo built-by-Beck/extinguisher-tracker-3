@@ -2613,3 +2613,16 @@ Both updated. PBRD documentation step complete for this cycle.
 
 - CSV import: per-row unresolved location name warning in import preview (deferred to backlog per review-agent).
 - Generate-from-locations fallback path (root scope with no stairwells) has no test and no user-visible documentation â€” acceptable edge case, noted for future.
+
+## 2026-07-26 — BUILD: Visible rename Equipment & Asset Inspections / Forms & Walkthroughs — built_by_Beck
+
+**Agent:** build · **Branch:** cursor/universal-custom-assets-dffe
+
+**Change:** User-facing copy only. Routes, files, collections, flags unchanged.
+
+**Visible renames:** Custom Assets / Custom Asset Inspections ? Equipment & Asset Inspections; Field Work ? Forms & Walkthroughs.
+
+**Added:** Intro + Info callouts + Use-this-page examples + cross-links on both feature pages; Optional starter template helper; Custom/Blank emphasis; button label updates on Forms & Walkthroughs.
+
+**Validation:** pnpm format, lint, build OK; vitest customAssetCsv/generateAssetsFromLocations (30) + workDocumentGenerator (3) pass.
+

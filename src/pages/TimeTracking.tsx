@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Clock } from 'lucide-react';
-import { collection, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  orderBy,
+} from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { db } from '../lib/firebase.ts';
@@ -181,13 +187,10 @@ export default function TimeTracking() {
     [filteredRows],
   );
 
-  const handleAutoStartChange = useCallback(
-    (enabled: boolean) => {
-      setAutoStart(enabled);
-      setAutoStartTimerPreference(enabled);
-    },
-    [],
-  );
+  const handleAutoStartChange = useCallback((enabled: boolean) => {
+    setAutoStart(enabled);
+    setAutoStartTimerPreference(enabled);
+  }, []);
 
   const handleExportCsv = useCallback(() => {
     const csv = exportWorkTimeCsv(filteredRows);

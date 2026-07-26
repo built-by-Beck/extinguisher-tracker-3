@@ -62,7 +62,10 @@ export function exportNotesToCsv(notes: AiNote[]): string {
   return [headers.join(','), ...rows].join('\n');
 }
 
-export function downloadNotesCsv(notes: AiNote[], orgName = 'organization'): void {
+export function downloadNotesCsv(
+  notes: AiNote[],
+  orgName = 'organization',
+): void {
   const csv = exportNotesToCsv(notes);
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);

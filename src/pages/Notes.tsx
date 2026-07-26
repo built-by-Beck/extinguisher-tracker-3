@@ -317,7 +317,12 @@ export default function Notes() {
             result.noteId,
             photoFile,
           );
-          await updateAiNoteCall({ orgId, noteId: result.noteId, photoUrl, photoPath });
+          await updateAiNoteCall({
+            orgId,
+            noteId: result.noteId,
+            photoUrl,
+            photoPath,
+          });
         }
       }
       closeModal();
@@ -500,7 +505,9 @@ export default function Notes() {
       );
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Failed to convert note to inspection',
+        err instanceof Error
+          ? err.message
+          : 'Failed to convert note to inspection',
       );
     } finally {
       setConvertingNoteId(null);
@@ -549,7 +556,9 @@ export default function Notes() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => downloadNotesCsv(filtered, org?.name ?? 'organization')}
+            onClick={() =>
+              downloadNotesCsv(filtered, org?.name ?? 'organization')
+            }
             className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
           >
             <Download className="h-4 w-4" />
@@ -557,9 +566,7 @@ export default function Notes() {
           </button>
           <button
             type="button"
-            onClick={() =>
-              openAssistant('Take a note that ')
-            }
+            onClick={() => openAssistant('Take a note that ')}
             className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
           >
             <Sparkles className="h-4 w-4" />
@@ -696,9 +703,7 @@ export default function Notes() {
         </div>
         <select
           value={statusFilter}
-          onChange={(e) =>
-            setStatusFilter(e.target.value as AiNoteStatus | '')
-          }
+          onChange={(e) => setStatusFilter(e.target.value as AiNoteStatus | '')}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
         >
           <option value="">All statuses</option>
@@ -761,7 +766,9 @@ export default function Notes() {
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <NotebookPen className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-sm font-semibold text-gray-900">No notes yet</h3>
+          <h3 className="mt-4 text-sm font-semibold text-gray-900">
+            No notes yet
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
             Click the AI sparkle button and say:{' '}
             <span className="font-medium">
@@ -938,7 +945,10 @@ export default function Notes() {
                 <input
                   value={form.title}
                   onChange={(e) =>
-                    setForm((current) => ({ ...current, title: e.target.value }))
+                    setForm((current) => ({
+                      ...current,
+                      title: e.target.value,
+                    }))
                   }
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 />
@@ -1057,11 +1067,13 @@ export default function Notes() {
                     }
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                   >
-                    {Object.entries(NOTE_STATUS_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
+                    {Object.entries(NOTE_STATUS_LABELS).map(
+                      ([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ),
+                    )}
                   </select>
                 </div>
               )}
@@ -1148,7 +1160,10 @@ export default function Notes() {
           Take a note that ...
         </button>{' '}
         to capture observations while walking the floor. View all saved notes on{' '}
-        <Link to="/dashboard/notes" className="font-medium text-red-600 hover:underline">
+        <Link
+          to="/dashboard/notes"
+          className="font-medium text-red-600 hover:underline"
+        >
           this page
         </Link>
         .

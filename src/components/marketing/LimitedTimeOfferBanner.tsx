@@ -16,7 +16,9 @@ type LimitedTimeOfferBannerProps = {
  * Eye-catching 50% off launch offer — sits above the free-trial promo banner.
  * Hidden when VITE_LAUNCH_PROMO_ENABLED=false at build time.
  */
-export function LimitedTimeOfferBanner({ variant = 'hero' }: LimitedTimeOfferBannerProps) {
+export function LimitedTimeOfferBanner({
+  variant = 'hero',
+}: LimitedTimeOfferBannerProps) {
   if (!LAUNCH_PROMO_ENABLED) return null;
 
   const isHero = variant === 'hero';
@@ -54,7 +56,10 @@ export function LimitedTimeOfferBanner({ variant = 'hero' }: LimitedTimeOfferBan
           {/* Left: badge + headline */}
           <div className="flex-1 space-y-4">
             <div className="offer-pulse inline-flex items-center gap-2 rounded-full border border-amber-400 bg-amber-400/20 px-4 py-1.5 text-xs font-extrabold uppercase tracking-[0.2em] text-amber-200 sm:text-sm">
-              <Sparkles className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
+              <Sparkles
+                className="h-4 w-4 shrink-0 text-amber-300"
+                aria-hidden
+              />
               Limited time only
               <Flame className="h-4 w-4 shrink-0 text-red-300" aria-hidden />
             </div>
@@ -74,7 +79,8 @@ export function LimitedTimeOfferBanner({ variant = 'hero' }: LimitedTimeOfferBan
             </div>
 
             <p className="max-w-xl text-base font-medium text-gray-100 sm:text-lg lg:text-xl">
-              {LAUNCH_PROMO.description}. Lock in half-price year one before spots run out.
+              {LAUNCH_PROMO.description}. Lock in half-price year one before
+              spots run out.
             </p>
           </div>
 
@@ -93,7 +99,10 @@ export function LimitedTimeOfferBanner({ variant = 'hero' }: LimitedTimeOfferBan
               className="group inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 via-red-500 to-amber-500 px-8 py-4 text-base font-extrabold text-white shadow-[0_0_40px_rgba(220,38,38,0.5)] transition hover:scale-[1.02] hover:shadow-[0_0_50px_rgba(245,158,11,0.4)] focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-gray-950 sm:px-10 sm:text-lg"
             >
               Claim 50% off now
-              <Sparkles className="h-5 w-5 transition group-hover:rotate-12" aria-hidden />
+              <Sparkles
+                className="h-5 w-5 transition group-hover:rotate-12"
+                aria-hidden
+              />
             </Link>
 
             <Link

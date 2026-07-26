@@ -1,7 +1,10 @@
 import type { MarketingPriceDisplay } from '../../lib/marketingPlanPricing.ts';
 
 type PlanHeadlinePriceProps = {
-  price: Pick<MarketingPriceDisplay, 'priceLabel' | 'priceDetail' | 'regularPriceLabel'>;
+  price: Pick<
+    MarketingPriceDisplay,
+    'priceLabel' | 'priceDetail' | 'regularPriceLabel'
+  >;
   /** Settings cards use /mo suffix on the headline; marketing uses priceDetail. */
   variant?: 'marketing' | 'settings';
   className?: string;
@@ -17,8 +20,7 @@ export function PlanHeadlinePrice({
 }: PlanHeadlinePriceProps) {
   const regularPrice = price.regularPriceLabel ? (
     <span className="text-xs font-normal text-gray-500">
-      reg. price{' '}
-      <span className="line-through">{price.regularPriceLabel}</span>
+      reg. price <span className="line-through">{price.regularPriceLabel}</span>
     </span>
   ) : null;
 

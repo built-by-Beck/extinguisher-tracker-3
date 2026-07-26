@@ -15,7 +15,11 @@ export type WorkDocumentFieldType =
   | 'checkbox'
   | 'number';
 
-const VALID_TYPES: WorkDocumentType[] = ['checksheet', 'procedure', 'reference'];
+const VALID_TYPES: WorkDocumentType[] = [
+  'checksheet',
+  'procedure',
+  'reference',
+];
 const VALID_CATEGORIES: WorkDocumentCategory[] = [
   'egress_lighting',
   'stairwell',
@@ -143,9 +147,7 @@ export function sanitizeWorkDocumentCategory(
     : 'general';
 }
 
-export function sanitizeWorkDocumentStatus(
-  value: unknown,
-): WorkDocumentStatus {
+export function sanitizeWorkDocumentStatus(value: unknown): WorkDocumentStatus {
   return VALID_STATUSES.includes(value as WorkDocumentStatus)
     ? (value as WorkDocumentStatus)
     : 'active';

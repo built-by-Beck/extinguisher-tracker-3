@@ -7,7 +7,10 @@
 
 import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { isStaleChunkLoadError, reloadOnceForStaleChunk } from '../lib/chunkLoadRecovery.ts';
+import {
+  isStaleChunkLoadError,
+  reloadOnceForStaleChunk,
+} from '../lib/chunkLoadRecovery.ts';
 
 interface Props {
   children: ReactNode;

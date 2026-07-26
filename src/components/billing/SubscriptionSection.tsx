@@ -86,9 +86,7 @@ export function SubscriptionSection({
           <BillingStatus />
         </div>
         {org.assetLimit !== null && org.assetLimit !== undefined && (
-          <p className="text-sm text-gray-500">
-            Asset limit: {org.assetLimit}
-          </p>
+          <p className="text-sm text-gray-500">Asset limit: {org.assetLimit}</p>
         )}
       </div>
 

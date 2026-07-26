@@ -64,8 +64,8 @@ export function MarketingSavingsCallout({
           }
         >
           Pro as low as {proDisplay.priceLabel}
-          {proDisplay.priceDetail ? ` ${proDisplay.priceDetail}` : ''}{' '}
-          billed yearly
+          {proDisplay.priceDetail ? ` ${proDisplay.priceDetail}` : ''} billed
+          yearly
         </p>
       </div>
     );

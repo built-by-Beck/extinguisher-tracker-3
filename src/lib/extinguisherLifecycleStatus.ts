@@ -45,7 +45,8 @@ export const EXTINGUISHER_LIFECYCLE_STATUS_OPTIONS: {
   {
     value: 'replaced',
     label: 'Replaced',
-    description: 'Marked as replaced (correct data if this was set by mistake).',
+    description:
+      'Marked as replaced (correct data if this was set by mistake).',
   },
   {
     value: 'retired',

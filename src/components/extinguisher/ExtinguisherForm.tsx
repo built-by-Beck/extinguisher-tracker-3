@@ -107,15 +107,26 @@ export function ExtinguisherForm({
     initialData?.manufacturer ?? '',
   );
   const [category, setCategory] = useState(initialData?.category ?? 'standard');
-  const [extinguisherType, setExtinguisherType] = useState(initialData?.extinguisherType ?? '');
-  const [serviceClass, setServiceClass] = useState(initialData?.serviceClass ?? '');
-  const [extinguisherSize, setExtinguisherSize] = useState(initialData?.extinguisherSize ?? '');
-  const [manufactureYear, setManufactureYear] = useState<string>(initialData?.manufactureYear?.toString() ?? '');
-  const [expirationYear, setExpirationYear] = useState<string>(initialData?.expirationYear?.toString() ?? '');
+  const [extinguisherType, setExtinguisherType] = useState(
+    initialData?.extinguisherType ?? '',
+  );
+  const [serviceClass, setServiceClass] = useState(
+    initialData?.serviceClass ?? '',
+  );
+  const [extinguisherSize, setExtinguisherSize] = useState(
+    initialData?.extinguisherSize ?? '',
+  );
+  const [manufactureYear, setManufactureYear] = useState<string>(
+    initialData?.manufactureYear?.toString() ?? '',
+  );
+  const [expirationYear, setExpirationYear] = useState<string>(
+    initialData?.expirationYear?.toString() ?? '',
+  );
   const [serviceDueKind, setServiceDueKind] = useState<ServiceDueKind>('');
   const [serviceDueDate, setServiceDueDate] = useState('');
   /** When true, leaving the service-due controls unchanged avoids overwriting two stored dates. */
-  const [initialHadBothServiceDates, setInitialHadBothServiceDates] = useState(false);
+  const [initialHadBothServiceDates, setInitialHadBothServiceDates] =
+    useState(false);
   const [serviceDueTouched, setServiceDueTouched] = useState(false);
   const [section, setSection] = useState(initialData?.section ?? '');
   const [floor, setFloor] = useState(initialData?.floor ?? '');
@@ -445,17 +456,22 @@ export function ExtinguisherForm({
             />
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
-            <label htmlFor="serviceDueKind" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="serviceDueKind"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Next service due (after refill / shop work)
             </label>
             <p className="mb-2 text-xs text-gray-500">
-              Use this when manufacture and expiration years alone do not reflect the next six-year maintenance or
-              hydrostatic test. Pick one type and enter the due date from the tag or service record.
+              Use this when manufacture and expiration years alone do not
+              reflect the next six-year maintenance or hydrostatic test. Pick
+              one type and enter the due date from the tag or service record.
             </p>
             {initialHadBothServiceDates && !serviceDueTouched ? (
               <p className="mb-2 text-xs text-amber-800">
-                This unit has both a six-year and hydro due date on file. Change the options below only if you want to
-                replace them with a single tracked date.
+                This unit has both a six-year and hydro due date on file. Change
+                the options below only if you want to replace them with a single
+                tracked date.
               </p>
             ) : null}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -468,7 +484,9 @@ export function ExtinguisherForm({
                 }}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               >
-                <option value="">Not tracking (use defaults from inspections)</option>
+                <option value="">
+                  Not tracking (use defaults from inspections)
+                </option>
                 <option value="six_year">Six-year maintenance</option>
                 <option value="hydro">Hydrostatic test</option>
               </select>

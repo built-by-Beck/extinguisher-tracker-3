@@ -520,7 +520,9 @@ export default function ExtinguisherDetail() {
         className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
       >
         <ArrowLeft className="h-4 w-4" />
-        {workspaceId || activeWorkspaceId ? 'Back to Workspace' : 'Back to Inventory'}
+        {workspaceId || activeWorkspaceId
+          ? 'Back to Workspace'
+          : 'Back to Inventory'}
       </button>
 
       {/* Offline banner */}
@@ -640,7 +642,9 @@ export default function ExtinguisherDetail() {
               <select
                 value={statusDraft}
                 onChange={(e) =>
-                  setStatusDraft(e.target.value as ExtinguisherLifecycleStatusValue)
+                  setStatusDraft(
+                    e.target.value as ExtinguisherLifecycleStatusValue,
+                  )
                 }
                 disabled={statusSaving}
                 className="min-w-[12rem] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"

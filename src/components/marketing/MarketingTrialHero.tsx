@@ -53,7 +53,9 @@ export function MarketingTrialHero({
             <li className="flex items-start gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-200" />
               <span>
-                <strong className="font-semibold text-white">Monthly Pro</strong>{' '}
+                <strong className="font-semibold text-white">
+                  Monthly Pro
+                </strong>{' '}
                 only — add a payment method before the trial ends to keep access
               </span>
             </li>
