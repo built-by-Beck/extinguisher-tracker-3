@@ -79,7 +79,7 @@ const navItems: NavItem[] = [
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, end: false },
   {
     to: '/dashboard/custom-asset-inspections',
-    label: 'Custom Asset Inspections',
+    label: 'Custom Assets',
     icon: ClipboardCheck,
     end: false,
     requiredFeature: 'customAssetInspections',

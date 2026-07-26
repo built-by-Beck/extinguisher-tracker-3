@@ -101,7 +101,10 @@ export function AppRoutes() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy-policy" element={<PrivacyPage />} />
-        <Route path="/privacy" element={<Navigate to="/privacy-policy" replace />} />
+        <Route
+          path="/privacy"
+          element={<Navigate to="/privacy-policy" replace />}
+        />
         <Route
           path="/getting-started"
           element={<MarketingGettingStartedPage />}
@@ -145,6 +148,12 @@ export function AppRoutes() {
             <Route
               path="replaced-extinguishers"
               element={<ReplacedExtinguishers />}
+            />
+            <Route
+              path="custom-assets"
+              element={
+                <Navigate to="/dashboard/custom-asset-inspections" replace />
+              }
             />
             <Route
               path="custom-asset-inspections"

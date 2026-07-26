@@ -2469,3 +2469,48 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Pricing/plan: not changed (still Elite/Enterprise `teamMembers`; no number or gating edits)
 
 **Still needed:** Optional future FAQ when SMTP invite email ships; integration test for expired-pending-unblocks path (review minor concern, not a docs gap).
+
+## 2026-07-26 — BUILD: Universal Custom Assets — built_by_Beck
+
+**Agent:** build-agent · **Branch:** `cursor/universal-custom-assets-dffe` · **Plan:** Gate A APPROVED
+
+### Files created
+- `src/lib/customAssetStarters.ts` — Starter catalog (Elevator, Egress Lighting, Exit Sign, Egress Path, Fire Door, Sprinkler, blank). Exports `ASSET_STARTERS`, `getStarterById`, `getStarterByType`, `starterToInspectionItems`. Operational guidance only, not certified NFPA compliance copy.
+- `src/lib/customAssetCsv.ts` — Client-only CSV parse + validate helpers. Columns: name, assetType, locationName, recurrence, items (pipe-separated), assetCode. Exports `parseCsvText`, `resolveLocationIds`, `csvRowToCreateInput`.
+- `src/lib/customAssetCsv.test.ts` — 21 Vitest tests covering parse, header errors, quoting, blank lines, recurrences, location resolution, duplicate detection.
+- `src/lib/generateAssetsFromLocations.ts` — Generate-from-locations helper. Walks stairwell/floor location tree, produces `CreateAssetInput[]`, skips duplicates. Pure function. Exports `generateAssetsFromLocations`, `getBuildingsWithStairwells`. Replicates small location-walk helpers from `workDocumentGenerator` to avoid Field Work coupling.
+- `src/lib/generateAssetsFromLocations.test.ts` — 14 Vitest tests covering floor/no-floor, locationId assignment, duplicate skip, org-wide scope, blank starter naming, deleted-location exclusion, building scoping.
+
+### Files modified
+- `src/pages/CustomAssetInspections.tsx` — Full rewrite: (1) Tabs: Setup/All + dynamic per-assetType tabs synced via `?type=` search param with `useSearchParams`. (2) Elevator tab: shows Fire Recall + Communications Phone status columns from this month's answers via loose label matching. (3) Create modal: persistence note, starter picker chips, paste-one-per-line panel, org template apply/save (unchanged). (4) CSV Import modal: file upload or paste text, sample download, parse preview, import. (5) Generate from Locations modal: starter picker, building scope, preview list, duplicate count. (6) Gating: `canManage` for writes, `canUseFeature` lock screen updated to "Custom Assets" label + new feature copy.
+- `src/components/layout/Sidebar.tsx` — Label changed from "Custom Asset Inspections" to "Custom Assets".
+- `src/components/layout/DashboardLayout.tsx` — PAGE_TITLES entry changed to "Custom Assets".
+- `src/routes/index.tsx` — Added `custom-assets` → Navigate redirect to `custom-asset-inspections`.
+
+### Implementation decisions
+- Tabs are derived from `distinctTypes` (active assets' `assetType` values); purely client-driven, no Firestore changes.
+- Elevator tab uses loose matching (`matchesFireRecall` / `matchesCommsPhone`) on label strings — tolerates minor label variations (e.g. "Communications Phone" vs "Elevator communications phone").
+- Generate-from-locations duplicates the small pure helpers from `workDocumentGenerator` rather than importing from Field Work domain — cleaner boundary.
+- CSV locationName resolution is case-insensitive name match; silently maps to `null` if not found (user sees the asset was created unassigned, can edit).
+- No Firestore rules changes, no extinguisher stats changes, no new Cloud Functions.
+
+### Validation evidence
+- `pnpm vitest run src/lib/customAssetCsv.test.ts src/lib/generateAssetsFromLocations.test.ts` — 30/30 pass
+- `pnpm test` — 17 test files / 140 tests pass (all green, up from 86 pre-change)
+- `pnpm lint` — clean
+- `pnpm build` — clean (tsc + vite, 2031 modules)
+- `pnpm format` — no changes needed
+
+### For review-agent
+**Review focus:**
+1. Elevator tab `matchesFireRecall` / `matchesCommsPhone` matching logic — intentionally loose; confirm acceptable vs. requiring exact label match.
+2. CSV import: `resolveLocationIds` silently maps unknown locationNames to null — this is expected behaviour but confirm users have enough signal (they can see the asset is "Unassigned" and edit).
+3. Generate-from-locations falls back to direct children of root when no stairwells exist — review `generateFromLocationList` fallback path.
+4. `useSearchParams` in `CustomAssetInspections` — confirm no interaction with existing scroll/navigation state.
+5. Security: no new Firestore paths or server trust. All creates go through existing `createAsset` which enforces org isolation. Verify `canManage` gate is consistently applied to CSV import and generate-from-locations.
+
+**Deferred / explicit non-goals this cycle (document-agent should note):**
+- FAQ + Getting Started docs update (document-agent task after Review).
+- No per-type sidebar entries.
+- No Cloud Function CSV callable.
+- No Firestore seeding of starters for every new org.

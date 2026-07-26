@@ -29,7 +29,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/profile': 'Profile',
   '/dashboard/inventory': 'Inventory',
   '/dashboard/replaced-extinguishers': 'Replaced Extinguishers',
-  '/dashboard/custom-asset-inspections': 'Custom Asset Inspections',
+  '/dashboard/custom-asset-inspections': 'Custom Assets',
   '/dashboard/members': 'Members',
   '/dashboard/workspaces': 'Inspections',
   '/dashboard/locations': 'Locations',
