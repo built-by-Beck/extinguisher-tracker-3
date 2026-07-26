@@ -2514,3 +2514,59 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - No per-type sidebar entries.
 - No Cloud Function CSV callable.
 - No Firestore seeding of starters for every new org.
+
+## 2026-07-26 — REVIEW: Universal Custom Assets — built_by_Beck
+
+**Agent:** review-agent · **Branch:** `cursor/universal-custom-assets-dffe` · **Verdict:** ACCEPTED WITH MINOR CONCERNS
+
+### Review scope
+
+Reviewed all 9 changed files (3 new lib modules + 2 tests + 1 page rewrite + 2 layout + 1 routes).
+Classification: LARGE / Full PBRD — major user-facing workflow, Pro+ gating, org-scoped asset data.
+
+### Validation evidence re-run
+
+- `pnpm vitest run src/lib/customAssetCsv.test.ts src/lib/generateAssetsFromLocations.test.ts` — 30/30 pass (confirmed)
+- `pnpm lint` — clean (confirmed)
+- `pnpm build` — clean, 2031 modules (confirmed)
+
+### Security checklist
+
+- **Org isolation:** All Firestore paths use `orgId` derived from `userProfile?.activeOrgId` (auth-bound, never from URL params). PASS.
+- **Write gating:** `canManage` guard on: Add Asset button, CSV Import button, Generate from Locations button, `handleSave`, `handleCsvImport`, `handleGenerateConfirm`, `handleSaveAsTemplate`, `executeRetire`. Consistently applied. PASS.
+- **Feature gating:** `canUseFeature = canUseCustomAssetInspections(org?.featureFlags, org?.plan) && isWritableSubscription(...)`. Both flag AND subscription status required. PASS.
+- **featureFlags server-only (lessons learned pattern):** `canUseCustomAssetInspections` reads `org.featureFlags` which is write-protected by Firestore rules (Cloud Functions / Admin SDK only). No client writes to featureFlags. PASS.
+- **Compliance copy:** Starters carry in-code disclaimer ("operational guidance — NOT certified NFPA compliance checklists"). Lock screen copy is generic. No overreach. PASS.
+- **Firestore rules / indexes:** Confirmed untouched by diff. PASS.
+- **Extinguisher stats:** No changes to `workspaceInspectionStats.ts` or backend mirror. PASS.
+
+### Plan compliance
+
+All locked decisions respected: label "Custom Assets", route unchanged, optional redirect added, no per-type sidebar, no CF CSV, no Firestore starter seeding, no extinguisher stats changes.
+
+All implementation map items (A–E) delivered; F was minimal as intended; G deferred to document-agent.
+
+### Minor concerns (non-blocking)
+
+1. **`matchesFireRecall` broad match** — `l.includes('recall')` (without requiring 'fire') could match unintended labels (e.g., "Check recall logs"). Scoped to Elevator tab only; intentionally loose per build-agent; acceptable in practice.
+2. **CSV location resolution silent null** — If a `locationName` doesn't match any org location, the asset is created as "Unassigned" with no per-row warning shown in the import preview. Users discover this post-import. Intentional UX decision per handoff; acceptable, but a future enhancement could show unresolved names in preview.
+3. **`generateAssetsFromLocations` fallback path untested** — Lines 125–138 handle `rootLocationId` set but no stairwells found; falls back to direct non-building children. The UI prevents reaching this path in practice (scope picker only shows buildings with stairwells), but no test covers a race where stairwells are deleted between UI load and confirm.
+4. **`isWritableSubscription` enterprise bypass** — `plan === 'enterprise'` bypasses status check. Intentional (enterprise billing model), acceptable; server-side writes are gated independently.
+
+### No improvements made
+
+No drive-by fixes — all concerns are minor, in-scope decisions, or edge cases unlikely to affect users. Documented for future backlog.
+
+### Notes for document-agent
+
+**Required this cycle:**
+- `src/pages/FaqPage.tsx` — add Custom Assets FAQ entry (what it is, setup-once / monthly Pass-Fail, starter types, CSV import, generate from locations)
+- `src/pages/GettingStarted.tsx` — verify Custom Assets section exists or add a brief one (Pro+ feature, type tabs, elevator fire recall / comms phone columns)
+
+**Confirm accurate / no update needed:**
+- `README.md` — Custom Assets section should reflect "Custom Assets" label (was "Custom Asset Inspections")
+- Marketing FAQ (`/faq`) — check if custom assets are mentioned; update label if needed
+
+**No pricing/plan changes, no Stripe changes, no Firestore rules changes to document.**
+
+**Next plan cycle:** No technical debt items requiring immediate planning. Defer location-resolution preview in CSV to backlog if/when requested.

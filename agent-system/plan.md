@@ -3,7 +3,7 @@
 **Classification:** LARGE (major user-facing workflow; Pro+ feature gating; org-scoped customer data; Firestore assets/templates writes — Full PBRD)
 **Last Updated:** 2026-07-26
 **Author:** built_by_Beck
-**PBRD Stage:** Plan approved → Build (Gate A PASS)
+**PBRD Stage:** Review complete (Gate B PASS — ACCEPTED WITH MINOR CONCERNS) → Document
 **Branch:** `cursor/universal-custom-assets-dffe`
 
 ---
@@ -97,12 +97,12 @@ Exports: starter list, lookup by id/type, helpers to produce `CustomAssetInspect
 
 ## Security Checklist
 
-- [ ] Org-scoped queries only (`org/{orgId}/assets`, templates, inspections)
-- [ ] Owner/admin for asset create/update/retire/CSV/generate; inspector may inspect
-- [ ] `hasCustomAssetInspections` + writable subscription unchanged
-- [ ] No client trust of plan/featureFlags for server seed (already Functions-gated)
-- [ ] No overpromised compliance copy (starters are operational guidance, not certified NFPA checklists)
-- [ ] Prefer not touching `firestore.rules` / extinguisher stats
+- [x] Org-scoped queries only (`org/{orgId}/assets`, templates, inspections)
+- [x] Owner/admin for asset create/update/retire/CSV/generate; inspector may inspect
+- [x] `hasCustomAssetInspections` + writable subscription unchanged
+- [x] No client trust of plan/featureFlags for server seed (already Functions-gated)
+- [x] No overpromised compliance copy (starters are operational guidance, not certified NFPA checklists)
+- [x] Firestore rules / extinguisher stats untouched (confirmed by diff)
 
 ## Validation
 
