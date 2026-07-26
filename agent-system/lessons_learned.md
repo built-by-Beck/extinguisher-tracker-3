@@ -365,3 +365,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** On create, auto-expire overdue pending invites for that email before the duplicate check; add `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past 30-day retention.
 
 **Prevention rule:** Any time-bounded status (e.g. `pending` with `expiresAt`) must either be updated by a scheduled job when the deadline passes **or** be treated as expired in business logic (duplicate checks, UI lists, accept paths) when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+## 2026-07-26 - Avoid duplicate package-manager config keys
+
+**What happened:** `package.json` had two `pnpm.onlyBuiltDependencies` entries. JSON parsers generally keep the later duplicate key, so the intended `protobufjs` allowlist was silently dropped even though repo setup guidance requires it for reliable installs.
+
+**Fix used:** Consolidated the duplicate `pnpm.onlyBuiltDependencies` config into one list containing `esbuild`, `@firebase/util`, and `protobufjs`.
+
+**Prevention rule:** When editing nested JSON config, search for duplicate sibling keys before and after edits. For package-manager setup allowlists, keep one canonical key so future installs do not depend on parser-specific duplicate-key behavior.

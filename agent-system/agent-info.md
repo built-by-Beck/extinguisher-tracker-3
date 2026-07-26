@@ -2469,3 +2469,29 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - Pricing/plan: not changed (still Elite/Enterprise `teamMembers`; no number or gating edits)
 
 **Still needed:** Optional future FAQ when SMTP invite email ships; integration test for expired-pending-unblocks path (review minor concern, not a docs gap).
+
+## 2026-07-26 — REVIEW: Daily review bot package config fix — built_by_Beck
+
+**Agent:** Review Bot · **Branch:** `cursor/daily-project-review-0ad5` · **PBRD:** Plan -> Build -> Review -> Document
+
+**Gate status:** Small safe fix made after focused review. Review verdict: ACCEPTED WITH MINOR CONCERNS.
+
+**Files inspected:** `package.json`, `functions/package.json`, recent git status/log/diff, recent agent memory, billing redirect functions from the risky-pattern sweep.
+
+**Files updated:**
+- `package.json` — consolidated duplicate `pnpm.onlyBuiltDependencies` keys and preserved `protobufjs`.
+- `agent-system/lessons_learned.md` — added duplicate package-manager config lesson.
+- `agent-system/agent-info.md` — this entry.
+
+**Validation evidence:**
+- `pnpm exec prettier --check package.json` passed.
+- `pnpm lint` passed.
+- `pnpm test` passed: 15 files / 110 tests.
+- `pnpm build` passed.
+- `npm --prefix functions run lint` passed.
+- `npm --prefix functions run build` passed.
+- `npm --prefix functions test` passed: 15 suites / 67 tests.
+
+**Minor concerns / follow-up:**
+- Repository-wide `pnpm format:check` still fails on 70 pre-existing files; touched `package.json` passes Prettier.
+- Billing checkout/portal functions still derive Stripe redirect return URLs from the request `Origin` header with localhost fallback; recommend a planned billing/security pass to use a configured allowlisted app origin.
