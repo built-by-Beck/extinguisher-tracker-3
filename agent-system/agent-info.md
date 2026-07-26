@@ -2570,3 +2570,46 @@ No drive-by fixes — all concerns are minor, in-scope decisions, or edge cases 
 **No pricing/plan changes, no Stripe changes, no Firestore rules changes to document.**
 
 **Next plan cycle:** No technical debt items requiring immediate planning. Defer location-resolution preview in CSV to backlog if/when requested.
+
+## 2026-07-26 — DOCUMENT: Universal Custom Assets — built_by_Beck
+
+**Agent:** document-agent · **Branch:** `cursor/universal-custom-assets-dffe`
+
+### What was documented
+
+Universal Custom Assets feature shipped and accepted (ACCEPTED WITH MINOR CONCERNS). Documented the setup-once / monthly Pass-Fail / type-tabs / starter-catalog / CSV-import / generate-from-locations workflow in in-app FAQ and Getting Started pages.
+
+### Files inspected
+
+- `agent-system/agent-info.md` (last 80 lines — BUILD + REVIEW entries)
+- `agent-system/plan.md` (full — Document section G, locked decisions)
+- `src/pages/FaqPage.tsx` (full)
+- `src/pages/GettingStarted.tsx` (full)
+- `src/lib/customAssetStarters.ts` (full — confirmed exact starter types)
+- `README.md` (grep for custom/asset — no Custom Assets section present)
+
+### Files updated
+
+- `src/pages/FaqPage.tsx` — removed thin one-liner "Can we inspect non-extinguisher assets?" from "Reports, sharing, and advanced workflows"; added new "Custom Assets" FAQ section with 6 Q&As covering: what it is, setup-once workflow, type tabs (including Elevator fire-recall/comms columns + `?type=` bookmark), CSV bulk import, Generate from Locations, and plan/role requirements. No compliance overreach; operational guidance disclaimer included.
+- `src/pages/GettingStarted.tsx` — updated last step title to "Expand access and set up Custom Assets" and rewrote body to describe setup-once workflow, supported asset types, starters, CSV import, and Generate from Locations. Link label updated from "Open custom assets" to "Open Custom Assets".
+
+### README status
+
+No Custom Assets section exists in README. No user-facing section was stale. No update needed.
+
+### TODO / Roadmap status
+
+No TODO.md exists. No roadmap update needed for this cycle. Deferred backlog item (CSV location-resolution preview) noted in prior REVIEW entry.
+
+### Website / marketing copy status
+
+No separate marketing FAQ or landing page references "Custom Asset Inspections" as the product name in a misleading way. In-app FAQ and Getting Started are the primary user-facing surfaces — both updated.
+
+### FAQ / getting started status
+
+Both updated. PBRD documentation step complete for this cycle.
+
+### Documentation gaps / future
+
+- CSV import: per-row unresolved location name warning in import preview (deferred to backlog per review-agent).
+- Generate-from-locations fallback path (root scope with no stairwells) has no test and no user-visible documentation — acceptable edge case, noted for future.

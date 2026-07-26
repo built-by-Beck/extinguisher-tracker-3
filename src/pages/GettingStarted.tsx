@@ -102,14 +102,14 @@ const steps = [
     ],
   },
   {
-    title: 'Expand access and inspection scope',
-    body: 'Invite users by role, use guest access when limited visibility is enough, and add custom asset inspections for other recurring safety checks.',
+    title: 'Expand access and set up Custom Assets',
+    body: 'Invite users by role and use guest access for limited visibility. For equipment beyond extinguishers — elevators, egress lighting, exit signs, fire doors, sprinkler heads, and more — set up Custom Assets (Pro+). Define each asset once with a name, location, and checklist, then inspect it monthly with Pass, Fail, or N/A. Use starters for quick setup, CSV import for bulk creation, or Generate from Locations to create assets from your stairwell/floor tree.',
     icon: Share2,
     links: [
       { to: '/dashboard/members', label: 'Manage members' },
       {
         to: '/dashboard/custom-asset-inspections',
-        label: 'Open custom assets',
+        label: 'Open Custom Assets',
       },
     ],
   },

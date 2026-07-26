@@ -129,9 +129,34 @@ const faqSections = [
         q: 'Can outside reviewers see records?',
         a: 'Guest access is designed for limited visibility when someone needs to review shared information without becoming a full team member.',
       },
+    ],
+  },
+  {
+    title: 'Custom Assets',
+    items: [
       {
-        q: 'Can we inspect non-extinguisher assets?',
-        a: 'Yes. Custom asset inspections support recurring checks for other assets that need structured inspection records, notes, and follow-up tracking.',
+        q: 'What are Custom Assets?',
+        a: 'Custom Assets is a recurring Pass/Fail/N/A checklist system for non-extinguisher safety equipment. Supported starter types include Elevator, Egress Lighting, Exit Sign, Egress Path, Fire Door, Sprinkler Head, and Custom/Blank. Define each asset once — name, location, and checklist items — and it persists under your organization. Each month you open the asset and mark each checklist item Pass, Fail, or N/A. These are operational guidance checklists and should not be treated as a substitute for certified compliance sign-off.',
+      },
+      {
+        q: 'How do I set up a Custom Asset?',
+        a: 'Open Custom Assets from the sidebar (Pro+ required). On the Setup tab, click Add Asset and pick a starter. The starter pre-fills a default checklist you can adjust. Add a name, assign a location, and save. The asset and its checklist persist for all future months — you only set it up once.',
+      },
+      {
+        q: 'What are the type tabs inside Custom Assets?',
+        a: 'The page shows an All tab, a Setup tab for creating and managing assets, and one tab for each asset type active in your org (e.g. Elevator, Fire Door). The Elevator tab also shows this month\'s Fire recall system and Communications phone status at a glance. You can bookmark a specific tab with the ?type= URL parameter.',
+      },
+      {
+        q: 'Can I bulk-create Custom Assets from a spreadsheet?',
+        a: 'Yes. Owners and Admins can import a CSV with columns for name, assetType, locationName, recurrence, items (pipe-separated), and optional assetCode. If a locationName matches one in your org, the asset is assigned to that location automatically. Unmatched names create unassigned assets you can edit afterward.',
+      },
+      {
+        q: 'What is Generate from Locations?',
+        a: 'Generate from Locations creates one asset per stairwell — or per floor under a stairwell — from your location tree for a selected starter type. It is useful when a building has many stairwells that each need the same checklist without entering them one by one. Owner/Admin access and a Pro+ plan are required.',
+      },
+      {
+        q: 'What plan is required for Custom Assets?',
+        a: 'Custom Assets are available on Pro, Elite, and Enterprise plans with an active or trial subscription. Inspectors can inspect; Owner/Admin role is required to create, edit, retire, import, or generate assets.',
       },
     ],
   },
