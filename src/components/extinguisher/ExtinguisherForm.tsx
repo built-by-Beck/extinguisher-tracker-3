@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../hooks/useAuth.ts';
 import {
-  subscribeToLocations,
-  getLocationPath,
-  type Location,
-} from '../../services/locationService.ts';
+  DetailedLocationPicker,
+  type DetailedLocationValue,
+} from '../locations/DetailedLocationPicker.tsx';
 import type { Extinguisher } from '../../services/extinguisherService.ts';
 
 const CATEGORIES = [
@@ -87,20 +85,6 @@ export function ExtinguisherForm({
   submitLabel,
   loading,
 }: ExtinguisherFormProps) {
-  const { userProfile } = useAuth();
-  const orgId = userProfile?.activeOrgId ?? '';
-
-  const [locations, setLocations] = useState<Location[]>([]);
-
-  // Subscribe to locations collection — used to populate the Section/Location dropdown
-  useEffect(() => {
-    if (!orgId) return;
-    setLocations([]);
-    return subscribeToLocations(orgId, (locs) => {
-      setLocations(locs);
-    });
-  }, [orgId]);
-
   const [assetId, setAssetId] = useState(initialData?.assetId ?? '');
   const [serial, setSerial] = useState(initialData?.serial ?? '');
   const [manufacturer, setManufacturer] = useState(
@@ -184,18 +168,12 @@ export function ExtinguisherForm({
     }
   }, [initialData]);
 
-  // When a location is selected, set both parentLocation (name) and locationId (doc ID)
-  function handleLocationChange(locId: string) {
-    if (locId === '' || locId === '__unassigned__') {
-      setParentLocation('');
-      setLocationId('');
-      return;
-    }
-    const loc = locations.find((l) => l.id === locId);
-    if (loc) {
-      setParentLocation(loc.name);
-      setLocationId(loc.id ?? '');
-    }
+  function handleDetailedLocationChange(value: DetailedLocationValue) {
+    setLocationId(value.locationId ?? '');
+    setParentLocation(value.parentLocation);
+    setFloor(value.floor);
+    setSection(value.section);
+    setVicinity(value.vicinity);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -558,68 +536,17 @@ export function ExtinguisherForm({
         <h3 className="mb-4 text-sm font-semibold text-gray-900 uppercase tracking-wide">
           Location
         </h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="location"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Location
-            </label>
-            {locations.length > 0 ? (
-              <select
-                id="location"
-                value={locationId || ''}
-                onChange={(e) => handleLocationChange(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-              >
-                <option value="">-- Unassigned --</option>
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id ?? ''}>
-                    {getLocationPath(locations, loc.id!)}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="text-sm text-gray-400">
-                No locations configured. Add locations on the Locations page
-                first.
-              </p>
-            )}
-          </div>
-          <div>
-            <label
-              htmlFor="floor"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Floor
-            </label>
-            <input
-              id="floor"
-              type="text"
-              value={floor}
-              onChange={(e) => setFloor(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-              placeholder="e.g., 2nd Floor, Basement"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="vicinity"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Vicinity
-            </label>
-            <input
-              id="vicinity"
-              type="text"
-              value={vicinity}
-              onChange={(e) => setVicinity(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-              placeholder="e.g., Near elevator B, East wall"
-            />
-          </div>
-        </div>
+        <p className="mb-3 text-xs text-gray-500">
+          Choose building, then floor and sub-location when needed. Remove any
+          field you do not need.
+        </p>
+        <DetailedLocationPicker
+          mode="assign"
+          locationId={locationId || null}
+          vicinity={vicinity}
+          floorLabel={floor}
+          onChange={handleDetailedLocationChange}
+        />
       </div>
 
       {/* Submit */}

@@ -21,6 +21,9 @@ import {
   isLocationNameTaken,
   LOCATION_TYPE_ENTRIES,
   getLocationTypeLabel,
+  buildFloorSeedNames,
+  missingFloorNamesUnderParent,
+  getDirectChildren,
   type Location,
   type LocationTreeNode,
 } from '../services/locationService.ts';
@@ -208,19 +211,46 @@ export default function Locations() {
 
       if (editingLoc?.id) {
         await updateLocation(orgId, editingLoc.id, data);
+        // When editing a building, optionally add any missing floors (idempotent).
+        if (formType === 'building') {
+          const desired = buildFloorSeedNames({
+            floorCount: Number.parseInt(formFloorCount, 10) || 0,
+            includeGround: formIncludeGround,
+            includeBasement: formIncludeBasement,
+          });
+          if (desired.length > 0) {
+            const toCreate = missingFloorNamesUnderParent(
+              locations,
+              editingLoc.id,
+              desired,
+            );
+            const existingCount = getDirectChildren(
+              locations,
+              editingLoc.id,
+            ).length;
+            let order = existingCount;
+            for (const floorName of toCreate) {
+              await createLocation(orgId, user.uid, {
+                name: floorName,
+                locationType: 'floor',
+                parentLocationId: editingLoc.id,
+                description: null,
+                sortOrder: order,
+              });
+              order += 1;
+            }
+          }
+        }
       } else {
         const newId = await createLocation(orgId, user.uid, data);
         // When adding a building, optionally seed its floors as child locations
         // so technicians can immediately drill Building -> Floor -> extinguishers.
         if (formType === 'building') {
-          const floorNames: string[] = [];
-          if (formIncludeBasement) floorNames.push('Basement');
-          if (formIncludeGround) floorNames.push('Ground Floor');
-          const count = Math.min(
-            Math.max(Number.parseInt(formFloorCount, 10) || 0, 0),
-            100,
-          );
-          for (let i = 1; i <= count; i += 1) floorNames.push(`Floor ${i}`);
+          const floorNames = buildFloorSeedNames({
+            floorCount: Number.parseInt(formFloorCount, 10) || 0,
+            includeGround: formIncludeGround,
+            includeBasement: formIncludeBasement,
+          });
 
           let order = 0;
           for (const floorName of floorNames) {
@@ -395,13 +425,13 @@ export default function Locations() {
                 </select>
               </div>
 
-              {formType === 'building' && !editingLoc && (
+              {formType === 'building' && (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                   <label
                     htmlFor="floor-count"
                     className="mb-1 block text-sm font-medium text-gray-700"
                   >
-                    Number of floors
+                    {editingLoc ? 'Add floors' : 'Number of floors'}
                   </label>
                   <input
                     id="floor-count"
@@ -414,8 +444,9 @@ export default function Locations() {
                     placeholder="e.g., 5"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    We&apos;ll automatically add Floor 1 through Floor N under
-                    this building. You can rename or remove them later.
+                    {editingLoc
+                      ? 'Creates any missing Floor 1…N (and optional Ground/Basement) under this building. Existing floors are left alone.'
+                      : "We'll automatically add Floor 1 through Floor N under this building. You can rename or remove them later."}
                   </p>
                   <div className="mt-2 space-y-1.5">
                     <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -425,7 +456,9 @@ export default function Locations() {
                         onChange={(e) => setFormIncludeGround(e.target.checked)}
                         className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
                       />
-                      Add a Ground Floor
+                      {editingLoc
+                        ? 'Add Ground Floor if missing'
+                        : 'Add a Ground Floor'}
                     </label>
                     <label className="flex items-center gap-2 text-sm text-gray-700">
                       <input
@@ -436,7 +469,9 @@ export default function Locations() {
                         }
                         className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
                       />
-                      Add a Basement
+                      {editingLoc
+                        ? 'Add Basement if missing'
+                        : 'Add a Basement'}
                     </label>
                   </div>
                 </div>

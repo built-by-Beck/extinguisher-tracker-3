@@ -5,6 +5,15 @@ import {
   getAllDescendantIds,
   getAncestorChain,
   getLocationPath,
+  findAncestorOfType,
+  getDirectChildren,
+  getChildrenOfType,
+  getBuildingLevelLocations,
+  deriveLocationFields,
+  deepestLocationId,
+  collectLocationScopeIds,
+  buildFloorSeedNames,
+  missingFloorNamesUnderParent,
   type Location,
 } from './locationService.ts';
 
@@ -153,5 +162,89 @@ describe('getLocationPath', () => {
 
   it('returns empty string for nonexistent id', () => {
     expect(getLocationPath(locs, 'nope')).toBe('');
+  });
+});
+
+describe('deriveLocationFields', () => {
+  const locs = [
+    makeLoc('c1', 'Campus', null, 'campus'),
+    makeLoc('b1', 'Building A', 'c1', 'building'),
+    makeLoc('f4', 'Floor 4', 'b1', 'floor'),
+    makeLoc('r1', 'Room 401', 'f4', 'room'),
+  ];
+
+  it('derives building parentLocation and floor from a room', () => {
+    const d = deriveLocationFields(locs, 'r1', 'east wall');
+    expect(d.locationId).toBe('r1');
+    expect(d.parentLocation).toBe('Building A');
+    expect(d.floor).toBe('Floor 4');
+    expect(d.section).toBe('Room 401');
+    expect(d.vicinity).toBe('east wall');
+    expect(d.buildingId).toBe('b1');
+    expect(d.floorId).toBe('f4');
+    expect(d.subLocationId).toBe('r1');
+    expect(d.locationPath).toBe('Campus > Building A > Floor 4 > Room 401');
+  });
+
+  it('uses floor node when selected without sub-location', () => {
+    const d = deriveLocationFields(locs, 'f4');
+    expect(d.parentLocation).toBe('Building A');
+    expect(d.floor).toBe('Floor 4');
+    expect(d.subLocationId).toBeNull();
+    expect(d.section).toBe('');
+  });
+
+  it('deepestLocationId prefers sub-location', () => {
+    expect(deepestLocationId('b1', 'f4', 'r1')).toBe('r1');
+    expect(deepestLocationId('b1', 'f4', null)).toBe('f4');
+    expect(deepestLocationId('b1', null, null)).toBe('b1');
+  });
+});
+
+describe('location picker helpers', () => {
+  const locs = [
+    makeLoc('b1', 'Building A', null, 'building'),
+    makeLoc('f1', 'Floor 1', 'b1', 'floor'),
+    makeLoc('f2', 'Floor 2', 'b1', 'floor'),
+    makeLoc('r1', 'Lobby', 'f1', 'lobby'),
+  ];
+
+  it('findAncestorOfType walks to building', () => {
+    expect(findAncestorOfType(locs, 'r1', 'building')?.id).toBe('b1');
+    expect(findAncestorOfType(locs, 'r1', 'floor')?.id).toBe('f1');
+  });
+
+  it('getDirectChildren / getChildrenOfType', () => {
+    expect(getDirectChildren(locs, 'b1').map((l) => l.id)).toEqual([
+      'f1',
+      'f2',
+    ]);
+    expect(getChildrenOfType(locs, 'f1', 'lobby').map((l) => l.id)).toEqual([
+      'r1',
+    ]);
+  });
+
+  it('getBuildingLevelLocations returns buildings', () => {
+    expect(getBuildingLevelLocations(locs).map((l) => l.id)).toEqual(['b1']);
+  });
+
+  it('collectLocationScopeIds includes descendants', () => {
+    expect(collectLocationScopeIds(locs, ['b1'])).toEqual(
+      new Set(['b1', 'f1', 'f2', 'r1']),
+    );
+    expect(collectLocationScopeIds(locs, ['f1'])).toEqual(
+      new Set(['f1', 'r1']),
+    );
+  });
+
+  it('buildFloorSeedNames and missingFloorNamesUnderParent', () => {
+    const desired = buildFloorSeedNames({
+      floorCount: 2,
+      includeGround: true,
+      includeBasement: true,
+    });
+    expect(desired).toEqual(['Basement', 'Ground Floor', 'Floor 1', 'Floor 2']);
+    const missing = missingFloorNamesUnderParent(locs, 'b1', desired);
+    expect(missing).toEqual(['Basement', 'Ground Floor']);
   });
 });

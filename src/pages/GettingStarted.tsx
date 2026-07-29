@@ -26,8 +26,8 @@ const steps = [
     ],
   },
   {
-    title: 'Set up locations and sections',
-    body: 'Build your location tree first so each extinguisher has a clear home for routes, reports, and audits.',
+    title: 'Set up locations and floors',
+    body: 'Build your location tree first (Building → Floor → rooms). When you add a building you can seed floors; assign extinguishers and equipment with the detailed location picker (floor, sub-location, vicinity).',
     icon: MapPinned,
     links: [{ to: '/dashboard/locations', label: 'Set up locations' }],
   },
