@@ -1,6 +1,10 @@
 import type { Extinguisher } from '../services/extinguisherService.ts';
 import type { Inspection } from '../services/inspectionService.ts';
-import type { Location } from '../services/locationService.ts';
+import {
+  findAncestorOfType,
+  type Location,
+} from '../services/locationService.ts';
+import { floorSortRank } from './floorParsing.ts';
 
 export type InspectionSortMode = 'table' | 'numeric' | 'floor' | 'spatial';
 
@@ -18,15 +22,7 @@ function norm(v: unknown): string {
 }
 
 function getFloorRank(text: string): number {
-  const t = text.toLowerCase();
-  if (!t) return Number.MAX_SAFE_INTEGER;
-  if (/\b(basement|bmt|b\d+)\b/.test(t)) return -1;
-  if (/\b(ground|grnd|g)\b/.test(t)) return 0;
-  if (/\b(mezzanine|mezz)\b/.test(t)) return 1;
-  if (/\b(penthouse|ph)\b/.test(t)) return 999;
-  const ordinal = t.match(/\b(\d{1,3})(?:st|nd|rd|th)?\s*(?:floor|fl)?\b/);
-  if (ordinal) return Number.parseInt(ordinal[1], 10);
-  return Number.MAX_SAFE_INTEGER;
+  return floorSortRank(text);
 }
 
 function getRoomRank(text: string): number {
@@ -76,6 +72,23 @@ function getVicinity(
   ).toLowerCase();
 }
 
+function resolveFloorSortText(
+  insp: Inspection,
+  extById: ReadonlyMap<string, Extinguisher>,
+  locations: Location[],
+): string {
+  const ext = extById.get(insp.extinguisherId);
+  const floorAncestor = findAncestorOfType(locations, insp.locationId, [
+    'floor',
+    'basement',
+    'parking_deck',
+    'roof',
+  ]);
+  if (floorAncestor?.name) return floorAncestor.name;
+  if ((ext?.floor ?? '').trim()) return ext!.floor!.trim();
+  return `${getVicinity(insp, extById)} ${norm(insp.section)}`.trim();
+}
+
 function tableSortValue(
   insp: Inspection,
   sortKey: string,
@@ -114,10 +127,12 @@ export function sortInspectionsByMode(params: {
     }
 
     if (mode === 'floor') {
+      const aFloor = resolveFloorSortText(a, extById, locations);
+      const bFloor = resolveFloorSortText(b, extById, locations);
+      const byFloor = getFloorRank(aFloor) - getFloorRank(bFloor);
+      if (byFloor !== 0) return byFloor * dir;
       const aArea = `${getVicinity(a, extById)} ${norm(a.section)}`.trim();
       const bArea = `${getVicinity(b, extById)} ${norm(b.section)}`.trim();
-      const byFloor = getFloorRank(aArea) - getFloorRank(bArea);
-      if (byFloor !== 0) return byFloor * dir;
       const byRoom = getRoomRank(aArea) - getRoomRank(bArea);
       if (byRoom !== 0) return byRoom * dir;
       return cmpNatural(aArea, bArea) * dir;

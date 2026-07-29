@@ -100,6 +100,7 @@ import {
   sortInspectionsByMode,
   type InspectionSortMode,
 } from '../utils/inspectionSorting.ts';
+import { groupInspectionsByLocationOrFloor } from '../utils/locationInspectionGroups.ts';
 import { resolveSectionTimerKey } from '../utils/sectionTimerKey.ts';
 import { getAutoStartTimerPreference } from '../utils/workTimeUtils.ts';
 import {
@@ -109,10 +110,6 @@ import {
 
 type PendingScopeViewMode = 'grouped' | 'table';
 
-const NATURAL_COLLATOR = new Intl.Collator(undefined, {
-  numeric: true,
-  sensitivity: 'base',
-});
 const PENDING_SCOPE_VIEW_MODE_KEY = 'ex3.pendingScopeViewMode';
 
 /** Workspace view query keys — keep `returnTo` in sync so post-inspect navigation restores drill + list. */
@@ -244,47 +241,6 @@ function extinguisherVicinityById(
     if (e.id) m.set(e.id, (e.vicinity ?? '').trim());
   }
   return m;
-}
-
-function cmpNatural(a: string, b: string): number {
-  return NATURAL_COLLATOR.compare(a, b);
-}
-
-function norm(v: unknown): string {
-  return (v ?? '').toString().trim();
-}
-
-function getLocationPathSortOrder(
-  locationId: string | null | undefined,
-  locById: ReadonlyMap<string, Location>,
-): string {
-  if (!locationId) return 'zzz-unassigned';
-  const parts: string[] = [];
-  let current = locById.get(locationId);
-  while (current) {
-    const order = Number.isFinite(current.sortOrder)
-      ? String(current.sortOrder).padStart(6, '0')
-      : '999999';
-    parts.unshift(`${order}:${current.name.toLowerCase()}`);
-    if (!current.parentLocationId) break;
-    current = locById.get(current.parentLocationId);
-  }
-  return parts.join('>');
-}
-
-function getLocationPathLabel(
-  locationId: string | null | undefined,
-  locById: ReadonlyMap<string, Location>,
-): string {
-  if (!locationId) return 'Unassigned';
-  const parts: string[] = [];
-  let current = locById.get(locationId);
-  while (current) {
-    parts.unshift(current.name);
-    if (!current.parentLocationId) break;
-    current = locById.get(current.parentLocationId);
-  }
-  return parts.length > 0 ? parts.join(' > ') : 'Unassigned';
 }
 
 interface LeafExtinguisherTableProps {
@@ -475,6 +431,11 @@ export default function WorkspaceDetail() {
   const [collapsedPendingGroups, setCollapsedPendingGroups] = useState<
     Record<string, boolean>
   >({});
+  /** Collapsed state for the "all units in this area" overview under building/floor. */
+  const [collapsedScopeOverview, setCollapsedScopeOverview] = useState<
+    Record<string, boolean>
+  >({});
+  const [scopeOverviewExpanded, setScopeOverviewExpanded] = useState(false);
   /** Non-leaf: show filtered extinguisher list for the current location scope. */
   const [scopeListFilter, setScopeListFilter] =
     useState<WorkspaceScopeCardFilter | null>(() =>
@@ -827,49 +788,58 @@ export default function WorkspaceDetail() {
     [scopeListFilter, scopeListRows],
   );
 
-  const locationById = useMemo(() => {
-    const m = new Map<string, Location>();
-    for (const loc of locations) {
-      if (loc.id) m.set(loc.id, loc);
-    }
-    return m;
-  }, [locations]);
-
   const groupedPendingScopeRows = useMemo(() => {
-    const groups = new Map<
-      string,
-      {
-        key: string;
-        label: string;
-        orderKey: string;
-        inspections: Inspection[];
-      }
-    >();
-    for (const insp of pendingScopeListRows) {
-      const key = insp.locationId ?? '__unassigned__';
-      let group = groups.get(key);
-      if (!group) {
-        group = {
-          key,
-          label: getLocationPathLabel(insp.locationId, locationById),
-          orderKey: getLocationPathSortOrder(insp.locationId, locationById),
-          inspections: [],
-        };
-        groups.set(key, group);
-      }
-      group.inspections.push(insp);
+    return groupInspectionsByLocationOrFloor({
+      inspections: pendingScopeListRows,
+      locations,
+      extinguishers,
+      scopeLocationId: drillDown.isRoot ? null : drillDown.currentLocationId,
+      assetDir: pendingGroupedAssetDir,
+    });
+  }, [
+    pendingScopeListRows,
+    locations,
+    extinguishers,
+    drillDown.isRoot,
+    drillDown.currentLocationId,
+    pendingGroupedAssetDir,
+  ]);
+
+  /** All units in the current drill scope, grouped for collapsible overview. */
+  const groupedScopeOverviewRows = useMemo(() => {
+    if (drillDown.isLeaf || showUnassigned || showDeleted || !workspaceId) {
+      return [];
     }
-    const dir = pendingGroupedAssetDir === 'asc' ? 1 : -1;
-    const asArray = Array.from(groups.values()).sort((a, b) =>
-      cmpNatural(a.orderKey, b.orderKey),
-    );
-    return asArray.map((group) => ({
-      ...group,
-      inspections: [...group.inspections].sort(
-        (a, b) => cmpNatural(norm(a.assetId), norm(b.assetId)) * dir,
-      ),
-    }));
-  }, [pendingScopeListRows, locationById, pendingGroupedAssetDir]);
+    const anchor = drillDown.isRoot ? null : drillDown.currentLocationId;
+    const base = collectInspectionRowsForScope({
+      workspaceId,
+      inspections,
+      extinguishers,
+      isArchived: !!isArchived,
+      hasLocationIdData,
+      locations,
+      anchorLocationId: anchor,
+    });
+    return groupInspectionsByLocationOrFloor({
+      inspections: base,
+      locations,
+      extinguishers,
+      scopeLocationId: anchor,
+      assetDir: 'asc',
+    });
+  }, [
+    drillDown.isLeaf,
+    drillDown.isRoot,
+    drillDown.currentLocationId,
+    showUnassigned,
+    showDeleted,
+    workspaceId,
+    inspections,
+    extinguishers,
+    isArchived,
+    hasLocationIdData,
+    locations,
+  ]);
 
   const visibleGroupedPendingScopeRows = useMemo(() => {
     if (pendingGroupedLocationFilter === 'all') return groupedPendingScopeRows;
@@ -1163,6 +1133,11 @@ export default function WorkspaceDetail() {
 
   useEffect(() => {
     setLeafStatusTab('pending');
+  }, [drillDown.currentLocationId]);
+
+  useEffect(() => {
+    setScopeOverviewExpanded(false);
+    setCollapsedScopeOverview({});
   }, [drillDown.currentLocationId]);
 
   // When status checkbox filters are cleared, return operators to the "what is left" flow.
@@ -1957,6 +1932,100 @@ export default function WorkspaceDetail() {
           )}
         </>
       )}
+
+      {/* Collapsible overview of all units under the current building/floor */}
+      {!drillDown.isLeaf &&
+        !showUnassigned &&
+        !showDeleted &&
+        groupedScopeOverviewRows.length > 0 &&
+        workspaceId && (
+          <div className="mt-6 mb-2 rounded-lg border border-gray-200 bg-white shadow-sm">
+            <button
+              type="button"
+              onClick={() => setScopeOverviewExpanded((v) => !v)}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+            >
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">
+                  {drillDown.isRoot
+                    ? 'All extinguishers'
+                    : `Extinguishers in ${drillDown.currentLocation?.name ?? 'this area'}`}
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Expand to browse every unit in this scope, grouped by floor or
+                  sub-location. Collapse to focus on location cards above.
+                </p>
+              </div>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">
+                  {groupedScopeOverviewRows.reduce(
+                    (n, g) => n + g.inspections.length,
+                    0,
+                  )}
+                </span>
+                <ChevronDown
+                  className={`h-5 w-5 text-gray-500 transition-transform ${
+                    scopeOverviewExpanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </span>
+            </button>
+            {scopeOverviewExpanded && (
+              <div className="space-y-3 border-t border-gray-200 px-3 pb-4 pt-3">
+                {groupedScopeOverviewRows.map((group) => {
+                  const isCollapsed =
+                    collapsedScopeOverview[group.key] ?? false;
+                  return (
+                    <section
+                      key={group.key}
+                      className="rounded-lg border border-gray-200 bg-gray-50/80"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCollapsedScopeOverview((prev) => ({
+                            ...prev,
+                            [group.key]: !isCollapsed,
+                          }))
+                        }
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                      >
+                        <span className="text-sm font-semibold text-gray-900">
+                          {group.label}
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-800">
+                            {group.inspections.length}
+                          </span>
+                          <ChevronDown
+                            className={`h-4 w-4 text-gray-500 transition-transform ${
+                              isCollapsed ? '' : 'rotate-180'
+                            }`}
+                          />
+                        </span>
+                      </button>
+                      {!isCollapsed && (
+                        <div className="border-t border-gray-200 bg-white px-2 pb-3 pt-2">
+                          <LeafExtinguisherTable
+                            inspections={group.inspections}
+                            vicinityByExtinguisherId={vicinityByExtinguisherId}
+                            sortKey={sortKey}
+                            sortDir={sortDir}
+                            onToggleSort={toggleSort}
+                            workspaceId={workspaceId}
+                            returnTo={returnTo}
+                            navigate={navigate}
+                            isArchived={!!isArchived}
+                          />
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
       {/* ===== VIEW: Unassigned Extinguishers ===== */}
       {showUnassigned && (

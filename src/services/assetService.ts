@@ -49,6 +49,10 @@ export interface CustomAsset {
   serialNumber?: string;
   locationId?: string;
   locationName?: string;
+  /** Denormalized floor label from hierarchy or picker. */
+  floor?: string;
+  /** Free-text vicinity detail. */
+  vicinity?: string;
   notes?: string;
   details?: string;
   active: boolean;
@@ -93,6 +97,8 @@ export interface CreateAssetInput {
   serialNumber?: string;
   locationId?: string | null;
   locationName?: string | null;
+  floor?: string | null;
+  vicinity?: string | null;
   notes?: string;
   details?: string;
   recurrence?: CustomAssetRecurrence;
@@ -167,6 +173,8 @@ function normalizeAssetInput(
     serialNumber: input.serialNumber?.trim() || '',
     locationId: input.locationId || '',
     locationName: input.locationName || '',
+    floor: input.floor?.trim() || '',
+    vicinity: input.vicinity?.trim() || '',
     notes: input.notes?.trim() || '',
     details: input.details?.trim() || '',
     active: true,
@@ -228,6 +236,9 @@ export async function updateAsset(
     patch.locationId = updates.locationId || '';
   if (updates.locationName !== undefined)
     patch.locationName = updates.locationName || '';
+  if (updates.floor !== undefined) patch.floor = updates.floor?.trim() || '';
+  if (updates.vicinity !== undefined)
+    patch.vicinity = updates.vicinity?.trim() || '';
   if (updates.notes !== undefined) patch.notes = updates.notes.trim();
   if (updates.details !== undefined) patch.details = updates.details.trim();
   if (updates.recurrence !== undefined) patch.recurrence = updates.recurrence;

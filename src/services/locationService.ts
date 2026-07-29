@@ -317,3 +317,281 @@ export function getLocationPath(
 
   return parts.join(' > ');
 }
+
+/** Types treated as "building-level" primary location in the detailed picker. */
+const BUILDING_LEVEL_TYPES = new Set(['building', 'campus', 'warehouse']);
+
+/** Types treated as floor-level nodes. */
+const FLOOR_LEVEL_TYPES = new Set([
+  'floor',
+  'basement',
+  'parking_deck',
+  'roof',
+]);
+
+export function isBuildingLevelType(locationType: string): boolean {
+  return BUILDING_LEVEL_TYPES.has(locationType);
+}
+
+export function isFloorLevelType(locationType: string): boolean {
+  return FLOOR_LEVEL_TYPES.has(locationType);
+}
+
+/**
+ * Find the nearest ancestor (or self) matching one of the given location types.
+ */
+export function findAncestorOfType(
+  locations: Location[],
+  locationId: string | null | undefined,
+  types: string | ReadonlySet<string> | readonly string[],
+): Location | null {
+  if (!locationId) return null;
+  const typeSet =
+    typeof types === 'string'
+      ? new Set([types])
+      : types instanceof Set
+        ? types
+        : new Set(types);
+  const map = new Map(locations.map((l) => [l.id!, l]));
+  let current = map.get(locationId) ?? null;
+  while (current) {
+    if (typeSet.has(current.locationType)) return current;
+    current = current.parentLocationId
+      ? (map.get(current.parentLocationId) ?? null)
+      : null;
+  }
+  return null;
+}
+
+/**
+ * Direct children of a parent (active locations only — caller should pass active list).
+ */
+export function getDirectChildren(
+  locations: Location[],
+  parentId: string | null,
+): Location[] {
+  return locations
+    .filter((l) => (l.parentLocationId ?? null) === parentId && !!l.id)
+    .sort((a, b) => {
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+      return a.name.localeCompare(b.name, undefined, { numeric: true });
+    });
+}
+
+/**
+ * Direct children filtered by location type(s).
+ */
+export function getChildrenOfType(
+  locations: Location[],
+  parentId: string | null,
+  types: string | ReadonlySet<string> | readonly string[],
+): Location[] {
+  const typeSet =
+    typeof types === 'string'
+      ? new Set([types])
+      : types instanceof Set
+        ? types
+        : new Set(types);
+  return getDirectChildren(locations, parentId).filter((l) =>
+    typeSet.has(l.locationType),
+  );
+}
+
+/**
+ * Primary "Location" options for the detailed picker: buildings (preferred),
+ * otherwise campuses/roots so orgs without buildings still work.
+ */
+export function getBuildingLevelLocations(locations: Location[]): Location[] {
+  const buildings = locations.filter(
+    (l) => l.id && l.locationType === 'building',
+  );
+  if (buildings.length > 0) {
+    return buildings.sort((a, b) =>
+      getLocationPath(locations, a.id!).localeCompare(
+        getLocationPath(locations, b.id!),
+        undefined,
+        { numeric: true },
+      ),
+    );
+  }
+  const roots = locations.filter(
+    (l) =>
+      l.id &&
+      (l.parentLocationId == null || isBuildingLevelType(l.locationType)),
+  );
+  // Prefer true roots when no buildings exist
+  const trueRoots = locations.filter((l) => l.id && l.parentLocationId == null);
+  const list = trueRoots.length > 0 ? trueRoots : roots;
+  return list.sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true }),
+  );
+}
+
+export interface DerivedLocationFields {
+  locationId: string | null;
+  /** Building / campus display name for legacy parentLocation. */
+  parentLocation: string;
+  /** Floor label from hierarchy floor node (or empty). */
+  floor: string;
+  /** Leaf / sub-location name for legacy section field. */
+  section: string;
+  vicinity: string;
+  locationPath: string;
+  buildingId: string | null;
+  floorId: string | null;
+  subLocationId: string | null;
+}
+
+/**
+ * Derive denormalized extinguisher/asset location fields from a hierarchy node.
+ */
+export function deriveLocationFields(
+  locations: Location[],
+  locationId: string | null | undefined,
+  vicinity: string = '',
+): DerivedLocationFields {
+  const empty: DerivedLocationFields = {
+    locationId: null,
+    parentLocation: '',
+    floor: '',
+    section: '',
+    vicinity: vicinity.trim(),
+    locationPath: '',
+    buildingId: null,
+    floorId: null,
+    subLocationId: null,
+  };
+  if (!locationId) return empty;
+
+  const map = new Map(locations.map((l) => [l.id!, l]));
+  const node = map.get(locationId);
+  if (!node) return { ...empty, locationId };
+
+  const building =
+    findAncestorOfType(locations, locationId, BUILDING_LEVEL_TYPES) ??
+    (node.parentLocationId == null ? node : null);
+  const floorNode = findAncestorOfType(
+    locations,
+    locationId,
+    FLOOR_LEVEL_TYPES,
+  );
+
+  let subLocationId: string | null = null;
+  if (
+    node.id &&
+    node.id !== building?.id &&
+    node.id !== floorNode?.id &&
+    !isBuildingLevelType(node.locationType) &&
+    !isFloorLevelType(node.locationType)
+  ) {
+    subLocationId = node.id;
+  }
+
+  const parentLocation = building?.name ?? node.name;
+  const floor = floorNode?.name ?? '';
+  const section =
+    subLocationId && node.id === subLocationId
+      ? node.name
+      : floorNode && node.id === floorNode.id
+        ? ''
+        : !building || node.id !== building.id
+          ? node.name
+          : '';
+
+  return {
+    locationId,
+    parentLocation,
+    floor,
+    section,
+    vicinity: vicinity.trim(),
+    locationPath: getLocationPath(locations, locationId),
+    buildingId: building?.id ?? null,
+    floorId: floorNode?.id ?? null,
+    subLocationId,
+  };
+}
+
+/**
+ * Resolve picker cascade IDs from a stored locationId (hydrate UI).
+ */
+export function resolvePickerCascade(
+  locations: Location[],
+  locationId: string | null | undefined,
+): {
+  buildingId: string | null;
+  floorId: string | null;
+  subLocationId: string | null;
+} {
+  const derived = deriveLocationFields(locations, locationId);
+  return {
+    buildingId: derived.buildingId,
+    floorId: derived.floorId,
+    subLocationId: derived.subLocationId,
+  };
+}
+
+/**
+ * Deepest location id from cascade selections.
+ */
+export function deepestLocationId(
+  buildingId: string | null,
+  floorId: string | null,
+  subLocationId: string | null,
+): string | null {
+  return subLocationId || floorId || buildingId || null;
+}
+
+/**
+ * Collect locationId + all descendant ids for one or more root selections.
+ * Used by inventory print/filter multi-select.
+ */
+export function collectLocationScopeIds(
+  locations: Location[],
+  rootIds: Iterable<string>,
+): Set<string> {
+  const result = new Set<string>();
+  for (const rootId of rootIds) {
+    if (!rootId) continue;
+    result.add(rootId);
+    for (const id of getAllDescendantIds(locations, rootId)) {
+      result.add(id);
+    }
+  }
+  return result;
+}
+
+/**
+ * Build default floor names for a building (create + edit seeding).
+ */
+export function buildFloorSeedNames(options: {
+  floorCount: number;
+  includeGround?: boolean;
+  includeBasement?: boolean;
+}): string[] {
+  const names: string[] = [];
+  if (options.includeBasement) names.push('Basement');
+  if (options.includeGround) names.push('Ground Floor');
+  const count = Math.min(Math.max(options.floorCount || 0, 0), 100);
+  for (let i = 1; i <= count; i += 1) names.push(`Floor ${i}`);
+  return names;
+}
+
+/**
+ * Floor names that are missing under a building (idempotent seed).
+ */
+export function missingFloorNamesUnderParent(
+  locations: Location[],
+  parentId: string,
+  desiredNames: string[],
+): string[] {
+  const existing = new Set(
+    getDirectChildren(locations, parentId)
+      .filter(
+        (l) => isFloorLevelType(l.locationType) || l.locationType === 'floor',
+      )
+      .map((l) => normalizeLocationName(l.name)),
+  );
+  return desiredNames.filter(
+    (name) => !existing.has(normalizeLocationName(name)),
+  );
+}

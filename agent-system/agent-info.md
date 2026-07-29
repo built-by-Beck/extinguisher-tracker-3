@@ -2626,3 +2626,27 @@ Both updated. PBRD documentation step complete for this cycle.
 
 **Validation:** pnpm format, lint, build OK; vitest customAssetCsv/generateAssetsFromLocations (30) + workDocumentGenerator (3) pass.
 
+
+## 2026-07-29 — BUILD: Detailed Location Picker + Floor Navigation — built_by_Beck
+
+**Agent:** build · **Branch:** cursor/detailed-location-picker-d60b
+**PBRD:** LARGE — Plan approved → Build complete → Review next
+
+**Shipped:**
+- `DetailedLocationPicker` (Building → Floor → Sub-location → Vicinity; optional fields removable)
+- locationService helpers: `deriveLocationFields`, `findAncestorOfType`, `collectLocationScopeIds`, floor seed helpers
+- Wired into ExtinguisherForm, Custom Assets, Inventory filter, DataOrganizer bulk
+- CustomAsset `floor` / `vicinity` + path `locationName`
+- Locations: idempotent Add floors on building edit
+- WorkspaceDetail: collapsible “units in this area” overview; floor-aware grouping + denorm floor compat; floor sort prefers hierarchy/`ext.floor`
+- PrintableList: multi-location filter, richer columns, client CSV download; Inventory Print passes current location filter
+
+**Deferred:** email invites; multi-inspector presence; server inventory PDF; bulk locationId migration
+
+**Validation:** `pnpm lint`, `pnpm build`, vitest locationService + locationInspectionGroups + inventoryPrint (31) pass
+
+### Review revision (same branch)
+- Fixed denorm floor preservation in DetailedLocationPicker (`floorLabel` prop)
+- Filter mode hides sub-location/vicinity by default
+- Restored expired/candidates print blurbs
+- Re-validated lint/build/tests — treat as ACCEPTED WITH MINOR CONCERNS (Inventory filter still uses full cascade; legacy no-locationId units excluded from loc-filtered print)

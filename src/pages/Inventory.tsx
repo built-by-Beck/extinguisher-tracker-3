@@ -60,10 +60,11 @@ import { formatDueDate, getComplianceLabel } from '../utils/compliance.ts';
 import { cacheExtinguishersForWorkspace } from '../services/offlineCacheService.ts';
 import { ScanSearchBar } from '../components/scanner/ScanSearchBar.tsx';
 import { WorkspaceInspectionSummaryCards } from '../components/workspace/WorkspaceInspectionSummaryCards.tsx';
-import { LocationSelector } from '../components/locations/LocationSelector.tsx';
+import { DetailedLocationPicker } from '../components/locations/DetailedLocationPicker.tsx';
 import {
   subscribeToLocations,
   getLocationPath,
+  collectLocationScopeIds,
   type Location,
 } from '../services/locationService.ts';
 import { db } from '../lib/firebase.ts';
@@ -450,14 +451,7 @@ export default function Inventory() {
   // selection cascades to floors/wings/zones assigned below it.
   const locationFilterIds = useMemo(() => {
     if (!locationFilter) return null;
-    const collect = (id: string): string[] => {
-      const children = locations.filter(
-        (l) =>
-          l.parentLocationId === id && !l.deletedAt && typeof l.id === 'string',
-      );
-      return [id, ...children.flatMap((c) => collect(c.id!))];
-    };
-    return new Set(collect(locationFilter));
+    return collectLocationScopeIds(locations, [locationFilter]);
   }, [locationFilter, locations]);
 
   // Client-side filtering with enhanced location search; exact identifier strings use bounded Firestore reads.
@@ -816,11 +810,18 @@ export default function Inventory() {
           )}
           <button
             onClick={() => {
-              const mode =
-                expiringFilter === 'expired' || expiringFilter === 'candidates'
-                  ? `?mode=${expiringFilter}`
-                  : '';
-              navigate(`/dashboard/inventory/print${mode}`);
+              const params = new URLSearchParams();
+              if (
+                expiringFilter === 'expired' ||
+                expiringFilter === 'candidates'
+              ) {
+                params.set('mode', expiringFilter);
+              }
+              if (locationFilter) {
+                params.set('locs', locationFilter);
+              }
+              const qs = params.toString();
+              navigate(`/dashboard/inventory/print${qs ? `?${qs}` : ''}`);
             }}
             className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
@@ -1055,10 +1056,12 @@ export default function Inventory() {
         </button>
 
         {/* Location filter */}
-        <div className="w-48">
-          <LocationSelector
-            value={locationFilter}
-            onChange={setLocationFilter}
+        <div className="min-w-[16rem] max-w-md flex-1">
+          <DetailedLocationPicker
+            mode="filter"
+            locations={locations}
+            locationId={locationFilter}
+            onChange={(value) => setLocationFilter(value.locationId)}
           />
         </div>
 

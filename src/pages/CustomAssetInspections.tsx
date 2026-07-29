@@ -22,14 +22,16 @@ import {
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { canUseCustomAssetInspections } from '../lib/planConfig.ts';
-import { LocationSelector } from '../components/locations/LocationSelector.tsx';
+import {
+  DetailedLocationPicker,
+  type DetailedLocationValue,
+} from '../components/locations/DetailedLocationPicker.tsx';
 import { ConfirmModal } from '../components/ui/ConfirmModal.tsx';
 import {
   createAsset,
   createAssetInspectionTemplate,
   createInspectionItem,
   copyInspectionItemsForAsset,
-  getLocationName,
   listenToAssets,
   listenToAssetInspectionTemplates,
   retireAsset,
@@ -44,6 +46,7 @@ import {
   type CustomAssetRecurrence,
 } from '../services/assetService.ts';
 import {
+  getLocationPath,
   subscribeToLocations,
   type Location,
 } from '../services/locationService.ts';
@@ -195,6 +198,9 @@ export default function CustomAssetInspections() {
   const [barcode, setBarcode] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [locationId, setLocationId] = useState<string | null>(null);
+  const [assetFloor, setAssetFloor] = useState('');
+  const [assetVicinity, setAssetVicinity] = useState('');
+  const [locationName, setLocationName] = useState('');
   const [recurrence, setRecurrence] =
     useState<CustomAssetRecurrence>('monthly');
   const [notes, setNotes] = useState('');
@@ -366,6 +372,9 @@ export default function CustomAssetInspections() {
     setBarcode('');
     setSerialNumber('');
     setLocationId(null);
+    setAssetFloor('');
+    setAssetVicinity('');
+    setLocationName('');
     setRecurrence('monthly');
     setNotes('');
     setDetails('');
@@ -392,6 +401,9 @@ export default function CustomAssetInspections() {
     setBarcode(asset.barcode ?? '');
     setSerialNumber(asset.serialNumber ?? '');
     setLocationId(asset.locationId || null);
+    setAssetFloor(asset.floor ?? '');
+    setAssetVicinity(asset.vicinity ?? '');
+    setLocationName(asset.locationName ?? '');
     setRecurrence(asset.recurrence ?? 'monthly');
     setNotes(asset.notes ?? '');
     setDetails(asset.details ?? '');
@@ -428,8 +440,8 @@ export default function CustomAssetInspections() {
       items.length === 1
         ? emptyFormItems()
         : items
-          .filter((_, i) => i !== index)
-          .map((item, order) => ({ ...item, order })),
+            .filter((_, i) => i !== index)
+            .map((item, order) => ({ ...item, order })),
     );
   }
 
@@ -650,7 +662,11 @@ export default function CustomAssetInspections() {
       barcode,
       serialNumber,
       locationId,
-      locationName: getLocationName(locations, locationId),
+      locationName:
+        locationName ||
+        (locationId ? getLocationPath(locations, locationId) : ''),
+      floor: assetFloor || null,
+      vicinity: assetVicinity || null,
       recurrence,
       templateId: selectedTemplateId || null,
       notes,
@@ -931,10 +947,11 @@ export default function CustomAssetInspections() {
       <div className="mb-4 flex flex-wrap gap-1 border-b border-gray-200">
         <button
           onClick={() => setTab('setup')}
-          className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'setup'
+          className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
+            activeTab === 'setup'
               ? 'border-b-2 border-indigo-600 text-indigo-700'
               : 'text-gray-500 hover:text-gray-800'
-            }`}
+          }`}
         >
           Setup / All
         </button>
@@ -942,10 +959,11 @@ export default function CustomAssetInspections() {
           <button
             key={type}
             onClick={() => setTab(type)}
-            className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === type
+            className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === type
                 ? 'border-b-2 border-indigo-600 text-indigo-700'
                 : 'text-gray-500 hover:text-gray-800'
-              }`}
+            }`}
           >
             {type}
           </button>
@@ -1058,14 +1076,15 @@ export default function CustomAssetInspections() {
                         key={starter.id}
                         type="button"
                         onClick={() => applyStarter(starter.id)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${selectedStarterId === starter.id
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          selectedStarterId === starter.id
                             ? starter.id === 'blank'
                               ? 'border-emerald-600 bg-emerald-600 text-white'
                               : 'border-indigo-600 bg-indigo-600 text-white'
                             : starter.id === 'blank'
                               ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:border-emerald-500'
                               : 'border-gray-300 bg-white text-gray-700 hover:border-indigo-400 hover:text-indigo-700'
-                          }`}
+                        }`}
                       >
                         {starter.label}
                       </button>
@@ -1101,10 +1120,11 @@ export default function CustomAssetInspections() {
                                   onClick={() =>
                                     toggleStarterChecklistItem(itemLabel)
                                   }
-                                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${selected
+                                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                                    selected
                                       ? 'border-indigo-600 bg-indigo-600 text-white'
                                       : 'border-gray-300 bg-white text-gray-600 hover:border-indigo-400 hover:text-indigo-700'
-                                    }`}
+                                  }`}
                                 >
                                   {itemLabel}
                                 </button>
@@ -1195,17 +1215,30 @@ export default function CustomAssetInspections() {
               </div>
 
               {/* Location */}
-              <label className="block">
+              <div>
                 <span className="text-sm font-medium text-gray-700">
                   Where is this asset?
                 </span>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Building, floor, sub-location, and vicinity — remove any field
+                  you do not need.
+                </p>
                 <div className="mt-1">
-                  <LocationSelector
-                    value={locationId}
-                    onChange={setLocationId}
+                  <DetailedLocationPicker
+                    mode="assign"
+                    locations={locations}
+                    locationId={locationId}
+                    vicinity={assetVicinity}
+                    floorLabel={assetFloor}
+                    onChange={(value: DetailedLocationValue) => {
+                      setLocationId(value.locationId);
+                      setAssetFloor(value.floor);
+                      setAssetVicinity(value.vicinity);
+                      setLocationName(value.locationPath);
+                    }}
                   />
                 </div>
-              </label>
+              </div>
 
               {/* Notes / details */}
               <div className="grid gap-4 md:grid-cols-2">
@@ -1809,18 +1842,19 @@ function AssetTable({
                               disabled={
                                 !canInspect ||
                                 inspectionsByAsset[asset.id ?? '']?.status ===
-                                'pass' ||
+                                  'pass' ||
                                 inspectionsByAsset[asset.id ?? '']?.status ===
-                                'fail'
+                                  'fail'
                               }
-                              className={`rounded px-2.5 py-1 text-xs font-semibold ${answer?.result === result
+                              className={`rounded px-2.5 py-1 text-xs font-semibold ${
+                                answer?.result === result
                                   ? result === 'pass'
                                     ? 'bg-green-600 text-white'
                                     : result === 'fail'
                                       ? 'bg-red-600 text-white'
                                       : 'bg-gray-700 text-white'
                                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                } disabled:cursor-not-allowed disabled:opacity-50`}
+                              } disabled:cursor-not-allowed disabled:opacity-50`}
                             >
                               {result === 'na'
                                 ? 'N/A'
@@ -1844,7 +1878,7 @@ function AssetTable({
                         disabled={
                           !canInspect ||
                           inspectionsByAsset[asset.id ?? '']?.status ===
-                          'pass' ||
+                            'pass' ||
                           inspectionsByAsset[asset.id ?? '']?.status === 'fail'
                         }
                         className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
