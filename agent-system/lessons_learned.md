@@ -1,5 +1,13 @@
 ## Lessons Learned
 
+## 2026-08-06 — Floor children block building inspection leaf
+
+**Error:** After the floors feature created `locationType: 'floor'` children under buildings, `useLocationDrillDown` treated buildings as non-leaves (`currentChildren.length > 0`). Tapping a building showed floor cards (often duplicate names like "2nd Floor" / "2nd fl") instead of the extinguisher list, even though counts were correct via subtree aggregation.
+
+**Fix:** Omit floor-like types from navigable children so a building is a leaf for inspection UI. `collectInspectionRowsForScope` still includes descendant floor units.
+
+**How to apply:** Inspection drill-down navigation is not the same as the full location tree. Prefer filtering navigable types in the hook rather than only in the page card map, so `isLeaf` stays consistent everywhere.
+
 ## 2026-05-22 — QRLanding strips workspace context
 
 `QRLanding` always redirects to `/dashboard/inventory/:extId`, losing workspaceId. Any component that computes `returnTo` from URL params will fall back to `/dashboard/inventory` for QR-scanned extinguishers.

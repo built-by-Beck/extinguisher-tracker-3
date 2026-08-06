@@ -1,8 +1,9 @@
 /**
  * useLocationDrillDown — manages hierarchical location navigation state.
  *
- * Provides a drill-down state machine for navigating:
- * Root (all top-level locations) → Building → Floor → Leaf (extinguisher list)
+ * Inspections workspace shows building-level cards only. Floor-like children are
+ * omitted from navigation so selecting a building opens the extinguisher list for
+ * that building (including units assigned to floors underneath).
  *
  * Author: built_by_Beck
  */
@@ -16,14 +17,35 @@ import {
   type LocationTreeNode,
 } from '../services/locationService.ts';
 
+/** Location types that are not selectable cards in the inspection drill-down. */
+const NON_NAVIGABLE_LOCATION_TYPES = new Set([
+  'floor',
+  'basement',
+  'attic',
+  'parking_deck',
+  'ground',
+  'mezzanine',
+  'penthouse',
+  'roof',
+]);
+
+export function isFloorLikeLocationType(locationType: string | null | undefined): boolean {
+  if (!locationType) return false;
+  return NON_NAVIGABLE_LOCATION_TYPES.has(locationType.toLowerCase());
+}
+
+function navigableChildren(nodes: LocationTreeNode[]): LocationTreeNode[] {
+  return nodes.filter((node) => !isFloorLikeLocationType(node.locationType));
+}
+
 export interface UseLocationDrillDownReturn {
   /** Current location ID (null = root level showing top-level locations) */
   currentLocationId: string | null;
   /** Current location object (null at root) */
   currentLocation: Location | null;
-  /** Children of the current location (next level to show as cards) */
+  /** Children of the current location (next level to show as cards; floors omitted) */
   currentChildren: LocationTreeNode[];
-  /** Whether the current location is a leaf (no children — show extinguisher list) */
+  /** Whether the current location is a leaf (no navigable children — show extinguisher list) */
   isLeaf: boolean;
   /** Whether we're at root level */
   isRoot: boolean;
@@ -75,9 +97,9 @@ export function useLocationDrillDown(
   }, [tree]);
 
   const currentChildren = useMemo(() => {
-    if (!currentLocationId) return tree;
+    if (!currentLocationId) return navigableChildren(tree);
     const node = treeNodeMap.get(currentLocationId);
-    return node?.children ?? [];
+    return navigableChildren(node?.children ?? []);
   }, [currentLocationId, tree, treeNodeMap]);
 
   const isLeaf = currentLocationId !== null && currentChildren.length === 0;

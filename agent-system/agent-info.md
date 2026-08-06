@@ -2420,3 +2420,51 @@ Replaced localStorage-only section timer with Firestore-backed per-user daily ti
 - CSV export, workspace auto-tag on create (active workspace label/id)
 - `convertNoteToInspection` CF — flags linked asset inspection as fail with note text
 - `mergeAiNotes` CF + organizer merge suggestions for duplicate notes
+
+## Agent Update - 2026-06-10
+Task:
+* Align token-conscious PBRD workflow — agent memory writeback, Cursor agents, Document Agent spec
+Classification:
+* MEDIUM
+Agent:
+* Build
+Files touched:
+* docs/AI_WORKFLOW.md, CODEX.md, AGENTS.md, agents/.claude/agents/*.md, agents/.codex/agents/*.md, .cursor/agents/plan-agent.md, build-agent.md, review-agent.md, document-agent.md, docs/pbrd-kit/skills/*.md, docs/pbrd-kit/README.md
+Summary:
+* Canonical spec already in docs/AI_WORKFLOW.md; aligned build/review/plan agents to write agent-info.md (not legacy agents-info.md); added missing .cursor/agents for plan/build/review; expanded Document Agent section; linked pbrd-kit skills to canonical spec
+Checks:
+* Workflow doc review only — no app code changed
+Next:
+* None — workflow control files now consistent
+
+## Agent Update - 2026-07-20
+Task:
+* AI location inspection progress queries (deterministic Pro+ assistant); rebased onto latest origin/main after pull
+Classification:
+* MEDIUM
+Agent:
+* Build
+Files touched:
+* src/types/aiQuery.ts, src/services/aiQueryIntentService.ts, src/services/aiQueryIntentService.test.ts, src/utils/resolveLocationFromQuery.ts, src/utils/resolveLocationFromQuery.test.ts, src/services/aiService.ts, src/services/aiService.test.ts, src/components/ai/AiAssistantPanel.tsx, src/lib/aiKnowledgeBase.ts, functions/src/ai/queryAiMemory.ts, functions/src/utils/locationHelpers.ts, functions/src/utils/resolveLocationFromQuery.ts, functions/src/utils/workspaceInspectionStats.ts, functions/src/__tests__/queryAiMemory.test.ts
+Summary:
+* Added get_location_inspection_progress intent; server resolves explicit building/floor names or infers "this location" from user's latest inspection in active workspace; counts match workspace UI semantics (subtree, de-dupe, superseded exclusion). Merged onto origin/main after 2026-07-20 pull (kept upstream note-category intents + Architecture docs).
+Checks:
+* Pull fast-forwarded main to 8dbd68e; stash conflicts resolved manually
+Next:
+* Manual emulator smoke: ask both example questions and compare counts to workspace drill-down
+
+## Agent Update - 2026-08-06
+Task:
+* Inspections workspace: buildings-only cards; selecting a building opens pending extinguishers (incl. units on floors)
+Classification:
+* SMALL
+Agent:
+* Build
+Files touched:
+* src/hooks/useLocationDrillDown.ts, src/hooks/useLocationDrillDown.test.ts, src/pages/WorkspaceDetail.tsx, src/pages/guest/GuestWorkspaceDetail.tsx, agent-system/lessons_learned.md
+Summary:
+* Floor-like location types no longer appear as drill-down cards; buildings with only floor children are leaves. Subtree collection still includes floor-assigned units so pending lists cover the whole building. Guest view inherits the same hook behavior.
+Checks:
+* vitest useLocationDrillDown.test.ts — pass; eslint touched files — pass; tsc -b — pass
+Next:
+* Manual: open Inspections workspace, confirm only buildings, click building, see left-to-check list including floor units

@@ -1,7 +1,9 @@
 /**
  * WorkspaceDetail — hierarchical location drill-down for inspection workspaces.
  *
- * Navigation: Workspace → Building cards → Floor cards → Extinguisher list
+ * Navigation: Workspace → Building cards → Extinguisher list (building + floors
+ * underneath). Floor locations are omitted from cards so messy/duplicate floor
+ * names do not block selection; units on floors still appear via subtree scope.
  * Uses locationId as the single source of truth for grouping.
  * Falls back to section string for archived workspaces with legacy data.
  *

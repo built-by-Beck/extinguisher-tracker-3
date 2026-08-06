@@ -1,6 +1,7 @@
 /**
  * GuestWorkspaceDetail — read-only workspace detail for guest access.
- * Uses hierarchical location drill-down matching the authenticated experience.
+ * Uses hierarchical location drill-down matching the authenticated experience
+ * (building cards only; floors omitted from navigation).
  *
  * Author: built_by_Beck
  */
