@@ -6,10 +6,7 @@
  */
 
 import type { Location } from './locationService.ts';
-import {
-  getAllDescendantIds,
-  getLocationPath,
-} from './locationService.ts';
+import { getAllDescendantIds, getLocationPath } from './locationService.ts';
 import {
   createEgressFloorItem,
   createEgressStairwellSection,
@@ -104,18 +101,12 @@ function getFloorsForStairwell(
   return locations
     .filter(
       (loc) =>
-        loc.id &&
-        descendants.has(loc.id) &&
-        isFloorLike(loc) &&
-        !loc.deletedAt,
+        loc.id && descendants.has(loc.id) && isFloorLike(loc) && !loc.deletedAt,
     )
     .sort(sortByName);
 }
 
-function getStairwellsUnder(
-  locations: Location[],
-  rootId: string,
-): Location[] {
+function getStairwellsUnder(locations: Location[], rootId: string): Location[] {
   const descendants = getAllDescendantIds(locations, rootId);
   const directChildren = locations.filter(
     (loc) => loc.parentLocationId === rootId && loc.id && !loc.deletedAt,
@@ -142,9 +133,9 @@ export function generateEgressStairwellSheet(
   const { locations, buildingHint } = input;
   const building = buildingHint
     ? findBestLocationMatch(locations, buildingHint, BUILDING_TYPES)
-    : locations.find(
+    : (locations.find(
         (loc) => BUILDING_TYPES.has(loc.locationType) && !loc.deletedAt,
-      ) ?? null;
+      ) ?? null);
 
   const buildingLabel = building
     ? getLocationPath(locations, building.id!)
@@ -152,7 +143,9 @@ export function generateEgressStairwellSheet(
 
   const stairwells = building?.id
     ? getStairwellsUnder(locations, building.id)
-  : locations.filter((loc) => isStairwell(loc) && !loc.deletedAt).sort(sortByName);
+    : locations
+        .filter((loc) => isStairwell(loc) && !loc.deletedAt)
+        .sort(sortByName);
 
   const sections =
     stairwells.length > 0
@@ -229,8 +222,7 @@ const WORK_DOC_INTENT_PATTERN =
 const STAIRWELL_HINT_PATTERN =
   /\b(?:stair\s*well|stairwell)\b[\s\S]{0,120}?\b(?:in|for|at)\b\s+(.+?)(?:\.|$)/i;
 
-const BUILDING_HINT_PATTERN =
-  /\bbuilding\s+([a-z0-9][\w\s-]*)/i;
+const BUILDING_HINT_PATTERN = /\bbuilding\s+([a-z0-9][\w\s-]*)/i;
 
 const EGRESS_PATTERN = /\b(?:egress|exit\s+(?:light|sign)|emergency\s+light)/i;
 
@@ -254,9 +246,7 @@ export function parseWorkDocumentIntent(
   const stairwellMatch = message.match(STAIRWELL_HINT_PATTERN);
   const buildingMatch = message.match(BUILDING_HINT_PATTERN);
   const buildingHint =
-    stairwellMatch?.[1]?.trim() ||
-    buildingMatch?.[1]?.trim() ||
-    null;
+    stairwellMatch?.[1]?.trim() || buildingMatch?.[1]?.trim() || null;
 
   return {
     kind: 'egress_stairwell',

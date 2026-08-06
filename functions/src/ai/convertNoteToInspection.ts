@@ -52,7 +52,9 @@ export const convertNoteToInspection = onCall<
   const noteData = noteSnap.data()!;
   const assetLabel =
     sanitizeText(noteData.relatedEntityLabel, 120) ||
-    sanitizeText(noteData.content, 120).match(/\b([A-Z]{1,5}-\d{2,})\b/i)?.[1] ||
+    sanitizeText(noteData.content, 120).match(
+      /\b([A-Z]{1,5}-\d{2,})\b/i,
+    )?.[1] ||
     '';
   const workspaceId =
     sanitizeText(request.data.workspaceId, 128) ||
@@ -83,7 +85,8 @@ export const convertNoteToInspection = onCall<
       .get();
     if (!extSnap.empty) {
       extinguisherId = extSnap.docs[0].id;
-      assetId = (extSnap.docs[0].get('assetId') as string | undefined) ?? assetLabel;
+      assetId =
+        (extSnap.docs[0].get('assetId') as string | undefined) ?? assetLabel;
     }
   }
 

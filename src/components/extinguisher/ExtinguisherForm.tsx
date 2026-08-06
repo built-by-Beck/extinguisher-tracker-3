@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../hooks/useAuth.ts';
 import {
-  subscribeToLocations,
-  getLocationPath,
-  type Location,
-} from '../../services/locationService.ts';
+  DetailedLocationPicker,
+  type DetailedLocationValue,
+} from '../locations/DetailedLocationPicker.tsx';
 import type { Extinguisher } from '../../services/extinguisherService.ts';
 
 const CATEGORIES = [
@@ -87,35 +85,32 @@ export function ExtinguisherForm({
   submitLabel,
   loading,
 }: ExtinguisherFormProps) {
-  const { userProfile } = useAuth();
-  const orgId = userProfile?.activeOrgId ?? '';
-
-  const [locations, setLocations] = useState<Location[]>([]);
-
-  // Subscribe to locations collection — used to populate the Section/Location dropdown
-  useEffect(() => {
-    if (!orgId) return;
-    setLocations([]);
-    return subscribeToLocations(orgId, (locs) => {
-      setLocations(locs);
-    });
-  }, [orgId]);
-
   const [assetId, setAssetId] = useState(initialData?.assetId ?? '');
   const [serial, setSerial] = useState(initialData?.serial ?? '');
   const [manufacturer, setManufacturer] = useState(
     initialData?.manufacturer ?? '',
   );
   const [category, setCategory] = useState(initialData?.category ?? 'standard');
-  const [extinguisherType, setExtinguisherType] = useState(initialData?.extinguisherType ?? '');
-  const [serviceClass, setServiceClass] = useState(initialData?.serviceClass ?? '');
-  const [extinguisherSize, setExtinguisherSize] = useState(initialData?.extinguisherSize ?? '');
-  const [manufactureYear, setManufactureYear] = useState<string>(initialData?.manufactureYear?.toString() ?? '');
-  const [expirationYear, setExpirationYear] = useState<string>(initialData?.expirationYear?.toString() ?? '');
+  const [extinguisherType, setExtinguisherType] = useState(
+    initialData?.extinguisherType ?? '',
+  );
+  const [serviceClass, setServiceClass] = useState(
+    initialData?.serviceClass ?? '',
+  );
+  const [extinguisherSize, setExtinguisherSize] = useState(
+    initialData?.extinguisherSize ?? '',
+  );
+  const [manufactureYear, setManufactureYear] = useState<string>(
+    initialData?.manufactureYear?.toString() ?? '',
+  );
+  const [expirationYear, setExpirationYear] = useState<string>(
+    initialData?.expirationYear?.toString() ?? '',
+  );
   const [serviceDueKind, setServiceDueKind] = useState<ServiceDueKind>('');
   const [serviceDueDate, setServiceDueDate] = useState('');
   /** When true, leaving the service-due controls unchanged avoids overwriting two stored dates. */
-  const [initialHadBothServiceDates, setInitialHadBothServiceDates] = useState(false);
+  const [initialHadBothServiceDates, setInitialHadBothServiceDates] =
+    useState(false);
   const [serviceDueTouched, setServiceDueTouched] = useState(false);
   const [section, setSection] = useState(initialData?.section ?? '');
   const [floor, setFloor] = useState(initialData?.floor ?? '');
@@ -173,18 +168,12 @@ export function ExtinguisherForm({
     }
   }, [initialData]);
 
-  // When a location is selected, set both parentLocation (name) and locationId (doc ID)
-  function handleLocationChange(locId: string) {
-    if (locId === '' || locId === '__unassigned__') {
-      setParentLocation('');
-      setLocationId('');
-      return;
-    }
-    const loc = locations.find((l) => l.id === locId);
-    if (loc) {
-      setParentLocation(loc.name);
-      setLocationId(loc.id ?? '');
-    }
+  function handleDetailedLocationChange(value: DetailedLocationValue) {
+    setLocationId(value.locationId ?? '');
+    setParentLocation(value.parentLocation);
+    setFloor(value.floor);
+    setSection(value.section);
+    setVicinity(value.vicinity);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -445,17 +434,22 @@ export function ExtinguisherForm({
             />
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
-            <label htmlFor="serviceDueKind" className="mb-1 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="serviceDueKind"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
               Next service due (after refill / shop work)
             </label>
             <p className="mb-2 text-xs text-gray-500">
-              Use this when manufacture and expiration years alone do not reflect the next six-year maintenance or
-              hydrostatic test. Pick one type and enter the due date from the tag or service record.
+              Use this when manufacture and expiration years alone do not
+              reflect the next six-year maintenance or hydrostatic test. Pick
+              one type and enter the due date from the tag or service record.
             </p>
             {initialHadBothServiceDates && !serviceDueTouched ? (
               <p className="mb-2 text-xs text-amber-800">
-                This unit has both a six-year and hydro due date on file. Change the options below only if you want to
-                replace them with a single tracked date.
+                This unit has both a six-year and hydro due date on file. Change
+                the options below only if you want to replace them with a single
+                tracked date.
               </p>
             ) : null}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -468,7 +462,9 @@ export function ExtinguisherForm({
                 }}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               >
-                <option value="">Not tracking (use defaults from inspections)</option>
+                <option value="">
+                  Not tracking (use defaults from inspections)
+                </option>
                 <option value="six_year">Six-year maintenance</option>
                 <option value="hydro">Hydrostatic test</option>
               </select>
@@ -540,68 +536,17 @@ export function ExtinguisherForm({
         <h3 className="mb-4 text-sm font-semibold text-gray-900 uppercase tracking-wide">
           Location
         </h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="location"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Location
-            </label>
-            {locations.length > 0 ? (
-              <select
-                id="location"
-                value={locationId || ''}
-                onChange={(e) => handleLocationChange(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-              >
-                <option value="">-- Unassigned --</option>
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id ?? ''}>
-                    {getLocationPath(locations, loc.id!)}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="text-sm text-gray-400">
-                No locations configured. Add locations on the Locations page
-                first.
-              </p>
-            )}
-          </div>
-          <div>
-            <label
-              htmlFor="floor"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Floor
-            </label>
-            <input
-              id="floor"
-              type="text"
-              value={floor}
-              onChange={(e) => setFloor(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-              placeholder="e.g., 2nd Floor, Basement"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="vicinity"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Vicinity
-            </label>
-            <input
-              id="vicinity"
-              type="text"
-              value={vicinity}
-              onChange={(e) => setVicinity(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-              placeholder="e.g., Near elevator B, East wall"
-            />
-          </div>
-        </div>
+        <p className="mb-3 text-xs text-gray-500">
+          Choose building, then floor and sub-location when needed. Remove any
+          field you do not need.
+        </p>
+        <DetailedLocationPicker
+          mode="assign"
+          locationId={locationId || null}
+          vicinity={vicinity}
+          floorLabel={floor}
+          onChange={handleDetailedLocationChange}
+        />
       </div>
 
       {/* Submit */}

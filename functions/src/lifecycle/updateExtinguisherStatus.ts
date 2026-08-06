@@ -162,7 +162,9 @@ function buildUpdateFields(
   }
 }
 
-function resolveCurrentTarget(data: DocumentData): UpdateableExtinguisherStatus {
+function resolveCurrentTarget(
+  data: DocumentData,
+): UpdateableExtinguisherStatus {
   const ls = (data.lifecycleStatus as string | null | undefined)?.toLowerCase();
   const cat = (data.category as string | null | undefined)?.toLowerCase();
   if (ls === 'spare' || cat === 'spare') return 'spare';
@@ -184,7 +186,8 @@ export const updateExtinguisherStatus = onCall(async (request) => {
 
   await validateMembership(orgId, uid, ['owner', 'admin']);
 
-  let resolvedId = typeof extinguisherId === 'string' ? extinguisherId.trim() : '';
+  let resolvedId =
+    typeof extinguisherId === 'string' ? extinguisherId.trim() : '';
   const assetQuery = typeof assetId === 'string' ? assetId.trim() : '';
 
   if (!resolvedId && !assetQuery) {
@@ -198,7 +201,8 @@ export const updateExtinguisherStatus = onCall(async (request) => {
       .where('deletedAt', '==', null)
       .limit(16)
       .get();
-    if (snap.empty) throwNotFound('No extinguisher found for that asset number.');
+    if (snap.empty)
+      throwNotFound('No extinguisher found for that asset number.');
     if (snap.size > 1) {
       throwFailedPrecondition(
         'Multiple extinguishers share that asset number; pass extinguisherId instead.',
@@ -214,10 +218,14 @@ export const updateExtinguisherStatus = onCall(async (request) => {
     if (!extSnap.exists) throwNotFound('Extinguisher not found.');
     const extData = extSnap.data()!;
     if (extData.deletedAt != null) {
-      throwFailedPrecondition('Cannot change status of a deleted extinguisher.');
+      throwFailedPrecondition(
+        'Cannot change status of a deleted extinguisher.',
+      );
     }
     if (extData.lifecycleStatus === 'deleted') {
-      throwFailedPrecondition('Cannot change status of a deleted extinguisher.');
+      throwFailedPrecondition(
+        'Cannot change status of a deleted extinguisher.',
+      );
     }
 
     const current = resolveCurrentTarget(extData);

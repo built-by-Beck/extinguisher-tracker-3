@@ -37,8 +37,7 @@ export default function Signup() {
   const [searchParams] = useSearchParams();
   const billingInterval = billingIntervalFromSearchParams(searchParams);
   const preferredPlan = searchParams.get('plan');
-  const isTrialSignup =
-    preferredPlan === 'pro' && billingInterval === 'month';
+  const isTrialSignup = preferredPlan === 'pro' && billingInterval === 'month';
 
   useEffect(() => {
     if (billingInterval) {
@@ -128,15 +127,17 @@ export default function Signup() {
             {isTrialSignup ? (
               <>
                 Create your account first, then set up your organization. After
-                that, choose <strong className="text-gray-900">Pro (monthly)</strong>{' '}
-                under Settings → Billing to start your trial — no card required
-                at Stripe Checkout.
+                that, choose{' '}
+                <strong className="text-gray-900">Pro (monthly)</strong> under
+                Settings → Billing to start your trial — no card required at
+                Stripe Checkout.
               </>
             ) : billingInterval === 'year' ? (
               <>
                 You chose <strong className="text-gray-900">yearly</strong>{' '}
                 billing on our pricing page. After you create your organization,
-                pick a plan under Settings → Billing (annual prepay at checkout).
+                pick a plan under Settings → Billing (annual prepay at
+                checkout).
               </>
             ) : billingInterval === 'month' ? (
               <>

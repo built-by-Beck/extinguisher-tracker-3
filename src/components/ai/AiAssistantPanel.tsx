@@ -539,7 +539,10 @@ export function AiAssistantPanel({
     try {
       const noteContent = extractNoteContent(messageText);
       if (noteContent && canManageNotes && !imageForMessage) {
-        const classification = await saveNoteFromText(noteContent, 'ai_suggested');
+        const classification = await saveNoteFromText(
+          noteContent,
+          'ai_suggested',
+        );
         const summary = classification
           ? formatClassificationSummary(classification)
           : 'open';
@@ -585,7 +588,7 @@ export function AiAssistantPanel({
               draft.relatedLocationLabel
                 ? `Linked to: ${draft.relatedLocationLabel}`
                 : 'No building match found — edit rows manually or tag stairwells in Locations.',
-              `Open it on the **Field Work** tab to edit or print: /dashboard/field-work/${documentId}`,
+              `Open it under **Forms & Walkthroughs** to edit or print: /dashboard/field-work/${documentId}`,
               'Pass/fail columns are on the printable sheet for now; in-app walk completion will come later.',
             ].join('\n\n'),
           },

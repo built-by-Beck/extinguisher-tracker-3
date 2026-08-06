@@ -82,7 +82,6 @@ export function marketingPriceForInterval(
     promoBadge: '50% off year 1',
     promoCode: getLaunchPromoCode(planId) ?? undefined,
     promoDisclaimer:
-      getLaunchPromoPriceDisclaimer(monthlyPrice, planId, 'year') ??
-      undefined,
+      getLaunchPromoPriceDisclaimer(monthlyPrice, planId, 'year') ?? undefined,
   };
 }

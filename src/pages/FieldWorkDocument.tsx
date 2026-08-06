@@ -7,20 +7,11 @@
 
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Loader2,
-  Plus,
-  Printer,
-  Save,
-  Trash2,
-} from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useOrg } from '../hooks/useOrg.ts';
 import { hasFeature } from '../lib/planConfig.ts';
-import {
-  EGRESS_STAIRWELL_DEFAULT_FIELDS,
-} from '../lib/workDocumentTemplates.ts';
+import { EGRESS_STAIRWELL_DEFAULT_FIELDS } from '../lib/workDocumentTemplates.ts';
 import {
   subscribeToWorkDocument,
   updateWorkDocumentCall,
@@ -101,7 +92,10 @@ export default function FieldWorkDocument() {
     setDirty(true);
   }
 
-  function updateSection(sectionId: string, patch: Partial<WorkDocumentSection>) {
+  function updateSection(
+    sectionId: string,
+    patch: Partial<WorkDocumentSection>,
+  ) {
     setSchema((prev) => ({
       ...prev,
       sections: prev.sections.map((section) =>
@@ -174,7 +168,9 @@ export default function FieldWorkDocument() {
                 {
                   id: crypto.randomUUID(),
                   label: 'New item',
-                  fields: EGRESS_STAIRWELL_DEFAULT_FIELDS.map((f) => ({ ...f })),
+                  fields: EGRESS_STAIRWELL_DEFAULT_FIELDS.map((f) => ({
+                    ...f,
+                  })),
                 },
               ],
             }
@@ -429,7 +425,7 @@ export default function FieldWorkDocument() {
           className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="h-4 w-4" />
-          All field work
+          All forms & walkthroughs
         </Link>
         <div className="flex flex-wrap gap-2">
           <button
@@ -476,6 +472,7 @@ export default function FieldWorkDocument() {
               setTitle(e.target.value);
               markDirty();
             }}
+            placeholder="Enter a form title, such as Monthly Mechanical Room Walkthrough"
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
         </div>
@@ -571,6 +568,7 @@ export default function FieldWorkDocument() {
                   onChange={(e) =>
                     updateSection(section.id, { title: e.target.value })
                   }
+                  placeholder="Enter a section name, such as Equipment Condition or Exit Route Checks"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold"
                 />
                 <input

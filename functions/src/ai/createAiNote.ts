@@ -4,9 +4,7 @@ import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
 import { validateSubscription } from '../utils/subscription.js';
-import {
-  throwInvalidArgument,
-} from '../utils/errors.js';
+import { throwInvalidArgument } from '../utils/errors.js';
 import { writeAuditLog } from '../utils/auditLog.js';
 import {
   assertAiAssistantEnabled,
@@ -69,10 +67,7 @@ export const createAiNote = onCall<
   const priority = sanitizePriority(request.data.priority);
   const relatedEntityType = sanitizeEntityType(request.data.relatedEntityType);
   const relatedEntityId = sanitizeText(request.data.relatedEntityId, 128);
-  const relatedEntityLabel = sanitizeText(
-    request.data.relatedEntityLabel,
-    120,
-  );
+  const relatedEntityLabel = sanitizeText(request.data.relatedEntityLabel, 120);
   const pinned = request.data.pinned === true;
   const photoUrl = sanitizeOptionalUrl(request.data.photoUrl);
   const photoPath = sanitizeOptionalUrl(request.data.photoPath, 512);

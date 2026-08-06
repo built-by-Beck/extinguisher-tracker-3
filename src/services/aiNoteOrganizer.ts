@@ -24,7 +24,9 @@ export interface NoteOrganizationSuggestion {
   };
 }
 
-function buildHeuristicSuggestions(notes: AiNote[]): NoteOrganizationSuggestion[] {
+function buildHeuristicSuggestions(
+  notes: AiNote[],
+): NoteOrganizationSuggestion[] {
   const suggestions: NoteOrganizationSuggestion[] = [];
   const openNotes = notes.filter((note) => note.status !== 'resolved');
 
@@ -186,12 +188,14 @@ ${summary}`;
 
     const merged = [...aiSuggestions, ...heuristic];
     const seen = new Set<string>();
-    return merged.filter((item) => {
-      const key = `${item.action}:${item.noteIds.join(',')}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }).slice(0, 5);
+    return merged
+      .filter((item) => {
+        const key = `${item.action}:${item.noteIds.join(',')}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 5);
   } catch {
     return heuristic;
   }

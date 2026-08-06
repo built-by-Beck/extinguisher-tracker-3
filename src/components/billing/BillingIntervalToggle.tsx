@@ -108,8 +108,8 @@ export function BillingIntervalToggle({
             Billing frequency
           </p>
           <p className="mt-0.5 text-xs text-gray-500">
-            Choose monthly or yearly before you select a plan. Yearly prepay saves{' '}
-            {discountPct}%.
+            Choose monthly or yearly before you select a plan. Yearly prepay
+            saves {discountPct}%.
           </p>
           {value === 'year' && (
             <p className="mt-1 text-xs font-medium text-green-700">
@@ -118,8 +118,8 @@ export function BillingIntervalToggle({
           )}
           {value === 'month' && (
             <p className="mt-1 text-xs text-gray-600">
-              Monthly billing — eligible orgs can start a 7-day Pro trial with no
-              card at checkout.
+              Monthly billing — eligible orgs can start a 7-day Pro trial with
+              no card at checkout.
             </p>
           )}
         </div>

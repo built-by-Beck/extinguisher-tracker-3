@@ -33,8 +33,14 @@ import {
   normalizeLocationName,
   updateLocation,
   softDeleteLocation,
+  deriveLocationFields,
+  getLocationPath,
   type Location,
 } from '../services/locationService.ts';
+import {
+  DetailedLocationPicker,
+  type DetailedLocationValue,
+} from '../components/locations/DetailedLocationPicker.tsx';
 import {
   parseFloorFromText,
   floorSortRank,
@@ -98,6 +104,8 @@ export default function DataOrganizer() {
   const [bulkLocId, setBulkLocId] = useState('');
   const [bulkSection, setBulkSection] = useState('');
   const [bulkFloor, setBulkFloor] = useState('');
+  const [bulkVicinity, setBulkVicinity] = useState('');
+  const [bulkParentLocation, setBulkParentLocation] = useState('');
   // Floor tools
   const [extractingFloors, setExtractingFloors] = useState(false);
   const [extractFloorsResult, setExtractFloorsResult] = useState<string | null>(
@@ -167,12 +175,19 @@ export default function DataOrganizer() {
     });
 
     try {
-      // If setting locationId, auto-set parentLocation name too
       const updateData = { ...extEdits };
       if (updateData.locationId) {
-        const loc = locations.find((l) => l.id === updateData.locationId);
-        if (loc) {
-          updateData.parentLocation = loc.name;
+        const derived = deriveLocationFields(
+          locations,
+          updateData.locationId as string,
+          (updateData.vicinity as string | undefined) ?? ext.vicinity ?? '',
+        );
+        updateData.parentLocation = derived.parentLocation;
+        if (!(updateData.floor as string | undefined)?.trim()) {
+          updateData.floor = derived.floor;
+        }
+        if (!(updateData.section as string | undefined)?.trim()) {
+          updateData.section = derived.section;
         }
       }
 
@@ -198,27 +213,29 @@ export default function DataOrganizer() {
 
   const handleBulkAssign = async () => {
     if (!orgId || selected.size === 0) return;
-    if (!bulkLocId && !bulkSection && !bulkFloor) {
-      alert('Please select a location, floor, or section to assign.');
+    if (!bulkLocId && !bulkSection && !bulkFloor && !bulkVicinity) {
+      alert('Please select a location, floor, section, or vicinity to assign.');
       return;
     }
 
     setBulkSaving(true);
     try {
       const updates: Array<{ extId: string; data: Partial<Extinguisher> }> = [];
-      const parentLoc = locations.find((l) => l.id === bulkLocId)?.name;
 
       for (const extId of selected) {
         const data: Partial<Extinguisher> = {};
         if (bulkLocId) {
           data.locationId = bulkLocId;
-          data.parentLocation = parentLoc || '';
+          data.parentLocation = bulkParentLocation || '';
         }
         if (bulkSection) {
           data.section = bulkSection;
         }
         if (bulkFloor) {
           data.floor = bulkFloor;
+        }
+        if (bulkVicinity) {
+          data.vicinity = bulkVicinity;
         }
         updates.push({ extId, data });
       }
@@ -229,6 +246,8 @@ export default function DataOrganizer() {
       setBulkLocId('');
       setBulkSection('');
       setBulkFloor('');
+      setBulkVicinity('');
+      setBulkParentLocation('');
     } catch (err) {
       console.error('Failed bulk assign', err);
       alert('Failed to apply bulk assignment.');
@@ -236,6 +255,14 @@ export default function DataOrganizer() {
       setBulkSaving(false);
     }
   };
+
+  function handleBulkLocationChange(value: DetailedLocationValue) {
+    setBulkLocId(value.locationId ?? '');
+    setBulkParentLocation(value.parentLocation);
+    setBulkFloor(value.floor);
+    setBulkSection(value.section);
+    setBulkVicinity(value.vicinity);
+  }
 
   // Tool 1: infer the floor label from each unit's vicinity/section text.
   const handleExtractFloors = async () => {
@@ -798,38 +825,23 @@ export default function DataOrganizer() {
           </span>
           <div className="h-6 w-px bg-orange-300"></div>
 
-          <select
-            value={bulkLocId}
-            onChange={(e) => setBulkLocId(e.target.value)}
-            className="rounded-md border-orange-300 py-1.5 text-sm focus:border-orange-500 focus:ring-orange-500"
-          >
-            <option value="">Assign Location...</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name}
-              </option>
-            ))}
-          </select>
-
-          <input
-            type="text"
-            placeholder="Assign Floor..."
-            value={bulkFloor}
-            onChange={(e) => setBulkFloor(e.target.value)}
-            className="rounded-md border-orange-300 py-1.5 px-3 text-sm focus:border-orange-500 focus:ring-orange-500"
-          />
-
-          <input
-            type="text"
-            placeholder="Assign Section..."
-            value={bulkSection}
-            onChange={(e) => setBulkSection(e.target.value)}
-            className="rounded-md border-orange-300 py-1.5 px-3 text-sm focus:border-orange-500 focus:ring-orange-500"
-          />
+          <div className="min-w-[18rem] max-w-lg flex-1 rounded-md border border-orange-200 bg-white p-3">
+            <DetailedLocationPicker
+              mode="assign"
+              locations={locations}
+              locationId={bulkLocId || null}
+              vicinity={bulkVicinity}
+              floorLabel={bulkFloor}
+              onChange={handleBulkLocationChange}
+            />
+          </div>
 
           <button
             onClick={handleBulkAssign}
-            disabled={bulkSaving || (!bulkLocId && !bulkSection && !bulkFloor)}
+            disabled={
+              bulkSaving ||
+              (!bulkLocId && !bulkSection && !bulkFloor && !bulkVicinity)
+            }
             className="flex items-center gap-2 rounded-md bg-orange-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
           >
             {bulkSaving ? (
@@ -939,7 +951,7 @@ export default function DataOrganizer() {
                         </option>
                         {locations.map((loc) => (
                           <option key={loc.id} value={loc.id}>
-                            {loc.name}
+                            {getLocationPath(locations, loc.id!)}
                           </option>
                         ))}
                       </select>

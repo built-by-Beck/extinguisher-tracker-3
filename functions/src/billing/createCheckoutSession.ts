@@ -2,10 +2,21 @@ import { onCall } from 'firebase-functions/v2/https';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
-import { throwInvalidArgument, throwFailedPrecondition } from '../utils/errors.js';
-import { stripeSecretKey, getStripePriceIds, getStripeTrialDays } from '../config/params.js';
+import {
+  throwInvalidArgument,
+  throwFailedPrecondition,
+} from '../utils/errors.js';
+import {
+  stripeSecretKey,
+  getStripePriceIds,
+  getStripeTrialDays,
+} from '../config/params.js';
 import { isTrialEligible } from './trialEligibility.js';
-import { priceIdForPlan, type BillingInterval, type PlanName } from './planConfig.js';
+import {
+  priceIdForPlan,
+  type BillingInterval,
+  type PlanName,
+} from './planConfig.js';
 import { getStripe } from './stripeClient.js';
 import { ensureOrgStripeCustomer } from './stripeOrgCustomer.js';
 import { writeAuditLog } from '../utils/auditLog.js';
@@ -57,10 +68,14 @@ export const createCheckoutSession = onCall(
     }
     const orgData = orgSnap.data()!;
 
-    const useProMonthlyTrial = shouldUseProMonthlyTrial(planName, billingInterval, {
-      stripeSubscriptionId: orgData.stripeSubscriptionId as string | null,
-      proTrialConsumed: orgData.proTrialConsumed === true,
-    });
+    const useProMonthlyTrial = shouldUseProMonthlyTrial(
+      planName,
+      billingInterval,
+      {
+        stripeSubscriptionId: orgData.stripeSubscriptionId as string | null,
+        proTrialConsumed: orgData.proTrialConsumed === true,
+      },
+    );
 
     const customerId = await ensureOrgStripeCustomer(
       orgRef,

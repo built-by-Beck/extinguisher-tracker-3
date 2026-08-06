@@ -26,7 +26,9 @@ export function LaunchPromoSpotsCounter({
   if (variant === 'hero') {
     if (spots.soldOut && !spots.loading) {
       return (
-        <p className={`text-2xl font-black text-red-300 sm:text-3xl ${className}`}>
+        <p
+          className={`text-2xl font-black text-red-300 sm:text-3xl ${className}`}
+        >
           Promo sold out
         </p>
       );
@@ -65,8 +67,7 @@ export function LaunchPromoSpotsCounter({
       <span className="font-black tabular-nums text-amber-100">
         {spots.loading ? max : remaining}
       </span>{' '}
-      of{' '}
-      <span className="text-amber-200">{max}</span> spots left
+      of <span className="text-amber-200">{max}</span> spots left
     </span>
   );
 }

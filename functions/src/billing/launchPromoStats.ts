@@ -29,9 +29,9 @@ function normalizePromoCode(code: string): string {
   return code.trim().toUpperCase();
 }
 
-function promoCodeFromDiscount(
-  discount: { promotion_code?: string | { code?: string | null } | null },
-): string | null {
+function promoCodeFromDiscount(discount: {
+  promotion_code?: string | { code?: string | null } | null;
+}): string | null {
   const promo = discount.promotion_code;
   if (!promo || typeof promo === 'string') {
     return null;

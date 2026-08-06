@@ -64,7 +64,8 @@ export interface RecalculateResult {
   overdueFlags: string[];
 }
 
-export type UpdateExtinguisherLifecycleStatus = ExtinguisherLifecycleStatusValue;
+export type UpdateExtinguisherLifecycleStatus =
+  ExtinguisherLifecycleStatusValue;
 
 export interface UpdateExtinguisherStatusResult {
   extinguisherId: string;

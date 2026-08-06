@@ -296,7 +296,9 @@ export async function askAssistant(
   return result.response.text();
 }
 
-function formatAiStatusChangeResponse(result: UpdateExtinguisherStatusResult): string {
+function formatAiStatusChangeResponse(
+  result: UpdateExtinguisherStatusResult,
+): string {
   const label = result.newStatus.replace(/_/g, ' ');
   if (result.unchanged) {
     return `**${result.assetId || result.extinguisherId}** is already **${label}** — no database change was needed.`;

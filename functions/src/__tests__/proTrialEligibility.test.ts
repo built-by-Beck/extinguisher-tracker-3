@@ -7,24 +7,21 @@ import {
 } from '../billing/proTrialEligibility.js';
 
 describe('shouldUseProMonthlyTrial', () => {
-  const baseOrg = { stripeSubscriptionId: null as string | null, proTrialConsumed: false };
+  const baseOrg = {
+    stripeSubscriptionId: null as string | null,
+    proTrialConsumed: false,
+  };
 
   it('is true for Pro monthly with no subscription and trial not consumed', () => {
-    expect(
-      shouldUseProMonthlyTrial('pro', 'month', baseOrg),
-    ).toBe(true);
+    expect(shouldUseProMonthlyTrial('pro', 'month', baseOrg)).toBe(true);
   });
 
   it('is false when not Pro', () => {
-    expect(
-      shouldUseProMonthlyTrial('basic', 'month', baseOrg),
-    ).toBe(false);
+    expect(shouldUseProMonthlyTrial('basic', 'month', baseOrg)).toBe(false);
   });
 
   it('is false for yearly Pro', () => {
-    expect(
-      shouldUseProMonthlyTrial('pro', 'year', baseOrg),
-    ).toBe(false);
+    expect(shouldUseProMonthlyTrial('pro', 'year', baseOrg)).toBe(false);
   });
 
   it('is false when org already has a Stripe subscription', () => {

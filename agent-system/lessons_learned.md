@@ -373,3 +373,33 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Destructure `const { user, userProfile } = useAuth();` and use `user.uid` (guard `if (!user?.uid) return;`). This matches `Locations.tsx` which already uses `user.uid` for `createLocation`.
 
 **Prevention rule:** For any privileged write needing the actor's uid, read it from `useAuth().user.uid`, never from `userProfile`. Use `userProfile` only for org/profile metadata like `activeOrgId`.
+
+## 2026-07-21 - Time-bounded pending status must not block re-invite
+
+**What happened:** Expired invites stayed `status: 'pending'` until someone hit `acceptInvite`. `createInvite` duplicate check was only `orgId + email + status=='pending'` and ignored `expiresAt`, so owners could not re-invite after a link expired ("A pending invite already exists…").
+
+**Fix used:** On create, auto-expire overdue pending invites for that email before the duplicate check; add `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past 30-day retention.
+
+**Prevention rule:** Any time-bounded status (e.g. `pending` with `expiresAt`) must either be updated by a scheduled job when the deadline passes **or** be treated as expired in business logic (duplicate checks, UI lists, accept paths) when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+## 2026-07-26 — Universal Custom Assets: do not commit repo-wide Prettier sweeps
+
+**Error:** Build ran `pnpm format` across the whole tree and committed ~70 unrelated files (Members, Privacy, FieldWork, billing, AI services, etc.) alongside the Custom Assets feature.
+
+**What happened:** First feature commit looked huge and mixed format-only churn with real work, making Review harder and risking accidental semantic diffs.
+
+**Fix used:** Soft-reset the commit, restore unrelated paths from `main`, keep only plan/memory + Custom Assets libs/page + Sidebar/DashboardLayout title + routes redirect, then recommit. Re-ran Vitest/lint/build on the scoped tree.
+
+**Prevention rule:** After `pnpm format` / Prettier, inspect `git status` / `git diff --stat` before commit. For feature branches, stage only task-related paths (or run Prettier on touched files). Never ship an unrelated repo-wide format sweep inside a product feature commit.
+
+## 2026-07-29 - Denormalize parentLocation from building ancestor, not selected node
+
+**What happened:** ExtinguisherForm historically set `parentLocation` to the selected location node's name (e.g. "Floor 4" or "Room 401"), which broke building-level reporting and floor tools that expect the building name.
+
+**Fix:** `deriveLocationFields` walks ancestors for building-level and floor-level types and writes `parentLocation` / `floor` / `section` from that hierarchy. All assign surfaces should use this helper (or DetailedLocationPicker) instead of `loc.name` alone.
+
+## 2026-07-29 - Preserve denormalized floor when hierarchy has no floor node
+
+**What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
+
+**Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.

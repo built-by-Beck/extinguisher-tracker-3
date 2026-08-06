@@ -381,8 +381,9 @@ export default function MarketingHomePage() {
               Plans
             </h2>
             <p className="mt-4 max-w-2xl text-gray-600">
-              Choose monthly or yearly billing, then pick the tier that fits your
-              program. Checkout happens in the app after you create an account.
+              Choose monthly or yearly billing, then pick the tier that fits
+              your program. Checkout happens in the app after you create an
+              account.
             </p>
             <div className="mt-6">
               <MarketingSavingsCallout interval={interval} prominent />
@@ -401,8 +402,8 @@ export default function MarketingHomePage() {
               Ready to tighten up your extinguisher program?
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-red-100">
-              Create an account, set up your organization, and start your {TRIAL_DAYS}-day free trial with full plan
-              access.
+              Create an account, set up your organization, and start your{' '}
+              {TRIAL_DAYS}-day free trial with full plan access.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <MarketingSignupLink

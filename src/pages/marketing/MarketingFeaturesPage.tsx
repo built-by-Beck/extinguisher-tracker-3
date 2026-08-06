@@ -165,8 +165,8 @@ export default function MarketingFeaturesPage() {
           />
           <FeatureBlock
             icon={ClipboardCheck}
-            title="Custom asset inspections"
-            what="Create inspection programs for non-extinguisher assets that still need recurring checks, notes, and follow-up visibility."
+            title="Equipment & Asset Inspections"
+            what="Create recurring inspection programs for any physical equipment — elevators, exit signs, AEDs, generators, and custom types — with optional starter templates you can fully edit."
             why="Life safety teams often track more than one asset type, and those checks should not be forced into unrelated spreadsheets."
             outcome="One workflow for extinguisher work plus adjacent recurring inspections your team already has to manage."
           />
