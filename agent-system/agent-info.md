@@ -2614,9 +2614,9 @@ Both updated. PBRD documentation step complete for this cycle.
 - CSV import: per-row unresolved location name warning in import preview (deferred to backlog per review-agent).
 - Generate-from-locations fallback path (root scope with no stairwells) has no test and no user-visible documentation — acceptable edge case, noted for future.
 
-## 2026-07-26 � BUILD: Visible rename Equipment & Asset Inspections / Forms & Walkthroughs � built_by_Beck
+## 2026-07-26 � BUILD: Visible rename Equipment & Asset Inspections / Forms & Walkthroughs � built_by_Beck
 
-**Agent:** build � **Branch:** cursor/universal-custom-assets-dffe
+**Agent:** build � **Branch:** cursor/universal-custom-assets-dffe
 
 **Change:** User-facing copy only. Routes, files, collections, flags unchanged.
 
@@ -2650,3 +2650,67 @@ Both updated. PBRD documentation step complete for this cycle.
 - Filter mode hides sub-location/vicinity by default
 - Restored expired/candidates print blurbs
 - Re-validated lint/build/tests — treat as ACCEPTED WITH MINOR CONCERNS (Inventory filter still uses full cascade; legacy no-locationId units excluded from loc-filtered print)
+
+## Agent Update - 2026-06-10
+Task:
+* Align token-conscious PBRD workflow — agent memory writeback, Cursor agents, Document Agent spec
+Classification:
+* MEDIUM
+Agent:
+* Build
+Files touched:
+* docs/AI_WORKFLOW.md, CODEX.md, AGENTS.md, agents/.claude/agents/*.md, agents/.codex/agents/*.md, .cursor/agents/plan-agent.md, build-agent.md, review-agent.md, document-agent.md, docs/pbrd-kit/skills/*.md, docs/pbrd-kit/README.md
+Summary:
+* Canonical spec already in docs/AI_WORKFLOW.md; aligned build/review/plan agents to write agent-info.md (not legacy agents-info.md); added missing .cursor/agents for plan/build/review; expanded Document Agent section; linked pbrd-kit skills to canonical spec
+Checks:
+* Workflow doc review only — no app code changed
+Next:
+* None — workflow control files now consistent
+
+## Agent Update - 2026-07-20
+Task:
+* AI location inspection progress queries (deterministic Pro+ assistant); rebased onto latest origin/main after pull
+Classification:
+* MEDIUM
+Agent:
+* Build
+Files touched:
+* src/types/aiQuery.ts, src/services/aiQueryIntentService.ts, src/services/aiQueryIntentService.test.ts, src/utils/resolveLocationFromQuery.ts, src/utils/resolveLocationFromQuery.test.ts, src/services/aiService.ts, src/services/aiService.test.ts, src/components/ai/AiAssistantPanel.tsx, src/lib/aiKnowledgeBase.ts, functions/src/ai/queryAiMemory.ts, functions/src/utils/locationHelpers.ts, functions/src/utils/resolveLocationFromQuery.ts, functions/src/utils/workspaceInspectionStats.ts, functions/src/__tests__/queryAiMemory.test.ts
+Summary:
+* Added get_location_inspection_progress intent; server resolves explicit building/floor names or infers "this location" from user's latest inspection in active workspace; counts match workspace UI semantics (subtree, de-dupe, superseded exclusion). Merged onto origin/main after 2026-07-20 pull (kept upstream note-category intents + Architecture docs).
+Checks:
+* Pull fast-forwarded main to 8dbd68e; stash conflicts resolved manually
+Next:
+* Manual emulator smoke: ask both example questions and compare counts to workspace drill-down
+
+## Agent Update - 2026-08-06
+Task:
+* Inspections workspace: buildings-only cards; selecting a building opens pending extinguishers (incl. units on floors)
+Classification:
+* SMALL
+Agent:
+* Build
+Files touched:
+* src/hooks/useLocationDrillDown.ts, src/hooks/useLocationDrillDown.test.ts, src/pages/WorkspaceDetail.tsx, src/pages/guest/GuestWorkspaceDetail.tsx, agent-system/lessons_learned.md
+Summary:
+* Floor-like location types no longer appear as drill-down cards; buildings with only floor children are leaves. Subtree collection still includes floor-assigned units so pending lists cover the whole building. Guest view inherits the same hook behavior.
+Checks:
+* vitest useLocationDrillDown.test.ts — pass; eslint touched files — pass; tsc -b — pass
+Next:
+* Manual: open Inspections workspace, confirm only buildings, click building, see left-to-check list including floor units
+
+## Agent Update - 2026-08-06
+Task:
+* Redesign inspection workspace to compact master-detail + floor label normalization/cleanup
+Classification:
+* LARGE
+Agent:
+* Build
+Files touched:
+* src/pages/WorkspaceDetail.tsx (rewritten), src/components/workspace/LocationExplorer.tsx, ExtinguisherCompactList.tsx, src/utils/floorParsing.ts (+tests), inspectionLocationTree.ts (+tests), planFloorLocationCleanup.ts (+tests), src/pages/DataOrganizer.tsx (normalize floors tool), useLocationDrillDown.ts (shared isFloorLike import)
+Summary:
+* Replaced giant location chips/accordions with sticky left location tree (buildings + expandable floors) and compact extinguisher table/list. URL `loc` + `scope` preserved. Floor label normalization merges display duplicates; Data Organizer step 3 permanently renames/merges floor locations.
+Checks:
+* tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
+Next:
+* Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors

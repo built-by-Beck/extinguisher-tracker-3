@@ -1,8 +1,9 @@
 /**
  * useLocationDrillDown — manages hierarchical location navigation state.
  *
- * Provides a drill-down state machine for navigating:
- * Root (all top-level locations) → Building → Floor → Leaf (extinguisher list)
+ * Inspections workspace shows building-level cards only. Floor-like children are
+ * omitted from navigation so selecting a building opens the extinguisher list for
+ * that building (including units assigned to floors underneath).
  *
  * Author: built_by_Beck
  */
@@ -15,15 +16,22 @@ import {
   type Location,
   type LocationTreeNode,
 } from '../services/locationService.ts';
+import { isFloorLikeLocationType } from '../utils/floorParsing.ts';
+
+export { isFloorLikeLocationType };
+
+function navigableChildren(nodes: LocationTreeNode[]): LocationTreeNode[] {
+  return nodes.filter((node) => !isFloorLikeLocationType(node.locationType));
+}
 
 export interface UseLocationDrillDownReturn {
   /** Current location ID (null = root level showing top-level locations) */
   currentLocationId: string | null;
   /** Current location object (null at root) */
   currentLocation: Location | null;
-  /** Children of the current location (next level to show as cards) */
+  /** Children of the current location (next level to show as cards; floors omitted) */
   currentChildren: LocationTreeNode[];
-  /** Whether the current location is a leaf (no children — show extinguisher list) */
+  /** Whether the current location is a leaf (no navigable children — show extinguisher list) */
   isLeaf: boolean;
   /** Whether we're at root level */
   isRoot: boolean;
@@ -75,9 +83,9 @@ export function useLocationDrillDown(
   }, [tree]);
 
   const currentChildren = useMemo(() => {
-    if (!currentLocationId) return tree;
+    if (!currentLocationId) return navigableChildren(tree);
     const node = treeNodeMap.get(currentLocationId);
-    return node?.children ?? [];
+    return navigableChildren(node?.children ?? []);
   }, [currentLocationId, tree, treeNodeMap]);
 
   const isLeaf = currentLocationId !== null && currentChildren.length === 0;
