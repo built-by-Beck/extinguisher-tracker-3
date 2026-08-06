@@ -2468,3 +2468,19 @@ Checks:
 * vitest useLocationDrillDown.test.ts — pass; eslint touched files — pass; tsc -b — pass
 Next:
 * Manual: open Inspections workspace, confirm only buildings, click building, see left-to-check list including floor units
+
+## Agent Update - 2026-08-06
+Task:
+* Redesign inspection workspace to compact master-detail + floor label normalization/cleanup
+Classification:
+* LARGE
+Agent:
+* Build
+Files touched:
+* src/pages/WorkspaceDetail.tsx (rewritten), src/components/workspace/LocationExplorer.tsx, ExtinguisherCompactList.tsx, src/utils/floorParsing.ts (+tests), inspectionLocationTree.ts (+tests), planFloorLocationCleanup.ts (+tests), src/pages/DataOrganizer.tsx (normalize floors tool), useLocationDrillDown.ts (shared isFloorLike import)
+Summary:
+* Replaced giant location chips/accordions with sticky left location tree (buildings + expandable floors) and compact extinguisher table/list. URL `loc` + `scope` preserved. Floor label normalization merges display duplicates; Data Organizer step 3 permanently renames/merges floor locations.
+Checks:
+* tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
+Next:
+* Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors

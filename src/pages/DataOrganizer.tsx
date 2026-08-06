@@ -31,9 +31,16 @@ import {
   subscribeToLocations,
   createLocation,
   normalizeLocationName,
+  updateLocation,
+  softDeleteLocation,
   type Location,
 } from '../services/locationService.ts';
-import { parseFloorFromText, floorSortRank } from '../utils/floorParsing.ts';
+import {
+  parseFloorFromText,
+  floorSortRank,
+  normalizeFloorLabel,
+} from '../utils/floorParsing.ts';
+import { planFloorLocationCleanup } from '../utils/planFloorLocationCleanup.ts';
 
 const EXTINGUISHER_TYPES = [
   'ABC Dry Chemical',
@@ -100,6 +107,10 @@ export default function DataOrganizer() {
   const [assignFloorsResult, setAssignFloorsResult] = useState<string | null>(
     null,
   );
+  const [normalizingFloors, setNormalizingFloors] = useState(false);
+  const [normalizeFloorsResult, setNormalizeFloorsResult] = useState<
+    string | null
+  >(null);
   const [repairingReplacements, setRepairingReplacements] = useState(false);
   const [repairReplacementResult, setRepairReplacementResult] = useState<
     string | null
@@ -402,6 +413,73 @@ export default function DataOrganizer() {
     }
   };
 
+  const handleNormalizeFloorLabels = async () => {
+    if (!orgId) return;
+    setNormalizingFloors(true);
+    setNormalizeFloorsResult(null);
+    try {
+      const plan = planFloorLocationCleanup(locations);
+      for (const rename of plan.renames) {
+        await updateLocation(orgId, rename.locationId, { name: rename.toName });
+      }
+
+      let mergedExtinguishers = 0;
+      for (const merge of plan.merges) {
+        // Ensure keep location has canonical name
+        await updateLocation(orgId, merge.keepLocationId, {
+          name: merge.keepName,
+        });
+        const sourceSet = new Set(merge.sourceLocationIds);
+        const updates = extinguishers
+          .filter((e) => e.id && e.locationId && sourceSet.has(e.locationId))
+          .map((e) => ({
+            extId: e.id!,
+            data: {
+              locationId: merge.keepLocationId,
+              floor: merge.keepName,
+            },
+          }));
+        if (updates.length > 0) {
+          await batchUpdateExtinguishers(orgId, updates);
+          mergedExtinguishers += updates.length;
+        }
+        for (const sourceId of merge.sourceLocationIds) {
+          await softDeleteLocation(orgId, sourceId);
+        }
+      }
+
+      // Also canonicalize free-text floor field on extinguishers
+      const floorFieldUpdates = extinguishers
+        .map((e) => {
+          const canonical = normalizeFloorLabel(e.floor);
+          if (!canonical || !e.id || canonical === (e.floor ?? '').trim()) {
+            return null;
+          }
+          return { extId: e.id, data: { floor: canonical } };
+        })
+        .filter(
+          (u): u is { extId: string; data: { floor: string } } => u != null,
+        );
+      if (floorFieldUpdates.length > 0) {
+        await batchUpdateExtinguishers(orgId, floorFieldUpdates);
+      }
+
+      setNormalizeFloorsResult(
+        `Normalized ${plan.renames.length} floor name(s), merged ${plan.merges.length} duplicate floor location(s) ` +
+          `(${mergedExtinguishers} extinguisher reassignment(s)), ` +
+          `updated ${floorFieldUpdates.length} extinguisher floor field(s). ` +
+          `Active workspace inspection rows still pointing at deleted floor IDs may need a workspace repair or re-open.`,
+      );
+    } catch (err) {
+      console.error('Failed to normalize floors', err);
+      setNormalizeFloorsResult(
+        'Failed to normalize floor labels. Please try again.',
+      );
+    } finally {
+      setNormalizingFloors(false);
+    }
+  };
+
   const toggleSelectAll = () => {
     if (selected.size === incomplete.length) {
       setSelected(new Set());
@@ -625,7 +703,7 @@ export default function DataOrganizer() {
               creates a Floor location under each building and assigns units to
               it, so you can drill Building → Floor while inspecting.
             </p>
-            {(extractFloorsResult || assignFloorsResult) && (
+            {(extractFloorsResult || assignFloorsResult || normalizeFloorsResult) && (
               <div className="mt-2 space-y-1">
                 {extractFloorsResult && (
                   <p className="text-sm font-medium text-teal-900">
@@ -635,6 +713,11 @@ export default function DataOrganizer() {
                 {assignFloorsResult && (
                   <p className="text-sm font-medium text-teal-900">
                     {assignFloorsResult}
+                  </p>
+                )}
+                {normalizeFloorsResult && (
+                  <p className="text-sm font-medium text-teal-900">
+                    {normalizeFloorsResult}
                   </p>
                 )}
               </div>
@@ -665,6 +748,19 @@ export default function DataOrganizer() {
                   <CheckSquare className="h-4 w-4" />
                 )}
                 2. Create &amp; assign floors
+              </button>
+              <button
+                type="button"
+                onClick={handleNormalizeFloorLabels}
+                disabled={normalizingFloors || !orgId}
+                className="flex items-center gap-2 rounded-lg border border-teal-600 bg-white px-4 py-2 text-sm font-medium text-teal-900 hover:bg-teal-50 disabled:opacity-50"
+              >
+                {normalizingFloors ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Wrench className="h-4 w-4" />
+                )}
+                3. Normalize floor labels
               </button>
             </div>
           </div>

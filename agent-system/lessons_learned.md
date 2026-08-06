@@ -1,5 +1,13 @@
 ## Lessons Learned
 
+## 2026-08-06 — Inspection workspace needs master-detail, not leaf drill-down cards
+
+**Error:** Card/accordion drill-down wasted vertical space (~840 units) and floor children either blocked building selection or duplicated labels ("2nd fl" vs "2nd Floor").
+
+**Fix:** Master-detail with a sticky location tree + compact list; normalize floor labels for grouping without rewriting Firestore on load; permanent cleanup is an explicit Data Organizer action.
+
+**How to apply:** Keep `collectInspectionRowsForScope` / monthly snapshot as the count source of truth; never N+1 by location; store selection in URL (`loc`, `scope`).
+
 ## 2026-08-06 — Floor children block building inspection leaf
 
 **Error:** After the floors feature created `locationType: 'floor'` children under buildings, `useLocationDrillDown` treated buildings as non-leaves (`currentChildren.length > 0`). Tapping a building showed floor cards (often duplicate names like "2nd Floor" / "2nd fl") instead of the extinguisher list, even though counts were correct via subtree aggregation.

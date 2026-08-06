@@ -16,23 +16,9 @@ import {
   type Location,
   type LocationTreeNode,
 } from '../services/locationService.ts';
+import { isFloorLikeLocationType } from '../utils/floorParsing.ts';
 
-/** Location types that are not selectable cards in the inspection drill-down. */
-const NON_NAVIGABLE_LOCATION_TYPES = new Set([
-  'floor',
-  'basement',
-  'attic',
-  'parking_deck',
-  'ground',
-  'mezzanine',
-  'penthouse',
-  'roof',
-]);
-
-export function isFloorLikeLocationType(locationType: string | null | undefined): boolean {
-  if (!locationType) return false;
-  return NON_NAVIGABLE_LOCATION_TYPES.has(locationType.toLowerCase());
-}
+export { isFloorLikeLocationType };
 
 function navigableChildren(nodes: LocationTreeNode[]): LocationTreeNode[] {
   return nodes.filter((node) => !isFloorLikeLocationType(node.locationType));
