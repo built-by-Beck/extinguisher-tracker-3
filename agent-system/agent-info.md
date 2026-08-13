@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-08-13
+Task:
+* Daily Review Bot: scoped health/security review and small package config fix.
+Classification:
+* SMALL
+Agent:
+* Review / Build / Document
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/lessons-learned.md
+Summary:
+* Fixed duplicate `pnpm.onlyBuiltDependencies` in root `package.json`; the later duplicate silently dropped `protobufjs` from the effective allowlist. Dependency audits still report production advisories and should be handled in a separate dependency/security pass.
+Checks:
+* `pnpm lint`, `pnpm build`, `pnpm test`, `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test`, JSON parse check, and `pnpm exec prettier --check package.json` passed. `npm --prefix functions audit --omit=dev --json` and `pnpm audit --prod --json` failed with advisories.
+Next:
+* Plan a focused dependency remediation pass for root React Router/Firebase transitive advisories and functions Genkit/OpenTelemetry/protobuf/fast-uri advisories.
