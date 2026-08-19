@@ -2714,3 +2714,22 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-08-19
+Task:
+* Daily Review Bot run
+Classification:
+* SMALL review + one safe config fix
+Agent:
+* Review
+Files touched:
+* package.json, agent-system/agent-info.md
+Summary:
+* Frontend lint/test/build passed. Functions build initially failed because async setup did not install functions dependencies; after `npm --prefix functions ci`, functions build/lint/test passed. Fixed duplicate `pnpm.onlyBuiltDependencies` in package.json so the effective pnpm config keeps `protobufjs`.
+Findings:
+* Production dependency audits still report frontend critical/high advisories (`websocket-driver`, `react-router`, `postcss`/`nanoid`) and functions high advisories in Genkit/OpenTelemetry plus `brace-expansion` and `fast-uri`; needs scoped dependency update/review.
+* Data Organizer floor normalization still warns that active workspace inspection rows may retain deleted floor IDs; this can hide rows/counts in the master-detail workspace location tree until a repair/re-open path updates inspection.locationId.
+Checks:
+* pnpm lint, pnpm test, pnpm build — pass
+* npm --prefix functions run build/lint/test — pass after npm --prefix functions ci
+* pnpm audit --prod --audit-level high and npm --prefix functions audit --omit=dev --audit-level=high — fail with dependency advisories
