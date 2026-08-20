@@ -2714,3 +2714,21 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-08-20
+Task:
+* Daily Review Bot - scoped health/security/recent-change review
+Classification:
+* SMALL safe fix during review
+Agent:
+* Review/Build/Document
+Files touched:
+* src/utils/inspectionLocationTree.ts, src/utils/inspectionLocationTree.test.ts, agent-system/lessons_learned.md, agent-system/agent-info.md
+Summary:
+* Fixed inspection workspace floor filters/count badges so selecting a floor includes descendant rooms/areas, not just direct floor location docs. Added a regression case for Room 201 under a merged 2nd Floor.
+Checks:
+* pnpm lint - pass; pnpm build - pass; pnpm test - pass (173 tests); pnpm vitest run src/utils/inspectionLocationTree.test.ts - pass (4 tests); npm --prefix functions run lint/build/test - pass (15 suites / 67 tests); touched-file Prettier check - pass.
+Review notes:
+* Dependency audits still fail and need a dedicated dependency/security pass: root `pnpm audit --audit-level high` reports 28 vulnerabilities (13 moderate, 14 high, 1 critical); functions `npm --prefix functions audit --audit-level=high` reports 56 vulnerabilities (43 moderate, 13 high), largely through Genkit/OpenTelemetry plus dev tooling.
+Next:
+* Build Agent/human owner should handle dependency audit remediation separately; do not mix broad dependency upgrades into small review-bot fixes.

@@ -403,3 +403,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-08-20 - Floor location filters must include descendant rooms
+
+**What happened:** The new inspection workspace location tree merged duplicate floor labels correctly, but floor selection and floor badge counts only used the direct floor location IDs. Extinguishers assigned to rooms or areas under that floor could disappear from the selected floor view while still counting under the building.
+
+**Fix:** `resolveSelectionLocationIds` and `attachScopeCounts` now expand every floor location ID to include its descendants before filtering/counting. Added a regression test with `Room 201` under a merged 2nd Floor.
+
+**Prevention rule:** Whenever a UI location node represents a structural location (building, floor, wing, zone), selection and counts should use the full subtree unless the product explicitly asks for direct-only records.
