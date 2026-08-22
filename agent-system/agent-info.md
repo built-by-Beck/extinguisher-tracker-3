@@ -2714,3 +2714,30 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-08-22
+Task:
+* Daily Review Bot scheduled codebase review
+Classification:
+* SMALL
+Agent:
+* Review/Build/Document
+PBRD:
+* Plan Agent approved a narrow package-config fix; Build made the minimal edit; Review validation pending/followed.
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/lessons-learned.md
+Summary:
+* Fixed recurring duplicate `pnpm.onlyBuiltDependencies` in root `package.json`; the effective parsed allowlist now includes `esbuild`, `@firebase/util`, and `protobufjs` exactly once.
+* Functions build initially failed because functions dependencies were missing after async setup status 1; `npm --prefix functions ci` restored local deps and the build passed.
+Checks:
+* `node -e` parsed allowlist and `rg '"onlyBuiltDependencies"' package.json` - pass
+* `pnpm lint`, `pnpm test`, `pnpm build` - pass
+* `npm --prefix functions run build`, `npm --prefix functions run lint`, `npm --prefix functions test` - pass after functions dependency install
+* `pnpm exec prettier --check package.json` - pass
+* `pnpm format:check` - fail on 10 unrelated pre-existing source files
+* `pnpm audit --audit-level moderate` - fail: 28 advisories (13 moderate, 14 high, 1 critical)
+* `npm --prefix functions audit --audit-level=moderate` - fail: 56 advisories (43 moderate, 13 high)
+Next:
+* Run a focused dependency/security pass for root and functions audit failures.
+* Address known full-tree Prettier drift separately; do not mix with product fixes.
+* Investigate async install status 1 / functions dependency install path so future reviews do not start with missing functions modules.
