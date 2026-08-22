@@ -248,3 +248,9 @@ Each entry follows this structure:
 - **Issue**: `createInvite` duplicate check used `orgId + email + status=='pending'` and ignored `expiresAt`. Expiration was applied lazily on accept only, so overdue pending docs permanently blocked a new invite.
 - **Resolution**: Auto-expire overdue pending on create before duplicate check; `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past retention.
 - **Rule**: Any time-bounded status must either be updated by a job when the deadline passes OR treated as expired in business logic when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+### 2026-08-22 -- Duplicate package.json keys can undo install allowlists
+- **Context**: Daily Review found root `package.json` again had two `pnpm.onlyBuiltDependencies` keys.
+- **Issue**: JSON parsers keep the later duplicate key, so the effective parsed allowlist silently dropped `protobufjs` even though an earlier duplicate still showed it.
+- **Resolution**: Leave exactly one parsed `pnpm.onlyBuiltDependencies` entry containing `esbuild`, `@firebase/util`, and `protobufjs`; verify with a parsed `node -e` check and `rg '"onlyBuiltDependencies"' package.json`.
+- **Rule**: After package-manager config merges, parse JSON and count duplicate-prone keys instead of relying on visual inspection of the first matching key.
