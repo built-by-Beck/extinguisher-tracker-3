@@ -92,7 +92,10 @@ export function buildInspectionLocationTree(
   });
 
   uniqueRoots.sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+    a.name.localeCompare(b.name, undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    }),
   );
 
   return uniqueRoots.map((building) => {
@@ -107,7 +110,8 @@ export function buildInspectionLocationTree(
     const mergeMap = new Map<string, Location[]>();
     for (const floor of floorLocs) {
       const label = displayNameForLocation(floor);
-      const mergeKey = normalizeFloorLabel(label)?.toLowerCase() ?? label.toLowerCase();
+      const mergeKey =
+        normalizeFloorLabel(label)?.toLowerCase() ?? label.toLowerCase();
       const list = mergeMap.get(mergeKey) ?? [];
       list.push(floor);
       mergeMap.set(mergeKey, list);
@@ -155,6 +159,20 @@ export function findInspectionLocationNode(
   return null;
 }
 
+function expandLocationIdsWithDescendants(
+  locations: Location[],
+  locationIds: string[],
+): string[] {
+  const expanded = new Set<string>();
+  for (const id of locationIds) {
+    expanded.add(id);
+    for (const descendantId of getAllDescendantIds(locations, id)) {
+      expanded.add(descendantId);
+    }
+  }
+  return [...expanded];
+}
+
 /** Resolve selection to concrete location IDs (building includes all descendants). */
 export function resolveSelectionLocationIds(
   tree: InspectionLocationNode[],
@@ -166,18 +184,14 @@ export function resolveSelectionLocationIds(
   if (!node) {
     // Fallback: treat as raw location id
     if (locations.some((l) => l.id === selectedKey)) {
-      const descendants = getAllDescendantIds(locations, selectedKey);
-      descendants.add(selectedKey);
-      return [...descendants];
+      return expandLocationIdsWithDescendants(locations, [selectedKey]);
     }
     return null;
   }
   if (node.kind === 'building') {
-    const descendants = getAllDescendantIds(locations, node.locationIds[0]);
-    descendants.add(node.locationIds[0]);
-    return [...descendants];
+    return expandLocationIdsWithDescendants(locations, node.locationIds);
   }
-  return [...node.locationIds];
+  return expandLocationIdsWithDescendants(locations, node.locationIds);
 }
 
 export function attachScopeCounts(
@@ -199,9 +213,12 @@ export function attachScopeCounts(
     }
 
     const children = building.children.map((floor) => {
+      const floorIds = resolveSelectionLocationIds(tree, locations, floor.key);
       let floorCount = 0;
-      for (const id of floor.locationIds) {
-        floorCount += countByLocationId.get(id) ?? 0;
+      if (floorIds) {
+        for (const id of floorIds) {
+          floorCount += countByLocationId.get(id) ?? 0;
+        }
       }
       return { ...floor, count: floorCount };
     });
