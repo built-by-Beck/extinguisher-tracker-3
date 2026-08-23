@@ -403,3 +403,19 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-08-23 - Recheck duplicate-prone package keys after dependency merges
+
+**What happened:** The root `package.json` again had two `pnpm.onlyBuiltDependencies` keys. `JSON.parse` kept only the later key, dropping `protobufjs` from the effective build-script allowlist even though repository setup guidance requires it.
+
+**Fix:** Removed the duplicate later key and verified the parsed allowlist contains `esbuild`, `@firebase/util`, and `protobufjs`.
+
+**Prevention rule:** After dependency or package-manager config merges, count duplicate-prone JSON keys with a text search and validate the parsed effective value; a passing build can miss install-time allowlist drift.
+
+## 2026-08-23 - Run touched-file Prettier before committing utility edits
+
+**What happened:** A focused inspection location-tree fix was committed before running touched-file Prettier; the first post-commit formatter check failed on long pre-existing lines touched by the edit.
+
+**Fix:** Ran `pnpm exec prettier --write` on the touched files, committed the formatting-only correction, then reran touched-file Prettier and targeted tests successfully.
+
+**Prevention rule:** For review-bot fixes, run touched-file Prettier before the commit when possible, especially on utility files with long expressions near the edited block.

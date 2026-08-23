@@ -2714,3 +2714,21 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-08-23
+Task:
+* Daily Review Bot: package config and inspection workspace location-tree review
+Classification:
+* SMALL
+Agent:
+* Review/Build/Review/Document
+Files touched:
+* package.json, src/utils/inspectionLocationTree.ts, src/utils/inspectionLocationTree.test.ts, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Removed a repeated duplicate `pnpm.onlyBuiltDependencies` key so JSON parsing preserves `protobufjs` with `esbuild` and `@firebase/util`.
+* Fixed inspection floor selection/count scopes so merged floor nodes include descendant room/vicinity location IDs, matching building scope behavior.
+Checks:
+* Prettier touched files, package parse check, targeted `inspectionLocationTree` Vitest, `pnpm lint`, `pnpm test`, `pnpm build`, functions build/lint/test — pass.
+* Dependency audits still fail: root 28 vulnerabilities (1 critical, 14 high, 13 moderate); functions 56 vulnerabilities (13 high, 43 moderate).
+Next:
+* Build Agent should handle dependency audit remediation as a separate dependency/security pass.
