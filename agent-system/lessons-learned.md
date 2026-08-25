@@ -20,6 +20,12 @@ Each entry follows this structure:
 
 ## Entries
 
+### 2026-08-25 -- Root package pnpm allowlist can regress through duplicate JSON keys
+- **Context**: Daily review of package/config health after recent main merges.
+- **Issue**: `package.json` had two `pnpm.onlyBuiltDependencies` keys. JSON parsing kept only the later value, silently dropping `protobufjs` from the effective allowlist even though setup guidance and the first key included it.
+- **Resolution**: Removed the duplicate later key so the single parsed allowlist includes `esbuild`, `@firebase/util`, and `protobufjs`.
+- **Rule**: After dependency or merge changes, verify duplicate-prone package config with both a text search for repeated keys and a parsed JSON check, because duplicate JSON keys can look correct in file view while the effective value is wrong.
+
 ### 2026-05-07 -- Full `firebase deploy` aborts when cloud has extra functions
 - **Context**: Running `firebase deploy` (all targets) after commit/push; project `extinguisher-tracker-3` had legacy callable functions in GCP that are not exported from local `functions/src/index.ts`.
 - **Issue**: CLI exits with “functions are found in your project but do not exist in your local source code” and refuses deletion in non-interactive mode, so nothing deploys if you only ran the full command once.
