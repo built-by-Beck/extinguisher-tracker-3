@@ -1,5 +1,13 @@
 ## Lessons Learned
 
+## 2026-08-25 - Root package pnpm allowlist can regress through duplicate JSON keys
+
+**What happened:** Daily review found `package.json` again had two `pnpm.onlyBuiltDependencies` keys. JSON parsing kept only the later key, silently dropping `protobufjs` even though the first key and workspace setup guidance expected it.
+
+**Fix:** Removed the duplicate later key so the single parsed allowlist includes `esbuild`, `@firebase/util`, and `protobufjs`.
+
+**Prevention rule:** After dependency or merge changes, verify duplicate-prone package config with both a text search for repeated keys and a parsed JSON check, because duplicate JSON keys can look correct in file view while the effective value is wrong.
+
 ## 2026-08-06 — Inspection workspace needs master-detail, not leaf drill-down cards
 
 **Error:** Card/accordion drill-down wasted vertical space (~840 units) and floor children either blocked building selection or duplicated labels ("2nd fl" vs "2nd Floor").
