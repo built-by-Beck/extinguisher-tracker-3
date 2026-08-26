@@ -2714,3 +2714,21 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-08-26
+Task:
+* Daily Review Bot: run focused code health checks and fix small safe issue
+Classification:
+* SMALL / PBRD Lite
+Agent:
+* Review Bot
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed recurring duplicate `pnpm.onlyBuiltDependencies` key in root `package.json`. The duplicate parsed away `protobufjs`, despite setup guidance requiring it in the allowed postinstall list.
+Checks:
+* Parsed `package.json` allowlist includes `esbuild`, `@firebase/util`, `protobufjs`; duplicate-key search now shows one key; touched-file Prettier passed.
+* `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test` passed.
+* `pnpm format:check` still fails on 10 pre-existing workspace/floor formatting files; not fixed to avoid an unrelated format sweep during review.
+Next:
+* Consider a scoped Build Agent pass to format the 10 listed workspace/floor files if repo-wide Prettier is intended as a CI gate.
