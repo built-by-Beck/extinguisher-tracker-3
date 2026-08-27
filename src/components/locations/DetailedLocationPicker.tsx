@@ -123,11 +123,7 @@ export function DetailedLocationPicker({
     setBuildingId(cascade.buildingId);
     setFloorId(cascade.floorId);
     setSubLocationId(cascade.subLocationId);
-    setPreservedFloor(
-      cascade.floorId
-        ? ''
-        : floorLabelProp || '',
-    );
+    setPreservedFloor(cascade.floorId ? '' : floorLabelProp || '');
     setVisible((prev) => ({
       floor:
         cascade.floorId != null || Boolean(floorLabelProp?.trim())

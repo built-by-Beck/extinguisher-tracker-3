@@ -48,7 +48,9 @@ function collapseWhitespace(value: string): string {
 /**
  * Strip punctuation and normalize common abbreviations for matching.
  */
-export function normalizeLocationLabelKey(value: string | null | undefined): string {
+export function normalizeLocationLabelKey(
+  value: string | null | undefined,
+): string {
   return collapseWhitespace((value ?? '').toString().toLowerCase())
     .replace(/[.]/g, '')
     .replace(/,/g, ' ')
@@ -179,7 +181,10 @@ export function sortFloorsNaturally(labels: string[]): string[] {
   return [...labels].sort((a, b) => {
     const rankDiff = floorSortRank(a) - floorSortRank(b);
     if (rankDiff !== 0) return rankDiff;
-    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    return a.localeCompare(b, undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    });
   });
 }
 
