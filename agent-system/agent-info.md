@@ -2714,3 +2714,25 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-08-27
+Task:
+* Daily Review Bot codebase health and dependency audit
+Classification:
+* SMALL review with safe fixes
+Agent:
+* Review / Build / Review / Document
+Files touched:
+* package.json, pnpm-lock.yaml, functions/package.json, functions/package-lock.json
+* src/components/locations/DetailedLocationPicker.tsx, src/components/workspace/ExtinguisherCompactList.tsx, src/components/workspace/LocationExplorer.tsx, src/hooks/useLocationDrillDown.test.ts, src/pages/DataOrganizer.tsx, src/pages/WorkspaceDetail.tsx, src/utils/floorParsing.test.ts, src/utils/floorParsing.ts, src/utils/inspectionLocationTree.ts, src/utils/planFloorLocationCleanup.ts
+Summary:
+* Fixed repo format-check failures with scoped Prettier on the 10 files reported by `pnpm format:check`.
+* Patched root production audit findings by updating overrides for PostCSS/protobufjs/websocket-driver, removing duplicate pnpm metadata, and moving React Router to 7.18.2.
+* Patched the functions protobufjs override; functions production audit still reports Genkit/OpenTelemetry advisories with no available audit fix.
+Checks:
+* `pnpm format:check`, `pnpm lint`, `pnpm test`, `pnpm build` — pass
+* `pnpm audit --prod` — pass, 0 advisories
+* `npm --prefix functions run lint`, `npm --prefix functions test`, `npm --prefix functions run build` — pass
+* `npm --prefix functions audit --omit=dev` — fails: 40 moderate / 12 high remaining in Genkit/OpenTelemetry chain
+Next:
+* Plan a separate Genkit/OpenTelemetry dependency review before changing AI/function runtime dependencies broadly.
