@@ -403,3 +403,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-08-27 - Audit overrides must track patched versions, and duplicate package keys hide config
+
+**What happened:** Daily review found frontend production audit failures for websocket-driver, PostCSS/nanoid, protobufjs, and React Router. Root `package.json` also had duplicate `pnpm.onlyBuiltDependencies` keys, so the later key silently dropped `protobufjs` from the effective allowlist.
+
+**Fix:** Updated scoped root overrides to patched versions, removed the duplicate pnpm key while preserving all allowed build dependencies, bumped React Router to 7.18.2, and regenerated the pnpm lockfile. Functions protobufjs override was also bumped to the patched 7.x line.
+
+**Prevention rule:** When audit output points to a package already controlled by overrides, update the override to the patched release and rerun the audit. Also check package metadata for duplicate JSON keys before assuming the visible configuration is the effective configuration.
