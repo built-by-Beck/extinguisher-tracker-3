@@ -248,3 +248,9 @@ Each entry follows this structure:
 - **Issue**: `createInvite` duplicate check used `orgId + email + status=='pending'` and ignored `expiresAt`. Expiration was applied lazily on accept only, so overdue pending docs permanently blocked a new invite.
 - **Resolution**: Auto-expire overdue pending on create before duplicate check; `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past retention.
 - **Rule**: Any time-bounded status must either be updated by a job when the deadline passes OR treated as expired in business logic when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+### 2026-08-28 -- Validate duplicate package.json keys after dependency merges
+- **Context**: Daily Review Bot dependency/manifest review.
+- **Issue**: Root `package.json` again contained duplicate `pnpm.onlyBuiltDependencies` keys. The parsed manifest kept only the later key, dropping `protobufjs` from the effective build-script allowlist.
+- **Resolution**: Removed the later duplicate key and verified the raw occurrence count plus parsed `pkg.pnpm.onlyBuiltDependencies`.
+- **Rule**: For dependency and manifest reviews, check both source occurrences and parsed JSON values for duplicate-prone keys; duplicate keys are valid JSON text to many parsers but silently override earlier values.
