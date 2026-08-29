@@ -155,6 +155,20 @@ export function findInspectionLocationNode(
   return null;
 }
 
+function expandLocationIdsWithDescendants(
+  locations: Location[],
+  locationIds: string[],
+): string[] {
+  const ids = new Set<string>();
+  for (const locationId of locationIds) {
+    ids.add(locationId);
+    for (const descendantId of getAllDescendantIds(locations, locationId)) {
+      ids.add(descendantId);
+    }
+  }
+  return [...ids];
+}
+
 /** Resolve selection to concrete location IDs (building includes all descendants). */
 export function resolveSelectionLocationIds(
   tree: InspectionLocationNode[],
@@ -173,11 +187,9 @@ export function resolveSelectionLocationIds(
     return null;
   }
   if (node.kind === 'building') {
-    const descendants = getAllDescendantIds(locations, node.locationIds[0]);
-    descendants.add(node.locationIds[0]);
-    return [...descendants];
+    return expandLocationIdsWithDescendants(locations, node.locationIds);
   }
-  return [...node.locationIds];
+  return expandLocationIdsWithDescendants(locations, node.locationIds);
 }
 
 export function attachScopeCounts(
@@ -200,7 +212,10 @@ export function attachScopeCounts(
 
     const children = building.children.map((floor) => {
       let floorCount = 0;
-      for (const id of floor.locationIds) {
+      for (const id of expandLocationIdsWithDescendants(
+        locations,
+        floor.locationIds,
+      )) {
         floorCount += countByLocationId.get(id) ?? 0;
       }
       return { ...floor, count: floorCount };
