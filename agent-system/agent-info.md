@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-08-29
+Task:
+* Daily Review Bot cron run: review build health, recent merges, and risky patterns
+Classification:
+* SMALL fixes inside review scope
+Agent:
+* Review/Build/Review/Document
+Files touched:
+* package.json, src/utils/inspectionLocationTree.ts, src/utils/inspectionLocationTree.test.ts, agent-system/lessons_learned.md, agent-system/lessons-learned.md, agent-system/error_log.jsonl
+Summary:
+* Removed recurring duplicate `pnpm.onlyBuiltDependencies` so the parsed allowlist keeps `protobufjs`. Fixed compact workspace floor selection/counting to include descendant room/area location IDs for merged floors and added a regression test.
+Checks:
+* package allowlist parse check, targeted inspectionLocationTree Vitest, touched-file Prettier, pnpm lint, pnpm test, pnpm build, npm --prefix functions run lint/build/test — pass after restoring missing functions/node_modules with npm ci.
+Next:
+* Dependency audit advisories remain in functions install output (56 vulnerabilities); handle in a dedicated dependency/security pass.

@@ -248,3 +248,9 @@ Each entry follows this structure:
 - **Issue**: `createInvite` duplicate check used `orgId + email + status=='pending'` and ignored `expiresAt`. Expiration was applied lazily on accept only, so overdue pending docs permanently blocked a new invite.
 - **Resolution**: Auto-expire overdue pending on create before duplicate check; `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past retention.
 - **Rule**: Any time-bounded status must either be updated by a job when the deadline passes OR treated as expired in business logic when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+### 2026-08-29 -- Daily review: package allowlists and floor selections need parsed/subtree checks
+- **Context**: Daily Review Bot after dependency and inspection-workspace merges.
+- **Issue**: The root `package.json` again contained duplicate `pnpm.onlyBuiltDependencies`, causing the effective parsed value to omit `protobufjs`. The compact inspection tree also resolved merged floor selections to only floor IDs, so room/area descendants under those floors could disappear from floor-scoped lists/count badges.
+- **Resolution**: Removed the duplicate package key, expanded floor node resolution/counting through descendants, and added a regression test covering merged duplicate floors with room children.
+- **Rule**: For review runs after merges, verify both duplicate-prone key source counts and parsed values. Any UI location node that represents a building/floor must resolve using subtree semantics, not just the displayed node IDs.

@@ -403,3 +403,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-08-29 - Daily review: parse package metadata and expand floor descendants
+
+**What happened:** The duplicate root `pnpm.onlyBuiltDependencies` key recurred after merges, so JSON parsing dropped `protobufjs` from the effective allowlist. Review also found the new inspection location tree resolved merged floor selections to floor document IDs only, excluding room/area descendants under those floors.
+
+**Fix:** Remove the later duplicate allowlist so the parsed value contains `esbuild`, `@firebase/util`, and `protobufjs`; expand floor node selections/counts through each floor's descendants; add a regression test for merged floors with room children.
+
+**Prevention rule:** Daily review runs should count duplicate-prone package keys and inspect the parsed value after merges. For inspection location trees, building/floor display nodes must resolve to the same subtree semantics the workspace count/list utilities expect, including descendant rooms and areas.
