@@ -92,7 +92,10 @@ export function buildInspectionLocationTree(
   });
 
   uniqueRoots.sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+    a.name.localeCompare(b.name, undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    }),
   );
 
   return uniqueRoots.map((building) => {
@@ -107,7 +110,8 @@ export function buildInspectionLocationTree(
     const mergeMap = new Map<string, Location[]>();
     for (const floor of floorLocs) {
       const label = displayNameForLocation(floor);
-      const mergeKey = normalizeFloorLabel(label)?.toLowerCase() ?? label.toLowerCase();
+      const mergeKey =
+        normalizeFloorLabel(label)?.toLowerCase() ?? label.toLowerCase();
       const list = mergeMap.get(mergeKey) ?? [];
       list.push(floor);
       mergeMap.set(mergeKey, list);
