@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-08-30
+Task:
+* Daily Review Bot: recurring pnpm allowlist config check
+Classification:
+* SMALL
+Agent:
+* Review/Build
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Review found root `package.json` again had duplicate `pnpm.onlyBuiltDependencies` keys. The effective parsed value dropped `protobufjs`, contrary to Cloud setup guidance and prior fixes. Removed the later duplicate key so the single parsed allowlist remains `esbuild`, `@firebase/util`, and `protobufjs`.
+Checks:
+* Pending final validation in this run: parsed allowlist, duplicate-key search, touched-file Prettier, frontend lint/test/build, functions lint/build/test.
+Next:
+* If this recurs after future merges, inspect merge source or dependency update automation that reintroduces the duplicate pnpm key.
