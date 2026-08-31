@@ -2727,6 +2727,6 @@ Files touched:
 Summary:
 * Root `package.json` again had duplicate `pnpm.onlyBuiltDependencies` keys after recent merges; the effective parsed value dropped `protobufjs`. Removed the later duplicate key so the parsed allowlist retains `esbuild`, `@firebase/util`, and `protobufjs`.
 Checks:
-* Pending in this review run
+* Parsed allowlist check, duplicate-key `rg`, touched-file Prettier, `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint/build/test` after `npm --prefix functions ci` - pass
 Next:
 * Keep duplicate-key source count and parsed allowlist checks early in daily review runs after dependency or main merges.
