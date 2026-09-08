@@ -254,3 +254,9 @@ Each entry follows this structure:
 - **Issue**: JSON parsing kept only the later key, so the effective allowlist omitted `protobufjs` even though setup guidance requires it for reliable generated dependency postinstall behavior.
 - **Resolution**: Removed the later duplicate key and verified the parsed allowlist contains `esbuild`, `@firebase/util`, and `protobufjs`.
 - **Rule**: During review, count duplicate-prone keys in source text and inspect the parsed value; do not trust visual JSON blocks when a later duplicate can override the intended configuration.
+
+### 2026-09-08 -- Floor location counts must include room/area descendants
+- **Context**: Daily Review Bot reviewed the inspection workspace master-detail location tree.
+- **Issue**: Merged floor nodes resolved only to the floor location IDs. Units assigned to child rooms/areas under those floors were excluded from floor selection lists and floor count badges, even though building totals included them.
+- **Resolution**: Resolved floor nodes through each floor ID's descendants with Set de-duplication and added a regression test for merged floor IDs with room/area descendants.
+- **Rule**: Any selectable location scope in monthly inspection UI must resolve to the selected location IDs plus descendants. For merged synthetic nodes, expand every real ID and de-dupe before counting/filtering.

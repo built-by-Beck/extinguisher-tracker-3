@@ -2719,14 +2719,17 @@ Next:
 Task:
 * Daily Review Bot cron run
 Classification:
-* SMALL review with one safe config fix
+* SMALL review plus LARGE-scoped inspection count fix (monthly source-of-truth area)
 Agent:
 * Review
 Files touched:
-* package.json, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+* package.json, src/utils/inspectionLocationTree.ts, src/utils/inspectionLocationTree.test.ts, agent-system/plan.md, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
 Summary:
 * Found recurring duplicate `pnpm.onlyBuiltDependencies` in root `package.json`; JSON parsing kept only the later allowlist and dropped `protobufjs`. Removed the duplicate key so the effective allowlist again matches setup guidance.
+* Found recent inspection workspace regression where merged floor selections/count badges excluded descendant rooms/areas. `inspectionLocationTree` now resolves floor IDs through descendants and has a regression test for merged floor descendants.
 Checks:
-* Pending at time of handoff note: parsed allowlist verification, duplicate-key search, formatter/lint/build/tests for root and functions.
+* Parsed allowlist check, touched-file Prettier check, targeted `pnpm vitest run src/utils/inspectionLocationTree.test.ts`, `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` all passed after restoring missing backend deps with `npm --prefix functions ci`.
+Review:
+* PBRD Review verdict: ACCEPTED WITH MINOR CONCERNS; product code accepted, documentation concerns cleaned up afterward.
 Next:
-* Complete validation and report any remaining warnings from automated checks.
+* Remaining warnings: async install status was 1 from setup, initial functions build failed until `functions/node_modules` was restored, functions install reports 59 audit vulnerabilities, and function tests emit Node VM Modules warnings.

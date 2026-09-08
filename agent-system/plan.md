@@ -27,9 +27,9 @@
 
 # Plan — Daily Review Floor Descendant Count Fix
 
-**Status:** BUILD IN PROGRESS  
-**Branch:** `cursor/daily-project-review-6530`  
-**Classification:** LARGE (monthly inspection count/source-of-truth logic)  
+**Status:** ACCEPTED WITH MINOR CONCERNS — product code accepted; documentation concerns cleaned up
+**Branch:** `cursor/daily-project-review-6530`
+**Classification:** LARGE (monthly inspection count/source-of-truth logic)
 **Author:** built_by_Beck
 
 ## Scope
