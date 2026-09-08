@@ -403,3 +403,19 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-09-08 - Duplicate JSON keys can silently drop pnpm build-script allowlists
+
+**What happened:** Daily Review Bot found root `package.json` again contained two `pnpm.onlyBuiltDependencies` keys. JSON parsing kept only the later key, so the effective allowlist omitted `protobufjs` even though setup guidance requires it.
+
+**Fix:** Removed the later duplicate key and verified the parsed allowlist contains `esbuild`, `@firebase/util`, and `protobufjs`.
+
+**Prevention rule:** During review, count duplicate-prone keys in source text and inspect the parsed value; do not trust visual JSON blocks when a later duplicate can override intended config.
+
+## 2026-09-08 - Floor location counts must include room/area descendants
+
+**What happened:** Daily Review Bot found the inspection workspace location tree resolved merged floor nodes only to the floor location IDs. Units assigned to child rooms/areas under those floors were excluded from floor selection lists and floor count badges, while building totals still included them.
+
+**Fix:** `inspectionLocationTree` now expands each selected floor ID through its descendants with Set de-duplication, and the regression test covers merged floor IDs with room/area descendants.
+
+**Prevention rule:** Any selectable location scope in monthly inspection UI must resolve to selected location IDs plus descendants. For merged synthetic nodes, expand every real ID and de-dupe before counting/filtering.

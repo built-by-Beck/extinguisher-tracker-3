@@ -2714,3 +2714,22 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-08
+Task:
+* Daily Review Bot cron run
+Classification:
+* SMALL review plus LARGE-scoped inspection count fix (monthly source-of-truth area)
+Agent:
+* Review
+Files touched:
+* package.json, src/utils/inspectionLocationTree.ts, src/utils/inspectionLocationTree.test.ts, agent-system/plan.md, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Found recurring duplicate `pnpm.onlyBuiltDependencies` in root `package.json`; JSON parsing kept only the later allowlist and dropped `protobufjs`. Removed the duplicate key so the effective allowlist again matches setup guidance.
+* Found recent inspection workspace regression where merged floor selections/count badges excluded descendant rooms/areas. `inspectionLocationTree` now resolves floor IDs through descendants and has a regression test for merged floor descendants.
+Checks:
+* Parsed allowlist check, touched-file Prettier check, targeted `pnpm vitest run src/utils/inspectionLocationTree.test.ts`, `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` all passed after restoring missing backend deps with `npm --prefix functions ci`.
+Review:
+* PBRD Review verdict: ACCEPTED WITH MINOR CONCERNS; product code accepted, documentation concerns cleaned up afterward.
+Next:
+* Remaining warnings: async install status was 1 from setup, initial functions build failed until `functions/node_modules` was restored, functions install reports 59 audit vulnerabilities, and function tests emit Node VM Modules warnings.
