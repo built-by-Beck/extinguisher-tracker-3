@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-08
+Task:
+* Daily Review Bot cron run
+Classification:
+* SMALL review with one safe config fix
+Agent:
+* Review
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Found recurring duplicate `pnpm.onlyBuiltDependencies` in root `package.json`; JSON parsing kept only the later allowlist and dropped `protobufjs`. Removed the duplicate key so the effective allowlist again matches setup guidance.
+Checks:
+* Pending at time of handoff note: parsed allowlist verification, duplicate-key search, formatter/lint/build/tests for root and functions.
+Next:
+* Complete validation and report any remaining warnings from automated checks.
