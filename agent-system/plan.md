@@ -24,3 +24,20 @@
 - Multi-inspector presence/locks
 - Server-side inventory PDF
 - Bulk migrate extinguishers onto floor locationIds
+
+# Plan — Daily Review Floor Descendant Count Fix
+
+**Status:** BUILD IN PROGRESS  
+**Branch:** `cursor/daily-project-review-6530`  
+**Classification:** LARGE (monthly inspection count/source-of-truth logic)  
+**Author:** built_by_Beck
+
+## Scope
+1. Keep the fix inside `src/utils/inspectionLocationTree.ts` so `WorkspaceDetail` continues using the shared location-tree helper.
+2. Make floor selections and floor count badges include descendants under every real floor location ID, including merged duplicate floor labels.
+3. Add a Vitest regression covering a room child under each merged floor ID and verify full frontend/backend checks.
+
+## Review checklist
+- No Firestore rules, auth, billing, or write-path changes.
+- Building counts must remain all-descendant counts.
+- Floor counts/selection must include floor IDs plus descendants without double-counting shared IDs.

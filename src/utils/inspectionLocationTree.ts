@@ -47,6 +47,20 @@ function displayNameForLocation(loc: Location): string {
   return loc.name.trim();
 }
 
+function idsWithDescendants(
+  locations: Location[],
+  locationIds: string[],
+): string[] {
+  const ids = new Set<string>();
+  for (const locationId of locationIds) {
+    ids.add(locationId);
+    for (const descendantId of getAllDescendantIds(locations, locationId)) {
+      ids.add(descendantId);
+    }
+  }
+  return [...ids];
+}
+
 /**
  * Top-level buildings (and campuses) with floor children merged by canonical label.
  * Non-floor children of a building are ignored in the tree (still counted via descendants).
@@ -92,7 +106,10 @@ export function buildInspectionLocationTree(
   });
 
   uniqueRoots.sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+    a.name.localeCompare(b.name, undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    }),
   );
 
   return uniqueRoots.map((building) => {
@@ -107,7 +124,8 @@ export function buildInspectionLocationTree(
     const mergeMap = new Map<string, Location[]>();
     for (const floor of floorLocs) {
       const label = displayNameForLocation(floor);
-      const mergeKey = normalizeFloorLabel(label)?.toLowerCase() ?? label.toLowerCase();
+      const mergeKey =
+        normalizeFloorLabel(label)?.toLowerCase() ?? label.toLowerCase();
       const list = mergeMap.get(mergeKey) ?? [];
       list.push(floor);
       mergeMap.set(mergeKey, list);
@@ -166,18 +184,14 @@ export function resolveSelectionLocationIds(
   if (!node) {
     // Fallback: treat as raw location id
     if (locations.some((l) => l.id === selectedKey)) {
-      const descendants = getAllDescendantIds(locations, selectedKey);
-      descendants.add(selectedKey);
-      return [...descendants];
+      return idsWithDescendants(locations, [selectedKey]);
     }
     return null;
   }
   if (node.kind === 'building') {
-    const descendants = getAllDescendantIds(locations, node.locationIds[0]);
-    descendants.add(node.locationIds[0]);
-    return [...descendants];
+    return idsWithDescendants(locations, node.locationIds);
   }
-  return [...node.locationIds];
+  return idsWithDescendants(locations, node.locationIds);
 }
 
 export function attachScopeCounts(
@@ -200,8 +214,11 @@ export function attachScopeCounts(
 
     const children = building.children.map((floor) => {
       let floorCount = 0;
-      for (const id of floor.locationIds) {
-        floorCount += countByLocationId.get(id) ?? 0;
+      const floorIds = resolveSelectionLocationIds(tree, locations, floor.key);
+      if (floorIds) {
+        for (const id of floorIds) {
+          floorCount += countByLocationId.get(id) ?? 0;
+        }
       }
       return { ...floor, count: floorCount };
     });
