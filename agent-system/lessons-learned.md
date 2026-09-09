@@ -248,3 +248,9 @@ Each entry follows this structure:
 - **Issue**: `createInvite` duplicate check used `orgId + email + status=='pending'` and ignored `expiresAt`. Expiration was applied lazily on accept only, so overdue pending docs permanently blocked a new invite.
 - **Resolution**: Auto-expire overdue pending on create before duplicate check; `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past retention.
 - **Rule**: Any time-bounded status must either be updated by a job when the deadline passes OR treated as expired in business logic when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+### 2026-09-09 -- Parse and count duplicate-prone package metadata after dependency merges
+- **Context**: Daily Review Bot package/setup regression scan.
+- **Issue**: Root `package.json` again had two `pnpm.onlyBuiltDependencies` keys. The effective parsed config used only the later list and dropped `protobufjs`, which can break Cloud Agent/Vite setup expectations.
+- **Resolution**: Removed the later duplicate key and verified the parsed allowlist plus source key count.
+- **Rule**: For package metadata that has regressed before, validate both `JSON.parse` output and source key count after merges; do not trust the first visible key in the file.
