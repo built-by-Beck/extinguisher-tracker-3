@@ -248,3 +248,15 @@ Each entry follows this structure:
 - **Issue**: `createInvite` duplicate check used `orgId + email + status=='pending'` and ignored `expiresAt`. Expiration was applied lazily on accept only, so overdue pending docs permanently blocked a new invite.
 - **Resolution**: Auto-expire overdue pending on create before duplicate check; `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past retention.
 - **Rule**: Any time-bounded status must either be updated by a job when the deadline passes OR treated as expired in business logic when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+### 2026-09-10 -- Avoid shell interpolation in inline Node audit scripts
+- **Context**: Daily Review Bot collected a compact dependency-audit summary using `node -e` inside a shell command.
+- **Issue**: JavaScript template literals inside a double-quoted shell string were interpolated by the shell first, causing a `bad substitution` error before the advisory details printed.
+- **Resolution**: Reran the summary through a single-quoted heredoc (`node <<'NODE' ... NODE`) so Bash passed the JavaScript source unchanged.
+- **Rule**: For inline Node scripts that contain `${...}` or backticks, use a quoted heredoc or a separate script file instead of embedding the code in a double-quoted shell argument.
+
+### 2026-09-10 -- Duplicate `pnpm.onlyBuiltDependencies` can recur after merges
+- **Context**: Daily Review Bot found root `package.json` again had two `pnpm.onlyBuiltDependencies` keys after recent dependency/master-detail merges.
+- **Issue**: JSON parsing keeps only the later duplicate key, so the effective pnpm allowlist dropped `protobufjs` even though setup guidance requires it for reliable installs.
+- **Resolution**: Removed the later duplicate key and verified there is exactly one source key and the parsed allowlist includes `esbuild`, `@firebase/util`, and `protobufjs`.
+- **Rule**: After dependency or merge-heavy changes, validate duplicate-prone JSON keys by both source count and parsed value; do not trust visual inspection of `package.json` alone.

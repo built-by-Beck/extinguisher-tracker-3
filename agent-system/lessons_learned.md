@@ -403,3 +403,19 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-09-10 - Avoid shell interpolation in inline Node audit scripts
+
+**What happened:** A Daily Review Bot audit-summary command embedded JavaScript template literals in a double-quoted shell string, so Bash interpreted `${...}` and produced `bad substitution`.
+
+**Fix:** Reran the command with a quoted Node heredoc (`node <<'NODE' ... NODE`) so the JavaScript source was passed literally.
+
+**Prevention rule:** For inline Node scripts containing template literals, backticks, or `${...}`, use a quoted heredoc or script file instead of double-quoted `node -e` source.
+
+## 2026-09-10 - Recheck parsed package JSON after dependency merges
+
+**What happened:** Root `package.json` again contained duplicate `pnpm.onlyBuiltDependencies` keys, so JSON parsing dropped `protobufjs` from the effective allowlist.
+
+**Fix:** Removed the later duplicate key and verified both source key count (`1`) and parsed allowlist (`esbuild`, `@firebase/util`, `protobufjs`).
+
+**Prevention rule:** For recurring package config drift, validate duplicate-prone keys by source count plus parsed value after merges; visual inspection is not enough.

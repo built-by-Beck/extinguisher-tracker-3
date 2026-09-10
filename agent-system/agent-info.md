@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-10
+Task:
+* Daily Review Bot: package health, dependency audit, targeted inspection-workspace risk review
+Classification:
+* MEDIUM review; one SMALL safe fix
+Agent:
+* Review
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed recurring duplicate root `pnpm.onlyBuiltDependencies` key; parsed allowlist now keeps `esbuild`, `@firebase/util`, and `protobufjs`. Root lint/test/build passed. Functions lint/build/test passed after restoring missing `functions/node_modules` with `npm --prefix functions ci`.
+Checks:
+* package key-count/parsed allowlist, `pnpm exec prettier --check package.json`, `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test`
+Next:
+* Dependency security pass needed: root `pnpm audit` reports 49 advisories (1 critical, 28 high); functions `npm audit` reports 60 advisories (14 high). GuestWorkspaceDetail still derives guest counts from raw/stored stats rather than shared monthly snapshot helpers.
