@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-11
+Task:
+* Daily Review Bot: package config/setup health and recent inspection workspace risk review
+Classification:
+* SMALL
+Agent:
+* Review/Build (safe small fix)
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed recurring duplicate root `pnpm.onlyBuiltDependencies`; parsed config now has one key and preserves `esbuild`, `@firebase/util`, and `protobufjs`. Recent inspection workspace files/building-floor tree were reviewed without new code changes. Flagged billing checkout/portal redirect URL construction from request `Origin` as a planned security review item, not an automatic review-bot fix.
+Checks:
+* Parsed allowlist/key-count check, touched-file Prettier, `pnpm lint`, `pnpm test` (25 files / 172 tests), `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` (15 suites / 67 tests) passed after restoring missing functions dependencies with `npm --prefix functions ci`.
+Next:
+* Plan a focused billing fix to derive Stripe `success_url`, `cancel_url`, and portal `return_url` from trusted app URL configuration or an explicit allowed-origin list. Existing warnings remain: async install status was 1, functions install reports 60 vulnerabilities, and function tests emit ts-jest hybrid-module warnings.
