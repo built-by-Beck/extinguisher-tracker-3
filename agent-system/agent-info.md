@@ -2218,7 +2218,7 @@ Added a lesson and resolved error-log entry: parent-provided data refactors must
 
 **Outcome:**
 - Bumped `@tailwindcss/vite` and `tailwindcss` to **4.2.4** (declares Vite 8 in peer range).
-- `package.json` → `pnpm.onlyBuiltDependencies`: `esbuild`, `@firebase/util` so installs run postinstall without interactive `approve-builds`.
+- `package.json` → `pnpm.onlyBuiltDependencies`: `esbuild`, `@firebase/util`, `protobufjs` so installs run postinstall without interactive `approve-builds`.
 - Ran Prettier baseline on all non-ignored paths; `pnpm format:check` clean.
 - `GuestContext.tsx`: moved `eslint-disable-next-line react-hooks/exhaustive-deps` to sit above each `[]` deps array (and resumed `resumeSession` `useCallback` formatting).
 
@@ -2714,3 +2714,17 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-12
+Task:
+* Daily Review Bot recurring package-manager allowlist check
+Classification:
+* SMALL safe fix inside MEDIUM review run
+Agent:
+* Review/Build
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Removed a duplicate root `pnpm.onlyBuiltDependencies` key that made the effective parsed allowlist drop `protobufjs`; corrected older memory that named only two allowlisted packages.
+Checks:
+* Parsed allowlist/key-count check, package Prettier check, root lint/test/build, and functions lint/build/test all passed. Functions dependencies had to be restored with `npm --prefix functions ci` before rerunning backend checks; install still reported 60 npm audit vulnerabilities and tests still emit ts-jest hybrid-module warnings.
