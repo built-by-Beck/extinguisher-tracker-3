@@ -2727,4 +2727,4 @@ Files touched:
 Summary:
 * Removed a duplicate root `pnpm.onlyBuiltDependencies` key that made the effective parsed allowlist drop `protobufjs`; corrected older memory that named only two allowlisted packages.
 Checks:
-* Pending in this run: parsed allowlist/key-count check, package Prettier check, root lint/test/build, and functions lint/build/test.
+* Parsed allowlist/key-count check, package Prettier check, root lint/test/build, and functions lint/build/test all passed. Functions dependencies had to be restored with `npm --prefix functions ci` before rerunning backend checks; install still reported 60 npm audit vulnerabilities and tests still emit ts-jest hybrid-module warnings.
