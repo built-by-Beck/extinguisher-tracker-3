@@ -2714,3 +2714,28 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-13
+Task:
+* Daily Review Bot scheduled review; check build health, recent git state, and high-signal risky patterns.
+Classification:
+* SMALL
+Agent:
+* Review Bot with a safe one-file Build fix
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/lessons-learned.md, agent-system/error_log.jsonl
+Summary:
+* Found recurring duplicate root `pnpm.onlyBuiltDependencies` keys. Because JSON parsing keeps the later key, the effective pnpm postinstall allowlist dropped `protobufjs`, contrary to repo setup guidance. Removed the later duplicate so the single parsed allowlist is `["esbuild","@firebase/util","protobufjs"]`.
+Checks:
+* Parsed package allowlist/key-count check — pass
+* `pnpm exec prettier --check package.json` — pass
+* `pnpm lint` — pass
+* `pnpm test` — pass (25 files / 172 tests)
+* `pnpm build` — pass
+* Initial `npm --prefix functions run build` failed from missing backend dependencies after async install status 1; `npm --prefix functions ci` restored deps
+* `npm --prefix functions run lint` / `run build` / `test` — pass (15 suites / 67 tests)
+Warnings:
+* `npm --prefix functions ci` reports 60 vulnerabilities (46 moderate, 14 high); handle in a separate dependency/security pass.
+* Function tests still emit ts-jest hybrid-module warnings.
+Next:
+* Consider a CI/review guard that fails when duplicate-prone JSON keys like `pnpm.onlyBuiltDependencies` appear more than once.
