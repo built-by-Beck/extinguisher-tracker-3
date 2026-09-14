@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-14
+Task:
+* Daily Review Bot package metadata/setup health review
+Classification:
+* SMALL fix within MEDIUM review run
+Agent:
+* Review/Build
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed recurring duplicate root `pnpm.onlyBuiltDependencies` key. The parsed pnpm allowlist again includes `esbuild`, `@firebase/util`, and `protobufjs`; the later duplicate key had been overriding and dropping `protobufjs`.
+Checks:
+* Parsed package allowlist/key count, `pnpm exec prettier --check package.json`, `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions ci`, `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test` — pass
+Next:
+* Keep checking both raw duplicate-key count and parsed effective value after main/dependabot merges. Separate follow-up still needed for `GuestWorkspaceDetail` stats source-of-truth and dependency audit advisories.
