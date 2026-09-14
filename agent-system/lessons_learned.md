@@ -403,3 +403,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-09-14 - Duplicate JSON keys silently override pnpm build allowlists
+
+**What happened:** Root `package.json` again had two `pnpm.onlyBuiltDependencies` keys after upstream merges. JSON parsing kept only the later value, so `protobufjs` was silently dropped even though the source file still appeared to list it earlier.
+
+**Fix:** Removed the later duplicate key and verified both the raw source key count (`1`) and the parsed effective allowlist (`esbuild`, `@firebase/util`, `protobufjs`).
+
+**Prevention rule:** For package metadata that can contain duplicate JSON keys, review both the text-level key count and the parsed effective value after merges. Do not trust visual inspection of the first key occurrence.
