@@ -2714,3 +2714,22 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-15
+Task:
+* Daily Review Bot codebase health sweep
+Classification:
+* SMALL review
+Agent:
+* Review
+Files touched:
+* agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Frontend lint/tests/build and functions lint/build/tests passed after installing missing functions dependencies with `npm --prefix functions ci`. Initial functions build failure was environmental: async setup had exit code 1 and `functions/node_modules` was absent.
+* Fixed a small formatting-gate issue by running Prettier only on the 10 files reported by `pnpm format:check`; reran format check, lint, tests, and build successfully.
+* Production dependency audits failed: root has critical/high advisories in websocket-driver, react-router, nanoid, postcss, and @xmldom/xmldom; functions has high advisories mainly through Genkit/OpenTelemetry plus brace-expansion and fast-uri/qs/protobuf-related transitive packages.
+Checks:
+* `pnpm format:check`, `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test` — pass after functions dependency install and scoped Prettier fix.
+* `pnpm audit --prod --audit-level high`, `npm --prefix functions audit --omit=dev --audit-level=high` — fail; dependency update follow-up needed.
+Next:
+* Build Agent should plan a scoped dependency/security update for root and functions lockfiles, then rerun audits plus full lint/test/build.

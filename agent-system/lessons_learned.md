@@ -403,3 +403,19 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-09-15 - Functions build can fail from missing dependencies after setup failure
+
+**What happened:** Daily review saw `npm --prefix functions run build` emit hundreds of `Cannot find module` and implicit-`any` TypeScript errors. The actual cause was not source code drift: async setup had exited 1, and `functions/node_modules` was missing while root `node_modules` existed.
+
+**Fix used:** Confirm dependency state first, run `npm --prefix functions ci` from the committed `functions/package-lock.json`, then rerun functions build/tests.
+
+**Prevention rule:** When functions TypeScript reports broad missing Firebase/Jest/Stripe modules across many files, check `functions/node_modules` and setup status before treating the output as code errors.
+
+## 2026-09-15 - Recent UI rewrites must pass Prettier before release
+
+**What happened:** Daily review found `pnpm format:check` failing on 10 recently changed workspace/location files from the inspection master-detail redesign, even though lint, tests, and builds passed.
+
+**Fix used:** Ran Prettier only on the exact files reported by the check, then reran `pnpm format:check`, `pnpm lint`, `pnpm test`, and `pnpm build` successfully.
+
+**Prevention rule:** For large UI rewrites, include `pnpm format:check` in final validation and apply Prettier to only touched/reported files to avoid unrelated repo-wide churn.
