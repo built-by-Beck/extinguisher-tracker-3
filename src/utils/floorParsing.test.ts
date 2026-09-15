@@ -45,13 +45,7 @@ describe('sortFloorsNaturally', () => {
         'Ground Floor',
         '1st Floor',
       ]),
-    ).toEqual([
-      'Basement',
-      'Ground Floor',
-      '1st Floor',
-      '2nd Floor',
-      'Roof',
-    ]);
+    ).toEqual(['Basement', 'Ground Floor', '1st Floor', '2nd Floor', 'Roof']);
   });
 
   it('ranks via floorSortRank consistently', () => {
