@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-16
+Task:
+* Daily Review Bot: build/code health and recent-change risk scan
+Classification:
+* SMALL
+Agent:
+* Review/Build/Document
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/lessons-learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed the recurring duplicate root `pnpm.onlyBuiltDependencies` key. The duplicate parsed value dropped `protobufjs`, conflicting with Cursor Cloud setup guidance and risking missing native/postinstall setup after installs. Found follow-up warning: `src/pages/guest/GuestWorkspaceDetail.tsx` still hand-rolls inspection document counts instead of the shared monthly workspace stats helpers used by authenticated `WorkspaceDetail`.
+Checks:
+* Parsed allowlist/key-count check, package Prettier check, `pnpm lint`, `pnpm test` (25 files / 172 tests), `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test` (15 suites / 67 tests) after `npm --prefix functions ci`.
+Next:
+* Build Agent should align guest workspace detail counts/lists with the shared monthly workspace inspection stats pipeline. Dependency/security pass should address known npm audit advisories separately.
