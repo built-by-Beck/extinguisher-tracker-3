@@ -2723,10 +2723,11 @@ Classification:
 Agent:
 * Review/Build
 Files touched:
-* package.json, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+* package.json, pnpm-lock.yaml, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
 Summary:
 * Fixed recurring duplicate root `pnpm.onlyBuiltDependencies` key. The parsed package config again keeps `esbuild`, `@firebase/util`, and `protobufjs`, preventing Vite/native dependency setup drift.
+* Fixed root critical audit advisory GHSA-xv26-6w52-cph6 by overriding transitive `websocket-driver` to patched latest `0.7.5` and refreshing `pnpm-lock.yaml`.
 Checks:
-* Parsed allowlist/key-count check, `pnpm exec prettier --write package.json`, `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test` — pass after restoring backend deps with `npm --prefix functions ci`.
+* Parsed allowlist/key-count check, `pnpm audit --audit-level critical`, `pnpm exec prettier --write package.json`, `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test` — pass after restoring backend deps with `npm --prefix functions ci`.
 Next:
-* Remaining warnings: async install status was 1, functions install reports 60 vulnerabilities, function tests emit ts-jest/VM Modules warnings, and `functions/src/billing/stripeWebhook.ts` still uses `console.log` for unhandled Stripe events.
+* Remaining warnings: async install status was 1, root audit still reports 47 high/moderate advisories, functions audit reports 60 high/moderate vulnerabilities, function tests emit ts-jest/VM Modules warnings, and `functions/src/billing/stripeWebhook.ts` still uses `console.log` for unhandled Stripe events.

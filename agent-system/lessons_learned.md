@@ -411,3 +411,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **Fix used:** Removed the later duplicate key, then verified both the raw key count (`1`) and the parsed effective allowlist (`esbuild`, `@firebase/util`, `protobufjs`).
 
 **Prevention rule:** For package metadata that controls install/build behavior, check duplicate-prone keys with both a raw text count and parsed JSON output after merges. A visible earlier JSON key is not reliable if a later duplicate can override it.
+
+## 2026-09-17 - Patch transitive critical audit advisories with narrow overrides
+
+**What happened:** Root `pnpm audit --audit-level critical` failed on `websocket-driver <0.7.5` through `firebase > @firebase/database > faye-websocket`, even though the direct Firebase dependency was current.
+
+**Fix used:** Confirmed `websocket-driver@0.7.5` is the latest patched version, added a pnpm override, refreshed `pnpm-lock.yaml`, applied the frozen lockfile, and reran audit/lint/test/build successfully.
+
+**Prevention rule:** For transitive audit failures, inspect `pnpm why` and the latest patched version first. Prefer the narrowest package-manager override plus lockfile refresh over broad dependency churn when the direct parent is already current.
