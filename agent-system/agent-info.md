@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-17
+Task:
+* Daily Review Bot: package metadata/build health review
+Classification:
+* SMALL
+Agent:
+* Review/Build
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed recurring duplicate root `pnpm.onlyBuiltDependencies` key. The parsed package config again keeps `esbuild`, `@firebase/util`, and `protobufjs`, preventing Vite/native dependency setup drift.
+Checks:
+* Parsed allowlist/key-count check, `pnpm exec prettier --write package.json`, `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, `npm --prefix functions test` — pass after restoring backend deps with `npm --prefix functions ci`.
+Next:
+* Remaining warnings: async install status was 1, functions install reports 60 vulnerabilities, function tests emit ts-jest/VM Modules warnings, and `functions/src/billing/stripeWebhook.ts` still uses `console.log` for unhandled Stripe events.
