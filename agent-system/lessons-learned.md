@@ -248,3 +248,15 @@ Each entry follows this structure:
 - **Issue**: `createInvite` duplicate check used `orgId + email + status=='pending'` and ignored `expiresAt`. Expiration was applied lazily on accept only, so overdue pending docs permanently blocked a new invite.
 - **Resolution**: Auto-expire overdue pending on create before duplicate check; `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past retention.
 - **Rule**: Any time-bounded status must either be updated by a job when the deadline passes OR treated as expired in business logic when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+### 2026-09-17 -- Duplicate JSON keys can silently override pnpm setup metadata
+- **Context**: Daily Review Bot found root `package.json` had two `pnpm.onlyBuiltDependencies` keys after recent merges.
+- **Issue**: JSON parsers keep only the later duplicate key, so the effective allowlist dropped `protobufjs` even though the first key still visibly listed it. This can break dependency setup/native postinstall behavior while a casual text review appears correct.
+- **Resolution**: Removed the later duplicate key and verified the raw key count is 1 and the parsed allowlist includes `esbuild`, `@firebase/util`, and `protobufjs`.
+- **Rule**: For duplicate-prone package metadata, verify both raw key count and parsed effective values after merges. Do not trust a visible earlier JSON key if a later duplicate can override it.
+
+### 2026-09-17 -- Fix transitive critical audit advisories with the narrowest patched override
+- **Context**: Root `pnpm audit --audit-level critical` failed on `websocket-driver <0.7.5` through `firebase > @firebase/database > faye-websocket`.
+- **Issue**: Leaving the transitive package at `0.7.4` kept one critical advisory open even though direct dependencies were already current.
+- **Resolution**: Confirmed latest patched `websocket-driver` is `0.7.5`, added a pnpm override, refreshed the lockfile, applied the frozen lockfile, and reran audit/lint/test/build successfully.
+- **Rule**: For transitive audit failures, inspect `why` output and latest patched version first. Prefer a narrow package-manager override plus lockfile refresh over broad dependency churn when the direct parent is otherwise current.

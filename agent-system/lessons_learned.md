@@ -403,3 +403,19 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-09-17 - Duplicate JSON keys silently override pnpm setup metadata
+
+**What happened:** Daily Review Bot found root `package.json` had two `pnpm.onlyBuiltDependencies` keys. The first key included `protobufjs`, but the later duplicate omitted it and therefore won during JSON parsing.
+
+**Fix used:** Removed the later duplicate key, then verified both the raw key count (`1`) and the parsed effective allowlist (`esbuild`, `@firebase/util`, `protobufjs`).
+
+**Prevention rule:** For package metadata that controls install/build behavior, check duplicate-prone keys with both a raw text count and parsed JSON output after merges. A visible earlier JSON key is not reliable if a later duplicate can override it.
+
+## 2026-09-17 - Patch transitive critical audit advisories with narrow overrides
+
+**What happened:** Root `pnpm audit --audit-level critical` failed on `websocket-driver <0.7.5` through `firebase > @firebase/database > faye-websocket`, even though the direct Firebase dependency was current.
+
+**Fix used:** Confirmed `websocket-driver@0.7.5` is the latest patched version, added a pnpm override, refreshed `pnpm-lock.yaml`, applied the frozen lockfile, and reran audit/lint/test/build successfully.
+
+**Prevention rule:** For transitive audit failures, inspect `pnpm why` and the latest patched version first. Prefer the narrowest package-manager override plus lockfile refresh over broad dependency churn when the direct parent is already current.
