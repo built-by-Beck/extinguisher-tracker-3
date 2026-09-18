@@ -248,3 +248,15 @@ Each entry follows this structure:
 - **Issue**: `createInvite` duplicate check used `orgId + email + status=='pending'` and ignored `expiresAt`. Expiration was applied lazily on accept only, so overdue pending docs permanently blocked a new invite.
 - **Resolution**: Auto-expire overdue pending on create before duplicate check; `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past retention.
 - **Rule**: Any time-bounded status must either be updated by a job when the deadline passes OR treated as expired in business logic when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+### 2026-09-18 -- Duplicate `pnpm.onlyBuiltDependencies` can silently drop required postinstall packages
+- **Context**: Daily Review Bot found root `package.json` again had two `pnpm.onlyBuiltDependencies` keys after recent merges.
+- **Issue**: JSON parsing keeps the last duplicate key, so the effective allowlist dropped `protobufjs` even though setup guidance requires it. This can break installs/builds in environments that enforce `onlyBuiltDependencies`.
+- **Resolution**: Removed the later duplicate key and verified both the raw key count and parsed allowlist.
+- **Rule**: Review runs after dependency or merge activity should check both duplicate-prone JSON keys with a raw text count and the parsed effective value.
+
+### 2026-09-18 -- Floor tree selections must include descendant rooms and areas
+- **Context**: Daily Review Bot inspected the recent inspection master-detail workspace tree helper.
+- **Issue**: Merged floor nodes resolved only to the floor location document IDs. Extinguishers assigned to descendant rooms/areas under those floors would not appear when selecting the floor, and floor count badges would undercount.
+- **Resolution**: Floor node resolution now includes descendants of every real floor ID in the merged node, and `attachScopeCounts` uses that resolved set. Added a regression test with duplicate floor labels and nested room/area locations.
+- **Rule**: Any building/floor inspection navigation helper must treat floor scope as subtree scope, not just the floor document itself, including merged duplicate floor labels.

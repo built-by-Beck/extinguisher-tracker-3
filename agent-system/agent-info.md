@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-18
+Task:
+* Daily Review Bot run for build health, recent inspection workspace changes, and risky recurring patterns
+Classification:
+* SMALL
+Agent:
+* Review/Build
+Files touched:
+* package.json, src/utils/inspectionLocationTree.ts, src/utils/inspectionLocationTree.test.ts, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed recurring duplicate root `pnpm.onlyBuiltDependencies` so parsed config keeps `esbuild`, `@firebase/util`, and `protobufjs`. Fixed inspection workspace floor tree so merged floor selections and count badges include descendant rooms/areas. Added regression coverage for nested merged-floor descendants.
+Checks:
+* package parse/key-count + touched-file Prettier pass; targeted `inspectionLocationTree` Vitest pass; `pnpm lint`, `pnpm test` (25 files / 173 tests), `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` (15 suites / 67 tests) pass after restoring missing functions deps with `npm --prefix functions ci`.
+Next:
+* Future daily reviews should keep checking duplicate `onlyBuiltDependencies` after merges and verify floor/tree helpers include descendants for floor-level selections, especially after inspection workspace merges.
