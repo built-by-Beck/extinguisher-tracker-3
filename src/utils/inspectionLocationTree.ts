@@ -177,7 +177,14 @@ export function resolveSelectionLocationIds(
     descendants.add(node.locationIds[0]);
     return [...descendants];
   }
-  return [...node.locationIds];
+  const ids = new Set<string>();
+  for (const locationId of node.locationIds) {
+    ids.add(locationId);
+    for (const descendantId of getAllDescendantIds(locations, locationId)) {
+      ids.add(descendantId);
+    }
+  }
+  return [...ids];
 }
 
 export function attachScopeCounts(
@@ -200,7 +207,8 @@ export function attachScopeCounts(
 
     const children = building.children.map((floor) => {
       let floorCount = 0;
-      for (const id of floor.locationIds) {
+      const floorIds = resolveSelectionLocationIds(tree, locations, floor.key) ?? [];
+      for (const id of floorIds) {
         floorCount += countByLocationId.get(id) ?? 0;
       }
       return { ...floor, count: floorCount };
