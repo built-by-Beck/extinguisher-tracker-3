@@ -403,3 +403,19 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-09-18 - Duplicate `pnpm.onlyBuiltDependencies` must be checked by raw count and parsed value
+
+**What happened:** Daily Review Bot found root `package.json` again contained two `pnpm.onlyBuiltDependencies` keys after recent merges. JSON parsing kept the later value, which omitted `protobufjs` even though the repo setup guidance requires it in the postinstall allowlist.
+
+**Fix:** Removed the later duplicate key, verified the raw key count is 1, and verified the parsed effective allowlist contains `esbuild`, `@firebase/util`, and `protobufjs`.
+
+**Prevention rule:** After merges or dependency changes, check duplicate-prone JSON keys using both a raw text count and `JSON.parse` effective values; do not rely on visual inspection of `package.json`.
+
+## 2026-09-18 - Floor-level inspection tree scope includes descendant rooms and areas
+
+**What happened:** The compact inspection workspace tree resolved merged floor selections only to the real floor document IDs. Units assigned to room/area descendants under those floor records were omitted from floor selection results and floor count badges.
+
+**Fix:** `resolveSelectionLocationIds` now expands non-building tree nodes through every selected floor ID's descendants, and `attachScopeCounts` reuses that resolved subtree. Added a regression test covering duplicate floor labels with nested room/area descendants.
+
+**Prevention rule:** In workspace inspection navigation, building and floor selections are subtree scopes. Merged floor labels must include descendants of every merged real floor location ID.

@@ -85,4 +85,39 @@ describe('buildInspectionLocationTree', () => {
     const b = counted.find((n) => n.key === 'b1')!;
     expect(b.children.find((c) => c.name === '2nd Floor')!.count).toBe(5);
   });
+
+  it('includes floor descendants when resolving and counting merged floor nodes', () => {
+    const nestedLocations: Location[] = [
+      loc('b1', 'Building A', 'building'),
+      loc('f1', '2nd fl', 'floor', 'b1'),
+      loc('f2', '2nd Floor', 'floor', 'b1'),
+      loc('r1', 'Room 201', 'room', 'f1'),
+      loc('a1', 'Area 2A', 'area', 'f2'),
+    ];
+    const tree = buildInspectionLocationTree(nestedLocations);
+    const secondFloor = tree[0].children.find((c) => c.name === '2nd Floor')!;
+
+    expect(
+      resolveSelectionLocationIds(
+        tree,
+        nestedLocations,
+        secondFloor.key,
+      )?.sort(),
+    ).toEqual(['a1', 'f1', 'f2', 'r1'].sort());
+
+    const counted = attachScopeCounts(
+      tree,
+      new Map([
+        ['f1', 1],
+        ['f2', 2],
+        ['r1', 3],
+        ['a1', 4],
+      ]),
+      nestedLocations,
+    );
+
+    expect(counted[0].children.find((c) => c.name === '2nd Floor')!.count).toBe(
+      10,
+    );
+  });
 });
