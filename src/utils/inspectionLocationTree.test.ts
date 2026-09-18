@@ -98,7 +98,11 @@ describe('buildInspectionLocationTree', () => {
     const secondFloor = tree[0].children.find((c) => c.name === '2nd Floor')!;
 
     expect(
-      resolveSelectionLocationIds(tree, nestedLocations, secondFloor.key)?.sort(),
+      resolveSelectionLocationIds(
+        tree,
+        nestedLocations,
+        secondFloor.key,
+      )?.sort(),
     ).toEqual(['a1', 'f1', 'f2', 'r1'].sort());
 
     const counted = attachScopeCounts(
