@@ -2714,3 +2714,20 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-19
+Task:
+* Daily Review Bot health check and safe small fix
+Classification:
+* SMALL
+Agent:
+* Review
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Removed a duplicate root `pnpm.onlyBuiltDependencies` key so the parsed pnpm build allowlist retains `esbuild`, `@firebase/util`, and `protobufjs`.
+* Functions build initially failed because `functions/node_modules` was absent; restored existing locked dependencies with `npm --prefix functions ci`, then Functions build/lint/tests passed.
+Checks:
+* package key-count/parsed allowlist check — pass; package Prettier check — pass; `pnpm lint` — pass; `pnpm test` — pass (25 files / 172 tests); `pnpm build` — pass; `npm --prefix functions run lint` — pass; `npm --prefix functions run build` — pass after `npm --prefix functions ci`; `npm --prefix functions test` — pass (15 suites / 67 tests)
+Next:
+* Existing warnings remain: async install status is 1, Functions install reports 60 vulnerabilities, and backend Jest emits ts-jest hybrid-module / VM Modules warnings.
