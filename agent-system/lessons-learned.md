@@ -248,3 +248,15 @@ Each entry follows this structure:
 - **Issue**: `createInvite` duplicate check used `orgId + email + status=='pending'` and ignored `expiresAt`. Expiration was applied lazily on accept only, so overdue pending docs permanently blocked a new invite.
 - **Resolution**: Auto-expire overdue pending on create before duplicate check; `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past retention.
 - **Rule**: Any time-bounded status must either be updated by a job when the deadline passes OR treated as expired in business logic when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+### 2026-09-20 -- Verify parsed pnpm allowlists, not just visible JSON
+- **Context**: Daily Review Bot package config pass.
+- **Issue**: Root `package.json` had duplicate `pnpm.onlyBuiltDependencies` keys again; the later key won during JSON parsing and dropped `protobufjs` from pnpm's effective postinstall allowlist.
+- **Resolution**: Removed the later duplicate key and validated both raw key count and parsed allowlist.
+- **Rule**: For package-manager config, always combine a duplicate-key source scan with a parsed-value assertion so silent JSON overwrite behavior cannot hide config drift.
+
+### 2026-09-20 -- Missing functions deps can masquerade as TypeScript errors
+- **Context**: Daily Review Bot backend validation after async install status 1.
+- **Issue**: `npm --prefix functions run build` emitted many missing-module and implicit-any errors because `functions/node_modules` had not been installed, not because product source changed.
+- **Resolution**: Restored backend deps with `npm --prefix functions ci` and reran functions lint/build/test successfully.
+- **Rule**: If functions build fails broadly on missing Firebase/Jest/Stripe modules, confirm dependency installation before attempting code fixes.

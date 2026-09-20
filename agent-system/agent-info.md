@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-20
+Task:
+* Daily Review Bot pass
+Classification:
+* SMALL
+Agent:
+* Review
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/lessons-learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed recurring duplicate root `pnpm.onlyBuiltDependencies` key. The effective parsed allowlist now preserves `esbuild`, `@firebase/util`, and `protobufjs`. Review found no new code-health failures after restoring missing `functions/` dependencies.
+Checks:
+* package parse/key-count and `pnpm prettier --check package.json` — pass; `pnpm lint`, `pnpm test`, `pnpm build` — pass; `npm --prefix functions run lint/build/test` — pass after `npm --prefix functions ci`
+Next:
+* Existing warnings remain: async install status 1 from frozen-lockfile/no root lockfile setup step, functions install reports 60 vulnerabilities, functions Jest emits ts-jest hybrid-module/VM Modules warnings, and `src/pages/guest/GuestWorkspaceDetail.tsx` still reads `workspace.stats` directly instead of shared monthly stats helpers.
