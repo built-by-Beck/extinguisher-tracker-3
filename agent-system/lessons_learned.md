@@ -403,3 +403,19 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-09-20 - Parse package.json after package-manager config merges
+
+**What happened:** The root `package.json` again contained duplicate `pnpm.onlyBuiltDependencies` keys. JSON parsing kept the later key and silently dropped `protobufjs` from the effective allowlist, contradicting setup guidance.
+
+**Fix:** Removed the later duplicate key and verified both raw key count and parsed allowlist: exactly one `onlyBuiltDependencies` key containing `esbuild`, `@firebase/util`, and `protobufjs`.
+
+**Prevention rule:** Daily review runs should check duplicate-prone package-manager keys with both a source count (`rg '"onlyBuiltDependencies"' package.json`) and a parsed-value assertion. Do this before assuming pnpm postinstall allowlists are intact after dependency or merge updates.
+
+## 2026-09-20 - Functions checks may need dependency restore after async setup status 1
+
+**What happened:** Root dependencies were installed, but async setup exited with status 1 after a frozen-lockfile step failed because no root `pnpm-lock.yaml` was present. `functions/node_modules` was absent, so the initial functions build produced many missing-module TypeScript errors.
+
+**Fix:** Ran `npm --prefix functions ci`, then reran `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` successfully.
+
+**Prevention rule:** When functions checks fail with widespread missing Firebase/Jest/Stripe modules and async setup status is 1, inspect the setup log before editing code; restore backend dependencies with `npm --prefix functions ci` and rerun the exact failed gate.
