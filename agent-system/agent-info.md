@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-21
+Task:
+* Daily Review Bot: code health review after recent main merges
+Classification:
+* SMALL
+Agent:
+* Review
+Files touched:
+* package.json
+Summary:
+* Fixed recurring duplicate root `pnpm.onlyBuiltDependencies` key. The parsed package config had dropped `protobufjs`; the single remaining allowlist now includes `esbuild`, `@firebase/util`, and `protobufjs`.
+Checks:
+* Parsed allowlist/key-count check - pass; package Prettier check - pass; `pnpm lint` - pass; `pnpm test` - pass (25 files / 172 tests); `pnpm build` - pass; `npm --prefix functions run lint` - pass; `npm --prefix functions run build` - pass; `npm --prefix functions test` - pass (15 suites / 67 tests) after `npm --prefix functions ci`.
+Next:
+* Known warnings remain: async install status is 1 due setup frozen-lockfile/no-functions-pnpm-lockfile behavior, functions install reports 60 vulnerabilities, and backend Jest emits ts-jest hybrid-module / VM Modules warnings.
