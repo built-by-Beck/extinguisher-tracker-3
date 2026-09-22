@@ -730,7 +730,9 @@ export default function DataOrganizer() {
               creates a Floor location under each building and assigns units to
               it, so you can drill Building → Floor while inspecting.
             </p>
-            {(extractFloorsResult || assignFloorsResult || normalizeFloorsResult) && (
+            {(extractFloorsResult ||
+              assignFloorsResult ||
+              normalizeFloorsResult) && (
               <div className="mt-2 space-y-1">
                 {extractFloorsResult && (
                   <p className="text-sm font-medium text-teal-900">

@@ -14,12 +14,7 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Loader2,
-  MapPin,
-  WifiOff,
-} from 'lucide-react';
+import { ArrowLeft, Loader2, MapPin, WifiOff } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase.ts';
 import { useOrg } from '../hooks/useOrg.ts';
@@ -337,9 +332,7 @@ export default function WorkspaceDetail() {
         inspection.section ||
         '',
       serial:
-        serialByExtId.get(inspection.extinguisherId) ||
-        inspection.serial ||
-        '',
+        serialByExtId.get(inspection.extinguisherId) || inspection.serial || '',
     }));
   }, [scopedByStatus, listSearch, vicinityByExtId, serialByExtId]);
 
@@ -626,7 +619,10 @@ export default function WorkspaceDetail() {
             <MapPin className="h-3.5 w-3.5" />
             Locations
           </button>
-          <nav aria-label="Selected location" className="min-w-0 flex-1 text-sm text-gray-600">
+          <nav
+            aria-label="Selected location"
+            className="min-w-0 flex-1 text-sm text-gray-600"
+          >
             <ol className="flex flex-wrap items-center gap-1">
               <li>
                 <button

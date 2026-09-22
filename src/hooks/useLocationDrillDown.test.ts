@@ -68,8 +68,8 @@ describe('useLocationDrillDown', () => {
     expect(result.current.currentLocationAndDescendants.has('floor-2')).toBe(
       true,
     );
-    expect(result.current.currentLocationAndDescendants.has('floor-2-alt')).toBe(
-      true,
-    );
+    expect(
+      result.current.currentLocationAndDescendants.has('floor-2-alt'),
+    ).toBe(true);
   });
 });
