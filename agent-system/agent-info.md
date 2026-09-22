@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-22
+Task:
+* Daily Review Bot run after recent Dependabot/functions merge and inspection workspace work
+Classification:
+* SMALL (formatter-only safe fix)
+Agent:
+* Review
+Files touched:
+* src/components/locations/DetailedLocationPicker.tsx, src/components/workspace/ExtinguisherCompactList.tsx, src/components/workspace/LocationExplorer.tsx, src/hooks/useLocationDrillDown.test.ts, src/pages/DataOrganizer.tsx, src/pages/WorkspaceDetail.tsx, src/utils/floorParsing.test.ts, src/utils/floorParsing.ts, src/utils/inspectionLocationTree.ts, src/utils/planFloorLocationCleanup.ts
+Summary:
+* Fixed `pnpm format:check` failure by running Prettier only on the 10 files reported by the check. No behavior changes.
+Checks:
+* pnpm format:check, pnpm lint, pnpm test, pnpm build, npm --prefix functions run lint, npm --prefix functions run build, npm --prefix functions test — pass after fix
+Notes:
+* Dependency audits still report root critical/high advisories and Functions high advisories; leave for a focused dependency/security update rather than review-bot auto-fix.
