@@ -2714,3 +2714,23 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-23
+Task:
+* Daily Review Bot health/security scan
+Classification:
+* SMALL (review-only; no app code edits)
+Agent:
+* Review
+Files touched:
+* agent-system/agent-info.md
+Summary:
+* Initial lint/test/build commands failed because root and functions dependencies were not installed despite `/tmp/cursor/async-install/install-user.status=0`; installed from existing lockfiles with `pnpm install --frozen-lockfile` and `npm --prefix functions ci`, then all root and functions checks passed.
+* Targeted review covered recent functions dependency override diff, inspection workspace count/source-of-truth usage, risky source patterns, Firestore entitlement deny-list spot check, and production dependency audits.
+Checks:
+* `pnpm lint` pass; `pnpm test` pass (25 files / 172 tests); `pnpm build` pass
+* `npm --prefix functions run lint` pass; `npm --prefix functions test` pass (15 suites / 67 tests, existing ts-jest hybrid-module warnings); `npm --prefix functions run build` pass
+* `pnpm audit --prod` fail: critical/high transitive advisories remain (not fixed in review run)
+* `npm --prefix functions audit --omit=dev` fail: Genkit/OpenTelemetry and parser dependency advisories remain (not fixed in review run)
+Next:
+* Build Agent should plan dependency remediation separately, especially React Router >=7.18.2, frontend XML/ZIP parser chain from `read-excel-file`, Firebase/websocket-driver chain, and functions Genkit/OpenTelemetry/fast-uri/protobufjs/qs advisories.
