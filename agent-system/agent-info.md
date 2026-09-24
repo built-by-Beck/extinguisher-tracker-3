@@ -2714,3 +2714,29 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-24
+Task:
+* Daily Review Bot: build/test/security sweep after inspection master-detail changes
+Classification:
+* SMALL
+Agent:
+* Review
+Files touched:
+* package.json
+* src/components/locations/DetailedLocationPicker.tsx
+* src/components/workspace/ExtinguisherCompactList.tsx
+* src/components/workspace/LocationExplorer.tsx
+* src/hooks/useLocationDrillDown.test.ts
+* src/pages/DataOrganizer.tsx
+* src/pages/WorkspaceDetail.tsx
+* src/utils/floorParsing.test.ts
+* src/utils/floorParsing.ts
+* src/utils/inspectionLocationTree.ts
+* src/utils/planFloorLocationCleanup.ts
+Summary:
+* Fixed Prettier drift in recent inspection/floor-normalization files and removed a duplicate `pnpm.onlyBuiltDependencies` key that silently dropped `protobufjs` from the install-script allowlist.
+Checks:
+* pnpm install --frozen-lockfile; pnpm format:check; pnpm lint; pnpm test; pnpm build; npm --prefix functions run build; npm --prefix functions run lint; npm --prefix functions test — pass
+Next:
+* Build Agent or human owner should triage production dependency audit findings: root `pnpm audit --prod --audit-level high` reports 1 critical/16 high; Functions `npm --prefix functions audit --omit=dev --audit-level=high` reports 12 high.
