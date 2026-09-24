@@ -40,9 +40,7 @@ export function planFloorLocationCleanup(
 ): FloorCleanupPlan {
   const floors = locations.filter(
     (l) =>
-      l.deletedAt == null &&
-      l.id &&
-      isFloorLikeLocationType(l.locationType),
+      l.deletedAt == null && l.id && isFloorLikeLocationType(l.locationType),
   );
 
   const renames: FloorLocationRenamePlan[] = [];
@@ -60,8 +58,7 @@ export function planFloorLocationCleanup(
   // After renames, group by parent + canonical name
   const groups = new Map<string, Location[]>();
   for (const floor of floors) {
-    const canonical =
-      normalizeFloorLabel(floor.name) ?? floor.name.trim();
+    const canonical = normalizeFloorLabel(floor.name) ?? floor.name.trim();
     const key = `${floor.parentLocationId ?? 'root'}::${canonical.toLowerCase()}`;
     const list = groups.get(key) ?? [];
     list.push(floor);
@@ -72,7 +69,8 @@ export function planFloorLocationCleanup(
   for (const [, group] of groups) {
     if (group.length < 2) continue;
     // Prefer the location already named canonically; else first by id
-    const canonical = normalizeFloorLabel(group[0].name) ?? group[0].name.trim();
+    const canonical =
+      normalizeFloorLabel(group[0].name) ?? group[0].name.trim();
     const keep =
       group.find((g) => g.name.trim() === canonical) ??
       [...group].sort((a, b) => (a.id ?? '').localeCompare(b.id ?? ''))[0];
