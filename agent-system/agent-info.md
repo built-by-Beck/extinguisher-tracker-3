@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-26
+Task:
+* Daily Review Bot: package built-dependency allowlist regression
+Classification:
+* SMALL
+Agent:
+* Review/Build
+Files touched:
+* package.json
+Summary:
+* Removed the recurring duplicate root `pnpm.onlyBuiltDependencies` key so the effective parsed allowlist again includes `esbuild`, `@firebase/util`, and `protobufjs`.
+Checks:
+* package parse/key-count check; touched-file Prettier; `pnpm lint`; `pnpm test`; `pnpm build`; `npm --prefix functions run lint`; `npm --prefix functions run build`; `npm --prefix functions test`
+Warnings:
+* Full `pnpm format:check` still fails on 10 unrelated workspace/floor files; functions install reports 60 vulnerabilities; Jest still emits ts-jest hybrid-module warnings.
