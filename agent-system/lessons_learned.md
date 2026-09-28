@@ -403,3 +403,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-09-28 - Floor inspection filters must include descendant room locations
+
+**What happened:** The compact inspection workspace's `resolveSelectionLocationIds` returned only the merged floor location IDs for a selected floor. Extinguishers assigned to rooms/vicinities under that floor were included in building totals but disappeared from floor-level counts and filtered lists.
+
+**Fix:** Expand every selected floor location through `getAllDescendantIds`, and reuse the same resolver for floor counts in `attachScopeCounts`. Added a regression test with `Suite 201` under a merged 2nd Floor node.
+
+**Prevention rule:** Any workspace location filter that supports hierarchical selections must resolve to the selected node plus all descendant location IDs. Merged synthetic nodes need descendant expansion for each real location ID they cover.
