@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-28
+Task:
+* Daily Review Bot: inspect recent inspection workspace changes and fix small bug found
+Classification:
+* SMALL
+Agent:
+* Review
+Files touched:
+* src/utils/inspectionLocationTree.ts, src/utils/inspectionLocationTree.test.ts, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/lessons-learned.md
+Summary:
+* Fixed floor-level inspection workspace selections/counts so merged floor nodes include descendant room/vicinity location IDs, not just the floor document IDs. Added a regression test for a room under a merged floor.
+Checks:
+* pnpm vitest run src/utils/inspectionLocationTree.test.ts - pass; pnpm lint - pass; pnpm test - pass (25 suites / 173 tests); pnpm build - pass. Pre-fix review also ran functions build/lint/test successfully.
+Next:
+* Follow up separately on existing Functions dependency audit vulnerabilities and repeated ts-jest TS151002 warnings.
