@@ -2714,3 +2714,20 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-09-30
+Task:
+* Daily Review Bot - code health review
+Classification:
+* SMALL
+Agent:
+* Review
+Files touched:
+* package.json; Prettier-only formatting in inspection workspace/floor utility files; agent-system/lessons_learned.md
+Summary:
+* Fixed duplicate `pnpm.onlyBuiltDependencies` keys so the single effective allowlist includes `protobufjs`. Ran targeted Prettier on files named by `pnpm format:check`; no behavioral code changes in those files.
+Checks:
+* pnpm install --frozen-lockfile, pnpm format:check, pnpm lint, pnpm test, pnpm build - pass
+* functions npm run build, npm test, npm run lint - pass before metadata/memory edits
+Next:
+* Track existing functions npm audit output (60 vulnerabilities reported by npm ci) and repeated ts-jest TS151002 warnings as follow-up maintenance.

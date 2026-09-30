@@ -403,3 +403,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-09-30 - Duplicate JSON keys silently override package-manager config
+
+**What happened:** `package.json` had two `pnpm.onlyBuiltDependencies` keys. JSON parsers keep the last value, so the earlier allowlist entry for `protobufjs` was silently ignored even though repo setup docs expected it to be allowed.
+
+**Fix used:** Collapse duplicate keys into one effective `onlyBuiltDependencies` array containing `esbuild`, `@firebase/util`, and `protobufjs`. When `pnpm format:check` failed on existing inspection-workspace files, run Prettier only on the exact files reported by the check.
+
+**Prevention rule:** Do not rely on duplicate JSON keys in config files; the last key wins and can silently discard intended settings. When fixing formatter failures during review, use targeted Prettier on reported files and inspect `git diff --stat` before commit.
