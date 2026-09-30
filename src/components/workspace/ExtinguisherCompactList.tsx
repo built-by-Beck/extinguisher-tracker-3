@@ -50,7 +50,12 @@ export function ExtinguisherCompactList({
             const style =
               STATUS_STYLES[inspection.status] ?? STATUS_STYLES.pending;
             return (
-              <li key={inspection.id ?? `${inspection.extinguisherId}-${inspection.assetId}`}>
+              <li
+                key={
+                  inspection.id ??
+                  `${inspection.extinguisherId}-${inspection.assetId}`
+                }
+              >
                 <div className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_minmax(0,1fr)_7rem_6.5rem] items-center gap-2 px-3 py-2.5 hover:bg-gray-50">
                   <span className="truncate text-sm font-semibold text-gray-900">
                     {inspection.assetId || '—'}
@@ -92,7 +97,12 @@ export function ExtinguisherCompactList({
           const style =
             STATUS_STYLES[inspection.status] ?? STATUS_STYLES.pending;
           return (
-            <li key={inspection.id ?? `${inspection.extinguisherId}-${inspection.assetId}`}>
+            <li
+              key={
+                inspection.id ??
+                `${inspection.extinguisherId}-${inspection.assetId}`
+              }
+            >
               <button
                 type="button"
                 onClick={() => onInspect(inspection)}
