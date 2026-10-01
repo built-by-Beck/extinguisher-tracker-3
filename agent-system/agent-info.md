@@ -2714,3 +2714,21 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-10-01
+Task:
+* Daily Review Bot: build/test health, recent-change/risky-pattern review
+Classification:
+* MEDIUM review with SMALL safe fix
+Agent:
+* Review
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/lessons-learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed recurring duplicate root `pnpm.onlyBuiltDependencies` key; parsed package config now has one allowlist containing `esbuild`, `@firebase/util`, and `protobufjs`.
+* Checks passed after restoring skipped VM dependencies: root lint/test/typecheck/build and functions lint/build/test.
+* Follow-up warning: billing Checkout/Portal return URLs still derive from raw request `Origin`; harden with an allowlisted app URL in a billing/security pass.
+Checks:
+* `pnpm install --frozen-lockfile`; package parse/key-count; `pnpm exec prettier --check package.json`; `pnpm lint`; `pnpm test`; `pnpm exec tsc -b`; `pnpm build`; `npm --prefix functions ci`; `npm --prefix functions run lint`; `npm --prefix functions run build`; `npm --prefix functions test` — pass
+Next:
+* Investigate functions dependency audit advisories and billing redirect origin hardening separately; do not bundle with review-bot package config repairs.
