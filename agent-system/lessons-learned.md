@@ -248,3 +248,9 @@ Each entry follows this structure:
 - **Issue**: `createInvite` duplicate check used `orgId + email + status=='pending'` and ignored `expiresAt`. Expiration was applied lazily on accept only, so overdue pending docs permanently blocked a new invite.
 - **Resolution**: Auto-expire overdue pending on create before duplicate check; `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past retention.
 - **Rule**: Any time-bounded status must either be updated by a job when the deadline passes OR treated as expired in business logic when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+### 2026-10-02 -- Duplicate JSON keys can silently drop install allowlist entries
+- **Context**: Daily Review Bot found recurring duplicate root `pnpm.onlyBuiltDependencies`.
+- **Issue**: `package.json` had two same-named keys; JSON parsing kept only the later key, so `protobufjs` was dropped from the effective pnpm build-script allowlist.
+- **Resolution**: Removed the later duplicate key and verified raw key count plus parsed allowlist contents.
+- **Rule**: For package-manager metadata, validate both duplicate-prone raw keys and parsed effective values after merges or dependency updates.
