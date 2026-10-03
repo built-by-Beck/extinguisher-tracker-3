@@ -2727,6 +2727,6 @@ Files touched:
 Summary:
 * Found the recurring duplicate root `pnpm.onlyBuiltDependencies` key. JSON parsing kept only the later value and dropped `protobufjs`, conflicting with Cursor Cloud setup guidance. Removed the duplicate key and preserved a single parsed allowlist with `esbuild`, `@firebase/util`, and `protobufjs`.
 Checks:
-* Pending full review verification after commit/push: package parse/key-count, package Prettier check, root lint/test/build, functions lint/build/test.
+* package parse/key-count — pass; touched-file Prettier check — pass; pnpm lint — pass; pnpm test — pass (25 files / 172 tests); pnpm build — pass; npm --prefix functions run lint/build/test — pass (15 suites / 67 tests).
 Next:
-* Continue checking both raw duplicate-key count and parsed effective allowlist after dependency/package merges.
+* Continue checking both raw duplicate-key count and parsed effective allowlist after dependency/package merges. Separate warning from this review: WorkspaceDetail floor selection/count badges appear to exclude descendant rooms/areas and should get a focused stats-source-of-truth fix with regression tests.
