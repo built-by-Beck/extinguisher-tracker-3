@@ -248,3 +248,9 @@ Each entry follows this structure:
 - **Issue**: `createInvite` duplicate check used `orgId + email + status=='pending'` and ignored `expiresAt`. Expiration was applied lazily on accept only, so overdue pending docs permanently blocked a new invite.
 - **Resolution**: Auto-expire overdue pending on create before duplicate check; `revokeInvite` for live pending; daily `expireInvitesJob` marks overdue pending → `expired` and deletes terminal invites past retention.
 - **Rule**: Any time-bounded status must either be updated by a job when the deadline passes OR treated as expired in business logic when `expiresAt < now`. Never trust status alone if a deadline field exists.
+
+### 2026-10-03 -- Duplicate pnpm onlyBuiltDependencies can hide required Cloud install allowlist entries
+- **Context**: Daily Review dependency metadata sanity check after recent package/dependabot merges.
+- **Issue**: Root `package.json` again contained duplicate `pnpm.onlyBuiltDependencies` keys. JSON parsing kept the later key only, so the effective value omitted `protobufjs` even though Cursor Cloud setup guidance requires it.
+- **Resolution**: Removed the later duplicate key and trailing comma, leaving one parsed allowlist containing `esbuild`, `@firebase/util`, and `protobufjs`.
+- **Rule**: After dependency metadata merges, verify both raw source and parsed semantics: `onlyBuiltDependencies` should appear once and parsed `pnpm.onlyBuiltDependencies` must include `esbuild`, `@firebase/util`, and `protobufjs`.

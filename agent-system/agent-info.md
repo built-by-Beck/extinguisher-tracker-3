@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-10-03
+Task:
+* Daily Review Bot: dependency metadata sanity review
+Classification:
+* SMALL
+Agent:
+* Review/Build
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/lessons-learned.md, agent-system/error_log.jsonl
+Summary:
+* Found the recurring duplicate root `pnpm.onlyBuiltDependencies` key. JSON parsing kept only the later value and dropped `protobufjs`, conflicting with Cursor Cloud setup guidance. Removed the duplicate key and preserved a single parsed allowlist with `esbuild`, `@firebase/util`, and `protobufjs`.
+Checks:
+* Pending full review verification after commit/push: package parse/key-count, package Prettier check, root lint/test/build, functions lint/build/test.
+Next:
+* Continue checking both raw duplicate-key count and parsed effective allowlist after dependency/package merges.
