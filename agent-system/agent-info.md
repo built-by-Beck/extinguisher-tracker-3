@@ -2714,3 +2714,34 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-10-05
+Task:
+* Daily Review Bot review of build/test health, recent changes, and recurring risky patterns.
+Classification:
+* SMALL
+Agent:
+* Review Bot
+PBR stage / gate status:
+* Plan: required memory/package/git context read. Build: one safe one-file config fix applied under review-bot safe-fix rules. Review verdict: ACCEPTED WITH MINOR CONCERNS. Document: project memory/error log updated because this was a repeated issue.
+Files touched:
+* package.json
+* agent-system/agent-info.md
+* agent-system/lessons_learned.md
+* agent-system/lessons-learned.md
+* agent-system/error_log.jsonl
+Summary:
+* Fixed recurring duplicate `pnpm.onlyBuiltDependencies` in root `package.json`; parsed effective allowlist now contains `esbuild`, `@firebase/util`, and `protobufjs`.
+Checks:
+* `node` package parse/key-count check - pass
+* `pnpm exec prettier --check package.json` - pass
+* `pnpm install --frozen-lockfile` - pass
+* `pnpm lint` - pass
+* `pnpm test` - pass (25 files / 172 tests)
+* `pnpm build` - pass
+* `npm --prefix functions ci` - pass, with 64 audit vulnerabilities reported
+* `npm --prefix functions run lint` - pass
+* `npm --prefix functions run build` - pass
+* `npm --prefix functions test` - pass (15 suites / 67 tests), with existing ts-jest hybrid-module and VM Modules warnings
+Next:
+* Separate dependency/security pass should address the function npm audit advisories; do not bundle that with small daily review fixes.
