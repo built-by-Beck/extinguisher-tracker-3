@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-10-06
+Task:
+* Daily Review Bot health/risk review
+Classification:
+* SMALL review run with small safe fixes
+Agent:
+* Review
+Files touched:
+* package.json; scoped Prettier formatting for recent inspection workspace files; agent-system memory
+Summary:
+* Fixed duplicate `pnpm.onlyBuiltDependencies` keys so the effective install allowlist includes `protobufjs` with `esbuild` and `@firebase/util`. Scoped Prettier to the 10 files reported by `pnpm format:check`; no functional source changes beyond formatting.
+Checks:
+* pnpm format:check, pnpm lint, pnpm test, pnpm build, npm --prefix functions run lint, npm --prefix functions test, npm --prefix functions run build — pass
+Next:
+* Monitor functions dependency audit warnings separately; no code-level security issue was confirmed in this review run.
