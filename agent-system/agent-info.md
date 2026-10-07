@@ -2714,3 +2714,27 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-10-07
+Task:
+* Daily Review Bot run: dependency config and focused risk review
+Classification:
+* SMALL
+Agent:
+* Review/Build
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed recurring duplicate root `pnpm.onlyBuiltDependencies` key. The effective parsed allowlist again includes `esbuild`, `@firebase/util`, and `protobufjs`.
+* Reported a high-risk billing redirect pattern for human/Build Agent review: checkout and portal sessions derive return URLs directly from the request `Origin` header.
+Checks:
+* `pnpm install --frozen-lockfile` — pass after root deps were absent
+* parsed package key/value check — pass (`keyCount: 1`)
+* `pnpm exec prettier --check package.json` — pass
+* `pnpm format:check` — fail on 10 pre-existing workspace/floor formatting files
+* `pnpm lint`, `pnpm test`, `pnpm build` — pass
+* `npm --prefix functions run lint` — pass
+* `npm --prefix functions run build` — initially failed due missing function deps; pass after `npm --prefix functions ci`
+* `npm --prefix functions test` — pass with existing ts-jest/VM Modules warnings
+Next:
+* Build Agent/human should review trusted redirect URL handling in `functions/src/billing/createCheckoutSession.ts` and `functions/src/billing/createPortalSession.ts`.
