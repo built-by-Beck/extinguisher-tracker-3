@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-10-08
+Task:
+* Daily Review Bot cron review
+Classification:
+* SMALL (review-only; no application code edits)
+Agent:
+* Review
+Files touched:
+* agent-system/agent-info.md, agent-system/error_log.jsonl
+Summary:
+* Ran required repo health checks after restoring missing dependencies from lockfiles. Root and Functions lint/build/test passed. Focused risk scan found no debug statements in recent inspection-workspace files, but found billing return URLs derived from unvalidated request Origin and current production dependency audit failures.
+Checks:
+* pnpm lint — pass; pnpm test — pass (25 suites / 172 tests); pnpm build — pass; npm --prefix functions run lint — pass; npm --prefix functions run build — pass; npm --prefix functions test — pass (15 suites / 67 tests); pnpm audit --prod — fail (30 vulnerabilities); npm --prefix functions audit --omit=dev — fail (64 vulnerabilities)
+Next:
+* Build/Human review: replace Stripe checkout/portal `Origin`-derived redirect URLs with a configured or allowlisted app URL, and triage dependency updates for react-router, firebase/websocket-driver, Genkit/OpenTelemetry, grpc/protobufjs, proxy-addr, and related transitive advisories.
