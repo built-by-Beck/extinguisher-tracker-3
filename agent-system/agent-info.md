@@ -2714,3 +2714,20 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-10-09
+Task:
+* Daily Review Bot run: health checks, risky-pattern scan, and safe config fix
+Classification:
+* SMALL
+Agent:
+* Review
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons-learned.md, agent-system/lessons_learned.md
+Summary:
+* Removed a duplicate `pnpm.onlyBuiltDependencies` key that shadowed the intended allowlist and dropped `protobufjs` from the active package manager config.
+Checks:
+* pnpm install --frozen-lockfile, package.json Prettier check, pnpm lint, pnpm test, pnpm build, functions lint/test/build all passed after dependency installation.
+* pnpm format:check still fails on 10 pre-existing unformatted source files unrelated to this package config fix.
+Next:
+* Build/format owner should format or intentionally scope-fix the 10 files reported by `pnpm format:check`.
