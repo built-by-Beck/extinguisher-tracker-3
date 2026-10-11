@@ -403,3 +403,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-10-11 - Workspace floor nodes must include descendant locations
+
+**What happened:** The compact inspection workspace tree merged duplicate floor labels, but floor selections and floor counts only used the floor location IDs themselves. Extinguishers assigned to rooms or sub-locations under those floors were omitted when a user clicked the floor row.
+
+**Fix used:** `resolveSelectionLocationIds` and `attachScopeCounts` now expand every floor node location ID to include all descendants. Added regression coverage for merged floors with room descendants.
+
+**Prevention rule:** Any workspace location filter/count for a hierarchy node must include the node plus its full descendant subtree, including merged synthetic nodes that represent multiple Firestore locations.

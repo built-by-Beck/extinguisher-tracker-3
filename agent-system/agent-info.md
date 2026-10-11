@@ -2714,3 +2714,39 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-10-11
+Task:
+* Daily Review Bot run: health checks, recent workspace inspection review, small safe fixes
+Classification:
+* SMALL review with targeted fixes
+Agent:
+* Review
+Files touched:
+* package.json
+* src/components/locations/DetailedLocationPicker.tsx
+* src/components/workspace/ExtinguisherCompactList.tsx
+* src/components/workspace/LocationExplorer.tsx
+* src/hooks/useLocationDrillDown.test.ts
+* src/pages/DataOrganizer.tsx
+* src/pages/WorkspaceDetail.tsx
+* src/utils/floorParsing.test.ts
+* src/utils/floorParsing.ts
+* src/utils/inspectionLocationTree.ts
+* src/utils/inspectionLocationTree.test.ts
+* src/utils/planFloorLocationCleanup.ts
+Summary:
+* Restored the documented `protobufjs` pnpm built-dependency allowlist by removing a duplicate `onlyBuiltDependencies` key.
+* Fixed inspection workspace floor tree selection/counting so merged floor nodes include descendant room/sub-location IDs.
+* Applied Prettier only to the 10 files that were failing `pnpm format:check`.
+Checks:
+* pnpm vitest run src/utils/inspectionLocationTree.test.ts — pass (4 tests)
+* pnpm format:check — pass
+* pnpm lint — pass
+* pnpm test — pass (25 files / 173 tests)
+* pnpm build — pass
+* npm --prefix functions run lint — pass
+* npm --prefix functions test — pass (15 suites / 67 tests; ts-jest config warnings remain)
+* npm --prefix functions run build — pass
+Open follow-up:
+* `npm --prefix functions audit --omit=dev` reports 65 production dependency vulnerabilities (47 moderate, 16 high, 2 critical), including `handlebars` via Genkit/dotprompt and `proxy-addr` via Express/Firebase Functions/Genkit. Needs dependency/security review.

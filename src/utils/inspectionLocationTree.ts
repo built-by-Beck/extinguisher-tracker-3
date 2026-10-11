@@ -92,7 +92,10 @@ export function buildInspectionLocationTree(
   });
 
   uniqueRoots.sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+    a.name.localeCompare(b.name, undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    }),
   );
 
   return uniqueRoots.map((building) => {
@@ -107,7 +110,8 @@ export function buildInspectionLocationTree(
     const mergeMap = new Map<string, Location[]>();
     for (const floor of floorLocs) {
       const label = displayNameForLocation(floor);
-      const mergeKey = normalizeFloorLabel(label)?.toLowerCase() ?? label.toLowerCase();
+      const mergeKey =
+        normalizeFloorLabel(label)?.toLowerCase() ?? label.toLowerCase();
       const list = mergeMap.get(mergeKey) ?? [];
       list.push(floor);
       mergeMap.set(mergeKey, list);
@@ -177,7 +181,21 @@ export function resolveSelectionLocationIds(
     descendants.add(node.locationIds[0]);
     return [...descendants];
   }
-  return [...node.locationIds];
+  return expandLocationIdsWithDescendants(locations, node.locationIds);
+}
+
+function expandLocationIdsWithDescendants(
+  locations: Location[],
+  locationIds: string[],
+): string[] {
+  const ids = new Set<string>();
+  for (const locationId of locationIds) {
+    ids.add(locationId);
+    for (const descendantId of getAllDescendantIds(locations, locationId)) {
+      ids.add(descendantId);
+    }
+  }
+  return [...ids];
 }
 
 export function attachScopeCounts(
@@ -200,7 +218,10 @@ export function attachScopeCounts(
 
     const children = building.children.map((floor) => {
       let floorCount = 0;
-      for (const id of floor.locationIds) {
+      for (const id of expandLocationIdsWithDescendants(
+        locations,
+        floor.locationIds,
+      )) {
         floorCount += countByLocationId.get(id) ?? 0;
       }
       return { ...floor, count: floorCount };
