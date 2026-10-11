@@ -93,7 +93,9 @@ export function LocationExplorer({
           </span>
           <span
             className={`ml-2 shrink-0 rounded-full px-1.5 py-0.5 text-[11px] tabular-nums ${
-              allSelected ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'
+              allSelected
+                ? 'bg-red-100 text-red-800'
+                : 'bg-gray-100 text-gray-600'
             }`}
           >
             {totalCount}
@@ -106,7 +108,11 @@ export function LocationExplorer({
             const isSelected = selectedKey === building.key;
             const hasFloors = building.children.length > 0;
             return (
-              <li key={building.key} role="treeitem" aria-expanded={hasFloors ? isExpanded : undefined}>
+              <li
+                key={building.key}
+                role="treeitem"
+                aria-expanded={hasFloors ? isExpanded : undefined}
+              >
                 <div className="flex items-stretch gap-0.5">
                   {hasFloors ? (
                     <button
@@ -146,7 +152,10 @@ export function LocationExplorer({
                   </button>
                 </div>
                 {hasFloors && isExpanded && (
-                  <ul className="ml-7 mt-0.5 space-y-0.5 border-l border-gray-100 pl-1" role="group">
+                  <ul
+                    className="ml-7 mt-0.5 space-y-0.5 border-l border-gray-100 pl-1"
+                    role="group"
+                  >
                     {building.children.map((floor) => {
                       const floorSelected = selectedKey === floor.key;
                       return (
@@ -205,7 +214,12 @@ export function MobileLocationDrawer({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Locations">
+    <div
+      className="fixed inset-0 z-40 lg:hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Locations"
+    >
       <button
         type="button"
         className="absolute inset-0 bg-black/40"
