@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-10-12
+Task:
+* Daily Review Bot: package metadata health check
+Classification:
+* SMALL
+Agent:
+* Review / Build
+Files touched:
+* package.json, agent-system/lessons_learned.md, agent-system/agent-info.md
+Summary:
+* Removed a duplicate root `pnpm.onlyBuiltDependencies` block that caused the parsed package metadata to drop `protobufjs` from the effective allowlist.
+Checks:
+* Pending validation in current review run: parsed package key count/value, format check, lint, test, build, and functions checks.
+Next:
+* Continue watching this key after dependabot/main merges; duplicate JSON keys silently override earlier entries.
