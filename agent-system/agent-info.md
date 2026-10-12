@@ -2727,6 +2727,6 @@ Files touched:
 Summary:
 * Removed a duplicate root `pnpm.onlyBuiltDependencies` block that caused the parsed package metadata to drop `protobufjs` from the effective allowlist.
 Checks:
-* Pending validation in current review run: parsed package key count/value, format check, lint, test, build, and functions checks.
+* Parsed package key count/value, touched-file Prettier, `pnpm lint`, `pnpm test`, `pnpm build`, `npm --prefix functions run lint`, `npm --prefix functions run build`, and `npm --prefix functions test` — pass after restoring missing root/functions dependencies from lockfiles.
 Next:
 * Continue watching this key after dependabot/main merges; duplicate JSON keys silently override earlier entries.
