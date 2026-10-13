@@ -403,3 +403,11 @@ When lifting data into parent components to remove duplicate listeners, preserve
 **What happened:** DetailedLocationPicker initially emitted `deriveLocationFields().floor` on every change (including vicinity-only edits). For units pinned to a building with only a free-text `floor` field, that cleared the denorm floor and broke WorkspaceDetail compat grouping.
 
 **Fix:** Pass `floorLabel` into the picker; preserve it when no floor location is selected; clear only when the user removes the floor field or changes building; allow free-text floor entry when the building has no floor children yet.
+
+## 2026-10-13 - Duplicate JSON keys silently shadow package manager config
+
+**What happened:** `package.json` had two `pnpm.onlyBuiltDependencies` keys. JSON parsers keep the later key, so the intended `protobufjs` allowlist entry was ignored even though it appeared earlier in the file and in project setup notes.
+
+**Fix:** Collapse duplicate package manager config keys into one object/list and rerun `pnpm install --frozen-lockfile` plus lint/test/build checks.
+
+**Prevention rule:** When reviewing package manager config, check for duplicate JSON keys before assuming visible entries are effective. A duplicated key can silently override install/build safeguards without changing the lockfile.

@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-10-13
+Task:
+* Daily Review Bot: run health checks, scan targeted risks, and apply safe small fixes only
+Classification:
+* SMALL
+Agent:
+* Review
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed duplicate `pnpm.onlyBuiltDependencies` in package.json so `protobufjs` remains in the install-script allowlist instead of being shadowed by the later duplicate key.
+Checks:
+* pnpm exec prettier --write package.json; pnpm install --frozen-lockfile; pnpm lint; pnpm test; pnpm build; npm --prefix functions run lint/build/test all passed after installing dependencies.
+Next:
+* Build Agent/human should review production dependency audit failures: root `firebase -> @firebase/database -> websocket-driver`, Functions `handlebars`, `proxy-addr`, and high-severity transitive dependencies.
