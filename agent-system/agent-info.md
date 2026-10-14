@@ -2714,3 +2714,20 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-10-14
+Task:
+* Daily Review Bot cron review
+Classification:
+* Review-only / high-risk findings
+Agent:
+* Review
+Files touched:
+* agent-system/agent-info.md
+Summary:
+* Health checks passed after installing existing dependencies. Review flagged two follow-ups for Build/Human review: production dependency audits still report frontend and Functions vulnerabilities, and report/QR callables should be checked for consistent subscription gating. No product code was changed.
+Checks:
+* pnpm lint, pnpm test, pnpm build, npm --prefix functions run build, npm --prefix functions run lint, npm --prefix functions test — pass after dependency install
+* pnpm audit --prod and npm --prefix functions audit --omit=dev --audit-level=moderate — fail with known dependency vulnerabilities
+Next:
+* Build/Human review should decide dependency upgrade scope and whether report/QR generation need server-side validateSubscription guards.
