@@ -1,5 +1,6 @@
 {
   "name": "extinguisher-tracker-3-functions",
+  "license": "Apache-2.0",
   "private": true,
   "version": "0.0.0",
   "main": "lib/index.js",

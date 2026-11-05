@@ -27,7 +27,7 @@ import type {
   AiMemoryReplacementEvent,
 } from '../types/aiQuery.ts';
 
-const SYSTEM_PROMPT = `You are the ExtinguisherTracker AI Assistant, built by Beck-Publishing.
+const SYSTEM_PROMPT = `You are the ExtinguisherTracker AI Assistant, built by David Beck.
 You are an expert in NFPA 10 (Standard for Portable Fire Extinguishers) compliance,
 fire extinguisher inspection, maintenance, and lifecycle management.
 
@@ -266,7 +266,7 @@ export async function askAssistant(
         role: 'model',
         parts: [
           {
-            text: "Understood. I'm the ExtinguisherTracker AI Assistant by Beck-Publishing. I'm ready to help with NFPA 10 compliance, inspection guidance, and inventory analysis. How can I help?",
+            text: "Understood. I'm the ExtinguisherTracker AI Assistant by David Beck. I'm ready to help with NFPA 10 compliance, inspection guidance, and inventory analysis. How can I help?",
           },
         ],
       },

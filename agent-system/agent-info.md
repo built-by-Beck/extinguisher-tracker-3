@@ -377,7 +377,7 @@ Revised the pending-count fix so blank `Next Inspection` is only a first-use/cur
 Add missing first-use checklist rows to the live April 2026 workspace.
 
 **Summary:**
-Used Firebase CLI authentication to run a direct Firestore repair against project `extinguisher-tracker-3`, org `GlnLjwWl1ZEQUgVZJDlz` (`Beck-Publishing`), workspace `2026-04` (`Apr '26`). The repair created real pending inspection rows for eligible active standard extinguishers with blank `nextMonthlyInspection` and no current-month row, skipped superseded stale extinguishers, deleted one duplicate pending row, and refreshed workspace stats.
+Used Firebase CLI authentication to run a direct Firestore repair against project `extinguisher-tracker-3`, org `GlnLjwWl1ZEQUgVZJDlz` (`David Beck`), workspace `2026-04` (`Apr '26`). The repair created real pending inspection rows for eligible active standard extinguishers with blank `nextMonthlyInspection` and no current-month row, skipped superseded stale extinguishers, deleted one duplicate pending row, and refreshed workspace stats.
 
 **Result:**
 - Rows before repair: 608

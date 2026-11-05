@@ -148,7 +148,7 @@ export default function CreateOrg() {
             ExtinguisherTracker
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Created by Beck-Publishing
+            Created by David Beck
           </p>
         </div>
 

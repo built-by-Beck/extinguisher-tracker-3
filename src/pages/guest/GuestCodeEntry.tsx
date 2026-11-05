@@ -83,7 +83,7 @@ export default function GuestCodeEntry() {
           <h1 className="text-3xl font-bold text-gray-900">
             ExtinguisherTracker
           </h1>
-          <p className="text-sm text-gray-500">Created by Beck-Publishing</p>
+          <p className="text-sm text-gray-500">Created by David Beck</p>
         </div>
 
         {/* Code entry card */}

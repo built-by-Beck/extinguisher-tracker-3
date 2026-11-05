@@ -240,7 +240,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         {/* Footer */}
         <div className="shrink-0 space-y-2 border-t border-gray-200 px-4 py-3">
           <SyncStatusIndicator />
-          <p className="text-xs text-gray-400">Created by Beck-Publishing</p>
+          <p className="text-xs text-gray-400">Created by David Beck</p>
         </div>
       </aside>
 
