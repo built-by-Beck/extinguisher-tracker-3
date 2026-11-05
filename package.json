@@ -1,6 +1,8 @@
 {
   "name": "extinguisher-tracker-3",
   "private": true,
+  "license": "Apache-2.0",
+  "author": "David Beck",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

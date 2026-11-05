@@ -272,7 +272,7 @@ Status: COMPLETE -- reviewed and approved
 - `Workspaces.tsx` -- archive workspace confirm
 Each file uses state-driven ConfirmModal with useCallback for the confirm action.
 
-**P11-04 (AboutPage):** Created `src/pages/marketing/AboutPage.tsx` -- mission, team (Beck Publishing), compliance section, CTA. Uses PublicMarketingLayout.
+**P11-04 (AboutPage):** Created `src/pages/marketing/AboutPage.tsx` -- mission, team (David Beck), compliance section, CTA. Uses PublicMarketingLayout.
 
 **P11-05 (TermsPage):** Created `src/pages/marketing/TermsPage.tsx` -- 13 numbered sections with placeholder legal text (marked TODO). Uses PublicMarketingLayout.
 

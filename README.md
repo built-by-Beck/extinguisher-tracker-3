@@ -18,11 +18,11 @@
 
 ## Overview
 
-For AI-assisted development, see [docs/AI_WORKFLOW.md](docs/AI_WORKFLOW.md) (PBRD Lite + Full PBRD) and keep inspection list/count logic in `src/utils/workspaceInspectionStats.ts`.
-
 Extinguisher Tracker 3 replaces paper binders and disconnected spreadsheets with a real-time, audit-ready inspection platform. It is designed for hospitals, schools, warehouses, manufacturing facilities, property management companies, and fire protection service providers.
 
 The system is **organization-centric** — all operational data belongs to the organization, not individual users. Multiple team members collaborate within a shared dataset governed by role-based permissions.
+
+**Status:** live in production at [extinguishertracker.com](https://extinguishertracker.com), built and maintained by one developer since March 2026. See [ROADMAP.md](ROADMAP.md) for planned work.
 
 ## Key Features
 
@@ -35,7 +35,6 @@ The system is **organization-centric** — all operational data belongs to the o
 - **Offline Support** — Perform inspections in areas with no connectivity; data syncs automatically when back online
 - **Compliance Dashboard** — Real-time visibility into passed, failed, and overdue inspections across your organization
 - **Location Hierarchy** — Organize assets by building, floor, section, and vicinity
-- **Inspection Routes** — Pre-configured walking routes for efficient field workflows
 - **Photo & GPS Documentation** — Capture photographic evidence and location data during inspections
 - **Lifecycle Tracking** — Replacement history archives prior unit details, tracks retired service status, and supports returned spare inventory
 - **Expiration Planning Lists** — Separate official marked-expired inventory from advisory 6+ year manufacture-date candidates
@@ -117,14 +116,16 @@ extinguisher-tracker-3/
 
 ## Plans & Pricing
 
-| Plan           | Price     | Extinguishers                      | Target Audience                                     |
-| -------------- | --------- | ---------------------------------- | --------------------------------------------------- |
-| **Basic**      | $29.99/mo | 50 included (+$10/50 additional)   | Small businesses, restaurants, retail stores        |
-| **Pro**        | $99/mo    | 250 included (+$10/100 additional) | Schools, small hospitals, property managers         |
-| **Elite**      | $199/mo   | 500 included (+$10/200 additional) | Large facilities, universities, industrial campuses |
-| **Enterprise** | Custom    | Unlimited                          | Custom compliance workflows, SLA support            |
+| Plan           | Monthly    | Extinguishers | Target Audience                                     |
+| -------------- | ---------- | ------------- | --------------------------------------------------- |
+| **Basic**      | $39.99/mo  | Up to 50      | Small businesses, restaurants, retail stores        |
+| **Pro**        | $129.99/mo | Up to 250     | Schools, small hospitals, property managers         |
+| **Elite**      | $229.99/mo | Up to 500     | Large facilities, universities, industrial campuses |
+| **Enterprise** | Custom     | Unlimited     | Custom compliance workflows, SLA support            |
 
-All plans include core inventory, inspection features, and preset user avatars. Higher tiers unlock barcode scanning, GPS capture, inspection photos, AI assistant, organization logo branding, route optimization, advanced analytics, lifecycle compliance tracking, and priority support.
+Yearly billing is 10% off. New organizations get a 7-day Pro trial with no card required. Prices and limits are set by `VITE_PRICE_*` / `VITE_LIMIT_*` (frontend) and `PRICE_*` / `LIMIT_*` (functions), so the defaults above can be changed per deployment.
+
+All plans include core inventory, inspection features, and preset user avatars. Higher tiers unlock barcode scanning, GPS capture, inspection photos, the AI assistant, organization logo branding, lifecycle compliance tracking, and priority support.
 
 Contact: **info@extinguishertracker.com**
 
@@ -287,6 +288,12 @@ This project uses a branch-based workflow:
 - **`dev`** — Active development and preview. Pushes deploy to the [Dev Preview Channel](https://extinguisher-tracker-3--dev-2zat4bfo.web.app).
 - **`main`** — Production-ready code. Merges to main deploy to the [Production Site](https://extinguisher-tracker-3.web.app).
 
+For AI-assisted development, see [docs/AI_WORKFLOW.md](docs/AI_WORKFLOW.md) (PBRD Lite + Full PBRD). Keep inspection list and count logic in `src/utils/workspaceInspectionStats.ts`.
+
+## Roadmap
+
+Planned features, fixes, and infrastructure work are tracked in [ROADMAP.md](ROADMAP.md).
+
 ## Specification Documents
 
 The `BUILD-SPECS/` directory contains 25 comprehensive specification documents that serve as the source of truth for all implementation:
@@ -333,8 +340,8 @@ The project includes emulator configuration for local development:
 
 ## License
 
-**Proprietary** — Copyright (c) 2026 Beck-Publishing. All rights reserved. See [LICENSE](LICENSE) for details.
+Licensed under the [Apache License, Version 2.0](LICENSE). Copyright (c) 2026 David Beck.
 
 ---
 
-Created and maintained by **[Beck-Publishing](https://extinguishertracker.com)**
+Created and maintained by **[David Beck](https://extinguishertracker.com)**
