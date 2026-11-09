@@ -333,8 +333,8 @@ The project includes emulator configuration for local development:
 
 ## License
 
-**Proprietary** — Copyright (c) 2026 Beck-Publishing. All rights reserved. See [LICENSE](LICENSE) for details.
+Apache 2.0
 
 ---
 
-Created and maintained by **[Beck-Publishing](https://extinguishertracker.com)**
+Created and maintained by **[David Beck](https://extinguishertracker.com)**
