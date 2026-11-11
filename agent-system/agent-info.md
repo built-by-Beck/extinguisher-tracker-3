@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-08-28
+Task:
+* Daily Review Bot
+Classification:
+* SMALL
+Agent:
+* Review/Build/Document
+Files touched:
+* package.json, agent-system/agent-info.md, agent-system/lessons_learned.md, agent-system/lessons-learned.md, agent-system/error_log.jsonl
+Summary:
+* Fixed recurring duplicate `pnpm.onlyBuiltDependencies` key in root `package.json`; parsed manifest now keeps `esbuild`, `@firebase/util`, and `protobufjs`. Initial async install had status 1 and functions dependencies were absent, so `npm --prefix functions ci` was required before backend checks.
+Checks:
+* package.json Prettier check, duplicate-key parser check, git diff --check, pnpm lint, pnpm test, pnpm build, npm --prefix functions run lint/build/test — pass. Functions tests still emit existing ts-jest hybrid-module warnings; npm install reports existing functions audit advisories.
+Next:
+* Future dependency/merge reviews should always validate duplicate-prone JSON keys by counting source occurrences and inspecting the parsed value.
