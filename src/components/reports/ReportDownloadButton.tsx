@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { FileSpreadsheet, FileText, FileJson, Loader2 } from 'lucide-react';
 import { generateReportDownload } from '../../services/reportService.ts';
+import { useOrg } from '../../hooks/useOrg.ts';
 import type { ReportFormat } from '../../types/report.ts';
 
 interface ReportDownloadButtonProps {
@@ -36,6 +37,8 @@ export function ReportDownloadButton({
   label,
 }: ReportDownloadButtonProps) {
   const [loading, setLoading] = useState(false);
+  const { org } = useOrg();
+  const reportsPaused = org?.overLimit === true;
   const [error, setError] = useState<string | null>(null);
 
   // Auto-clear error after 5 seconds
@@ -72,7 +75,12 @@ export function ReportDownloadButton({
     <div className="inline-flex flex-col items-start gap-1">
       <button
         onClick={handleClick}
-        disabled={loading}
+        disabled={loading || reportsPaused}
+        title={
+          reportsPaused
+            ? 'Reports are paused while you are over your plan asset limit.'
+            : undefined
+        }
         className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 hover:border-gray-400 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <span className="relative h-4 w-4 shrink-0" aria-hidden="true">

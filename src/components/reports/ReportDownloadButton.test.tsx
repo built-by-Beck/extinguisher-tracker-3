@@ -1,17 +1,30 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateReportDownload } from '../../services/reportService.ts';
+import { useOrg } from '../../hooks/useOrg.ts';
 import { ReportDownloadButton } from './ReportDownloadButton.tsx';
 
 vi.mock('../../services/reportService.ts', () => ({
   generateReportDownload: vi.fn(),
 }));
 
+vi.mock('../../hooks/useOrg.ts', () => ({
+  useOrg: vi.fn(),
+}));
+
 const mockGenerateReportDownload = vi.mocked(generateReportDownload);
+const mockUseOrg = vi.mocked(useOrg);
+
+function setOverLimit(overLimit: boolean) {
+  mockUseOrg.mockReturnValue({
+    org: { overLimit },
+  } as unknown as ReturnType<typeof useOrg>);
+}
 
 describe('ReportDownloadButton', () => {
   beforeEach(() => {
     mockGenerateReportDownload.mockReset();
+    setOverLimit(false);
   });
 
   afterEach(() => {
@@ -59,5 +72,22 @@ describe('ReportDownloadButton', () => {
     });
     expect(button).not.toBeDisabled();
     expect(button.querySelectorAll('svg')).toHaveLength(iconCount);
+  });
+
+  it('is disabled while the org is over its plan asset limit', () => {
+    setOverLimit(true);
+
+    render(
+      <ReportDownloadButton
+        orgId="org-1"
+        workspaceId="april-workspace"
+        format="pdf"
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: 'PDF' });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(mockGenerateReportDownload).not.toHaveBeenCalled();
   });
 });

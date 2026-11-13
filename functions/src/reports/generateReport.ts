@@ -14,7 +14,15 @@ import { onCall } from 'firebase-functions/v2/https';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
-import { throwInvalidArgument, throwNotFound } from '../utils/errors.js';
+import {
+  throwFailedPrecondition,
+  throwInvalidArgument,
+  throwNotFound,
+} from '../utils/errors.js';
+import {
+  overLimitMessage,
+  syncOrgAssetLimitFlags,
+} from '../billing/assetLimitSync.js';
 import { writeAuditLog } from '../utils/auditLog.js';
 import { getStorage } from 'firebase-admin/storage';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -210,6 +218,15 @@ export const generateReport = onCall(async (request) => {
     'inspector',
     'viewer',
   ]);
+
+  // Reports are paused while the org is over its plan asset limit. Live recount,
+  // so a stale or missing cached flag can't wrongly block or allow.
+  const limitStatus = await syncOrgAssetLimitFlags(orgId);
+  if (limitStatus?.overLimit && limitStatus.assetLimit !== null) {
+    throwFailedPrecondition(
+      overLimitMessage(limitStatus.activeCount, limitStatus.assetLimit),
+    );
+  }
 
   // 1. Load workspace
   const wsRef = adminDb.doc(`org/${orgId}/workspaces/${workspaceId}`);

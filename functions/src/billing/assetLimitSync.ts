@@ -13,7 +13,9 @@
  */
 
 import * as logger from 'firebase-functions/logger';
+import { Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '../utils/admin.js';
+import { writeAuditLogTx } from '../utils/auditLog.js';
 
 export interface AssetLimitFlags {
   assetLimitReached: boolean;
@@ -46,37 +48,143 @@ export function countsTowardAssetLimit(
   return data.deletedAt == null && data.lifecycleStatus === 'active';
 }
 
+export interface AssetLimitStatus extends AssetLimitFlags {
+  activeCount: number;
+  assetLimit: number | null;
+}
+
+/** Message shown when a feature is blocked because the org is over its plan limit. */
+export function overLimitMessage(
+  activeCount: number,
+  assetLimit: number,
+): string {
+  return (
+    `Your organization has ${activeCount} active extinguishers, which is over your plan's ` +
+    `limit of ${assetLimit}. Reports are paused until you archive ` +
+    `${activeCount - assetLimit} or more units or upgrade your plan. ` +
+    'Inspections and data exports still work.'
+  );
+}
+
+function normalizeLimit(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : null;
+}
+
+function flagsMatch(
+  orgData: FirebaseFirestore.DocumentData,
+  flags: AssetLimitFlags,
+): boolean {
+  return (
+    orgData.assetLimitReached === flags.assetLimitReached &&
+    orgData.overLimit === flags.overLimit
+  );
+}
+
+function activeCountQuery(orgId: string) {
+  return adminDb
+    .collection(`org/${orgId}/extinguishers`)
+    .where('deletedAt', '==', null)
+    .where('lifecycleStatus', '==', 'active')
+    .count();
+}
+
 /**
  * Recounts active extinguishers and updates the org's limit flags if they changed.
- * Safe to call repeatedly; never throws (enforcement must not break the caller).
+ * Crossing over the limit notifies the org and writes an audit log; dropping back
+ * under writes an audit log. Returns the live status, or null if the org is missing
+ * or the sync failed. Never throws (enforcement must not break the caller).
  */
-export async function syncOrgAssetLimitFlags(orgId: string): Promise<void> {
+export async function syncOrgAssetLimitFlags(
+  orgId: string,
+): Promise<AssetLimitStatus | null> {
   try {
     const orgRef = adminDb.doc(`org/${orgId}`);
+
+    // Fast path without a transaction: most calls (e.g. each doc of a bulk import)
+    // change nothing, and a transaction per call would contend on the org doc.
     const orgSnap = await orgRef.get();
-    if (!orgSnap.exists) return;
-    const orgData = orgSnap.data() ?? {};
-
-    const countSnap = await adminDb
-      .collection(`org/${orgId}/extinguishers`)
-      .where('deletedAt', '==', null)
-      .where('lifecycleStatus', '==', 'active')
-      .count()
-      .get();
-
-    const flags = computeAssetLimitFlags(
-      countSnap.data().count,
-      orgData.assetLimit as number | null | undefined,
-    );
-
-    if (
-      orgData.assetLimitReached === flags.assetLimitReached &&
-      orgData.overLimit === flags.overLimit
-    ) {
-      return;
+    if (!orgSnap.exists) return null;
+    const countSnap = await activeCountQuery(orgId).get();
+    const activeCount = countSnap.data().count;
+    const assetLimit = normalizeLimit(orgSnap.data()?.assetLimit);
+    const flags = computeAssetLimitFlags(activeCount, assetLimit);
+    if (flagsMatch(orgSnap.data() ?? {}, flags)) {
+      return { ...flags, activeCount, assetLimit };
     }
-    await orgRef.update({ ...flags });
+
+    // Flags changed: re-read and apply atomically so concurrent triggers can't
+    // write a stale count last or double-notify on the same transition.
+    const result = await adminDb.runTransaction(async (tx) => {
+      const txOrgSnap = await tx.get(orgRef);
+      if (!txOrgSnap.exists) return null;
+      const orgData = txOrgSnap.data() ?? {};
+      const txCount = (await tx.get(activeCountQuery(orgId))).data().count;
+      const txLimit = normalizeLimit(orgData.assetLimit);
+      const txFlags = computeAssetLimitFlags(txCount, txLimit);
+      const status: AssetLimitStatus = {
+        ...txFlags,
+        activeCount: txCount,
+        assetLimit: txLimit,
+      };
+      if (flagsMatch(orgData, txFlags)) return { status, transition: null };
+
+      tx.update(orgRef, { ...txFlags });
+
+      const wasOver = orgData.overLimit === true;
+      let transition: 'over' | 'under' | null = null;
+      if (!wasOver && txFlags.overLimit && txLimit !== null) {
+        transition = 'over';
+        const now = Timestamp.now();
+        tx.set(adminDb.collection(`org/${orgId}/notifications`).doc(), {
+          type: 'over_limit',
+          title: 'Over plan asset limit — reports paused',
+          message: overLimitMessage(txCount, txLimit),
+          severity: 'critical',
+          dueMonth: now.toDate().toISOString().slice(0, 7),
+          relatedEntityType: 'org',
+          relatedEntityId: orgId,
+          sentAt: now,
+          createdAt: now,
+          readBy: [] as string[],
+        });
+      } else if (wasOver && !txFlags.overLimit) {
+        transition = 'under';
+      }
+      if (transition) {
+        writeAuditLogTx(tx, orgId, {
+          action:
+            transition === 'over'
+              ? 'billing.over_asset_limit'
+              : 'billing.back_under_asset_limit',
+          performedBy: 'system',
+          entityType: 'org',
+          entityId: orgId,
+          details: { activeCount: txCount, assetLimit: txLimit },
+        });
+      }
+      return { status, transition };
+    });
+
+    if (!result) return null;
+    if (result.transition === 'over') {
+      // Tagged so a Cloud Logging log-based alert can page the owner of the app.
+      logger.warn('ASSET_OVER_LIMIT org went over its plan asset limit', {
+        orgId,
+        activeCount: result.status.activeCount,
+        assetLimit: result.status.assetLimit,
+      });
+    } else if (result.transition === 'under') {
+      logger.info('ASSET_BACK_UNDER_LIMIT org is back under its plan asset limit', {
+        orgId,
+        activeCount: result.status.activeCount,
+        assetLimit: result.status.assetLimit,
+      });
+    }
+    return result.status;
   } catch (err) {
     logger.error('syncOrgAssetLimitFlags failed', { orgId, err });
+    return null;
   }
 }

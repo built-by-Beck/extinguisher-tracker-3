@@ -2,6 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import {
   computeAssetLimitFlags,
   countsTowardAssetLimit,
+  overLimitMessage,
 } from '../billing/assetLimitSync.js';
 
 describe('computeAssetLimitFlags', () => {
@@ -53,5 +54,20 @@ describe('countsTowardAssetLimit', () => {
       countsTowardAssetLimit({ deletedAt: null, lifecycleStatus: 'retired' }),
     ).toBe(false);
     expect(countsTowardAssetLimit(undefined)).toBe(false);
+  });
+});
+
+describe('overLimitMessage', () => {
+  it('states the count, the limit, and how many units to archive', () => {
+    const msg = overLimitMessage(548, 50);
+    expect(msg).toContain('548 active extinguishers');
+    expect(msg).toContain('limit of 50');
+    expect(msg).toContain('archive 498 or more units');
+  });
+
+  it('tells the user inspections and exports are unaffected', () => {
+    expect(overLimitMessage(51, 50)).toContain(
+      'Inspections and data exports still work.',
+    );
   });
 });
