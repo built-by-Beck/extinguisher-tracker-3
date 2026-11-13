@@ -13,6 +13,10 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '../utils/admin.js';
 import {
+  countsTowardAssetLimit,
+  syncOrgAssetLimitFlags,
+} from '../billing/assetLimitSync.js';
+import {
   calculateNextMonthlyInspection,
   calculateNextAnnualInspection,
   calculateNextSixYearMaintenance,
@@ -32,6 +36,12 @@ export const onExtinguisherCreated = onDocumentCreated(
 
     const extData = snap.data();
     const { orgId, extId } = event.params;
+
+    // Every new unit that counts toward the plan limit refreshes the org's
+    // asset-limit flags (read by firestore.rules to block creates at the limit).
+    if (countsTowardAssetLimit(extData)) {
+      await syncOrgAssetLimitFlags(orgId);
+    }
 
     // Only process active extinguishers.
     if (extData.lifecycleStatus !== 'active') return;

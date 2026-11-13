@@ -12,6 +12,10 @@
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { FieldValue, DocumentReference } from 'firebase-admin/firestore';
 import { adminDb } from '../utils/admin.js';
+import {
+  countsTowardAssetLimit,
+  syncOrgAssetLimitFlags,
+} from '../billing/assetLimitSync.js';
 
 export const onExtinguisherSoftDeleted = onDocumentUpdated(
   'org/{orgId}/extinguishers/{extId}',
@@ -20,6 +24,12 @@ export const onExtinguisherSoftDeleted = onDocumentUpdated(
     const after = event.data?.after?.data();
 
     if (!before || !after) return;
+
+    // Keep the org's asset-limit flags current whenever a unit starts or stops
+    // counting toward the plan limit (soft delete, restore, retire, re-activate).
+    if (countsTowardAssetLimit(before) !== countsTowardAssetLimit(after)) {
+      await syncOrgAssetLimitFlags(event.params.orgId);
+    }
 
     // Guard: only proceed on soft-delete transition (null → timestamp)
     const wasDeleted = before.deletedAt != null;

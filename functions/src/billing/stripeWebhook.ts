@@ -15,6 +15,7 @@ import {
 import { getStripe } from './stripeClient.js';
 import { handleCheckoutLaunchPromo } from './launchPromoStats.js';
 import { writeAuditLog } from '../utils/auditLog.js';
+import { syncOrgAssetLimitFlags } from './assetLimitSync.js';
 
 function subscriptionPeriodEnd(subscription: Stripe.Subscription): Date | null {
   const itemEnd = subscription.items.data[0]?.current_period_end;
@@ -32,7 +33,6 @@ function buildOrgUpdate(plan: PlanName, subscription: Stripe.Subscription) {
   const update: Record<string, unknown> = {
     plan,
     assetLimit: config.assetLimit,
-    overLimit: false,
     stripeSubscriptionId: subscription.id,
     subscriptionStatus: subscription.status,
     subscriptionPriceId: subscription.items.data[0]?.price?.id ?? null,
@@ -92,6 +92,8 @@ async function handleSubscriptionEvent(
   const orgRef = adminDb.doc(`org/${orgId}`);
   const update = buildOrgUpdate(plan, subscription);
   await orgRef.update(update);
+  // Plan (and therefore assetLimit) may have changed — recount against the new limit.
+  await syncOrgAssetLimitFlags(orgId);
 
   await writeAuditLog(orgId, {
     action: `billing.subscription_${subscription.status}`,
@@ -188,6 +190,7 @@ export const stripeWebhook = onRequest(
               assetLimit: null,
               featureFlags: null,
               overLimit: false,
+              assetLimitReached: false,
               subscriptionStatus: 'canceled',
               stripeSubscriptionId: null,
               subscriptionPriceId: null,

@@ -2714,3 +2714,19 @@ Checks:
 * tsc -b, eslint (touched), vitest floorParsing/inspectionLocationTree/planFloorLocationCleanup/useLocationDrillDown — pass; pnpm build — pass
 Next:
 * Manual UI smoke with env; guest workspace still uses old card drill-down; after Normalize floors, consider repairing inspection.locationId for merged floors
+
+## Agent Update - 2026-11-13
+Task:
+* Lock inspection result writes to Cloud Functions; enforce plan asset limit in rules via server-maintained flag
+Classification:
+* LARGE
+Agent:
+* Build
+Files touched:
+* firestore.rules, functions/src/billing/assetLimitSync.ts, functions/src/billing/stripeWebhook.ts, functions/src/lifecycle/onExtinguisherWrite.ts, functions/src/lifecycle/onExtinguisherSoftDeleted.ts, functions/src/__tests__/assetLimitSync.test.ts, scripts/test-firestore-rules.mjs, src/types/organization.ts, package.json
+Summary:
+* Clients can no longer create/update inspection results or inspectionEvents directly (only seed a blank pending custom-asset row). Extinguisher creates/restores are blocked in rules when org.assetLimitReached is true; the flag and overLimit are recomputed by triggers and the Stripe webhook.
+Checks:
+* functions: tsc, jest (16 suites / 72 tests) — pass; root: tsc -b, eslint (touched) — pass; vitest 77 tests pass, 10 test files fail to load both with and without this change (pre-existing, no Firebase env in build session); rules emulator test NOT run (emulator jar download blocked in build session)
+Next:
+* Owner: run `pnpm test:rules`, review, deploy functions then rules
