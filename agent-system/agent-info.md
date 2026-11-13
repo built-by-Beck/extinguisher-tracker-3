@@ -2744,3 +2744,17 @@ Checks:
 * functions tsc + jest 74/74; emulator script (concurrency, transitions) 9/9; tsc -b; eslint touched files; ReportDownloadButton test 2/2. 10 other vitest files fail to load without .env (pre-existing).
 Next:
 * Deploy functions only. Optional: Cloud Logging alert on "ASSET_OVER_LIMIT".
+
+## Agent Update - 2026-11-13
+Task:
+* App Check (reCAPTCHA Enterprise) on the web client
+Classification:
+* LARGE (security)
+Files touched:
+* src/lib/firebase.ts, .github/workflows/deploy-hosting.yml, .env.example, agent-system/agent-info.md
+Summary:
+* initializeAppCheck right after initializeApp; site key from VITE_RECAPTCHA_ENTERPRISE_SITE_KEY (CI falls back to the public key). DEV uses debug token. Skipped in tests / when key missing. Limited-use AI tokens intentionally off (cost/latency).
+Checks:
+* tsc -b, eslint, vite build (bundle contains exchangeRecaptchaEnterpriseToken + key)
+Next:
+* After deploy, watch App Check metrics → ~100% verified before enforcing Auth/Firestore/AI Logic. Register dev debug tokens.
