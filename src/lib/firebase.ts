@@ -1,6 +1,11 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
 import {
+  initializeAppCheck,
+  ReCaptchaEnterpriseProvider,
+  type AppCheck,
+} from 'firebase/app-check';
+import {
   initializeFirestore,
   connectFirestoreEmulator,
   persistentLocalCache,
@@ -34,6 +39,40 @@ const firebaseConfig = {
 };
 
 const app: FirebaseApp = initializeApp(firebaseConfig);
+
+/**
+ * App Check proves requests come from this web app (reCAPTCHA Enterprise), so the
+ * public Firebase config can't be reused to call Auth, Firestore, or Gemini on our bill.
+ * Must initialize before any other Firebase service makes a request.
+ *
+ * Local dev: the SDK prints a debug token to the browser console on first load —
+ * register it in Firebase console → App Check → Apps → (web app) → Manage debug tokens,
+ * or pin one with VITE_APPCHECK_DEBUG_TOKEN.
+ */
+function initAppCheck(): AppCheck | null {
+  const siteKey = import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY;
+  if (typeof window === 'undefined' || import.meta.env.MODE === 'test') {
+    return null;
+  }
+  if (!siteKey) {
+    console.warn(
+      '[firebase] VITE_RECAPTCHA_ENTERPRISE_SITE_KEY is not set; App Check is disabled.',
+    );
+    return null;
+  }
+  if (import.meta.env.DEV) {
+    (
+      self as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: string | boolean }
+    ).FIREBASE_APPCHECK_DEBUG_TOKEN =
+      import.meta.env.VITE_APPCHECK_DEBUG_TOKEN || true;
+  }
+  return initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(siteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
+
+const appCheck: AppCheck | null = initAppCheck();
 const auth: Auth = getAuth(app);
 
 // Enable Firestore offline persistence via persistentLocalCache (Firebase v12 API).
@@ -74,4 +113,13 @@ if (import.meta.env.VITE_USE_EMULATORS === 'true') {
   connectToEmulators();
 }
 
-export { app, auth, db, storage, functions, geminiModel, connectToEmulators };
+export {
+  app,
+  appCheck,
+  auth,
+  db,
+  storage,
+  functions,
+  geminiModel,
+  connectToEmulators,
+};
