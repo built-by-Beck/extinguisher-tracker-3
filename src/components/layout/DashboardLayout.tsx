@@ -174,7 +174,7 @@ export function DashboardLayout() {
   );
   const location = useLocation();
   const navigate = useNavigate();
-  const { org } = useOrg();
+  const { org, hasRole } = useOrg();
   const isCalculatorPage = location.pathname.endsWith('/calculator');
   const pageTitle = getPageTitle(location.pathname, location.search);
   const pageColors = getPageColors(location.pathname);
@@ -197,6 +197,8 @@ export function DashboardLayout() {
   const subscriptionBlocked =
     !isEnterprise && (subStatus === 'canceled' || subStatus === 'unpaid');
   const subscriptionPastDue = !isEnterprise && subStatus === 'past_due';
+  const overAssetLimit = !isEnterprise && org?.overLimit === true;
+  const canManageLimit = hasRole(['owner', 'admin']);
   // Allow Settings through even when blocked so users can resubscribe
   const isSettingsPage = location.pathname === '/dashboard/settings';
   const blockContent = subscriptionBlocked && !isSettingsPage;
@@ -261,6 +263,42 @@ export function DashboardLayout() {
                 >
                   Manage Billing
                 </button>
+              </div>
+            )}
+
+            {/* Over plan asset limit — reports paused until back under */}
+            {overAssetLimit && (
+              <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-red-200 bg-red-50 px-4 py-2.5">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
+                <p className="min-w-0 flex-1 text-sm font-medium text-red-800">
+                  Over your plan's limit of {org?.assetLimit} active
+                  extinguishers — compliance reports are paused.{' '}
+                  {canManageLimit
+                    ? 'Archive units or upgrade to turn them back on.'
+                    : 'Ask an owner or admin to archive units or upgrade.'}
+                </p>
+                {canManageLimit && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/dashboard/inventory')}
+                      className="rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                    >
+                      Inventory
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(
+                          settingsBillingPath(readBillingIntervalPreference()),
+                        )
+                      }
+                      className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                    >
+                      Upgrade
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

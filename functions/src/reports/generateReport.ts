@@ -14,7 +14,16 @@ import { onCall } from 'firebase-functions/v2/https';
 import { adminDb } from '../utils/admin.js';
 import { validateAuth } from '../utils/auth.js';
 import { validateMembership } from '../utils/membership.js';
-import { throwInvalidArgument, throwNotFound } from '../utils/errors.js';
+import {
+  throwFailedPrecondition,
+  throwInvalidArgument,
+  throwNotFound,
+} from '../utils/errors.js';
+import {
+  getOrgAssetLimitStatus,
+  overLimitMessage,
+  syncOrgAssetLimitFlags,
+} from '../billing/assetLimitSync.js';
 import { writeAuditLog } from '../utils/auditLog.js';
 import { getStorage } from 'firebase-admin/storage';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -210,6 +219,21 @@ export const generateReport = onCall(async (request) => {
     'inspector',
     'viewer',
   ]);
+
+  // Reports are paused while the org is over its plan asset limit. Live read-only
+  // recount, so a stale or missing cached flag can't wrongly block or allow; a
+  // failed read throws (fails closed) instead of letting the report through.
+  const limit = await getOrgAssetLimitStatus(orgId);
+  if (!limit) throwNotFound('Organization not found.');
+  if (!limit.flagsCurrent) {
+    // Best-effort repair of the cached flags (and over-limit alerts); never throws.
+    await syncOrgAssetLimitFlags(orgId);
+  }
+  if (limit.status.overLimit && limit.status.assetLimit !== null) {
+    throwFailedPrecondition(
+      overLimitMessage(limit.status.activeCount, limit.status.assetLimit),
+    );
+  }
 
   // 1. Load workspace
   const wsRef = adminDb.doc(`org/${orgId}/workspaces/${workspaceId}`);

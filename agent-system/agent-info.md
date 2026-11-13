@@ -2730,3 +2730,17 @@ Checks:
 * functions: tsc, jest (16 suites / 72 tests) — pass; root: tsc -b, eslint (touched) — pass; vitest 77 tests pass, 10 test files fail to load both with and without this change (pre-existing, no Firebase env in build session); rules emulator test NOT run (emulator jar download blocked in build session)
 Next:
 * Owner: run `pnpm test:rules`, review, deploy functions then rules
+
+## Agent Update - 2026-11-13
+Task:
+* Over-limit enforcement: pause compliance reports while an org is over its plan asset limit
+Classification:
+* LARGE (billing gating)
+Files touched:
+* functions/src/billing/assetLimitSync.ts, functions/src/reports/generateReport.ts, functions/src/__tests__/assetLimitSync.test.ts, src/components/layout/DashboardLayout.tsx, src/pages/Reports.tsx, src/components/reports/ReportDownloadButton.tsx (+ test), agent-system/plan.md
+Summary:
+* generateReport recounts live and throws failed-precondition when over limit. Sync applies flag changes in a transaction; going over notifies the org (over_limit), audit-logs billing.over_asset_limit and logs ASSET_OVER_LIMIT (Cloud Logging alert hook). Banner on every page; report buttons disabled. Inspections and exports untouched.
+Checks:
+* functions tsc + jest 74/74; emulator script (concurrency, transitions) 9/9; tsc -b; eslint touched files; ReportDownloadButton test 2/2. 10 other vitest files fail to load without .env (pre-existing).
+Next:
+* Deploy functions only. Optional: Cloud Logging alert on "ASSET_OVER_LIMIT".

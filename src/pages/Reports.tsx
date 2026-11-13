@@ -7,8 +7,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { FileText, Loader2, Download } from 'lucide-react';
+import { FileText, Loader2, Download, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.ts';
+import { useOrg } from '../hooks/useOrg.ts';
 import {
   subscribeToReports,
   generateReportDownload,
@@ -52,6 +53,9 @@ function formatTimestamp(timestamp: unknown): string {
 export default function Reports() {
   const { userProfile } = useAuth();
   const orgId = userProfile?.activeOrgId ?? '';
+  const { org } = useOrg();
+  // Server enforces this in generateReport; the cached flag just explains it up front.
+  const reportsPaused = org?.overLimit === true;
 
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,6 +122,19 @@ export default function Reports() {
           generated on demand.
         </p>
       </div>
+
+      {reportsPaused && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+          <p>
+            Reports are paused because your organization has more active
+            extinguishers than your plan allows
+            {org?.assetLimit ? ` (${org.assetLimit})` : ''}. Archive units in
+            Inventory or upgrade your plan to turn reports back on. Inspections
+            and data exports still work.
+          </p>
+        </div>
+      )}
 
       {/* Page description */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
@@ -223,7 +240,7 @@ export default function Reports() {
             </div>
             <button
               onClick={handleGenerate}
-              disabled={generating || !genWorkspaceId}
+              disabled={generating || !genWorkspaceId || reportsPaused}
               className="flex h-[38px] items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
             >
               <span className="relative h-4 w-4 shrink-0" aria-hidden="true">
