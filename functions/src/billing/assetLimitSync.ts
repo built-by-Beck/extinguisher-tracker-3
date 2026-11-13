@@ -91,6 +91,25 @@ function activeCountQuery(orgId: string) {
 }
 
 /**
+ * Live, read-only asset-limit status (no writes). Returns null only when the org
+ * doesn't exist. Throws on read failure, so callers that gate on it fail closed.
+ */
+export async function getOrgAssetLimitStatus(
+  orgId: string,
+): Promise<{ status: AssetLimitStatus; flagsCurrent: boolean } | null> {
+  const orgSnap = await adminDb.doc(`org/${orgId}`).get();
+  if (!orgSnap.exists) return null;
+  const orgData = orgSnap.data() ?? {};
+  const activeCount = (await activeCountQuery(orgId).get()).data().count;
+  const assetLimit = normalizeLimit(orgData.assetLimit);
+  const flags = computeAssetLimitFlags(activeCount, assetLimit);
+  return {
+    status: { ...flags, activeCount, assetLimit },
+    flagsCurrent: flagsMatch(orgData, flags),
+  };
+}
+
+/**
  * Recounts active extinguishers and updates the org's limit flags if they changed.
  * Crossing over the limit notifies the org and writes an audit log; dropping back
  * under writes an audit log. Returns the live status, or null if the org is missing
@@ -104,15 +123,9 @@ export async function syncOrgAssetLimitFlags(
 
     // Fast path without a transaction: most calls (e.g. each doc of a bulk import)
     // change nothing, and a transaction per call would contend on the org doc.
-    const orgSnap = await orgRef.get();
-    if (!orgSnap.exists) return null;
-    const countSnap = await activeCountQuery(orgId).get();
-    const activeCount = countSnap.data().count;
-    const assetLimit = normalizeLimit(orgSnap.data()?.assetLimit);
-    const flags = computeAssetLimitFlags(activeCount, assetLimit);
-    if (flagsMatch(orgSnap.data() ?? {}, flags)) {
-      return { ...flags, activeCount, assetLimit };
-    }
+    const live = await getOrgAssetLimitStatus(orgId);
+    if (!live) return null;
+    if (live.flagsCurrent) return live.status;
 
     // Flags changed: re-read and apply atomically so concurrent triggers can't
     // write a stale count last or double-notify on the same transition.
