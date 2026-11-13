@@ -103,12 +103,35 @@ service cloud.firestore {
           ));
     }
 
-    function isAssetInspectionCreate(orgId) {
-      return request.resource.data.targetType == 'asset';
+    // Cached by Cloud Functions (billing/assetLimitSync.ts). Missing field = not reached.
+    function assetLimitReached(orgId) {
+      return get(orgDoc(orgId)).data.get('assetLimitReached', false) == true;
     }
 
-    function isAssetInspectionUpdate(orgId) {
-      return resource.data.targetType == 'asset' || request.resource.data.targetType == 'asset';
+    // An extinguisher counts toward the plan limit when it is non-deleted and lifecycle-active.
+    function countsTowardAssetLimit(ext) {
+      return ext.get('deletedAt', null) == null
+        && ext.get('lifecycleStatus', 'active') == 'active';
+    }
+
+    // The only inspection doc a client may create: a blank, pending custom-asset
+    // checklist row with the deterministic id used by ensureCustomAssetInspectionForWorkspace.
+    // Results (pass/fail, inspector, timestamp, attestation) are written only by
+    // the saveInspection / resetInspection Cloud Functions.
+    function isPendingAssetInspectionCreate(orgId, inspId) {
+      let d = request.resource.data;
+      return d.targetType == 'asset'
+        && d.orgId == orgId
+        && d.assetRefId is string
+        && d.workspaceId is string
+        && inspId == 'asset_' + d.assetRefId + '_' + d.workspaceId
+        && d.status == 'pending'
+        && d.inspectedAt == null
+        && d.inspectedBy == null
+        && d.inspectedByEmail == null
+        && d.attestation == null
+        && exists(/databases/$(database)/documents/org/$(orgId)/assets/$(d.assetRefId))
+        && exists(/databases/$(database)/documents/org/$(orgId)/workspaces/$(d.workspaceId));
     }
 
     // collectionGroup('members') — needed by OrgContext to find all orgs a user belongs to
@@ -147,6 +170,7 @@ service cloud.firestore {
           'plan',
           'assetLimit',
           'overLimit',
+          'assetLimitReached',
           'featureFlags',
           'status',
           'slug',
@@ -186,8 +210,18 @@ service cloud.firestore {
 
       match /extinguishers/{extId} {
         allow read: if isMember(orgId);
-        allow create: if hasRole(orgId, ['owner', 'admin']) && hasWritableSubscription(orgId);
-        allow update: if hasRole(orgId, ['owner', 'admin']) && hasWritableSubscription(orgId);
+        // Plan asset limit: no new active units (and no restoring/re-activating old ones)
+        // once the org is at its limit. Replacements go through Cloud Functions.
+        allow create: if hasRole(orgId, ['owner', 'admin'])
+          && hasWritableSubscription(orgId)
+          && (!countsTowardAssetLimit(request.resource.data) || !assetLimitReached(orgId));
+        allow update: if hasRole(orgId, ['owner', 'admin'])
+          && hasWritableSubscription(orgId)
+          && (
+            countsTowardAssetLimit(resource.data)
+            || !countsTowardAssetLimit(request.resource.data)
+            || !assetLimitReached(orgId)
+          );
         allow delete: if hasRole(orgId, ['owner', 'admin']) && hasWritableSubscription(orgId);
 
         match /replacementHistory/{histId} {
@@ -224,12 +258,13 @@ service cloud.firestore {
 
       match /inspections/{inspId} {
         allow read: if isMember(orgId);
+        // Inspection results are compliance records: clients may only seed a blank
+        // pending custom-asset row. All result writes go through Cloud Functions.
         allow create: if hasRole(orgId, ['owner', 'admin', 'inspector'])
           && hasWritableSubscription(orgId)
-          && (!isAssetInspectionCreate(orgId) || hasCustomAssetInspections(orgId));
-        allow update: if hasRole(orgId, ['owner', 'admin', 'inspector'])
-          && hasWritableSubscription(orgId)
-          && (!isAssetInspectionUpdate(orgId) || hasCustomAssetInspections(orgId));
+          && hasCustomAssetInspections(orgId)
+          && isPendingAssetInspectionCreate(orgId, inspId);
+        allow update: if false;
         // Allow owners/admins to delete pending inspections (e.g. when extinguisher is deleted)
         allow delete: if hasRole(orgId, ['owner', 'admin'])
                       && hasWritableSubscription(orgId)
@@ -238,8 +273,8 @@ service cloud.firestore {
 
       match /inspectionEvents/{eventId} {
         allow read: if isMember(orgId);
-        allow create: if hasRole(orgId, ['owner', 'admin', 'inspector']) && hasWritableSubscription(orgId);
-        allow update, delete: if false;
+        // Append-only event log, written only by saveInspection / resetInspection.
+        allow write: if false;
       }
 
       match /sectionNotes/{noteId} {

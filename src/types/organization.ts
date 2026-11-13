@@ -87,6 +87,8 @@ export interface Organization {
   plan: string | null; // basic, pro, elite, enterprise
   assetLimit: number | null; // 50, 250, 500, null for unlimited
   overLimit: boolean | null;
+  /** Server-maintained: active extinguisher count >= assetLimit (rules block new creates). */
+  assetLimitReached?: boolean | null;
 
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;

@@ -11,6 +11,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-ex3 \"node scripts/test-firestore-rules.mjs\"",
     "preview": "vite preview",
     "emulators": "firebase emulators:start",
     "emulators:export": "firebase emulators:export ./emulator-data",
@@ -36,8 +37,7 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",
-      "@firebase/util",
-      "protobufjs"
+      "@firebase/util"
     ],
     "overrides": {
       "postcss": "^8.5.10",
@@ -47,14 +47,11 @@
       "react-router": "^7.15.1",
       "undici": "^7.28.0",
       "@babel/core": "^7.29.6"
-    },
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "@firebase/util"
-    ]
+    }
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^24.12.0",
